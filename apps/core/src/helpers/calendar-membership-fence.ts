@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 async function lockCalendarMembershipAdvisory(
   tx: Prisma.TransactionClient,
@@ -22,8 +23,8 @@ export async function lockCalendarWorkspaceMembership(
   // publisher and deletion can each wait on the other's lock.
   await tx.$queryRaw`
     SELECT "member".id
-    FROM "member"
-    JOIN "workspace"
+    FROM ${sharedTable("member")}
+    JOIN ${sharedTable("workspace")}
       ON "workspace"."organizationId" = "member"."organizationId"
     WHERE "workspace".id = ${workspaceId}::UUID
     ORDER BY "member".id ASC
@@ -41,8 +42,8 @@ export async function lockCalendarWorkspaceUserMembership(
 ): Promise<void> {
   await tx.$queryRaw`
     SELECT "member".id
-    FROM "member"
-    JOIN "workspace"
+    FROM ${sharedTable("member")}
+    JOIN ${sharedTable("workspace")}
       ON "workspace"."organizationId" = "member"."organizationId"
     WHERE "workspace".id = ${workspaceId}::UUID
       AND "member"."userId" = ${userId}

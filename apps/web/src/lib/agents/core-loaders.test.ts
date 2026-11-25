@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsMock = vi.fn();
-const getCategoriesMock = vi.fn();
 const getAgentByIdMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -22,7 +21,6 @@ vi.mock("react", async (importOriginal) => {
 vi.mock("@/lib/clients/core.catalog.client", () => ({
   coreCatalogClient: {
     getAgents: (...args: unknown[]) => getAgentsMock(...args),
-    getCategories: (...args: unknown[]) => getCategoriesMock(...args),
   },
 }));
 
@@ -77,26 +75,5 @@ describe("getAllCoreAgents", () => {
     const agents = await getAllCoreAgents();
 
     expect(agents.map((agent) => agent.kind)).toEqual(["cardano", "x402"]);
-  });
-});
-
-describe("getCoreCategories", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.resetModules();
-  });
-
-  it("loads categories via the cookie-free catalog client (SOK-922)", async () => {
-    getCategoriesMock.mockResolvedValue({
-      data: [{ slug: "writing", name: "Writing", priority: 1 }],
-    });
-
-    const { getCoreCategories } = await import("./core-loaders");
-    const categories = await getCoreCategories();
-
-    expect(getCategoriesMock).toHaveBeenCalledWith();
-    expect(categories).toEqual([
-      { slug: "writing", name: "Writing", priority: 1 },
-    ]);
   });
 });

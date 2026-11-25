@@ -29,7 +29,7 @@ export interface ChatRefreshSchedulerStartOptions {
 
 export interface ChatRefreshSchedulerOptions
   extends ChatRefreshSchedulerStartOptions {
-  refresh: (isCurrent: () => boolean) => Promise<void>;
+  refresh: (isCurrent: () => boolean, signal?: AbortSignal) => Promise<void>;
   /** Realtime is delivering for this data set; picks the recovery cadence. */
   healthy: boolean;
   /**
@@ -120,6 +120,7 @@ export function createChatRefreshScheduler({
       overrides?.refreshOnForeground ?? initialRefreshOnForeground;
 
     let cancelled = false;
+    const controller = new AbortController();
     let inFlight = false;
     let queued = false;
     let queuedExplicit = false;
@@ -183,7 +184,7 @@ export function createChatRefreshScheduler({
       inFlight = true;
       needed = false;
       try {
-        await refresh(() => !cancelled);
+        await refresh(() => !cancelled, controller.signal);
       } catch {
         // Keep the current data; the next interval retries.
       } finally {
@@ -230,6 +231,7 @@ export function createChatRefreshScheduler({
 
     stopCurrent = () => {
       cancelled = true;
+      controller.abort();
       queued = false;
       queuedExplicit = false;
       window.clearTimeout(timer);

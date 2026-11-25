@@ -219,9 +219,12 @@ export async function revokeUserOAuthTokens(
 const CMO_PRODUCTION_CALLBACK =
   "https://app.cmo.xyz/api/auth/callback/sokosumi";
 
-/** A CMO preview's branch alias, truncated with a hash when the branch is long. */
+/**
+ * A CMO preview's branch alias (Vercel project `cmo-app`), truncated with a
+ * hash when the branch is long.
+ */
 const CMO_PREVIEW_CALLBACK =
-  /^https:\/\/sokosumi-cmo-git-[a-z0-9-]+\.preview\.cmo\.xyz\/api\/auth\/callback\/sokosumi$/;
+  /^https:\/\/cmo-app-git-[a-z0-9-]+\.preview\.cmo\.xyz\/api\/auth\/callback\/sokosumi$/;
 
 /**
  * Preview Core only: lets the CMO client sign a CMO preview in at its own

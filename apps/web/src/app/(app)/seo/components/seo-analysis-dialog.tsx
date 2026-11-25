@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  SEO_FULL_AUDIT_CREDITS,
-  SEO_FULL_AUDIT_MARKUP_PERCENT,
-  seoFullAuditAutoPages,
-} from "@sokosumi/utils";
+import { SEO_FULL_AUDIT_CREDITS, seoFullAuditAutoPages } from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -34,7 +30,6 @@ import { SeoBriefSummary } from "./seo-brief-summary";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_ANALYSIS_MODULES,
-  SEO_AUDIT_PRICE_EXAMPLE,
   SEO_COUNTRIES,
   SEO_DEVICES,
   SEO_FULL_AUDIT_KEYWORDS,
@@ -84,7 +79,7 @@ export function SeoAnalysisDialog({
     ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
     : { kind: "free" };
   const maxCredits = full ? null : seoAnalysisMaxCredits(limits);
-  // A full audit has a minimum and no maximum, so its line never says "up to"; a focused check names its ceiling.
+  // A full audit has no maximum, so its line never says "up to"; a focused check names its ceiling.
   const price = full
     ? t(
         monitor
@@ -353,20 +348,6 @@ export function SeoAnalysisDialog({
               </p>
             )}
           </div>
-          {full && monitor ? (
-            <div className="space-y-1">
-              {/* The terms of a full audit show with the fields closed: the submit below is the one consent. */}
-              <p className="text-sm">
-                {t("analysis.fullAuditTermsPerRun", {
-                  minimum: SEO_FULL_AUDIT_CREDITS,
-                  markup: SEO_FULL_AUDIT_MARKUP_PERCENT,
-                })}
-              </p>
-              <p className="text-muted-foreground text-sm">
-                {t("analysis.fullAuditExample", SEO_AUDIT_PRICE_EXAMPLE)}
-              </p>
-            </div>
-          ) : null}
           {monitor ? (
             <div className="space-y-4">
               <TaskScheduleWhen

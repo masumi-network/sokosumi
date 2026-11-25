@@ -3,7 +3,6 @@ import "server-only";
 import type {
   AgentListItem,
   AgentDetail as CoreAgentDetail,
-  Category as CoreCategory,
 } from "@sokosumi/core-client";
 import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
@@ -12,11 +11,10 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 const AGENTS_PAGE_SIZE = 100;
 
-// Global agent + category catalogs carry no per-user fields. Fill via the
+// The global agent catalog carry no per-user fields. Fill via the
 // cookie-free catalog client inside `'use cache'` so Cache Components can share
 // payloads across requests. Invalidate with `updateTag(...)` from Server Actions.
 export const AGENTS_CACHE_TAG = "core-agents-catalog";
-const CATEGORIES_CACHE_TAG = "core-categories-catalog";
 
 export const getCoreAgentById = cache(
   async (agentId: string): Promise<CoreAgentDetail | null> => {
@@ -55,13 +53,4 @@ export async function getAllCoreAgents(): Promise<AgentListItem[]> {
   } while (cursor);
 
   return agents;
-}
-
-export async function getCoreCategories(): Promise<CoreCategory[]> {
-  "use cache";
-  cacheTag(CATEGORIES_CACHE_TAG);
-  cacheLife("minutes");
-
-  const response = await coreCatalogClient.getCategories();
-  return response.data;
 }

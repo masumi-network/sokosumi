@@ -8,23 +8,23 @@ After sending, emails can be retrieved, listed, rescheduled, cancelled, or share
 
 ### Node.js
 
-| Operation | Method | Notes |
-|-----------|--------|-------|
-| Get | `resend.emails.get(id)` | Returns full email details and status |
-| List | `resend.emails.list({ limit, offset })` | Paginated list of sent emails |
-| Update | `resend.emails.update({ id, scheduledAt })` | Reschedule only — no content changes |
-| Cancel | `resend.emails.cancel(id)` | Cancel a scheduled email before it sends |
-| Share | `resend.emails.share(id, { expiresIn })` | Create a public link for a sent or received email; `expiresIn` defaults to and caps at 48h |
+| Operation | Method                                      | Notes                                                                                      |
+| --------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Get       | `resend.emails.get(id)`                     | Returns full email details and status                                                      |
+| List      | `resend.emails.list({ limit, offset })`     | Paginated list of sent emails                                                              |
+| Update    | `resend.emails.update({ id, scheduledAt })` | Reschedule only — no content changes                                                       |
+| Cancel    | `resend.emails.cancel(id)`                  | Cancel a scheduled email before it sends                                                   |
+| Share     | `resend.emails.share(id, { expiresIn })`    | Create a public link for a sent or received email; `expiresIn` defaults to and caps at 48h |
 
 ### Python
 
-| Operation | Method |
-|-----------|--------|
-| Get | `resend.Emails.get(id)` |
-| List | `resend.Emails.list(params)` |
-| Update | `resend.Emails.update(params)` — params: `{ "id": ..., "scheduled_at": ... }` |
-| Cancel | `resend.Emails.cancel(id)` |
-| Share | `resend.Emails.share(email_id, params)` — params: `{ "expires_in": ... }` |
+| Operation | Method                                                                        |
+| --------- | ----------------------------------------------------------------------------- |
+| Get       | `resend.Emails.get(id)`                                                       |
+| List      | `resend.Emails.list(params)`                                                  |
+| Update    | `resend.Emails.update(params)` — params: `{ "id": ..., "scheduled_at": ... }` |
+| Cancel    | `resend.Emails.cancel(id)`                                                    |
+| Share     | `resend.Emails.share(email_id, params)` — params: `{ "expires_in": ... }`     |
 
 ## Examples
 
@@ -100,10 +100,10 @@ List and download attachments for sent emails. Returns metadata and a signed dow
 
 ### SDK Methods
 
-| Operation | Node.js | Python |
-|-----------|---------|--------|
-| List | `resend.emails.attachments.list({ emailId })` | `resend.Emails.Attachments.list(email_id)` |
-| Get | `resend.emails.attachments.get({ emailId, id })` | `resend.Emails.Attachments.get(email_id, attachment_id)` |
+| Operation | Node.js                                          | Python                                                   |
+| --------- | ------------------------------------------------ | -------------------------------------------------------- |
+| List      | `resend.emails.attachments.list({ emailId })`    | `resend.Emails.Attachments.list(email_id)`               |
+| Get       | `resend.emails.attachments.get({ emailId, id })` | `resend.Emails.Attachments.get(email_id, attachment_id)` |
 
 ### Examples
 
@@ -145,16 +145,16 @@ const buffer = await response.arrayBuffer();
 
 ### Attachment Response Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Attachment ID |
-| `filename` | string | Original filename |
-| `content_type` | string | MIME type |
-| `content_id` | string | Content ID for inline attachments |
-| `content_disposition` | `"inline"` \| `"attachment"` | Display mode |
-| `download_url` | string | Signed download URL |
-| `expires_at` | string | When the download URL expires |
-| `size` | number | Size in bytes |
+| Field                 | Type                         | Description                       |
+| --------------------- | ---------------------------- | --------------------------------- |
+| `id`                  | string                       | Attachment ID                     |
+| `filename`            | string                       | Original filename                 |
+| `content_type`        | string                       | MIME type                         |
+| `content_id`          | string                       | Content ID for inline attachments |
+| `content_disposition` | `"inline"` \| `"attachment"` | Display mode                      |
+| `download_url`        | string                       | Signed download URL               |
+| `expires_at`          | string                       | When the download URL expires     |
+| `size`                | number                       | Size in bytes                     |
 
 ## Retrieving Metrics
 
@@ -164,23 +164,23 @@ Account-level email delivery and engagement metrics (sent, delivered, bounced, o
 
 ### SDK Methods
 
-| Operation | Node.js | Python |
-|-----------|---------|--------|
+| Operation   | Node.js                          | Python                          |
+| ----------- | -------------------------------- | ------------------------------- |
 | Get metrics | `resend.emails.metrics(options)` | `resend.Emails.metrics(params)` |
 
 `options`/`params` (all optional):
 
-| Field (Node.js / Python) | Type | Notes |
-|-------|------|-------|
-| `startDate` / `start_date` | string | ISO 8601 date or datetime. Defaults to 6 days before `endDate` |
-| `endDate` / `end_date` | string | ISO 8601 date or datetime. Defaults to now |
-| `timezone` | string | IANA timezone, e.g. `America/New_York`. Defaults to UTC |
-| `granularity` | string | `hourly`, `daily`, `weekly`, or `monthly` — bucket size when `period` is a dimension. Defaults to `daily` |
-| `metrics` | string[] | Which metrics to include. Defaults to all |
-| `dimensions` | string[] | `period`, `domain`, `email`, `broadcast` — combinable except `email`+`broadcast` |
-| `domainId` / `domain_id` | string[] | Restrict to these sending domain IDs (max 100) |
-| `emailId` / `email_id` | string[] | Restrict to these email IDs (max 100). Cannot combine with `broadcast` dimension/`broadcastId` |
-| `broadcastId` / `broadcast_id` | string[] | Restrict to these broadcast IDs (max 100). Cannot combine with `email` dimension/`emailId` |
+| Field (Node.js / Python)       | Type     | Notes                                                                                                     |
+| ------------------------------ | -------- | --------------------------------------------------------------------------------------------------------- |
+| `startDate` / `start_date`     | string   | ISO 8601 date or datetime. Defaults to 6 days before `endDate`                                            |
+| `endDate` / `end_date`         | string   | ISO 8601 date or datetime. Defaults to now                                                                |
+| `timezone`                     | string   | IANA timezone, e.g. `America/New_York`. Defaults to UTC                                                   |
+| `granularity`                  | string   | `hourly`, `daily`, `weekly`, or `monthly` — bucket size when `period` is a dimension. Defaults to `daily` |
+| `metrics`                      | string[] | Which metrics to include. Defaults to all                                                                 |
+| `dimensions`                   | string[] | `period`, `domain`, `email`, `broadcast` — combinable except `email`+`broadcast`                          |
+| `domainId` / `domain_id`       | string[] | Restrict to these sending domain IDs (max 100)                                                            |
+| `emailId` / `email_id`         | string[] | Restrict to these email IDs (max 100). Cannot combine with `broadcast` dimension/`broadcastId`            |
+| `broadcastId` / `broadcast_id` | string[] | Restrict to these broadcast IDs (max 100). Cannot combine with `email` dimension/`emailId`                |
 
 ### Examples
 
@@ -229,21 +229,21 @@ for row in metrics.get("data", []):
 
 ### Metrics Response Fields
 
-| Field | Type | Description |
-|-------|------|--------------|
-| `totals` | object | Metric totals for the whole date range, keyed by metric name |
-| `data` | array \| absent | Per-dimension breakdown rows. Absent when no `dimensions` were requested |
+| Field    | Type            | Description                                                              |
+| -------- | --------------- | ------------------------------------------------------------------------ |
+| `totals` | object          | Metric totals for the whole date range, keyed by metric name             |
+| `data`   | array \| absent | Per-dimension breakdown rows. Absent when no `dimensions` were requested |
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Trying to update `subject`, `html`, or `to` | Only `scheduledAt` can be updated — cancel and resend for content changes |
-| Cancelling an already-sent email | Cancel only works on emails with `scheduled` status |
-| Cancelling too late | Cancel before the `scheduled_at` time — there's a brief processing window before send |
-| Not checking `error` in Node.js | SDK returns `{ data, error }`, does not throw — always destructure and check |
-| Using `.list()` without pagination | Pass `limit` and `offset` to paginate through results |
-| Combining `email` and `broadcast` in metrics | These are mutually exclusive as dimensions and as filters — the request is rejected |
-| Expecting `unique_opened`/`open_rate`-style metrics without tracking enabled | Open/click tracking must be enabled on the sending domain for these to be meaningful |
-| Assuming a longer `expiresIn` is possible | 48 hours is the maximum — requesting more returns a validation error |
-| Treating share links as revocable | There's no revoke endpoint — the link is valid until it expires, no early invalidation |
+| Mistake                                                                      | Fix                                                                                    |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Trying to update `subject`, `html`, or `to`                                  | Only `scheduledAt` can be updated — cancel and resend for content changes              |
+| Cancelling an already-sent email                                             | Cancel only works on emails with `scheduled` status                                    |
+| Cancelling too late                                                          | Cancel before the `scheduled_at` time — there's a brief processing window before send  |
+| Not checking `error` in Node.js                                              | SDK returns `{ data, error }`, does not throw — always destructure and check           |
+| Using `.list()` without pagination                                           | Pass `limit` and `offset` to paginate through results                                  |
+| Combining `email` and `broadcast` in metrics                                 | These are mutually exclusive as dimensions and as filters — the request is rejected    |
+| Expecting `unique_opened`/`open_rate`-style metrics without tracking enabled | Open/click tracking must be enabled on the sending domain for these to be meaningful   |
+| Assuming a longer `expiresIn` is possible                                    | 48 hours is the maximum — requesting more returns a validation error                   |
+| Treating share links as revocable                                            | There's no revoke endpoint — the link is valid until it expires, no early invalidation |

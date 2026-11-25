@@ -169,9 +169,13 @@ describe("preview an ad", () => {
     const objectUrl = vi
       .spyOn(URL, "createObjectURL")
       .mockReturnValue("blob:https://example.com/placement");
+    const revokeUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       fireEvent.click(
         preview.getByRole("button", { name: "downloadPlacementPng" }),
@@ -185,10 +189,16 @@ describe("preview an ad", () => {
         "download",
         "ad-v1-9x16-branded.png",
       );
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(revokeUrl).toHaveBeenCalledWith(
+        "blob:https://example.com/placement",
+      );
     } finally {
+      vi.useRealTimers();
       fetch.mockRestore();
       click.mockRestore();
       objectUrl.mockRestore();
+      revokeUrl.mockRestore();
     }
     fireEvent.change(logo, { target: { value: "" } });
     expect(content()).toHaveAttribute("src", `${pathname}?placement=9%3A16`);

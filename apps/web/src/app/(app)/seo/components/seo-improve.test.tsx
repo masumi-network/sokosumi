@@ -38,7 +38,12 @@ function renderImprove(workspace: ProjectSeoWorkspace, searchParams = "") {
   render(
     <QueryClientProvider
       client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
       }
     >
       <NextIntlClientProvider

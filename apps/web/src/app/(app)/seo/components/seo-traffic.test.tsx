@@ -45,7 +45,10 @@ function renderTraffic(
   propertyIds?: string[],
 ) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 0 } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   vi.stubGlobal(

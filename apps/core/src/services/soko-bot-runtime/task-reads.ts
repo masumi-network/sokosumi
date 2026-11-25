@@ -1,6 +1,6 @@
 import { type Prisma } from "@sokosumi/database";
 import { sokoBotListTasksInputSchema as listTasksInputSchema } from "@sokosumi/soko-bot";
-import { formatTaskIdentifier } from "@sokosumi/utils";
+import { formatTaskIdentifier, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
@@ -292,7 +292,7 @@ export async function readTask(
     assigneeSokoBotId: task.assigneeSokoBotId,
     status: task.status,
     archivedAt: task.archivedAt,
-    description: task.description,
+    description: hideSeoAuditRequest(task.description),
     assignee: task.assignee ?? task.assigneeSokoBot,
     project: task.project
       ? { id: task.project.id, name: task.project.name }

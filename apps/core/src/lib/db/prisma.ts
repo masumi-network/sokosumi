@@ -1,18 +1,18 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import { configureSqlTables } from "@sokosumi/database/sql-tables";
 import { attachDatabasePool } from "@vercel/functions";
-import { createError } from "evlog";
 import { Pool } from "pg";
 
 import { getEnv } from "@/config/env";
-import { isPreprodOn, type Network, requireNetwork } from "@/lib/network";
+import { type Network, requireNetworkOn } from "@/lib/network";
 
 type CorePrismaClient = ReturnType<typeof createPrismaClient>;
 
 interface CoreDatabase {
   shared: CorePrismaClient;
-  /** Built on first use: each client costs about 30 ms to construct. */
+  /** Built on first use: each client costs about 80 ms to construct, once per instance. */
   networks: Partial<Record<Network, CorePrismaClient>>;
   createNetworkClient: (network: Network) => CorePrismaClient;
   /** The schema names the clients were built for (`schemaLayoutKey`). */
@@ -26,6 +26,20 @@ function schemaLayoutKey(): string {
     env.DATABASE_SCHEMA_MAINNET,
     env.DATABASE_SCHEMA_PREPROD,
   ].join(",");
+}
+
+// The database package's raw SQL names the schemas these clients name. Set on
+// every evaluation of this module, before any query can run. A missing name is
+// `public`, as for `createPrismaClient`: tests that mock `getEnv` leave them
+// out, while `getEnv` itself always fills them.
+{
+  const env = getEnv();
+  configureSqlTables({
+    shared: env.DATABASE_SCHEMA_SHARED ?? "public",
+    mainnet: env.DATABASE_SCHEMA_MAINNET ?? "public",
+    preprod: env.DATABASE_SCHEMA_PREPROD ?? "public",
+    preprodOn: env.NETWORK_PREPROD_ENABLED === true,
+  });
 }
 
 const globalForPrisma = globalThis as typeof globalThis & {
@@ -104,16 +118,11 @@ const prisma = database.shared;
 /**
  * The client of one Network's schema. Throws for Preprod while Preprod is off:
  * on today's layout its schema is Mainnet's.
+ * For `network-scope.ts` only: everything else reaches a Network's client
+ * through a Network scope (`noRestrictedImports` in `biome.json`).
  */
 export function networkPrisma(network: Network): CorePrismaClient {
-  const known = requireNetwork(network);
-  if (known === "preprod" && !isPreprodOn()) {
-    throw createError({
-      message: "Preprod is off: NETWORK_PREPROD_ENABLED is not true",
-      why: "A caller asked for the Preprod client while Preprod is off",
-      fix: "Check isPreprodOn() before asking for the Preprod client",
-    });
-  }
+  const known = requireNetworkOn(network);
   database.networks[known] ??= database.createNetworkClient(known);
   return database.networks[known];
 }

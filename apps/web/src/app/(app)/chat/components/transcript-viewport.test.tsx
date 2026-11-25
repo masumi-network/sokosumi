@@ -20,6 +20,7 @@ import {
   CLIENT_MESSAGE_ID_METADATA_KEY,
   outboundLocalMessageId,
 } from "@/app/chat/utils/outbound-room-message";
+import { ROOM_MESSAGE_HIGHLIGHT_MS } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 
 import {
@@ -518,6 +519,49 @@ describe("TranscriptViewport", () => {
     ).toHaveAttribute("data-search-landed", "true");
   });
 
+  it("disposes an active landing highlight and its timer when the viewport unmounts", async () => {
+    const removed = vi.spyOn(window, "removeEventListener");
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, unmount } = render(
+      <Harness rows={rows(500)} handle={handle} />,
+    );
+    await settle(container);
+    const target = mountedIds(container).at(-3);
+    if (!target) {
+      throw new Error("expected a mounted row to land on");
+    }
+
+    act(() => {
+      handle.current?.landOnMessage(target);
+    });
+    await settle(container);
+
+    const marked = container.querySelector<HTMLElement>(
+      `[data-message-id="${target}"]`,
+    );
+    expect(marked).toHaveAttribute("data-search-landed", "true");
+
+    unmount();
+    await Promise.resolve();
+
+    expect(marked?.dataset.searchLanded).toBeUndefined();
+    expect(removed).toHaveBeenCalledWith("wheel", expect.any(Function), {
+      capture: true,
+    });
+    expect(removed).toHaveBeenCalledWith("touchmove", expect.any(Function), {
+      capture: true,
+    });
+
+    const originalWindow = globalThis.window;
+    // @ts-expect-error simulates happy-dom teardown deleting window before the hold expires.
+    delete globalThis.window;
+    try {
+      vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS + 100);
+    } finally {
+      globalThis.window = originalWindow;
+    }
+  });
+
   it("reports a message the room has not loaded", async () => {
     const handle = createRef<TranscriptViewportHandle>();
     const { container } = render(<Harness rows={rows(20)} handle={handle} />);
@@ -743,7 +787,7 @@ describe("TranscriptViewport", () => {
     },
   );
 
-  it("updates growth following when overlay padding grows without a scroller resize", async () => {
+  it("keeps a reader near the live edge at their distance when overlay padding grows without a scroller resize", async () => {
     const handle = createRef<TranscriptViewportHandle>();
     const { container, rerender } = render(
       <Harness rows={rows(100)} handle={handle} bottomInset={180} />,
@@ -754,30 +798,41 @@ describe("TranscriptViewport", () => {
       scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 100);
     });
     await settle(container);
-    rerender(<Harness rows={rows(100)} handle={handle} bottomInset={400} />);
+
+    rerender(<Harness rows={rows(100)} handle={handle} bottomInset={240} />);
     act(() => {
       for (const { target, callback } of resizeObservations) {
         if (target === scroller.firstElementChild) callback();
       }
     });
-    const before = scroller.scrollTop;
-    const lastRow = container.querySelector<HTMLElement>(
-      '[data-message-id="msg-099"]',
-    )?.parentElement;
-    if (!lastRow) throw new Error("expected the streaming row");
-    Object.defineProperty(lastRow, "offsetHeight", {
-      configurable: true,
-      value: ROW_HEIGHT + 40,
+    await settle(container);
+
+    expect(distanceFromEnd(scroller)).toBe(100);
+  });
+
+  it("leaves a reader above the live-edge threshold in place when overlay padding grows without a scroller resize", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} bottomInset={180} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 250);
     });
+    await settle(container);
+    const before = scroller.scrollTop;
+
+    rerender(<Harness rows={rows(100)} handle={handle} bottomInset={240} />);
     act(() => {
       for (const { target, callback } of resizeObservations) {
-        if (target === lastRow) callback();
+        if (target === scroller.firstElementChild) callback();
       }
     });
     await settle(container);
 
     expect(scroller.scrollTop).toBe(before);
-    expect(distanceFromEnd(scroller)).toBe(360);
+    expect(distanceFromEnd(scroller)).toBe(310);
   });
 
   it("keeps the live edge in view when the scroller shrinks under a growing composer", async () => {

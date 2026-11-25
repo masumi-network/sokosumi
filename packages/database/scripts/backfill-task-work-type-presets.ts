@@ -4,8 +4,14 @@ import { config as loadEnv } from "dotenv";
 import { createPrismaClient } from "../src/client.js";
 import { backfillTaskWorkTypePresets } from "../src/helpers/backfill-task-work-type-presets.js";
 import { checkMigrateDeployEnv } from "../src/helpers/migrate-deploy-preflight.js";
+import {
+  configureSqlTables,
+  sqlTableLayoutFromEnv,
+} from "../src/sql-tables.js";
 
 loadEnv({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
+// Raw SQL names the schemas the environment names, as Core does.
+configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
 async function main() {
   const args = process.argv.slice(2).filter((arg) => arg !== "--");

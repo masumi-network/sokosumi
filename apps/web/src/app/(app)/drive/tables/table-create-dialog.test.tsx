@@ -39,7 +39,16 @@ function openFromFiles(
       : vi.fn().mockResolvedValue(response);
   vi.stubGlobal("fetch", fetch);
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <TableCreateDialog
         workspaceId={null}
         csvFile={{ url: URL, name: "Leads.csv" }}

@@ -74,15 +74,18 @@ export default function Email() {
 ```
 
 **Props:**
+
 - `config` - Tailwind configuration object
 
 **How it works:**
+
 - Tailwind classes are converted to inline styles automatically
 - Media queries are extracted to `<style>` tag in `<head>`
 - CSS variables are resolved
 - RGB color syntax is normalized for email client compatibility
 
 **Important:**
+
 - Always use `pixelBasedPreset` - email clients don't support `rem` units
 - Custom config is optional - defaults work well
 - Avoid responsive classes (sm:, md:, lg:). These have limited email client support, and are not reliable across major clients
@@ -104,6 +107,7 @@ import { Html, Tailwind, pixelBasedPreset } from 'react-email';
 ```
 
 **Props:**
+
 - `lang` - Language code (e.g., "en", "es", "fr")
 - `dir` - Text direction ("ltr" or "rtl")
 
@@ -177,6 +181,7 @@ import { Section, Row, Column } from 'react-email';
 ```
 
 **Column widths:**
+
 - Use percentage widths (e.g., "w-1/2", "w-1/3")
 - Or use Tailwind's width utilities
 - Total should add up to 100% or container width
@@ -194,6 +199,7 @@ import { Preview } from 'react-email';
 ```
 
 **Best practices:**
+
 - Keep under 140 characters
 - Make it compelling and action-oriented
 - Should always be the first element inside `<Body>`
@@ -215,6 +221,7 @@ import { Heading } from 'react-email';
 ```
 
 **Props:**
+
 - `as` - HTML heading level ("h1" through "h6")
 
 ### Text
@@ -246,10 +253,12 @@ import { Button } from 'react-email';
 ```
 
 **Props:**
+
 - `href` (required) - URL to link to
 - `target` - Default is "_blank"
 
 **Styling tips:**
+
 - Use `block` for full-width buttons
 - Use `text-center` for centered text
 - Add `no-underline` to remove underline
@@ -267,6 +276,7 @@ import { Link } from 'react-email';
 ```
 
 **Props:**
+
 - `href` (required) - URL to link to
 - `target` - Default is "_blank"
 
@@ -287,12 +297,14 @@ import { Img } from 'react-email';
 ```
 
 **Props:**
+
 - `src` (required) - Image URL (must be absolute)
 - `alt` - Alt text for accessibility (defaults to `""`; set a descriptive value for meaningful images)
 - `width` - Image width in pixels
 - `height` - Image height in pixels
 
 **Best practices:**
+
 - Always use absolute URLs hosted on CDN
 - **Meaningful images**: write descriptive `alt` text covering purpose and key details (e.g., `alt="Red bicycle leaning against a brick wall"`, not `alt="image"`)
 - **Decorative images** (spacers, dividers, background flourishes): pass an explicit `alt=""` so screen readers skip them cleanly — never omit the attribute
@@ -345,6 +357,7 @@ const Email = () => {
 ```
 
 **Props:**
+
 - `code` (required) - The actual code to render in the code block. Just a plain string, with the proper indentation included
 - `language` (required) - The language under the supported languages defined in PrismLanguage (e.g., "javascript", "python", "typescript")
 - `theme` (required) - The theme to use for the code block (import from "react-email": dracula, github, nord, etc.)
@@ -352,6 +365,7 @@ const Email = () => {
 - `lineNumbers` (optional) - Whether or not to automatically include line numbers on the rendered code block (boolean, default: false)
 
 **Important:**
+
 - By default, do not use the `lineNumbers` prop unless specifically requested
 - Always wrap the `CodeBlock` component in a `div` tag with the `overflow-auto` class to avoid padding overflow
 
@@ -398,6 +412,7 @@ const Email = () => {
 ```
 
 **Props:**
+
 - `children` (required) - Markdown string
 - `markdownCustomStyles` - Style overrides for HTML elements (h1, h2, p, a, codeInline, etc.)
 - `markdownContainerStyles` - Styles for container div
@@ -422,11 +437,13 @@ import { Head, Font } from 'react-email';
 ```
 
 **Props:**
+
 - `fontFamily` (required) - Font family name
 - `fallbackFontFamily` - Fallback fonts
 - `webFont` - Object with `url` and `format`
 
 **Supported formats:**
+
 - woff2 (recommended)
 - woff
 - truetype

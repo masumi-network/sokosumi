@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   createDataTableSchema,
   tableBatchSchema,
@@ -297,7 +298,7 @@ async function persistChanges(
     position,
   }));
   await tx.$executeRaw(PrismaRaw.sql`
-    INSERT INTO "table_change" ("id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence")
+    INSERT INTO ${sharedTable("table_change")} ("id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence")
     SELECT "id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence"
     FROM jsonb_to_recordset(${JSON.stringify(records)}::jsonb) AS changes(
       "id" uuid, "tableId" uuid, "batchId" uuid, "actorId" text, "actorKind" text, "taskId" text,
@@ -555,7 +556,7 @@ export async function mutateDataTable(
             column.type === "last_updated"
           )
             // Raw SQL, so stripping stale nulls leaves each row's updatedAt alone.
-            await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${column.id}, "evidence" = "evidence" - ${column.id} WHERE "tableId" = ${id}::uuid`;
+            await tx.$executeRaw`UPDATE ${sharedTable("table_row")} SET "values" = "values" - ${column.id}, "evidence" = "evidence" - ${column.id} WHERE "tableId" = ${id}::uuid`;
           if (previous)
             await tx.tableColumn.update({
               where: { id: column.id },
@@ -625,7 +626,7 @@ async function removeColumns(
   await tx.tableColumn.deleteMany({
     where: { tableId: table.id, id: { in: ids } },
   });
-  await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${ids}::text[], "evidence" = "evidence" - ${ids}::text[] WHERE "tableId" = ${table.id}::uuid`;
+  await tx.$executeRaw`UPDATE ${sharedTable("table_row")} SET "values" = "values" - ${ids}::text[], "evidence" = "evidence" - ${ids}::text[] WHERE "tableId" = ${table.id}::uuid`;
   const gone = new Set(ids);
   for (const view of table.views) {
     const definition = tableViewDefinitionSchema.parse(view.definition);
@@ -718,10 +719,10 @@ async function renumberRowPositions(
   tableId: string,
 ) {
   await tx.$executeRaw(PrismaRaw.sql`
-    UPDATE "table_row" AS r SET "position" = ordered.n
+    UPDATE ${sharedTable("table_row")} AS r SET "position" = ordered.n
     FROM (
       SELECT "id", row_number() OVER (ORDER BY "position", "id") AS n
-      FROM "table_row" WHERE "tableId" = ${tableId}::uuid
+      FROM ${sharedTable("table_row")} WHERE "tableId" = ${tableId}::uuid
     ) AS ordered
     WHERE r."id" = ordered."id"
   `);
@@ -734,7 +735,7 @@ async function predecessorOf(
   rowId: string,
 ): Promise<string | null> {
   const [row] = await tx.$queryRaw<Array<{ id: string }>>(PrismaRaw.sql`
-    SELECT p."id"::text FROM "table_row" AS p, "table_row" AS r
+    SELECT p."id"::text FROM ${sharedTable("table_row")} AS p, ${sharedTable("table_row")} AS r
     WHERE r."id" = ${rowId}::uuid AND p."tableId" = r."tableId"
       AND p."tableId" = ${tableId}::uuid
       AND (p."position", p."id") < (r."position", r."id")
@@ -1002,7 +1003,7 @@ export async function queryTableRows(
       );
   }
   const [count] = await prisma.$queryRaw<Array<{ total: number }>>(
-    PrismaRaw.sql`SELECT COUNT(*)::integer AS total FROM table_row r WHERE ${PrismaRaw.join(terms, " AND ")}`,
+    PrismaRaw.sql`SELECT COUNT(*)::integer AS total FROM ${sharedTable("table_row")} r WHERE ${PrismaRaw.join(terms, " AND ")}`,
   );
   const byUpdatedAt =
     !!query.sort && isLastUpdated(table.columns, query.sort.columnId);
@@ -1024,7 +1025,7 @@ export async function queryTableRows(
       query.sort?.direction === "desc" ? PrismaRaw.sql`<` : PrismaRaw.sql`>`;
     // Read from the row itself, so the comparison keeps the column's own type and precision.
     const cursorValue = byUpdatedAt
-      ? PrismaRaw.sql`(SELECT c."updatedAt" FROM table_row c WHERE c.id = ${cursor.id}::uuid)`
+      ? PrismaRaw.sql`(SELECT c."updatedAt" FROM ${sharedTable("table_row")} c WHERE c.id = ${cursor.id}::uuid)`
       : query.sort
         ? PrismaRaw.sql`${JSON.stringify(tableValuesSchema.parse(cursor.values)[query.sort.columnId] ?? null)}::jsonb`
         : PrismaRaw.sql`${cursor.position}::double precision`;
@@ -1033,7 +1034,7 @@ export async function queryTableRows(
     );
   }
   const raw = await prisma.$queryRaw<unknown[]>(
-    PrismaRaw.sql`SELECT r.* FROM table_row r WHERE ${PrismaRaw.join(terms, " AND ")} ORDER BY ${sort} ${direction}, r.id ${direction} LIMIT ${query.limit + 1}`,
+    PrismaRaw.sql`SELECT r.* FROM ${sharedTable("table_row")} r WHERE ${PrismaRaw.join(terms, " AND ")} ORDER BY ${sort} ${direction}, r.id ${direction} LIMIT ${query.limit + 1}`,
   );
   const rows = raw
     .slice(0, query.limit)

@@ -17,11 +17,12 @@ Upload code mappings for stack trace linking
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                         |
+| -------- | ----------------------------------- |
 | `<path>` | Path to the code mappings JSON file |
 
 **Flags:**
+
 - `--repo <value> - Repository name (e.g., owner/repo). Auto-detected from git remote if omitted.`
 - `--default-branch <value> - Default branch name. Auto-detected from git remote HEAD if omitted.`
 

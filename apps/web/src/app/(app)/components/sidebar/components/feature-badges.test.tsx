@@ -81,7 +81,10 @@ describe("New badges in the sidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     vi.useFakeTimers({
       toFake: [

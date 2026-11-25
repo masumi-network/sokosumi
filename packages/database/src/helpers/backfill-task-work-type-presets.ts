@@ -1,12 +1,22 @@
 import { CURATED_VOCABULARY_VERSION, TASK_TAG_PRESETS } from "@sokosumi/utils";
 import { Prisma } from "../generated/prisma/client.js";
+import { type SqlTables, sharedTable, sharedType } from "../sql-tables.js";
 
 /** Each statement seeds at most 500 workspaces so a retry can resume after a committed batch. */
 const WORKSPACES_PER_BATCH = 500;
 
 export async function backfillTaskWorkTypePresets(
   db: Pick<Prisma.TransactionClient, "$queryRaw">,
-  { dryRun = false, batchSize = WORKSPACES_PER_BATCH } = {},
+  {
+    dryRun = false,
+    batchSize = WORKSPACES_PER_BATCH,
+    tables = { sharedTable, sharedType },
+  }: {
+    dryRun?: boolean;
+    batchSize?: number;
+    /** Where the tables and the enum are; a test passes its own. */
+    tables?: Pick<SqlTables, "sharedTable" | "sharedType">;
+  } = {},
 ): Promise<number> {
   if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
     throw new Error("batchSize must be a positive integer");
@@ -14,7 +24,7 @@ export async function backfillTaskWorkTypePresets(
   const presets = Prisma.join(
     TASK_TAG_PRESETS.map(
       (row) => Prisma.sql`(
-    ${row.kind}::"FileLabelKind", ${row.displayName}::text,
+    ${row.kind}::${tables.sharedType("FileLabelKind")}, ${row.displayName}::text,
     ${row.normalizedName}::text, ${row.description}::text
   )`,
     ),
@@ -27,10 +37,10 @@ export async function backfillTaskWorkTypePresets(
     const [result]: { cursor: string | null; count: number }[] =
       await db.$queryRaw`
       WITH batch AS (
-        SELECT w.id FROM workspace w
+        SELECT w.id FROM ${tables.sharedTable("workspace")} w
         WHERE ${after ? Prisma.sql`w.id > ${after}::uuid AND` : Prisma.empty}
           NOT EXISTS (
-            SELECT 1 FROM workspace_label seeded
+            SELECT 1 FROM ${tables.sharedTable("workspace_label")} seeded
             WHERE seeded."workspaceId" = w.id AND seeded."isTaskPreset"
           )
         ORDER BY w.id LIMIT ${batchSize}
@@ -38,7 +48,7 @@ export async function backfillTaskWorkTypePresets(
         SELECT b.id AS "workspaceId", p.* FROM batch b
         CROSS JOIN (VALUES ${presets}) p(kind, "displayName", "normalizedName", description)
         WHERE NOT EXISTS (
-          SELECT 1 FROM workspace_label existing
+          SELECT 1 FROM ${tables.sharedTable("workspace_label")} existing
           WHERE existing."workspaceId" = b.id AND existing.kind = p.kind
             AND existing."normalizedName" = p."normalizedName"
         )
@@ -47,7 +57,7 @@ export async function backfillTaskWorkTypePresets(
           dryRun
             ? Prisma.sql`SELECT 1 FROM missing`
             : Prisma.sql`
-          INSERT INTO workspace_label (
+          INSERT INTO ${tables.sharedTable("workspace_label")} (
             id, "createdAt", "updatedAt", "workspaceId", kind, "displayName", "normalizedName",
             description, aliases, "vocabularyVersion", "isTaskPreset", "createdByUserId"
           )

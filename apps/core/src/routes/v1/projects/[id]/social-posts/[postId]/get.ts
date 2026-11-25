@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialPostReader } from "@/helpers/social-post-access";
+import { requireSocialPostActor } from "@/helpers/social-post-access";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -39,7 +39,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = await requireSocialPostReader(c.var.authContext);
+    const userContext = await requireSocialPostActor(c.var.authContext);
 
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, postId } = c.req.valid("param");
@@ -52,7 +52,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
+        socialPostSchema.parse(presentSocialPost(post, userContext)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

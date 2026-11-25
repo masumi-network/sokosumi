@@ -48,14 +48,14 @@ import '@react-email/editor/styles/inspector.css';
 
 The editor is organized into six entry points:
 
-| Import | Purpose |
-|--------|---------|
-| `@react-email/editor` | `EmailEditor`: the all-in-one component |
-| `@react-email/editor/core` | `composeReactEmail` serialization, `EmailNode`, `EmailMark`, event bus, types |
-| `@react-email/editor/extensions` | `StarterKit` and 35+ email-aware extensions |
-| `@react-email/editor/ui` | `BubbleMenu`, `SlashCommand`, `Inspector` |
-| `@react-email/editor/plugins` | `EmailTheming` plugin |
-| `@react-email/editor/utils` | Attribute helpers, style utilities |
+| Import                           | Purpose                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `@react-email/editor`            | `EmailEditor`: the all-in-one component                                       |
+| `@react-email/editor/core`       | `composeReactEmail` serialization, `EmailNode`, `EmailMark`, event bus, types |
+| `@react-email/editor/extensions` | `StarterKit` and 35+ email-aware extensions                                   |
+| `@react-email/editor/ui`         | `BubbleMenu`, `SlashCommand`, `Inspector`                                     |
+| `@react-email/editor/plugins`    | `EmailTheming` plugin                                                         |
+| `@react-email/editor/utils`      | Attribute helpers, style utilities                                            |
 
 ## EmailEditor Component
 
@@ -91,28 +91,28 @@ export function MyEditor() {
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `content` | `Content` | — | Initial editor content (HTML string or TipTap JSON) |
-| `onChange` | `(editor: Editor) => void` | — | Called on every content change |
-| `onUploadImage` | `UploadImageHandler` | — | Handler for pasted/dropped images |
-| `onReady` | `(editor: Editor) => void` | — | Called when editor is initialized |
-| `theme` | `'basic' \| 'minimal'` | `'basic'` | Built-in email theme |
-| `editable` | `boolean` | `true` | Whether content is editable |
-| `placeholder` | `string` | — | Placeholder text for empty editor |
-| `bubbleMenu` | `{ hideWhenActiveNodes?: string[], hideWhenActiveMarks?: string[] }` | — | Configure bubble menu visibility |
-| `extensions` | `Extensions` | — | Override the default extensions entirely |
-| `className` | `string` | — | CSS class for the editor container |
+| Prop            | Type                                                                 | Default   | Description                                         |
+| --------------- | -------------------------------------------------------------------- | --------- | --------------------------------------------------- |
+| `content`       | `Content`                                                            | —         | Initial editor content (HTML string or TipTap JSON) |
+| `onChange`      | `(editor: Editor) => void`                                           | —         | Called on every content change                      |
+| `onUploadImage` | `UploadImageHandler`                                                 | —         | Handler for pasted/dropped images                   |
+| `onReady`       | `(editor: Editor) => void`                                           | —         | Called when editor is initialized                   |
+| `theme`         | `'basic' \| 'minimal'`                                               | `'basic'` | Built-in email theme                                |
+| `editable`      | `boolean`                                                            | `true`    | Whether content is editable                         |
+| `placeholder`   | `string`                                                             | —         | Placeholder text for empty editor                   |
+| `bubbleMenu`    | `{ hideWhenActiveNodes?: string[], hideWhenActiveMarks?: string[] }` | —         | Configure bubble menu visibility                    |
+| `extensions`    | `Extensions`                                                         | —         | Override the default extensions entirely            |
+| `className`     | `string`                                                             | —         | CSS class for the editor container                  |
 
 ### Ref Methods (`EmailEditorRef`)
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `getEmail()` | `Promise<{ html: string; text: string }>` | Export Prettier-formatted HTML and plain text |
-| `getEmailHTML()` | `Promise<string>` | Export only the Prettier-formatted HTML |
-| `getEmailText()` | `Promise<string>` | Export only the plain text |
-| `getJSON()` | `JSONContent` | Get editor content as TipTap JSON |
-| `editor` | `Editor \| null` | Access the underlying TipTap editor instance |
+| Method           | Returns                                   | Description                                   |
+| ---------------- | ----------------------------------------- | --------------------------------------------- |
+| `getEmail()`     | `Promise<{ html: string; text: string }>` | Export Prettier-formatted HTML and plain text |
+| `getEmailHTML()` | `Promise<string>`                         | Export only the Prettier-formatted HTML       |
+| `getEmailText()` | `Promise<string>`                         | Export only the plain text                    |
+| `getJSON()`      | `JSONContent`                             | Get editor content as TipTap JSON             |
+| `editor`         | `Editor \| null`                          | Access the underlying TipTap editor instance  |
 
 ## Minimal Setup (Extensions Only)
 
@@ -164,12 +164,12 @@ export function MyEditor() {
 
 ### Available Bubble Menus
 
-| Component | Appears when... | Controls |
-|-----------|----------------|----------|
-| `BubbleMenu` | Text is selected | Bold, italic, underline, strike, code, uppercase, alignment, node type, link |
-| `BubbleMenu.LinkDefault` | Cursor is on a link | Edit URL, open link, unlink |
-| `BubbleMenu.ButtonDefault` | Cursor is on a button | Edit button URL, unlink |
-| `BubbleMenu.ImageDefault` | Cursor is on an image | Edit image URL |
+| Component                  | Appears when...       | Controls                                                                     |
+| -------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `BubbleMenu`               | Text is selected      | Bold, italic, underline, strike, code, uppercase, alignment, node type, link |
+| `BubbleMenu.LinkDefault`   | Cursor is on a link   | Edit URL, open link, unlink                                                  |
+| `BubbleMenu.ButtonDefault` | Cursor is on a button | Edit button URL, unlink                                                      |
+| `BubbleMenu.ImageDefault`  | Cursor is on an image | Edit image URL                                                               |
 
 Exclude specific items from the default menu:
 
@@ -193,20 +193,20 @@ import { defaultSlashCommands, SlashCommand } from '@react-email/editor/ui';
 
 ### Default Commands
 
-| Command | Category | Description |
-|---------|----------|-------------|
-| `TEXT` | Text | Plain text block |
-| `H1`, `H2`, `H3` | Text | Headings |
-| `BULLET_LIST` | Text | Unordered list |
-| `NUMBERED_LIST` | Text | Ordered list |
-| `QUOTE` | Text | Block quote |
-| `CODE` | Text | Code snippet |
-| `BUTTON` | Layout | Clickable button |
-| `DIVIDER` | Layout | Horizontal separator |
-| `SECTION` | Layout | Content section |
-| `TWO_COLUMNS` | Layout | Two column layout |
-| `THREE_COLUMNS` | Layout | Three column layout |
-| `FOUR_COLUMNS` | Layout | Four column layout |
+| Command          | Category | Description          |
+| ---------------- | -------- | -------------------- |
+| `TEXT`           | Text     | Plain text block     |
+| `H1`, `H2`, `H3` | Text     | Headings             |
+| `BULLET_LIST`    | Text     | Unordered list       |
+| `NUMBERED_LIST`  | Text     | Ordered list         |
+| `QUOTE`          | Text     | Block quote          |
+| `CODE`           | Text     | Code snippet         |
+| `BUTTON`         | Layout   | Clickable button     |
+| `DIVIDER`        | Layout   | Horizontal separator |
+| `SECTION`        | Layout   | Content section      |
+| `TWO_COLUMNS`    | Layout   | Two column layout    |
+| `THREE_COLUMNS`  | Layout   | Three column layout  |
+| `FOUR_COLUMNS`   | Layout   | Four column layout   |
 
 Cherry-pick individual commands:
 
@@ -265,10 +265,10 @@ const extensions = [StarterKit, EmailTheming.configure({ theme: 'basic' })];
 
 ### Built-in Themes
 
-| Theme | Description |
-|-------|-------------|
-| `'basic'` | Full styling: typography, spacing, borders, visual hierarchy. **Default.** |
-| `'minimal'` | Essentially no styles — blank slate for custom themes. |
+| Theme       | Description                                                                |
+| ----------- | -------------------------------------------------------------------------- |
+| `'basic'`   | Full styling: typography, spacing, borders, visual hierarchy. **Default.** |
+| `'minimal'` | Essentially no styles — blank slate for custom themes.                     |
 
 ### Switching Themes Dynamically
 
@@ -336,6 +336,7 @@ const { html, text } = await composeReactEmail({ editor, pretty: false });
 With `pretty: false`, `html` equals `unformattedHtml`. The result always includes `unformattedHtml`, so you can also keep the default and send `unformattedHtml`. Prettier also fails with `Maximum call stack size exceeded` on very deeply nested layouts, such as some Stripo or Mailchimp imports, so prefer `pretty: false` for imported HTML.
 
 The export pipeline:
+
 1. Reads the editor's JSON document
 2. Traverses each node and mark
 3. Calls `renderToReactEmail()` on each `EmailNode` and `EmailMark`

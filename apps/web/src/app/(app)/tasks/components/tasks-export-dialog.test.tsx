@@ -35,7 +35,16 @@ function row(name: string) {
 
 function renderDialog(onOpenChange = vi.fn()) {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NextIntlClientProvider locale="en" messages={messages}>
         <TasksExportDialog
           open
@@ -123,7 +132,16 @@ describe("TasksExportDialog", () => {
     function Harness() {
       const [open, setOpen] = useState(true);
       return (
-        <QueryClientProvider client={new QueryClient()}>
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: {
+                queries: { gcTime: Number.POSITIVE_INFINITY },
+                mutations: { gcTime: Number.POSITIVE_INFINITY },
+              },
+            })
+          }
+        >
           <NextIntlClientProvider locale="en" messages={messages}>
             <TasksExportDialog
               open={open}

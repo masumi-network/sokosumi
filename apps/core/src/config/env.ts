@@ -255,6 +255,28 @@ const baseEnvSchema = z.object({
     )
     .pipe(z.array(z.uuid())),
   /**
+   * Organizations whose workspace has the Fundraising pages and tools
+   * (`/v1/fundraising`). Comma-separated organization ids; empty, nobody has
+   * them.
+   */
+  FUNDRAISING_ORGANIZATION_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === ""
+        ? []
+        : value
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean),
+    ),
+  /**
+   * The most Fundraising may spend on Exa research per workspace per
+   * calendar month, in US dollars. Searches past it are refused with the
+   * amount, so a raise never runs up a bill unseen.
+   */
+  FUNDRAISING_EXA_MONTHLY_CAP_USD: z.coerce.number().min(0).default(25),
+  /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
    */
@@ -262,7 +284,7 @@ const baseEnvSchema = z.object({
   CHROMIUM_EXECUTABLE_URL: z
     .url()
     .default(
-      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
+      "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar",
     ),
   /**
    * A local ffmpeg built with libass and libx264, for the talking video edit.

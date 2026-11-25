@@ -17,11 +17,12 @@ Wrap a command with cron monitor check-ins
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                    | Description                                 |
+| --------------------------- | ------------------------------------------- |
 | `<monitor-slug command...>` | Monitor slug followed by the command to run |
 
 **Flags:**
+
 - `--dsn <value> - DSN to send check-ins to (overrides SENTRY_DSN env var)`
 - `-e, --environment <value> - Environment of the monitor - (default: "production")`
 - `-s, --schedule <value> - Upsert the monitor with this crontab schedule (e.g. '0 * * * *')`
@@ -50,28 +51,29 @@ List cron monitors
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all), &lt;org&gt;/&lt;name&gt; or &lt;name&gt; (a project, else matching names), or a name glob (&lt;org&gt;/web-*) |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum number of monitors to list - (default: "25")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Monitor ID |
-| `slug` | string | Monitor slug |
-| `name` | string | Monitor name |
-| `status` | string | Monitor status (e.g. active, disabled) |
-| `isMuted` | boolean | Whether the monitor is muted |
-| `config` | object | Schedule configuration |
-| `dateCreated` | string | Creation date (ISO 8601) |
-| `project` | object | Owning project |
-| `orgSlug` | string | Organization slug |
+| Field         | Type    | Description                            |
+| ------------- | ------- | -------------------------------------- |
+| `id`          | string  | Monitor ID                             |
+| `slug`        | string  | Monitor slug                           |
+| `name`        | string  | Monitor name                           |
+| `status`      | string  | Monitor status (e.g. active, disabled) |
+| `isMuted`     | boolean | Whether the monitor is muted           |
+| `config`      | object  | Schedule configuration                 |
+| `dateCreated` | string  | Creation date (ISO 8601)               |
+| `project`     | object  | Owning project                         |
+| `orgSlug`     | string  | Organization slug                      |
 
 **Examples:**
 

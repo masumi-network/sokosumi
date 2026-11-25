@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   expireStalePendingInvitations,
@@ -89,7 +90,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const lockedRooms = await tx.$queryRaw<
         Array<{ id: string; archivedAt: Date | null }>
       >`
-        SELECT "id", "archivedAt" FROM "chat_room"
+        SELECT "id", "archivedAt" FROM ${sharedTable("chat_room")}
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
       `;

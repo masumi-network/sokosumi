@@ -199,6 +199,7 @@ describe("thread", () => {
           beyondPlan: [],
           withoutPicture: [],
           retryAt: null,
+          floor: null,
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),

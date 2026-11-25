@@ -70,7 +70,10 @@ function setDeviceSubscribed(subscribed: boolean): void {
 describe("usePushPreference", () => {
   beforeEach(() => {
     queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     // Reset, not clear: `mockClear` keeps a queued `mockReturnValueOnce`
     // (`@vitest/spy` clears that queue in `mockReset` only). One test queues a

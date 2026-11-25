@@ -6,8 +6,10 @@ import {
   CMO_PART_PATCH_STRATEGY_SKILL,
   CMO_PLAIN_WORDS_STRATEGY_SKILL,
   CMO_STAGE_SPREAD_STRATEGY_SKILL,
+  CMO_STRATEGY_EXAMPLES,
   CMO_V20_STRATEGY_SKILL,
   CMO_V21_STRATEGY_SKILL,
+  CMO_V22_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import {
@@ -17,6 +19,7 @@ import {
   cmoJargonIn,
   cmoNetworkMonth,
   cmoShortVideoFormat,
+  isCmoShortVideoFormat,
 } from "@sokosumi/utils";
 
 import { z } from "zod";
@@ -104,6 +107,16 @@ export function cmoPlanRuleProblems(strategy: MarketingStrategyPlan): string[] {
     (entry) => entry.status !== "skipped",
   );
   if (pieces.length === 0) return problems;
+  // cmo-v22: the examples show the strategy; Core writes the month to its
+  // shares after payment, so a long calendar is only time and cost.
+  if (cmoShowsExamples(strategy)) {
+    if (pieces.length > CMO_STRATEGY_EXAMPLES.max)
+      rule(
+        `${CMO_STRATEGY_EXAMPLES.max} example posts`,
+        `the calendar has ${pieces.length} pieces; before payment it holds ${CMO_STRATEGY_EXAMPLES.min} to ${CMO_STRATEGY_EXAMPLES.max} example posts, and Core writes the whole month after payment. Save only your best ${CMO_STRATEGY_EXAMPLES.max}.`,
+      );
+    return problems;
+  }
   if (pieces.length < MIN_PIECES)
     rule(
       `${MIN_PIECES} pieces`,
@@ -118,6 +131,102 @@ export function cmoPlanRuleProblems(strategy: MarketingStrategyPlan): string[] {
 }
 
 const SHARES_RULE = `shares within ${CMO_SHARE_TOLERANCE} points`;
+
+/**
+ * Whether a strategy's calendar holds example posts only (cmo-v22, before
+ * payment): Core writes its month once the owner has paid.
+ */
+export function cmoShowsExamples(
+  strategy: Pick<MarketingStrategyPlan, "monthWriter">,
+): boolean {
+  return strategy.monthWriter?.state === "examples";
+}
+
+/**
+ * Whether a month is Core's to write after payment (cmo-v22), in any state:
+ * its size follows the plan bought, so a promise the calendar does not hold
+ * yet is Core's to keep, never Cuso's to finish or a reason to refuse it.
+ */
+export function cmoMonthByCore(
+  strategy: Pick<MarketingStrategyPlan, "monthWriter">,
+): boolean {
+  return strategy.monthWriter != null;
+}
+
+/**
+ * What a cmo-v22 strategy's example posts break: they show the owner the
+ * range of the month before payment, so they spread over its pillars and
+ * networks and each one is a whole brief.
+ */
+export function cmoExampleProblems(
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): string[] {
+  const examples = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  const problems: string[] = [];
+  const { min, max } = CMO_STRATEGY_EXAMPLES;
+  if (examples.length < min)
+    problems.push(
+      `the calendar holds ${examples.length} example post${examples.length === 1 ? "" : "s"}; show ${min} to ${max}, so the owner sees what the month makes before paying.`,
+    );
+  if (examples.length === 0) return problems;
+  const pillarOf = (entry: (typeof examples)[number]) =>
+    strategy.pillars.find(
+      (pillar) => entry.pillar && samePillar(entry.pillar, pillar.name),
+    )?.name;
+  const unpillared = examples.filter((entry) => !pillarOf(entry));
+  if (unpillared.length > 0)
+    problems.push(
+      `${unpillared.map((entry) => entry.id).join(", ")} name${unpillared.length === 1 ? "s" : ""} no pillar of the strategy; give each example one of: ${strategy.pillars.map((pillar) => pillar.name).join(", ")}.`,
+    );
+  const pillars = new Set(examples.flatMap((entry) => pillarOf(entry) ?? []));
+  const wantPillars = Math.min(examples.length, strategy.pillars.length);
+  if (pillars.size < wantPillars)
+    problems.push(
+      `the examples cover ${pillars.size} of the ${strategy.pillars.length} pillars; give each example another pillar, so the owner sees what each pillar makes.`,
+    );
+  const social = new Set(
+    strategy.channels
+      .map((channel) => channel.channel.toLowerCase())
+      .filter((key) => CMO_LIVE_NETWORKS.includes(key)),
+  );
+  const networks = new Set(
+    examples
+      .map((entry) => entry.channel.toLowerCase())
+      .filter((key) => social.has(key)),
+  );
+  const wantNetworks = Math.min(3, social.size, examples.length);
+  if (networks.size < wantNetworks)
+    problems.push(
+      `the examples go out on ${networks.size} network${networks.size === 1 ? "" : "s"}; put them on at least ${wantNetworks} of the strategy's networks.`,
+    );
+  const shortNetworks = [...social].filter((key) => cmoShortVideoFormat(key));
+  if (
+    shortNetworks.length > 0 &&
+    examples.length >= min &&
+    !examples.some((entry) =>
+      isCmoShortVideoFormat(entry.channel.toLowerCase(), entry.format),
+    )
+  )
+    problems.push(
+      `no example is a short video; make one a ${shortNetworks.map((key) => `${key} ${cmoShortVideoFormat(key)}`).join(" or ")} with the other short-video networks in alsoOn.`,
+    );
+  const thin = examples.filter(
+    (entry) =>
+      !entry.brief?.trim() ||
+      !entry.why?.trim() ||
+      !entry.approach ||
+      (options.stageSpread && !entry.stage) ||
+      (options.claims && !entry.claim?.trim()),
+  );
+  if (thin.length > 0)
+    problems.push(
+      `${thin.map((entry) => entry.id).join(", ")} ${thin.length === 1 ? "is" : "are"} not whole examples; give each its brief, why, approach${options.stageSpread ? ", stage" : ""}${options.claims ? " and claim" : ""}.`,
+    );
+  return problems;
+}
 
 /**
  * The hard rules a save breaks anew. A plan the owner already has keeps the
@@ -243,7 +352,15 @@ export function cmoPlanProblems(
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
-  if (pieces.length > 0) {
+  if (cmoShowsExamples(strategy)) {
+    problems.push(...cmoExampleProblems(strategy, options));
+    if (pieces.some((entry) => entry.draft))
+      problems.push(
+        "the strategy holds drafts; leave them out, Core makes every post after the owner approves and pays.",
+      );
+    problems.push(...storyProblems(pieces, options.claims === true));
+    problems.push(...repeatedTitles(pieces));
+  } else if (pieces.length > 0) {
     const formats = new Set(
       pieces.map((entry) => `${entry.channel}/${entry.format}`),
     );
@@ -362,6 +479,13 @@ export interface PlanReviewOptions {
   pillarFacts?: boolean;
   /** Pillars are industry topics resting on the industry research, never product steps (cmo-v21's strategy skill). */
   industryTopics?: boolean;
+  /**
+   * The calendar holds a few example posts and Core writes the month after
+   * payment (cmo-v22's strategy skill). A plan of that shape carries
+   * `monthWriter`, which the review reads, so an older full month is held to
+   * its own rules whatever the version.
+   */
+  examplesOnly?: boolean;
   /** The social networks the Project has connected, which are never left out. */
   connectedNetworks?: readonly string[];
 }
@@ -374,8 +498,11 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  // cmo-v22's strategy skill is cmo-v21's with example posts, not the month.
+  const examplesOnly = skills.includes(CMO_V22_STRATEGY_SKILL);
   // cmo-v21's strategy skill is cmo-v20's with pillars as industry topics.
-  const industryTopics = skills.includes(CMO_V21_STRATEGY_SKILL);
+  const industryTopics =
+    examplesOnly || skills.includes(CMO_V21_STRATEGY_SKILL);
   // cmo-v20's strategy skill adds pillars built on facts to the stage spread.
   const pillarFacts = industryTopics || skills.includes(CMO_V20_STRATEGY_SKILL);
   // The stage-spread skill is cmo-v15's with every step on every network.
@@ -404,6 +531,7 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     stageSpread,
     pillarFacts,
     industryTopics,
+    examplesOnly,
   };
 }
 
@@ -746,6 +874,8 @@ export function cmoPromiseGaps(
   strategy: MarketingStrategyPlan,
   options: PlanReviewOptions = {},
 ): string[] {
+  // cmo-v22: Core writes the month to the plan bought, after payment.
+  if (cmoMonthByCore(strategy)) return [];
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
@@ -777,6 +907,7 @@ export function cmoMonthShortfall(
   strategy: MarketingStrategyPlan,
   options: PlanReviewOptions = {},
 ): { planned: number; promised: number } | null {
+  if (cmoMonthByCore(strategy)) return null;
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
@@ -1239,6 +1370,8 @@ function stageSpreadProblems(
           ", ",
         )}${untagged.length > 6 ? ", …" : ""}); give each the funnel step it serves: awareness, interest, desire or action.`,
     ];
+  // A few examples cannot cover every step; Core spreads the month.
+  if (cmoShowsExamples(strategy)) return [];
   const problems: string[] = [];
   const empty = CMO_AIDA_STAGES.filter(
     (stage) => !pieces.some((entry) => entry.stage === stage),

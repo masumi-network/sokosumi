@@ -11,7 +11,6 @@ import {
   type ReactNode,
   type Ref,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
@@ -39,6 +38,7 @@ import {
   useTranscriptViewportInitialLanding,
 } from "@/hooks/effects/use-transcript-viewport-initial-landing";
 import { useTranscriptViewportOpened } from "@/hooks/effects/use-transcript-viewport-opened";
+import { useTranscriptViewportScrollActivity } from "@/hooks/effects/use-transcript-viewport-scroll-activity";
 
 export type { TranscriptPosition };
 
@@ -57,14 +57,6 @@ export type { TranscriptPosition };
  */
 const OVERSCAN_ROWS = { above: 30, below: 8 };
 const OPENING_OVERSCAN_ABOVE = 4;
-
-/**
- * A rich-text editor. The one below the transcript is blurred when the
- * reader drags it; the ones inside it (in-row message edit) are left alone.
- * Matched by attribute rather than `isContentEditable` so the rule is the
- * markup React writes.
- */
-const EDITOR_SELECTOR = '[contenteditable="true"]';
 
 export interface TranscriptViewportHandle {
   /** Live edge, whatever the reader was doing. Drops any hold. */
@@ -267,7 +259,7 @@ export function TranscriptViewport({
   // from before the resize. Returns whether it scrolled.
   const followResize = (element: HTMLElement) => {
     const virtualizer = virtualizerRef.current;
-    const height = element.clientHeight;
+    const height = readTranscriptViewportHeight(element);
     const previousHeight = viewportHeightRef.current;
     viewportHeightRef.current = height;
     const distance = distanceFromEndRef.current;
@@ -291,7 +283,11 @@ export function TranscriptViewport({
     // follow may already have moved it, so the change would apply twice.
     // Applied to the virtualizer's own offset: it runs ahead of the DOM by
     // a correction held during an iOS touch.
-    const change = element.scrollHeight - height - distance - element.scrollTop;
+    const change =
+      element.scrollHeight -
+      element.clientHeight -
+      distance -
+      element.scrollTop;
     if (Math.abs(change) < 1) return false;
     virtualizer.scrollToOffset(
       (virtualizer.scrollOffset ?? element.scrollTop) + change,
@@ -475,82 +471,17 @@ export function TranscriptViewport({
     },
   });
   virtualizerRef.current = virtualizer;
-  useEffect(() => {
-    if (!scroller) {
-      return;
-    }
-    let idleTimer: ReturnType<typeof setTimeout> | undefined;
-    const settle = () => {
-      clearTimeout(idleTimer);
-      if (touchingRef.current) return;
-      // Match TanStack's iOS post-touch grace before changing row positions.
-      // Scroll events keep renewing this timer throughout momentum scrolling.
-      idleTimer = setTimeout(() => {
-        if (virtualizer.isScrolling) {
-          settle();
-          return;
-        }
-        scrollingRef.current = false;
-        if (deferredRef.current) releasePage((version) => version + 1);
-      }, 200);
-    };
-    const record = () => {
-      scrollingRef.current = true;
-      recordDistance(scroller);
-      settle();
-    };
-    const touchStart = () => {
-      touchingRef.current = true;
-      scrollingRef.current = true;
-      clearTimeout(idleTimer);
-    };
-    const touchEnd = () => {
-      touchingRef.current = false;
-      settle();
-    };
-    // Dragging the transcript means reading, not typing, so the keyboard
-    // gets out of the way. On `touchmove` rather than `scroll`: closing the
-    // keyboard changes the viewport and can itself emit scroll events.
-    const onTouchMove = () => {
-      const active = document.activeElement;
-      // Only the composer below the transcript. An editor inside the
-      // scroller is an in-row message edit, and scrolling back through the
-      // conversation is part of writing that edit, not a reason to end it.
-      if (
-        active instanceof HTMLElement &&
-        active.matches(EDITOR_SELECTOR) &&
-        !scroller.contains(active)
-      ) {
-        active.blur();
-      }
-    };
-    // The virtualizer's onChange runs only when the mounted rows change, and
-    // a draft growing a line changes none: watch the scroller itself too.
-    // A resize it does not follow still moves the end, so record that.
-    const scrollerResize = new ResizeObserver(() => {
-      if (!followResize(scroller)) recordDistance(scroller);
-    });
-    scrollerResize.observe(scroller);
-    // An overlaid composer changes list padding without resizing the scroller.
-    if (scroller.firstElementChild)
-      scrollerResize.observe(scroller.firstElementChild);
-    scroller.addEventListener("scroll", record, { passive: true });
-    scroller.addEventListener("scrollend", settle, { passive: true });
-    scroller.addEventListener("touchstart", touchStart, { passive: true });
-    scroller.addEventListener("touchend", touchEnd, { passive: true });
-    scroller.addEventListener("touchcancel", touchEnd, { passive: true });
-    scroller.addEventListener("touchmove", onTouchMove, { passive: true });
-    return () => {
-      clearTimeout(idleTimer);
-      scrollerResize.disconnect();
-      scroller.removeEventListener("scroll", record);
-      scroller.removeEventListener("scrollend", settle);
-      scroller.removeEventListener("touchstart", touchStart);
-      scroller.removeEventListener("touchend", touchEnd);
-      scroller.removeEventListener("touchcancel", touchEnd);
-      scroller.removeEventListener("touchmove", onTouchMove);
-    };
-  }, [scroller, virtualizer]);
+  useTranscriptViewportScrollActivity({
+    scroller,
+    virtualizer,
+    touchingRef,
+    scrollingRef,
+    recordDistance,
+    followResize,
+    onScrollIdle: () => {
+      if (deferredRef.current) releasePage((version) => version + 1);
+    },
+  });
 
   // Every render: the container moves whenever a short list grows toward
   // the scroller's height, and the state guard makes a settled margin free.

@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { backfillTaskWorkTypePresets } from "@sokosumi/database/helpers";
+import { sharedType } from "@sokosumi/database/sql-tables";
 import { CURATED_VOCABULARY_VERSION, TASK_TAG_PRESETS } from "@sokosumi/utils";
 import { expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
+
+// The statement names its tables with their schema, so the temporary tables
+// below do not shadow the real ones: the backfill is told where they are.
+const tables = {
+  sharedTable: (table: string) => PrismaRaw.raw(`pg_temp."${table}"`),
+  sharedType,
+};
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -27,11 +36,15 @@ it.skipIf(!enabled)(
     `;
       const expected = 2 * TASK_TAG_PRESETS.length - 1;
       expect(
-        await backfillTaskWorkTypePresets(tx, { batchSize: 1, dryRun: true }),
+        await backfillTaskWorkTypePresets(tx, {
+          batchSize: 1,
+          dryRun: true,
+          tables,
+        }),
       ).toBe(expected);
-      expect(await backfillTaskWorkTypePresets(tx, { batchSize: 1 })).toBe(
-        expected,
-      );
+      expect(
+        await backfillTaskWorkTypePresets(tx, { batchSize: 1, tables }),
+      ).toBe(expected);
       const rows = await tx.$queryRaw<
         {
           displayName: string;
@@ -67,7 +80,9 @@ it.skipIf(!enabled)(
       ]);
       await tx.$executeRaw`UPDATE workspace_label SET "normalizedName"='team-bug', "displayName"='Team bug'
       WHERE "workspaceId" = ${second}::uuid AND "normalizedName"='bug'`;
-      expect(await backfillTaskWorkTypePresets(tx, { batchSize: 1 })).toBe(0);
+      expect(
+        await backfillTaskWorkTypePresets(tx, { batchSize: 1, tables }),
+      ).toBe(0);
     });
   },
 );

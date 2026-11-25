@@ -84,6 +84,7 @@ src/services/chat-room-soko-bot-retry.postgres.test.ts 19  # trigger body
 src/services/chat-signal-effects.postgres.test.ts 19  # trigger body
 src/services/chat-signals.postgres.test.ts 19  # trigger body
 src/services/cmo-free-hiring.postgres.test.ts 19  # trigger body
+src/services/cmo-month-calendar.postgres.test.ts 30  # the shared client writes Organization, Workspace and reads Soko Bot
 src/services/cmo-seo.postgres.test.ts 19  # trigger body
 src/services/cmo-test-copy.postgres.test.ts 19  # trigger body
 src/services/cmo-tester-credits.postgres.test.ts 17  # unqualified raw SQL; its own client names public
@@ -112,6 +113,7 @@ src/services/file-table-index.postgres.test.ts 19  # trigger body
 src/services/fts-cut-drops-newest.postgres.test.ts 19  # trigger body
 src/services/fts-document-drop.postgres.test.ts 19  # trigger body
 src/services/fts-tiebreak-both-sites.postgres.test.ts 19  # trigger body
+src/services/fundraising.postgres.test.ts 19  # trigger body
 src/services/image-studio-recovery.postgres.test.ts 19  # trigger body
 src/services/jev-failure-loses-labels.postgres.test.ts 17  # its own client or SQL names public
 src/services/jev-spend-cap.postgres.test.ts 17  # unqualified raw SQL

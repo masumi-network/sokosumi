@@ -25,16 +25,16 @@ bunx --bun prisma init
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--datasource-provider` | Database provider: `postgresql`, `mysql`, `sqlite`, `sqlserver`, `mongodb`, `cockroachdb` | `postgresql` |
-| `--db` | Provisions a fully managed Prisma Postgres database on the Prisma Data Platform | - |
-| `--url` | Define a custom datasource url | - |
-| `--generator-provider` | Define the generator provider to use | `prisma-client` |
-| `--output` | Define Prisma Client generator output path to use | - |
-| `--preview-feature` | Define a preview feature to use | - |
-| `--with-model` | Add example model to created schema file | - |
-| `--no-skills` | Skip the best-effort installation of Prisma agent skills | - |
+| Option                  | Description                                                                               | Default         |
+| ----------------------- | ----------------------------------------------------------------------------------------- | --------------- |
+| `--datasource-provider` | Database provider: `postgresql`, `mysql`, `sqlite`, `sqlserver`, `mongodb`, `cockroachdb` | `postgresql`    |
+| `--db`                  | Provisions a fully managed Prisma Postgres database on the Prisma Data Platform           | -               |
+| `--url`                 | Define a custom datasource url                                                            | -               |
+| `--generator-provider`  | Define the generator provider to use                                                      | `prisma-client` |
+| `--output`              | Define Prisma Client generator output path to use                                         | -               |
+| `--preview-feature`     | Define a preview feature to use                                                           | -               |
+| `--with-model`          | Add example model to created schema file                                                  | -               |
+| `--no-skills`           | Skip the best-effort installation of Prisma agent skills                                  | -               |
 
 `prisma init` attempts to install `prisma/skills` for detected agents. This is best-effort and does not make project initialization fail. Use `--no-skills` in minimal or controlled environments.
 

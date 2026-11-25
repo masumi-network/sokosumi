@@ -9,7 +9,7 @@
  * inside a transaction that always rolls back.
  */
 import { createPrismaClient } from "@sokosumi/database/client";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import {
   type BuildTransactionHistoryParams,
@@ -24,6 +24,15 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
 const db = enabled && url ? createPrismaClient(url) : null;
+
+// The ledger query is CPU-bound, so on a loaded runner one case can pass the
+// 5 s default. Fixtures use fixed ids, so a case that gave up while its
+// transaction was still open made every later case wait on its rows and time
+// out too. `withSeededLedger` sets a server-side limit on each lock wait (10 s)
+// and each statement (30 s), so a blocked insert fails early and a slow
+// statement is cancelled. That usually leaves time before this deadline, but
+// it does not promise when the rollback finishes.
+vi.setConfig({ testTimeout: 60_000 });
 
 afterAll(async () => {
   await db?.$disconnect();
@@ -208,11 +217,17 @@ async function withSeededLedger(
   try {
     await db.$transaction(
       async (tx) => {
+        // Server limits: a blocked fixture insert fails after 10 s and a
+        // statement running past 30 s is cancelled. They usually leave time
+        // inside the 45 s transaction and the test deadline; they do not
+        // promise when the rollback finishes.
+        await tx.$executeRaw`SET LOCAL lock_timeout = '10s'`;
+        await tx.$executeRaw`SET LOCAL statement_timeout = '30s'`;
         await seed(tx);
         await body(tx);
         throw rollback;
       },
-      { timeout: 30_000 },
+      { timeout: 45_000 },
     );
   } catch (error) {
     if (error !== rollback) throw error;

@@ -21,7 +21,7 @@ export interface CoreHttpClient {
   post<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   put<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   patch<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
-  delete<T>(pathname: string, signal?: AbortSignal): Promise<T>;
+  delete<T>(pathname: string, body?: unknown, signal?: AbortSignal): Promise<T>;
 }
 
 interface HttpClientOptions {
@@ -84,6 +84,11 @@ function joinUrl(apiUrl: string, pathname: string): string {
 async function readResponseBody(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) return undefined;
+  // A CSV export (`GET /contacts/export.csv`) is the one non-JSON body.
+  if (
+    response.headers.get("content-type")?.toLowerCase().startsWith("text/csv")
+  )
+    return text;
   try {
     return JSON.parse(text) as unknown;
   } catch {
@@ -152,8 +157,8 @@ function createHttpClient({
       request<T>("PUT", pathname, body, signal),
     patch: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
       request<T>("PATCH", pathname, body, signal),
-    delete: <T>(pathname: string, signal?: AbortSignal) =>
-      request<T>("DELETE", pathname, undefined, signal),
+    delete: <T>(pathname: string, body?: unknown, signal?: AbortSignal) =>
+      request<T>("DELETE", pathname, body, signal),
   };
 }
 

@@ -127,7 +127,9 @@ function createQueryClient(staleTime?: number) {
       queries: {
         retry: false,
         ...(staleTime !== undefined ? { staleTime } : {}),
+        gcTime: Number.POSITIVE_INFINITY,
       },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
     },
   });
 }

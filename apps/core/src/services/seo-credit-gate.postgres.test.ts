@@ -13,7 +13,6 @@ import {
   it,
   vi,
 } from "vitest";
-
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
@@ -28,6 +27,7 @@ import {
 } from "@/schemas/project-seo.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { drainWaitUntil } from "@/test/wait-until";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
 import {
   createTaskScheduleTestApp,
@@ -92,6 +92,7 @@ const previousExecutor = env.SEO_ANALYSIS_EXECUTOR,
   previousDispatch = env.SEO_ANALYSIS_DISPATCH_ENABLED;
 const vars = {
   isAuthenticated: true,
+  networkScope: testNetworkScope(),
   authContext: {
     actor: "user" as const,
     userId,

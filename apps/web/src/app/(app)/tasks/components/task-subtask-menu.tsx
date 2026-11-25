@@ -62,11 +62,13 @@ export function TaskSubtaskMenuItems({
 export function TaskSubtaskMenuDialogs({
   model,
   taskId,
+  workspaceId,
   assigneeOptions,
   onCloseAutoFocus,
 }: {
   model: TaskSubtaskActionsModel;
   taskId: string;
+  workspaceId: string;
   assigneeOptions: CoworkerOption[];
   /** The menu item that opened a dialog is gone when it closes. */
   onCloseAutoFocus: (event: Event) => void;
@@ -83,6 +85,7 @@ export function TaskSubtaskMenuDialogs({
       ) : null}
       <TaskLinkTaskPickerDialog
         taskId={taskId}
+        workspaceId={workspaceId}
         open={model.pickerOption !== null}
         onOpenChange={(open) => {
           if (!open) model.closePicker();

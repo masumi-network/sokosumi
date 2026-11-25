@@ -16,6 +16,7 @@ Test Polar integrations safely using the sandbox environment - a fully isolated 
 - **API**: https://sandbox-api.polar.sh/v1
 
 The sandbox is completely isolated from production. You need separate:
+
 - User account
 - Organization
 - Access tokens
@@ -59,11 +60,11 @@ polar = Polar(os.environ["POLAR_ACCESS_TOKEN"], environment="sandbox")
 
 Polar uses Stripe for payment processing, so any of [Stripe's test cards](https://docs.stripe.com/testing#cards) work. Use a future expiry date and any CVC:
 
-| Card Number | Behavior |
-|-------------|----------|
-| 4242 4242 4242 4242 | Successful payment |
-| 4000 0000 0000 0002 | Generic decline |
-| 4000 0000 0000 9995 | Insufficient funds |
+| Card Number         | Behavior                          |
+| ------------------- | --------------------------------- |
+| 4242 4242 4242 4242 | Successful payment                |
+| 4000 0000 0000 0002 | Generic decline                   |
+| 4000 0000 0000 9995 | Insufficient funds                |
 | 4000 0027 6000 3184 | Requires 3D Secure authentication |
 
 ## Local Webhook Testing
@@ -367,21 +368,25 @@ For a deployed endpoint:
 ### Common Issues
 
 **Webhook signature mismatch**
+
 - Ensure you're using the sandbox webhook secret
 - Locally, use the secret from `polar webhook listen --print-secret` and restart the dev server after changing `.env`
 - Check that the raw body is being passed (not parsed JSON)
 - Verify timestamp is within tolerance (5 minutes)
 
 **Checkout not completing**
+
 - Use test cards, not real cards
 - Check browser console for errors
 - Verify `success_url` is correct
 
 **API returns 401**
+
 - Verify you're using a sandbox token with the sandbox API
 - Check the token hasn't expired or been revoked
 
 **API returns 403**
+
 - The token is missing a scope the endpoint needs
 
 ### Inspect API Errors

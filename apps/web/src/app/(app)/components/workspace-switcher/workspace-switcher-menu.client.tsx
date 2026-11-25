@@ -64,11 +64,14 @@ interface WorkspaceMenuItemProps {
   isSelected: boolean;
   disabled: boolean;
   onSelect: (workspaceId: string | null) => void;
+  /** A second line under the name, e.g. who the workspace is for. */
+  description?: string;
 }
 
 function WorkspaceMenuItem({
   sessionUser,
   workspace,
+  description,
   isSelected,
   disabled,
   onSelect,
@@ -84,8 +87,18 @@ function WorkspaceMenuItem({
         organization={workspace.organization ?? null}
         className="size-6 md:size-6"
         logoSize={14}
+        // The personal row's picture is the person's; its alt would put their
+        // name back into the workspace's name.
+        decorative={!workspace.organization}
       />
-      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate">{workspace.name}</span>
+        {description ? (
+          <span className="text-muted-foreground truncate text-xs">
+            {description}
+          </span>
+        ) : null}
+      </span>
       <Check
         className={cn("size-4", isSelected ? "opacity-100" : "opacity-0")}
       />
@@ -274,6 +287,7 @@ export default function WorkspaceSwitcherMenu({
             <WorkspaceMenuItem
               sessionUser={sessionUser}
               workspace={personalWorkspace}
+              description={tOrganizationSwitcher("justYou")}
               isSelected={activeOrganizationId === null}
               disabled={isBusy}
               onSelect={selectWorkspace}

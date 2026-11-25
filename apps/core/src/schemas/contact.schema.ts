@@ -29,7 +29,7 @@ const contactListColorSchema = z
   .enum(CONTACT_LIST_COLORS)
   .openapi("ContactListColor");
 
-const personSchema = z
+export const contactPersonSchema = z
   .object({ id: z.string(), name: z.string(), image: z.string().nullable() })
   .openapi("ContactPerson");
 
@@ -59,7 +59,7 @@ const contactListRefSchema = z
   })
   .openapi("ContactListRef");
 
-export const contactKnownBySchema = personSchema
+export const contactKnownBySchema = contactPersonSchema
   .extend({
     interactionCount: z.int(),
     lastInteractionAt: dateTimeSchema.nullable(),
@@ -142,7 +142,7 @@ export const contactInteractionSchema = z
     summary: z.string(),
     sourceRef: z.string().nullable(),
     sourceUrl: z.string().nullable(),
-    user: z.union([personSchema, z.null()]),
+    user: z.union([contactPersonSchema, z.null()]),
     sokoBot: z.union([
       z
         .object({ id: z.uuid(), name: z.string().nullable() })
@@ -168,7 +168,7 @@ export const contactActivitySchema = z
       ])
       .openapi("ContactActivityKind"),
     changes: z.record(z.string(), z.unknown()),
-    user: z.union([personSchema, z.null()]),
+    user: z.union([contactPersonSchema, z.null()]),
     sokoBot: z.union([
       z.object({ id: z.uuid(), name: z.string().nullable() }),
       z.null(),
@@ -480,3 +480,21 @@ export const contactCompanyDetailSchema = z
     ),
   })
   .openapi("ContactCompanyDetail");
+
+export const contactLinkedInImportInputSchema = z
+  .object({
+    /** The text of LinkedIn's Connections.csv export, at most 5 MB. */
+    csv: z.string().min(1).max(5_000_000),
+  })
+  .openapi("ContactLinkedInImportInput");
+
+export const contactLinkedInImportResultSchema = z
+  .object({
+    /** Rows that named a LinkedIn profile. */
+    connections: z.int(),
+    created: z.int(),
+    updated: z.int(),
+    /** The "LinkedIn connections" list every imported person is on. */
+    listId: z.uuid(),
+  })
+  .openapi("ContactLinkedInImportResult");

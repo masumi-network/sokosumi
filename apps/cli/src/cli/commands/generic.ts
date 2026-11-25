@@ -32,7 +32,7 @@ export interface GenericCommandContext {
   signal?: AbortSignal;
 }
 
-/** Runs a catalog row's Core operation and prints Core's JSON body. */
+/** Runs a catalog row's Core operation and prints Core's JSON (or CSV) body. */
 export async function runGenericCommand({
   client,
   stdout,
@@ -61,15 +61,18 @@ export async function runGenericCommand({
   }
   const inputJson = option(options, "input-json");
   const inputFile = option(options, "input-file");
-  const read = method === "GET" || method === "DELETE" || row.noBody === true;
   const input = inputJson !== undefined || inputFile !== undefined;
-  if (read && input)
+  const takesBody =
+    method === "DELETE"
+      ? row.body === true
+      : method !== "GET" && row.noBody !== true;
+  if (!takesBody && input)
     throw new Error(`\`${row.command}\` takes no --input-json or --input-file`);
-  if (!read && !input)
+  if (takesBody && !input)
     throw new Error(`\`${row.command}\` needs --input-json or --input-file`);
-  const body = read
-    ? undefined
-    : await readJsonObject(inputJson, inputFile, "--input");
+  const body = takesBody
+    ? await readJsonObject(inputJson, inputFile, "--input")
+    : undefined;
   // Only GET /tasks/{id} resolves a short identifier such as SOK-12.
   const values = template.startsWith("/tasks/{id}/")
     ? [await resolveTaskId(client, args[0]!, signal), ...args.slice(1)]
@@ -82,7 +85,7 @@ export async function runGenericCommand({
       response = await client.get(path, signal);
       break;
     case "DELETE":
-      response = await client.delete(path, signal);
+      response = await client.delete(path, body, signal);
       break;
     case "POST":
       response = await client.post(path, body, signal);
@@ -96,5 +99,6 @@ export async function runGenericCommand({
     default:
       throw new Error(`Unsupported method in ${row.operation}`);
   }
-  writeJson(stdout, response ?? null);
+  if (typeof response === "string") stdout.write(response);
+  else writeJson(stdout, response ?? null);
 }

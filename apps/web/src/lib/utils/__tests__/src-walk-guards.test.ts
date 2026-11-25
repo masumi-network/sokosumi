@@ -1713,6 +1713,8 @@ const SUSPENSE_WRAPPED = new Set([
   "(app)/drive/data-rooms/[id]/page.tsx",
   "(app)/drive/files/[resourceId]/page.tsx",
   "(app)/agents/[agentId]/jobs/layout.tsx",
+  "(app)/agents/coworkers/[coworkerId]/page.tsx",
+  "(app)/agents/soko-bots/[botId]/page.tsx",
   "(app)/chat/rooms/[roomId]/page.tsx",
   "(app)/projects/(root)/page.tsx",
   "(app)/schedules/[scheduleId]/page.tsx",

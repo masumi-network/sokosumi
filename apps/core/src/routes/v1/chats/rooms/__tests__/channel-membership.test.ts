@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -905,12 +906,14 @@ it("locks actor and target organization membership before the room and eligibili
     (await request(MEMBER_ID, "POST", "/members", { userIds: [NEW_ID] }))
       .status,
   ).toBe(200);
-  const [memberSql, roomId, userIds] = mocks.queryRaw.mock.calls[0];
-  expect(memberSql.join("?")).toContain('FOR SHARE OF "member"');
-  expect(memberSql.join("?")).toContain('JOIN "chat_room"');
-  expect(roomId).toBe(ROOM_ID);
-  expect(userIds).toEqual([MEMBER_ID, NEW_ID]);
-  expect(mocks.queryRaw.mock.calls[1][0].join("?")).toContain("FOR UPDATE");
+  const [memberLock, roomLock] = mocks.queryRaw.mock.calls.map(
+    ([strings, ...values]) =>
+      PrismaRaw.sql(strings as TemplateStringsArray, ...values),
+  );
+  expect(memberLock.sql).toContain('FOR SHARE OF "member"');
+  expect(memberLock.sql).toContain('JOIN "public"."chat_room"');
+  expect(memberLock.values).toEqual([ROOM_ID, [MEMBER_ID, NEW_ID]]);
+  expect(roomLock.sql).toContain("FOR UPDATE");
   expect(mocks.queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.roomFindFirst.mock.invocationCallOrder[0],
   );

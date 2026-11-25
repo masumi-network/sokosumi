@@ -17,11 +17,11 @@ New applications default to **Prisma ORM 8**. Detailed Prisma 8 configuration, q
 
 Read the package manifest, lockfile, Prisma configuration, schema, and application imports. Identify the ORM version, database provider, and runtime. The CLI version alone does not identify the application's version: a Prisma 8 CLI can coexist with a legacy client, so inspect `@prisma/client`, `@prisma/prisma7`, and the schema and configuration.
 
-| Starting point                                          | Path                                                     |
-| ------------------------------------------------------- | -------------------------------------------------------- |
-| Prisma 8 application                                    | Step 4, without reinitializing                           |
-| New application without a version choice                | Step 3                                                   |
-| Prisma 6 or 7 application, or an explicit earlier major | [Step 5](#5-set-up-or-repair-an-earlier-version)         |
+| Starting point                                          | Path                                             |
+| ------------------------------------------------------- | ------------------------------------------------ |
+| Prisma 8 application                                    | Step 4, without reinitializing                   |
+| New application without a version choice                | Step 3                                           |
+| Prisma 6 or 7 application, or an explicit earlier major | [Step 5](#5-set-up-or-repair-an-earlier-version) |
 
 For a new application, check the selected Prisma 8 release's [provider support](https://www.prisma.io/docs/orm/supported-databases) and runtime requirements before installing. If the provider is unsupported, explain the limitation and offer an explicitly selected earlier version. Keep the requested database; do not silently fall back or invent a supported target.
 
@@ -61,15 +61,15 @@ For a new setup that explicitly selects an earlier version, pin packages to that
 - **Prisma 6 MongoDB:** use [MongoDB setup](references/v6-mongodb.md). SQL driver adapters do not apply.
 - **Prisma 6 SQL:** preserve its generator, schema URL, and client initialization. Use the provider's connection details below and the [Prisma 6 documentation](https://www.prisma.io/docs/orm/v6); do not copy the Prisma 7 configuration or adapter examples into it.
 
-| Database                         | Reference                                                 |
-| -------------------------------- | --------------------------------------------------------- |
-| PostgreSQL                       | [PostgreSQL](references/v7-postgresql.md)                 |
-| MySQL / MariaDB / PlanetScale    | [MySQL](references/v7-mysql.md)                           |
-| SQLite / Turso                   | [SQLite](references/v7-sqlite.md)                         |
-| Microsoft SQL Server / Azure SQL | [SQL Server](references/v7-sqlserver.md)                  |
-| CockroachDB                      | [CockroachDB](references/v7-cockroachdb.md)               |
-| MongoDB / Atlas on Prisma 6      | [MongoDB](references/v6-mongodb.md)                       |
-| Prisma Postgres with Prisma 7    | [Prisma Postgres](references/v7-prisma-postgres.md)       |
+| Database                         | Reference                                           |
+| -------------------------------- | --------------------------------------------------- |
+| PostgreSQL                       | [PostgreSQL](references/v7-postgresql.md)           |
+| MySQL / MariaDB / PlanetScale    | [MySQL](references/v7-mysql.md)                     |
+| SQLite / Turso                   | [SQLite](references/v7-sqlite.md)                   |
+| Microsoft SQL Server / Azure SQL | [SQL Server](references/v7-sqlserver.md)            |
+| CockroachDB                      | [CockroachDB](references/v7-cockroachdb.md)         |
+| MongoDB / Atlas on Prisma 6      | [MongoDB](references/v6-mongodb.md)                 |
+| Prisma Postgres with Prisma 7    | [Prisma Postgres](references/v7-prisma-postgres.md) |
 
 The Prisma 7 SQL examples were verified with Prisma 7.10.0; the MongoDB examples with Prisma 6.19.3.
 

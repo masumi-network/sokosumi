@@ -5,6 +5,7 @@
 This skill teaches agents **what's possible with the Ably CLI and when to use it** — not every command, flag, and argument. The CLI is self-documenting via `--help`; agents should discover exact syntax at runtime rather than relying on this skill for command references.
 
 The skill focuses on:
+
 - **Categories of capability** (observe, simulate, manage, get help) — not individual commands
 - **Diagnostic reasoning** (symptom → approach) — not step-by-step procedures
 - **Domain knowledge agents lack** (state machines, persistence defaults, capability scoping, gotchas) — not documentation the CLI itself provides
@@ -15,7 +16,7 @@ When the Ably CLI (`@ably/cli`) changes, check whether the skill needs updating:
 
 1. **New top-level command group added** (e.g., a new product like `ably liveobjects`): Add to the relevant capability section (Observe, Simulate, or Manage) and to the diagnostic decision tree if it introduces new debugging scenarios.
 
-2. **New capability within existing commands** (e.g., new flags, new subscribe targets): Usually NO skill update needed — agents discover flags via `--help`. Only update if the capability changes *what's possible* at a category level.
+2. **New capability within existing commands** (e.g., new flags, new subscribe targets): Usually NO skill update needed — agents discover flags via `--help`. Only update if the capability changes _what's possible_ at a category level.
 
 3. **Behavioral changes** (e.g., history retention changes, new connection/channel states, new error code ranges): Update the relevant reference table (connection states, channel states, key debugging facts, environment gotchas).
 
@@ -31,6 +32,7 @@ When the Ably CLI (`@ably/cli`) changes, check whether the skill needs updating:
 ## Validation Checklist
 
 When updating, verify:
+
 - [ ] Skill stays under 500 lines — token budget matters, every token is loaded into agent context on every debugging session. Bloat degrades performance.
 - [ ] No command syntax is hardcoded that could go stale — capability descriptions only
 - [ ] Decision tree covers all Ably products the CLI supports

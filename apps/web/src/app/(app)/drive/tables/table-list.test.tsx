@@ -22,7 +22,16 @@ vi.mock("@/lib/services/contacts.client", () => ({
 
 function renderList(archived = false) {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <TableList workspaceId={null} archived={archived} />
     </QueryClientProvider>,
   );

@@ -17,11 +17,12 @@ List recent Session Replays
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all projects), &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of replays (1-1000) - (default: "25")`
 - `-q, --query <value> - Search query (Sentry replay search syntax)`
 - `-e, --environment <value>... - Filter by environment (repeatable, comma-separated)`
@@ -32,39 +33,39 @@ List recent Session Replays
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `activity` | number \| null | Replay activity score |
-| `browser` | object \| null | Browser metadata |
-| `count_dead_clicks` | number \| null | Dead click count |
-| `count_errors` | number \| null | Associated error count |
-| `count_infos` | number \| null | Info event count |
-| `count_rage_clicks` | number \| null | Rage click count |
-| `count_segments` | number \| null | Recording segment count |
-| `count_urls` | number \| null | Visited URL count |
-| `count_warnings` | number \| null | Warning event count |
-| `device` | object \| null | Device metadata |
-| `dist` | string \| null | Distribution |
-| `duration` | number \| null | Replay duration in seconds |
-| `environment` | string \| null | Environment |
-| `error_ids` | array | Linked error IDs |
-| `finished_at` | string \| null | Replay finish timestamp |
-| `has_viewed` | boolean \| null | Whether the current user has viewed the replay |
-| `id` | string | Replay ID |
-| `info_ids` | array | Linked info event IDs |
-| `is_archived` | boolean \| null | Archived flag |
-| `os` | object \| null | Operating system metadata |
-| `ota_updates` | object \| null | OTA update metadata |
-| `platform` | string \| null | Platform |
-| `project_id` | string \| null | Numeric project ID |
-| `releases` | array | Associated releases |
-| `sdk` | object \| null | SDK metadata |
-| `started_at` | string \| null | Replay start timestamp |
-| `tags` | object | Replay tags |
-| `trace_ids` | array | Linked trace IDs |
-| `urls` | array | Visited URLs |
-| `user` | object \| null | User metadata |
-| `warning_ids` | array | Linked warning event IDs |
+| Field               | Type            | Description                                    |
+| ------------------- | --------------- | ---------------------------------------------- |
+| `activity`          | number \| null  | Replay activity score                          |
+| `browser`           | object \| null  | Browser metadata                               |
+| `count_dead_clicks` | number \| null  | Dead click count                               |
+| `count_errors`      | number \| null  | Associated error count                         |
+| `count_infos`       | number \| null  | Info event count                               |
+| `count_rage_clicks` | number \| null  | Rage click count                               |
+| `count_segments`    | number \| null  | Recording segment count                        |
+| `count_urls`        | number \| null  | Visited URL count                              |
+| `count_warnings`    | number \| null  | Warning event count                            |
+| `device`            | object \| null  | Device metadata                                |
+| `dist`              | string \| null  | Distribution                                   |
+| `duration`          | number \| null  | Replay duration in seconds                     |
+| `environment`       | string \| null  | Environment                                    |
+| `error_ids`         | array           | Linked error IDs                               |
+| `finished_at`       | string \| null  | Replay finish timestamp                        |
+| `has_viewed`        | boolean \| null | Whether the current user has viewed the replay |
+| `id`                | string          | Replay ID                                      |
+| `info_ids`          | array           | Linked info event IDs                          |
+| `is_archived`       | boolean \| null | Archived flag                                  |
+| `os`                | object \| null  | Operating system metadata                      |
+| `ota_updates`       | object \| null  | OTA update metadata                            |
+| `platform`          | string \| null  | Platform                                       |
+| `project_id`        | string \| null  | Numeric project ID                             |
+| `releases`          | array           | Associated releases                            |
+| `sdk`               | object \| null  | SDK metadata                                   |
+| `started_at`        | string \| null  | Replay start timestamp                         |
+| `tags`              | object          | Replay tags                                    |
+| `trace_ids`         | array           | Linked trace IDs                               |
+| `urls`              | array           | Visited URLs                                   |
+| `user`              | object \| null  | User metadata                                  |
+| `warning_ids`       | array           | Linked warning event IDs                       |
 
 **Examples:**
 
@@ -109,54 +110,55 @@ View a Session Replay
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------- |
 | `<replay-id-or-url...>` | [&lt;org&gt;/&lt;project&gt;] &lt;replay-id or trace-id&gt; or &lt;replay-url&gt; |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `activity` | array | Summarized replay activity |
-| `browser` | object \| null | Browser metadata |
-| `count_dead_clicks` | number \| null | Dead click count |
-| `count_errors` | number \| null | Associated error count |
-| `count_infos` | number \| null | Info event count |
-| `count_rage_clicks` | number \| null | Rage click count |
-| `count_segments` | number \| null | Recording segment count |
-| `count_urls` | number \| null | Visited URL count |
-| `count_warnings` | number \| null | Warning event count |
-| `device` | object \| null | Device metadata |
-| `dist` | string \| null | Distribution |
-| `duration` | number \| null | Replay duration in seconds |
-| `environment` | string \| null | Environment |
-| `error_ids` | array | Linked error IDs |
-| `finished_at` | string \| null | Replay finish timestamp |
-| `has_viewed` | boolean \| null | Whether the current user has viewed the replay |
-| `id` | string | Replay ID |
-| `info_ids` | array | Linked info event IDs |
-| `is_archived` | boolean \| null | Archived flag |
-| `os` | object \| null | Operating system metadata |
-| `ota_updates` | object \| null | OTA update metadata |
-| `platform` | string \| null | Platform |
-| `project_id` | string \| null | Numeric project ID |
-| `releases` | array | Associated releases |
-| `sdk` | object \| null | SDK metadata |
-| `started_at` | string \| null | Replay start timestamp |
-| `tags` | object | Replay tags |
-| `trace_ids` | array | Linked trace IDs |
-| `urls` | array | Visited URLs |
-| `user` | object \| null | User metadata |
-| `warning_ids` | array | Linked warning event IDs |
-| `clicks` | array | Replay click summaries |
-| `replay_type` | string \| null | Replay type |
-| `org` | string | Organization slug |
-| `relatedIssues` | array | Replay-related issues |
-| `relatedTraces` | array | Replay-related traces |
+| Field               | Type            | Description                                    |
+| ------------------- | --------------- | ---------------------------------------------- |
+| `activity`          | array           | Summarized replay activity                     |
+| `browser`           | object \| null  | Browser metadata                               |
+| `count_dead_clicks` | number \| null  | Dead click count                               |
+| `count_errors`      | number \| null  | Associated error count                         |
+| `count_infos`       | number \| null  | Info event count                               |
+| `count_rage_clicks` | number \| null  | Rage click count                               |
+| `count_segments`    | number \| null  | Recording segment count                        |
+| `count_urls`        | number \| null  | Visited URL count                              |
+| `count_warnings`    | number \| null  | Warning event count                            |
+| `device`            | object \| null  | Device metadata                                |
+| `dist`              | string \| null  | Distribution                                   |
+| `duration`          | number \| null  | Replay duration in seconds                     |
+| `environment`       | string \| null  | Environment                                    |
+| `error_ids`         | array           | Linked error IDs                               |
+| `finished_at`       | string \| null  | Replay finish timestamp                        |
+| `has_viewed`        | boolean \| null | Whether the current user has viewed the replay |
+| `id`                | string          | Replay ID                                      |
+| `info_ids`          | array           | Linked info event IDs                          |
+| `is_archived`       | boolean \| null | Archived flag                                  |
+| `os`                | object \| null  | Operating system metadata                      |
+| `ota_updates`       | object \| null  | OTA update metadata                            |
+| `platform`          | string \| null  | Platform                                       |
+| `project_id`        | string \| null  | Numeric project ID                             |
+| `releases`          | array           | Associated releases                            |
+| `sdk`               | object \| null  | SDK metadata                                   |
+| `started_at`        | string \| null  | Replay start timestamp                         |
+| `tags`              | object          | Replay tags                                    |
+| `trace_ids`         | array           | Linked trace IDs                               |
+| `urls`              | array           | Visited URLs                                   |
+| `user`              | object \| null  | User metadata                                  |
+| `warning_ids`       | array           | Linked warning event IDs                       |
+| `clicks`            | array           | Replay click summaries                         |
+| `replay_type`       | string \| null  | Replay type                                    |
+| `org`               | string          | Organization slug                              |
+| `relatedIssues`     | array           | Replay-related issues                          |
+| `relatedTraces`     | array           | Replay-related traces                          |
 
 **Examples:**
 
@@ -186,11 +188,12 @@ Download a Session Replay as rrweb JSON
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                | Description                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------- |
 | `<replay-id-or-url...>` | [&lt;org&gt;/&lt;project&gt;] &lt;replay-id or trace-id&gt; or &lt;replay-url&gt; |
 
 **Flags:**
+
 - `-o, --output <value> - Output path (default: <replay-id>.rrweb.json in the current directory)`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 

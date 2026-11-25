@@ -24,6 +24,7 @@ import * as driveReads from "./soko-bot-runtime/drive-reads";
 import * as driveWrites from "./soko-bot-runtime/drive-writes";
 import * as execution from "./soko-bot-runtime/execution";
 import { TOOL_CALLS_PER_FIFTEEN_MINUTES } from "./soko-bot-runtime/execution-limits";
+import * as fundraising from "./soko-bot-runtime/fundraising";
 import { PROJECT_SCOPED_TOOLS } from "./soko-bot-runtime/grant";
 import * as mail from "./soko-bot-runtime/mail";
 import * as mediaChecks from "./soko-bot-runtime/media-checks";
@@ -278,6 +279,7 @@ export class SokoBotRuntimeService {
     findCoworkers: (...args) => this.findCoworkers(...args),
     findTeammates: (...args) => this.findTeammates(...args),
     executeContactResearch: (...args) => this.executeContactResearch(...args),
+    executeFundraisingTool: (...args) => this.executeFundraisingTool(...args),
     executeProjectTool: (...args) => this.executeProjectTool(...args),
     findIntegrations: (...args) => this.findIntegrations(...args),
     requireSocialAccess: (...args) => this.requireSocialAccess(...args),
@@ -661,6 +663,12 @@ export class SokoBotRuntimeService {
   private executeContactResearch = (
     ...args: RuntimeOperationArguments<typeof contacts.executeContactResearch>
   ) => contacts.executeContactResearch(this.operations, ...args);
+
+  private executeFundraisingTool = (
+    ...args: RuntimeOperationArguments<
+      typeof fundraising.executeFundraisingTool
+    >
+  ) => fundraising.executeFundraisingTool(this.operations, ...args);
 
   private executeProjectTool = (
     ...args: RuntimeOperationArguments<typeof contacts.executeProjectTool>

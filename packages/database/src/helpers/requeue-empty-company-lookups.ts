@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { Prisma } from "../generated/prisma/client.js";
+import { sharedTable } from "../sql-tables.js";
 
 export interface RequeueEmptyCompanyLookupsOptions {
   before: Date;
@@ -40,13 +41,13 @@ export async function requeueEmptyCompanyLookups(
   `;
   if (apply) {
     return db.$executeRaw`
-      UPDATE contact_company
+      UPDATE ${sharedTable("contact_company")}
       SET "enrichedAt" = NULL, "lookupFailures" = 0
       WHERE ${matches}
     `;
   }
   const [row] = await db.$queryRaw<[{ count: bigint }]>`
-    SELECT count(*) AS count FROM contact_company WHERE ${matches}
+    SELECT count(*) AS count FROM ${sharedTable("contact_company")} WHERE ${matches}
   `;
   return Number(row.count);
 }

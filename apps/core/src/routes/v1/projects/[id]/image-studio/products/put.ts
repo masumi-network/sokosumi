@@ -4,13 +4,14 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { jsonInput } from "@/helpers/prisma-json";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { resolveFileActor } from "@/lib/files/actor";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
 import { studioProductCatalogSchema } from "@/schemas/studio-product.schema";
@@ -47,7 +48,8 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
+    const { userId } = userContext;
     const { workspaceId, organizationId } = requireWorkspaceContext(
       c.var.workspaceContext,
     );
@@ -83,7 +85,10 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         await requireStudioReferenceFiles(
           {
             workspaceId,
-            actor: { kind: "interactive", organizationId, userId },
+            actor: resolveFileActor(
+              { source: "session", ...userContext },
+              { organizationId },
+            ),
             resourceIds: [...new Set(linkedPhotos)].filter(
               (id) => !existing.has(id),
             ),

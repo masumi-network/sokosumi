@@ -43,7 +43,10 @@ describe("DataRoomActivity", () => {
       .mockImplementationOnce(() => refreshDeferred.promise);
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(
@@ -129,7 +132,10 @@ describe("DataRoomActivity", () => {
       });
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(
@@ -179,7 +185,10 @@ describe("DataRoomActivity", () => {
       .mockRejectedValueOnce(new Error("page one refresh failed"));
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(

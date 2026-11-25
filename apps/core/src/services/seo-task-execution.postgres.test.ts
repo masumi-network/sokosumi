@@ -447,5 +447,33 @@ describe.skipIf(!enabled)(
         ).toMatchObject({ description: task.description, name: "Renamed" });
       },
     );
+    it.each(["human", "domain"] as const)(
+      "keeps a full audit's hidden request line when a person saves the text they saw through %s",
+      async (entrypoint) => {
+        const { task } = await seedTask();
+        const stored = `Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}`;
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { description: stored },
+        });
+        const save = {
+          description: "Full SEO audit of 2 selected pages:\r\n",
+          name: "Renamed",
+        };
+        const edit = { description: "Full SEO audit of 3 selected pages:" };
+        if (entrypoint === "human") {
+          expect((await patch(task.id, save)).status).toBe(200);
+          expect((await patch(task.id, edit)).status).toBe(409);
+        } else {
+          await domain(task.id, save);
+          await expect(domain(task.id, edit)).rejects.toMatchObject({
+            status: 409,
+          });
+        }
+        expect(
+          await prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+        ).toMatchObject({ description: stored, name: "Renamed" });
+      },
+    );
   },
 );

@@ -172,6 +172,7 @@ const NOT_IN_PRODUCTION: ReadonlySet<string> = new Set([
   CMO_PLAIN_WORDS_STRATEGY_SKILL,
   CMO_V20_STRATEGY_SKILL,
   "cmo-strategy-v21",
+  "cmo-strategy-v22",
   "cmo-brand-brain-groups",
 ]);
 

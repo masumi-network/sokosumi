@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/{id}/social-posts/{postId}",
     description:
-      "Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. A Coworker's edit sends the post back to Needs approval, whatever its status was. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
+      "Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. An agent's edit (API key, OAuth or MCP token, Coworker) sends the post back to Needs approval, whatever its status was. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -62,6 +62,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
         coworkerId: userContext.coworkerId,
+        agent: userContext.agent,
         postId,
         organizationId: workspaceContext.organizationId,
         text: input.text,
@@ -78,7 +79,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(
         c,
-        socialPostSchema.parse(presentSocialPost(post, userContext.coworkerId)),
+        socialPostSchema.parse(presentSocialPost(post, userContext)),
       );
     } catch (error) {
       return mapSocialPostServiceError(error);

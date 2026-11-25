@@ -50,21 +50,18 @@ export default async function AgentDetailPage({
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto w-full max-w-4xl">
-        <AgentDetailViewTracker agent={agent} />
-        <AgentDetail
-          agent={agent}
-          executedJobsCount={executedJobsCount}
-          averageExecutionDuration={averageExecutionDuration}
-          ratingStats={ratingStats}
-          ratingDistribution={ratingDistribution}
-          ratingsWithComments={ratingsWithComments}
-          canRate={canRate}
-          existingRating={existingRating}
-          myJobsCount={myJobsCount}
-          showBackButton={true}
-        />
-      </div>
+      <AgentDetailViewTracker agent={agent} />
+      <AgentDetail
+        agent={agent}
+        executedJobsCount={executedJobsCount}
+        averageExecutionDuration={averageExecutionDuration}
+        ratingStats={ratingStats}
+        ratingDistribution={ratingDistribution}
+        ratingsWithComments={ratingsWithComments}
+        canRate={canRate}
+        existingRating={existingRating}
+        myJobsCount={myJobsCount}
+      />
     </div>
   );
 }

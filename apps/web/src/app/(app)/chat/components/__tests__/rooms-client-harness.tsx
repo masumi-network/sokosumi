@@ -26,8 +26,10 @@ const {
   mockPathname,
   mockReplace,
   mockStreamMessages,
+  readStoredStreamParentMessageIdMock,
   sendStreamMessage,
   useChatRoomRealtimeMock,
+  useCoworkerDirectRoomStreamMock,
   listUnreadThreadReplyCountsAction,
   deleteRoomMessageAction,
   editRoomMessageAction,
@@ -55,8 +57,12 @@ const {
     mockPathname: vi.fn(() => "/chat/rooms/room-channel"),
     mockReplace: vi.fn(),
     mockStreamMessages: vi.fn((): ChatRoomMessage[] => []),
+    readStoredStreamParentMessageIdMock: vi.fn(
+      (_roomId: string): string | null => null,
+    ),
     sendStreamMessage: vi.fn((): boolean => true),
     useChatRoomRealtimeMock: vi.fn(),
+    useCoworkerDirectRoomStreamMock: vi.fn(),
     listUnreadThreadReplyCountsAction: vi.fn(async () => ({
       ok: true as const,
       value: [] as ChatRoomThreadUnreadReplyCount[],
@@ -115,6 +121,7 @@ export {
   mockSearchParams,
   mockStreamMessages,
   pinRoomMessageAction,
+  readStoredStreamParentMessageIdMock,
   removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
@@ -124,6 +131,7 @@ export {
   unpinRoomMessageAction,
   updateRoomAction,
   useChatRoomRealtimeMock,
+  useCoworkerDirectRoomStreamMock,
 };
 
 vi.mock("next/navigation", () => ({
@@ -196,13 +204,17 @@ vi.mock(
 );
 
 vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: mockStreamMessages(),
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage,
-  }),
+  readStoredStreamParentMessageId: (roomId: string) =>
+    readStoredStreamParentMessageIdMock(roomId),
+  useCoworkerDirectRoomStream: (...args: unknown[]) => {
+    useCoworkerDirectRoomStreamMock(...args);
+    return {
+      streamOverlayMessages: mockStreamMessages(),
+      isStreaming: false,
+      activeStreamParentMessageId: null,
+      sendStreamMessage,
+    };
+  },
 }));
 
 vi.mock("@/app/chat/actions", () => ({
@@ -390,9 +402,12 @@ export function resetRoomsClientMocks() {
   mockReplace.mockReset();
   mockStreamMessages.mockReset();
   mockStreamMessages.mockReturnValue([]);
+  readStoredStreamParentMessageIdMock.mockReset();
+  readStoredStreamParentMessageIdMock.mockReturnValue(null);
   sendStreamMessage.mockReset();
   sendStreamMessage.mockReturnValue(true);
   useChatRoomRealtimeMock.mockReset();
+  useCoworkerDirectRoomStreamMock.mockReset();
   transcriptViewportEnd.openAtEnd = true;
 }
 

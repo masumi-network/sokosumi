@@ -70,7 +70,14 @@ function renderList(
   renderedAt = 1_000,
 ) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: Infinity,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   // The refetch after a change answers with what the server would hold.
   getTasks.mockImplementation(async () => ({ data: [] }));

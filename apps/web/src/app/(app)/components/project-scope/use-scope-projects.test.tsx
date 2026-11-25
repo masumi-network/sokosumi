@@ -57,7 +57,12 @@ function project(id: string, name: string) {
 }
 
 function wrapper(
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
 ) {
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -378,7 +383,10 @@ describe("useSelectedScopeProject", () => {
       ),
     );
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     // The workspace page an open menu loaded earlier.
     client.setQueryData(["project-scope-page", "user-1", "org-a", ""], {
@@ -442,7 +450,10 @@ describe("useSelectedScopeProject", () => {
   it("keeps the name when a refetch fails", async () => {
     mocks.loadOne.mockReturnValue(project("far-1", "Far Away"));
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const { result } = renderHook(
       () => ({
@@ -504,7 +515,10 @@ describe("useIsUnknownScopeProject", () => {
   it("stays true when a refetch fails", async () => {
     mocks.loadOne.mockReturnValue(null);
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const { result } = renderHook(() => useIsUnknownScopeProject("gone-1"), {
       wrapper: wrapper(client),

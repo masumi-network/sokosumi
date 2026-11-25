@@ -17,11 +17,12 @@ Query aggregate event data (Explore)
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                                                           |
+| ------------ | ------------------------------------------------------------------------------------- |
 | `[<target>]` | &lt;org&gt;/ (all projects), &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-F, --field <value>... - API field or aggregate (repeatable). E.g., title, "count()", "p50(span.duration)"`
 - `-m, --metric <value> - Metric name for --dataset metrics. Auto-resolves type/unit via API.`
 - `--agg <value> - Aggregation for --metric (sum, avg, count, p50, p95, etc.) - (default: "sum")`

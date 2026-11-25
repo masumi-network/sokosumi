@@ -235,6 +235,77 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
+  it("lists each Audit's newest check, failed when its Task ended without a result", async () => {
+    const created = await createSeoAudit(actor, {
+      name: "Last check collection",
+      firstPage: { ...firstPage, url: "https://last-check.example.test/" },
+    });
+    const auditId = created.auditId ?? "";
+    const lastCheck = async () =>
+      (await listSeoAudits(actor, { limit: 100 })).audits.find(
+        (audit) => audit.id === auditId,
+      )?.lastCheck;
+    expect(await lastCheck()).toBeNull();
+    const check = (
+      kind: string,
+      status: string,
+      createdAt: Date,
+      taskId?: string,
+    ) =>
+      prisma.projectSeoAnalysis.create({
+        data: {
+          auditId,
+          idempotencyKey: randomUUID(),
+          requestHash: "x",
+          kind,
+          status,
+          createdAt,
+          request: {},
+          requestedBy: userId,
+          ...(taskId && { taskId }),
+        },
+      });
+    await check("audit_full", "completed", new Date("2026-11-01T10:00Z"));
+    const canceled = await prisma.task.create({
+      data: {
+        name: "SEO page check",
+        workspaceId,
+        status: "CANCELED",
+        ownerId: userId,
+      },
+    });
+    await check(
+      "page_check",
+      "requested",
+      new Date("2026-11-02T10:00Z"),
+      canceled.id,
+    );
+    expect(await lastCheck()).toMatchObject({
+      kind: "page_check",
+      status: "failed",
+    });
+    // Another member's private Task: the reader sees the stored status, as on the audit page.
+    const hidden = await prisma.task.create({
+      data: {
+        name: "Private SEO check",
+        workspaceId,
+        status: "CANCELED",
+        ownerId: foreignUserId,
+        visibility: "PRIVATE",
+      },
+    });
+    await check(
+      "rankings",
+      "requested",
+      new Date("2026-11-03T10:00Z"),
+      hidden.id,
+    );
+    expect(await lastCheck()).toMatchObject({
+      kind: "rankings",
+      status: "requested",
+    });
+  });
+
   it("lists only the scoped Project's Audits and refuses a foreign Project scope", async () => {
     const project = await prisma.project.create({
       data: { workspaceId, name: "Scoped SEO Project" },

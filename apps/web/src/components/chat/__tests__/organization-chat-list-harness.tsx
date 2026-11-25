@@ -393,7 +393,12 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 export const emptyRooms: ChatRoom[] = [];
 
 function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
 }
 
 /** One per test, as the app has one per tab, so a test's rooms stay its own. */

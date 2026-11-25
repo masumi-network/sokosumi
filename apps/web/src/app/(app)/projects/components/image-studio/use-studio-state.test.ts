@@ -1,8 +1,13 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  NuqsTestingAdapter,
+  withNuqsTestingAdapter,
+} from "nuqs/adapters/testing";
+import { Activity, createElement, type ReactNode, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StudioState } from "./types";
-import { useStudioState } from "./use-studio-state";
+import { type StudioStateHook, useStudioState } from "./use-studio-state";
 
 /**
  * The rule these tests exist for: a generation finishing must not take the
@@ -74,12 +79,16 @@ interface ScopeProps {
   initialState: StudioState;
 }
 
+function nuqsWrapper(searchParams = "") {
+  return withNuqsTestingAdapter({ searchParams, hasMemory: true });
+}
+
 /** The hook as the studio uses it: scoped to whichever project is in the URL. */
 function renderScoped(initialProps: ScopeProps) {
   return renderHook(
     (props: ScopeProps) =>
       useStudioState({ ...props, initialSelectedAssetId: null }),
-    { initialProps },
+    { initialProps, wrapper: nuqsWrapper() },
   );
 }
 
@@ -94,12 +103,14 @@ describe("useStudioState", () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: null,
-        initialState: { assets: [], jobs: [], nextCursor: null },
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: null,
+          initialState: { assets: [], jobs: [], nextCursor: null },
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
     await act(async () => {
       await result.current.refresh();
@@ -125,7 +136,10 @@ describe("useStudioState", () => {
           initialState,
           initialSelectedAssetId: null,
         }),
-      { initialProps: { projectId: null as string | null } },
+      {
+        initialProps: { projectId: null as string | null },
+        wrapper: nuqsWrapper(),
+      },
     );
     rerender({ projectId: "project-picked" });
     await act(async () => result.current.refresh());
@@ -151,12 +165,14 @@ describe("useStudioState", () => {
 
   it("shows a finished generation when the person is still waiting for it", async () => {
     vi.stubGlobal("fetch", mockFetch(WITH_RESULT));
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: INITIAL,
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     await act(async () => {
@@ -170,12 +186,14 @@ describe("useStudioState", () => {
 
   it("keeps the version the person chose, even when a newer one arrives", async () => {
     vi.stubGlobal("fetch", mockFetch(WITH_RESULT));
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: INITIAL,
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     // The person clicks back to v1 after the job was started.
@@ -195,13 +213,15 @@ describe("useStudioState", () => {
   it("reports the choice upward so the URL can hold it across a reload", async () => {
     vi.stubGlobal("fetch", mockFetch(INITIAL));
     const onSelectionChange = vi.fn();
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: INITIAL,
-        initialSelectedAssetId: null,
-        onSelectionChange,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+          onSelectionChange,
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     act(() => {
@@ -213,12 +233,14 @@ describe("useStudioState", () => {
 
   it("restores the selection named in the URL rather than the newest version", () => {
     vi.stubGlobal("fetch", mockFetch(WITH_RESULT));
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: WITH_RESULT,
-        initialSelectedAssetId: "a1",
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: WITH_RESULT,
+          initialSelectedAssetId: "a1",
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     expect(result.current.selectedAsset?.id).toBe("a1");
@@ -229,12 +251,14 @@ describe("useStudioState", () => {
       "fetch",
       vi.fn(async () => new Response("{}", { status: 401 })),
     );
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: INITIAL,
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     await act(async () => {
@@ -272,12 +296,14 @@ describe("paging through older history", () => {
       }),
     );
 
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: stateWithCursor(),
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: stateWithCursor(),
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     await act(async () => {
@@ -307,12 +333,14 @@ describe("paging through older history", () => {
       ),
     );
 
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: stateWithCursor(),
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: stateWithCursor(),
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
 
     await act(async () => {
@@ -454,15 +482,17 @@ describe("rating gallery page races", () => {
         ),
       );
     vi.stubGlobal("fetch", fetchMock);
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: {
-          ...INITIAL,
-          nextCursor: { createdAt: new Date(JOB_STARTED_AT), id: "a1" },
-        },
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: {
+            ...INITIAL,
+            nextCursor: { createdAt: new Date(JOB_STARTED_AT), id: "a1" },
+          },
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
     let page!: Promise<void>;
     act(() => {
@@ -498,12 +528,14 @@ describe("rating gallery page races", () => {
         }),
       ),
     );
-    const { result } = renderHook(() =>
-      useStudioState({
-        projectId: "project-1",
-        initialState: INITIAL,
-        initialSelectedAssetId: null,
-      }),
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: nuqsWrapper() },
     );
     let refresh!: Promise<void>;
     act(() => {
@@ -528,12 +560,14 @@ it("keeps saved feedback when a poll started before the rating returns", async (
       }),
     ),
   );
-  const { result } = renderHook(() =>
-    useStudioState({
-      projectId: "project-1",
-      initialState: INITIAL,
-      initialSelectedAssetId: null,
-    }),
+  const { result } = renderHook(
+    () =>
+      useStudioState({
+        projectId: "project-1",
+        initialState: INITIAL,
+        initialSelectedAssetId: null,
+      }),
+    { wrapper: nuqsWrapper() },
   );
   let refresh!: Promise<void>;
   act(() => {
@@ -557,5 +591,387 @@ it("keeps saved feedback when a poll started before the rating returns", async (
     myThumb: 1,
     myReasons: ["great"],
     thumbsUp: 1,
+  });
+});
+
+describe("URL-owned studio sort", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("loads ?sort=best once on mount under StrictMode without a second fetch", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            assets: [asset("best-1", 2)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(
+            StrictMode,
+            null,
+            createElement(NuqsTestingAdapter, {
+              searchParams: "?sort=best",
+              hasMemory: true,
+              children,
+            }),
+          ),
+      },
+    );
+
+    expect(result.current.sort).toBe("best");
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+        "best-1",
+      ]),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/projects/project-1/image-studio/state?sort=best&assetId=a1",
+      expect.objectContaining({
+        credentials: "same-origin",
+        cache: "no-store",
+      }),
+    );
+  });
+
+  it("reloads once per Back/Forward URL sort transition", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const isBest = url.includes("sort=best");
+      return new Response(
+        JSON.stringify({
+          assets: [asset(isBest ? "best-1" : "newest-1", isBest ? 2 : 1)],
+          jobs: [],
+          nextCursor: null,
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    let searchParams = "";
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(NuqsTestingAdapter, {
+        searchParams,
+        hasMemory: true,
+        children,
+      });
+
+    const { result, rerender } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    expect(result.current.sort).toBe("newest");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Navigate to ?sort=best
+    searchParams = "?sort=best";
+    rerender();
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+        "best-1",
+      ]),
+    );
+    expect(result.current.sort).toBe("best");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Browser Back to default newest
+    searchParams = "";
+    rerender();
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+        "newest-1",
+      ]),
+    );
+    expect(result.current.sort).toBe("newest");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).not.toContain("sort=best");
+
+    // Browser Forward back to ?sort=best
+    searchParams = "?sort=best";
+    rerender();
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+        "best-1",
+      ]),
+    );
+    expect(result.current.sort).toBe("best");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]?.[0]).toContain("sort=best");
+  });
+
+  it("refreshes newest on newest -> best -> newest while best is still pending", async () => {
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assets: [asset("newest-2", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    let searchParams = "";
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(NuqsTestingAdapter, {
+        searchParams,
+        hasMemory: true,
+        children,
+      });
+
+    const { result, rerender } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    searchParams = "?sort=best";
+    rerender();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("sort=best");
+
+    // Switch back to newest before the Best request settles.
+    searchParams = "";
+    rerender();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[0]).not.toContain("sort=best");
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+        "newest-2",
+        "a1",
+      ]),
+    );
+
+    // Late Best response is ignored.
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [asset("late-best", 3)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "newest-2",
+      "a1",
+    ]);
+  });
+
+  it("clears a failed best error when switching newest -> best (500) -> newest", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 500 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assets: [asset("newest-fresh", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    let searchParams = "";
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(NuqsTestingAdapter, {
+        searchParams,
+        hasMemory: true,
+        children,
+      });
+
+    const { result, rerender } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    searchParams = "?sort=best";
+    rerender();
+    await waitFor(() => expect(result.current.error).toBe("refresh_failed"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    searchParams = "";
+    rerender();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "newest-fresh",
+      "a1",
+    ]);
+  });
+
+  it("still applies a valid refresh result after a concurrent poll returns 503", async () => {
+    let resolveFirst!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onSelectionChange = vi.fn();
+
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+          onSelectionChange,
+        }),
+      { wrapper: nuqsWrapper() },
+    );
+
+    let firstRefresh!: Promise<void>;
+    act(() => {
+      firstRefresh = result.current.refresh();
+    });
+
+    // A concurrent poll starts later and fails with 503 before the first settles.
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.error).toBe("refresh_failed");
+
+    await act(async () => {
+      resolveFirst(new Response(JSON.stringify(WITH_RESULT), { status: 200 }));
+      await firstRefresh;
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.selectedAsset?.id).toBe("a2");
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "a2",
+      "a1",
+    ]);
+    expect(onSelectionChange).toHaveBeenCalledWith("a2");
+  });
+
+  it("keeps Best sort rows and clears isRefreshing when Best settles while hidden under Activity", async () => {
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    let latestStudio!: StudioStateHook;
+    function StudioHarness() {
+      latestStudio = useStudioState({
+        projectId: "project-1",
+        initialState: INITIAL,
+        initialSelectedAssetId: null,
+      });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(NuqsTestingAdapter, {
+        searchParams: "?sort=best",
+        hasMemory: true,
+        children: createElement(Activity, {
+          mode: "visible",
+          children: createElement(StudioHarness),
+        }),
+      }),
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(latestStudio.isRefreshing).toBe(true);
+
+    act(() => {
+      rerender(
+        createElement(NuqsTestingAdapter, {
+          searchParams: "?sort=best",
+          hasMemory: true,
+          children: createElement(Activity, {
+            mode: "hidden",
+            children: createElement(StudioHarness),
+          }),
+        }),
+      );
+    });
+
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [asset("best-1", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    act(() => {
+      rerender(
+        createElement(NuqsTestingAdapter, {
+          searchParams: "?sort=best",
+          hasMemory: true,
+          children: createElement(Activity, {
+            mode: "visible",
+            children: createElement(StudioHarness),
+          }),
+        }),
+      );
+    });
+
+    expect(latestStudio.state.assets.map(({ id }) => id)).toEqual([
+      "best-1",
+      "a1",
+    ]);
+    expect(latestStudio.isRefreshing).toBe(false);
   });
 });

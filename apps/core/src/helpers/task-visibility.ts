@@ -1,5 +1,6 @@
 import { type Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { internalServerError } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 
@@ -351,7 +352,7 @@ function buildCoworkerVendorFamilySql(
         t."assigneeId" IS DISTINCT FROM ${coworkerId}
         AND EXISTS (
           SELECT 1
-          FROM coworker c
+          FROM ${sharedTable("coworker")} c
           WHERE c.id = t."assigneeId"
             AND c."vendorId" = ${vendorId}::uuid
         )
@@ -371,11 +372,11 @@ export function buildCoworkerTaskAccessSql(
   if (params.hasWorkspaceGrant) {
     // GRANTED opens public non-draft Tasks, but private stays on vendor family.
     return PrismaRaw.sql`
-      AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+      AND t.status != ${TaskStatus.DRAFT}::${sharedType("TaskStatus")}
       AND (
-        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+        t.visibility = ${TaskVisibility.PUBLIC}::${sharedType("TaskVisibility")}
         OR (
-          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+          t.visibility = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
           AND ${vendorFamily}
         )
       )
@@ -383,7 +384,7 @@ export function buildCoworkerTaskAccessSql(
   }
 
   return PrismaRaw.sql`
-    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+    AND t.status != ${TaskStatus.DRAFT}::${sharedType("TaskStatus")}
     AND ${vendorFamily}
   `;
 }
@@ -391,9 +392,9 @@ export function buildCoworkerTaskAccessSql(
 export function buildHumanTaskVisibilitySql(userId: string): PrismaRaw.Sql {
   return PrismaRaw.sql`
     AND (
-      t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+      t.visibility = ${TaskVisibility.PUBLIC}::${sharedType("TaskVisibility")}
       OR (
-        t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+        t.visibility = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
         AND t."ownerId" = ${userId}
       )
     )

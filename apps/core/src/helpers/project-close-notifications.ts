@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import prisma from "@/lib/db/prisma";
 
@@ -117,10 +118,10 @@ export async function retryMissingProjectCloseNotifications(
   try {
     const events = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT event.id
-      FROM "project_event" AS event
-      JOIN "project" ON "project".id = event."projectId"
-      JOIN "workspace" ON "workspace".id = "project"."workspaceId"
-      JOIN "project_close_operation" AS operation
+      FROM ${sharedTable("project_event")} AS event
+      JOIN ${sharedTable("project")} ON "project".id = event."projectId"
+      JOIN ${sharedTable("workspace")} ON "workspace".id = "project"."workspaceId"
+      JOIN ${sharedTable("project_close_operation")} AS operation
         ON operation.id = event."closeOperationId"
       WHERE (
           event.kind = 'CLOSE_FINALIZED'

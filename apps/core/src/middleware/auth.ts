@@ -6,6 +6,7 @@ import {
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
+import { getWebAppBaseUrl } from "@/config/env";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
 import {
@@ -332,9 +333,9 @@ export function forbidAgentActor(
 }
 
 /**
- * Owner-mutation / human-only user context: session user. Rejects agent
- * actors so
- * `X-Context-User-Id` cannot impersonate the resource owner.
+ * Owner-mutation user context: a person by any sign-in (session, API key or
+ * OAuth token). Rejects Coworker and Soko Bot actors so `X-Context-User-Id`
+ * cannot impersonate the resource owner.
  *
  * Use for notifications, history, billing, org member lists, and similar
  * surfaces. See the handler actor menu on {@link UserContext}.
@@ -417,6 +418,35 @@ export function requireInteractiveUserAuthContext(
   }
 
   return userAuthContext;
+}
+
+/** A person at the keyboard: a browser session, never an agent's credential. */
+export function isPersonSession(
+  authContext: AuthenticationContext,
+): authContext is UserAuthenticationContext {
+  return (
+    isUserAuthContext(authContext) &&
+    authContext.authenticationMethod === "session"
+  );
+}
+
+/**
+ * A person approves, publishes and sends (ADR 0077), so only a browser
+ * session passes. Every agent (API key, OAuth or MCP token, Coworker, Soko
+ * Bot) gets 403 `person_approval_required` with the item's Web link, so it
+ * can send its user there.
+ */
+export function requirePersonApproval(
+  authContext: AuthenticationContext,
+  webPath: string,
+): UserAuthenticationContext {
+  if (isPersonSession(authContext)) {
+    return authContext;
+  }
+  throw forbidden("A person approves this in Sokosumi", {
+    kind: CORE_API_ERROR_KINDS.PERSON_APPROVAL_REQUIRED,
+    extensions: { webUrl: new URL(webPath, getWebAppBaseUrl()).toString() },
+  });
 }
 
 /**

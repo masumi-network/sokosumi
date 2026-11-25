@@ -224,7 +224,7 @@ Developer setup on Preprod:
   Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
 
 Organizer setup on Preprod (platform admin):
-  Select an organization Workspace. Workspace creation and email invitations remain in Sokosumi Web.
+  Select an organization Workspace. Email invitations remain in Sokosumi Web; workspaces create me makes a Workspace.
   For an existing Preprod account, use the selected Workspace slug:
   sokosumi --preprod admin members WORKSPACE_SLUG
   sokosumi --preprod admin add-member WORKSPACE_SLUG --email EMAIL
@@ -250,8 +250,40 @@ Evals (platform admin; Core runs them on the deployment you select):
 Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
-  follow, restore). --organization-slug WORKSPACE_SLUG selects the Workspace.
+  follow, restore, notifications read, unread and read-all, drive reindex and refresh-google-sheet).
+  --organization-slug WORKSPACE_SLUG selects the Workspace.
   Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
+  transactions and history read the selected Workspace; notifications are the signed-in person's own.
+  Sharing a Job, refunds and agent ratings stay in the app.
+
+Account, organizations and workspaces:
+  Commands on your own account take the literal me: sokosumi workspaces credits me, sokosumi workspaces create me --input-json '{"kind":"personal"}'.
+  An action with no body still needs one: sokosumi organizations deny-vendor-grant ORGANIZATION_ID GRANT_ID --input-json '{}'.
+  Organization commands take the organization id from workspaces list. Owner and admin commands answer 403 for other members.
+  Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.
+
+Drive:
+  Most drive commands pick the Drive with --query scope=me, or --query scope=org --query organizationId=ORG_ID
+  (organizationId from workspaces list); writes put scope and organizationId in the body. Tables take --organization-slug.
+  Find: drive search --query scope=me --query q=TEXT, drive files, drive get RESOURCE_ID, drive tasks (Task outputs).
+  drive delete and drive delete-folder take the pathname or folderPath as --input-json; they cannot be undone.
+  Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
+  Uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
+
+Chats:
+  Rooms come from sokosumi chats rooms --organization-slug WORKSPACE_SLUG; a room's id fills ROOM_ID.
+  sokosumi chats messages ROOM_ID, sokosumi chats send ROOM_ID --input-json '{"content":"Draft is ready."}'.
+  chats send spends credits when it mentions a Coworker or Soko Bot, or goes to a Soko Bot Direct: it replies as a paid turn.
+  A 1:1 Coworker Direct replies only in Sokosumi Web.
+  Star, mute, pin, read, join and archive take no body. Inviting guests and invite links are CLI-only;
+  stickers, voice transcription and the live reply stream stay in Sokosumi Web.
+
+Soko Bots:
+  sokosumi soko-bots me and soko-bots my-* act on your personal Soko Bot; soko-bots team lists each member's bot.
+  Other commands take SOKO_BOT_ID: a member's bot from soko-bots team, or a shared bot's id from soko-bots create.
+  sokosumi soko-bots ask-mine --input-json '{"clientTurnId":"ID","message":"TEXT"}' starts a turn; read it with soko-bots my-turn TURN_ID.
+  ask, ask-mine, schedules, the Lab and turning on proactive work, board-following or stand-up spend credits.
+  delete and delete-mine erase a bot for good. Connecting integrations, decisions, API keys, secrets, sandbox and MCP servers stay in Sokosumi Web.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
@@ -285,6 +317,14 @@ Organization Tasks:
     run-schedule may spend credits: each Run creates a Task that can start paid work. run-schedule creates one now.
     tasks update-schedule-run SCHEDULE_ID RUN_ID skips, moves or restores one Run.
   Files: tasks upload-url TASK_ID returns uploadUrl and headers; PUT the bytes there and the file shows in tasks files.
+
+Contacts (personal data; each contacts command calls one Core operation):
+  contacts list|map|breakdown|export take the same --query filters, e.g. --query stage=PROSPECT --query listId=LIST_ID.
+  contacts export prints CSV (up to 10,000 contacts): sokosumi contacts export > contacts.csv
+  Contact lists use LIST_ID (contacts list-lists); company lists use COMPANY_LIST_ID (contacts list-company-lists).
+  contacts update needs the contact's current version: --input-json '{"version":3,"role":"Founder"}'.
+  contacts enrich and contacts find-people spend workspace credits. contacts merge cannot be undone.
+  contacts import-linkedin takes LinkedIn's Connections.csv as JSON: jq -Rs '{csv: .}' Connections.csv > in.json, then --input-file in.json.
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

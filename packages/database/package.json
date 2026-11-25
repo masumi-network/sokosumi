@@ -19,6 +19,11 @@
       "import": "./src/client.ts",
       "default": "./src/client.ts"
     },
+    "./sql-tables": {
+      "types": "./src/sql-tables.ts",
+      "import": "./src/sql-tables.ts",
+      "default": "./src/sql-tables.ts"
+    },
     "./repositories": {
       "types": "./src/repositories/index.ts",
       "import": "./src/repositories/index.ts",
@@ -37,7 +42,8 @@
   },
   "files": [
     "src",
-    "prisma/*.prisma"
+    "prisma/*.prisma",
+    "prisma/network-tables.json"
   ],
   "scripts": {
     "prisma:generate": "pnpm exec prisma generate --no-hints",
@@ -53,6 +59,7 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
+    "generate:sql-table-names": "tsx scripts/generate-sql-table-names.ts",
     "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
     "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
@@ -71,7 +78,7 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@types/node": "26.6.6",
+    "@types/node": "26.6.7",
     "@types/pg": "8.23.1",
     "@typescript/typescript6": "6.0.2",
     "dotenv": "18.0.10",

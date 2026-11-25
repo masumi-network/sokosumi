@@ -1,11 +1,18 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { describe, expect, it } from "vitest";
 
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
+import {
+  GENERATE_COMMAND,
+  renderSqlTableNames,
+  SQL_TABLE_NAMES_FILE,
+} from "../scripts/generate-sql-table-names.js";
 import { Prisma, PrismaClient } from "./generated/prisma/client.js";
+import { $Enums } from "./index.js";
 
 const models = Object.values(Prisma.ModelName);
 const network: Record<string, string> = networkTables.network;
@@ -18,7 +25,12 @@ const dataModel = (
       connectionString: "postgresql://127.0.0.1:1/none",
     }),
   }) as unknown as {
-    _runtimeDataModel: { models: Record<string, { dbName: string | null }> };
+    _runtimeDataModel: {
+      models: Record<
+        string,
+        { dbName: string | null; fields: { kind: string; type: string }[] }
+      >;
+    };
   }
 )._runtimeDataModel.models;
 
@@ -70,6 +82,13 @@ describe("prisma/network-tables.json", () => {
     expect(unplaced, "add each new model to one list").toEqual([]);
   });
 
+  it("is what src/sql-table-names.ts types the SQL helpers with", () => {
+    expect(
+      readFileSync(SQL_TABLE_NAMES_FILE, "utf8"),
+      `src/sql-table-names.ts is out of date: run ${GENERATE_COMMAND}`,
+    ).toBe(renderSqlTableNames(networkTables));
+  });
+
   it("places no model in both lists", () => {
     expect(Object.keys(network).filter((model) => model in shared)).toEqual([]);
   });
@@ -88,6 +107,34 @@ describe("prisma/network-tables.json", () => {
       ([model, table]) => (dataModel[model]?.dbName ?? model) !== table,
     );
     expect(wrong).toEqual([]);
+  });
+
+  it("lists exactly the enums a Network model uses, and none is used on both sides", () => {
+    // The split script's rule: an enum goes with the tables that use it, and
+    // one no table uses stays shared.
+    const users = new Map<string, Set<boolean>>();
+    for (const [model, { fields }] of Object.entries(dataModel)) {
+      for (const field of fields) {
+        if (field.kind !== "enum") continue;
+        users.set(
+          field.type,
+          (users.get(field.type) ?? new Set()).add(model in network),
+        );
+      }
+    }
+    expect(
+      [...users].filter(([, sides]) => sides.size > 1).map(([name]) => name),
+      "an enum is used by a Network and a shared model",
+    ).toEqual([]);
+    expect(
+      [...users]
+        .filter(([, sides]) => sides.has(true))
+        .map(([name]) => name)
+        .sort(),
+    ).toEqual([...networkTables.networkEnums].sort());
+    expect(
+      networkTables.networkEnums.filter((name) => !(name in $Enums)),
+    ).toEqual([]);
   });
 
   it("names every SQL object once", () => {

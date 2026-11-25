@@ -17,8 +17,8 @@ Print the shell completion script
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument    | Description                                            |
+| ----------- | ------------------------------------------------------ |
 | `[<shell>]` | Shell to generate completions for (bash, zsh, or fish) |
 
 **Examples:**
@@ -43,11 +43,12 @@ View and manage default settings
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument         | Description                    |
+| ---------------- | ------------------------------ |
 | `<key value...>` | Setting key and optional value |
 
 **Flags:**
+
 - `--clear - Clear the specified default, or all defaults if no key is given`
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
@@ -101,8 +102,8 @@ Send feedback about the CLI
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument       | Description           |
+| -------------- | --------------------- |
 | `<message...>` | Your feedback message |
 
 **Examples:**
@@ -120,6 +121,7 @@ sentry cli feedback the issue view is confusing
 Diagnose and repair CLI database issues
 
 **Flags:**
+
 - `--dry-run - Show what would be fixed without making changes`
 
 **Examples:**
@@ -140,6 +142,7 @@ sentry cli fix --dry-run
 Import settings from legacy .sentryclirc files
 
 **Flags:**
+
 - `-y, --yes - Skip confirmation prompt`
 - `-n, --dry-run - Show what would happen without making changes`
 - `--url <value> - Explicitly trust this URL (bypasses same-file trust check)`
@@ -169,6 +172,7 @@ sentry cli import --skip-validation
 Configure shell integration
 
 **Flags:**
+
 - `--install - Install the binary from a temp location to the system path`
 - `--method <value> - Installation method (curl, brew, npm, pnpm, bun, yarn)`
 - `--channel <value> - Release channel to persist (stable or nightly)`
@@ -206,6 +210,7 @@ Uninstall Sentry CLI
 **Destructive:** This command deletes data or makes changes that can't easily be undone. Use `--dry-run` to preview the changes first. Confirm with the user before running it.
 
 **Flags:**
+
 - `--keep-config - Keep the config directory (default ~/.config/sentry) and auth tokens`
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
@@ -230,11 +235,12 @@ Update the Sentry CLI to the latest version
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument      | Description                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `[<version>]` | Specific version (e.g. 0.5.0), "nightly"/"stable" to switch channel, or "undo" to return to the previous version; omit to update within current channel |
 
 **Flags:**
+
 - `--check - Check for updates without installing`
 - `--force - Force upgrade even if already on the latest version`
 - `--offline - Upgrade using only cached version info and patches (no network)`

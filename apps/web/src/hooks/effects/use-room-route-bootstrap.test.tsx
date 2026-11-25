@@ -2,7 +2,7 @@ import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { QueryClient } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { Activity, useLayoutEffect } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { RoomsClientProps } from "@/app/chat/components/rooms-client";
 import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
@@ -10,6 +10,33 @@ import {
   RoomBootstrapContext,
   useRoomRouteBootstrap,
 } from "./use-room-route-bootstrap";
+
+const activeCaches: RoomTranscriptCache[] = [];
+
+function createTestCache(
+  userId = "user-1",
+  workspaceId: string | null = "org-1",
+) {
+  const cache = new RoomTranscriptCache(
+    new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    }),
+    userId,
+    workspaceId,
+  );
+  activeCaches.push(cache);
+  return cache;
+}
+
+afterEach(() => {
+  for (const cache of activeCaches.splice(0)) {
+    cache.clear();
+    cache.client.clear();
+  }
+});
 
 function makeMessage(id: string, content: string): ChatRoomMessage {
   return {
@@ -56,7 +83,7 @@ function makeProps(
 
 describe("useRoomRouteBootstrap", () => {
   it("registers props from context and seeds the cache in layout phase before paint, then updates bootstrap on an existing entry", () => {
-    const cache = new RoomTranscriptCache(new QueryClient(), "user-1", "org-1");
+    const cache = createTestCache("user-1", "org-1");
     const register = vi.fn();
     let hasProvider = false;
     const layoutSnapshot: Array<{
@@ -153,7 +180,7 @@ describe("useRoomRouteBootstrap", () => {
     );
     expect(register).not.toHaveBeenCalled();
 
-    const cache = new RoomTranscriptCache(new QueryClient(), "user-1", "org-1");
+    const cache = createTestCache("user-1", "org-1");
 
     // Missing selectedRoomId
     rerender(
@@ -175,11 +202,7 @@ describe("useRoomRouteBootstrap", () => {
     expect(cache.get("room-1")).toBeUndefined();
 
     // Mismatched workspace scope
-    const otherWorkspaceCache = new RoomTranscriptCache(
-      new QueryClient(),
-      "user-1",
-      "org-other",
-    );
+    const otherWorkspaceCache = createTestCache("user-1", "org-other");
     rerender(
       <RoomBootstrapContext value={register}>
         <Probe cache={otherWorkspaceCache} props={props} />
@@ -190,7 +213,7 @@ describe("useRoomRouteBootstrap", () => {
   });
 
   it("reports no provider for fallback rendering while still seeding the cache and re-seeding on Activity reveal", () => {
-    const cache = new RoomTranscriptCache(new QueryClient(), "user-1", "org-1");
+    const cache = createTestCache("user-1", "org-1");
     const props = makeProps();
     let hasProvider = true;
     const layoutSeeded: boolean[] = [];

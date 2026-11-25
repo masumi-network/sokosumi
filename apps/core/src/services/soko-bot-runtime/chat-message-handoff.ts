@@ -1,3 +1,4 @@
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import {
@@ -62,7 +63,7 @@ async function background(
     // A private Task is the owner's; the other side sees only that one exists.
     lines.push(
       task.visibility === "PUBLIC"
-        ? `Task "${task.name}" (${task.status.toLowerCase()}): ${clip(task.description, BACKGROUND_CHARS) || "no description"}`
+        ? `Task "${task.name}" (${task.status.toLowerCase()}): ${clip(hideSeoAuditRequest(task.description), BACKGROUND_CHARS) || "no description"}`
         : "It is about a private Task of the person I work for.",
     );
   }

@@ -107,7 +107,10 @@ describe("OAuthAuthorizedClients", () => {
       .mockResolvedValueOnce({ data: [], error: null });
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     rtlRender(
       <QueryClientProvider client={client}>

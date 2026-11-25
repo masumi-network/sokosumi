@@ -203,6 +203,7 @@ describe("studio comparison routes", () => {
       expect([compare.status, scoreboard.status]).not.toContain(403);
       expect(mocks.next).toHaveBeenCalled();
       expect(mocks.scoreboard).toHaveBeenCalled();
+      // SOKD-394: a pick feeds the model scoreboard as the person's own.
       expect(save.status).toBe(403);
       expect(mocks.save).not.toHaveBeenCalled();
     },

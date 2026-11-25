@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { waitUntil } from "@vercel/functions";
 
 import {
@@ -101,7 +102,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // clicks cannot each snapshot the old unfurls array and clobber the
       // other's removed URL (last-write-wins resurrection).
       const lockedMessages = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "chat_room_message"
+        SELECT "id" FROM ${sharedTable("chat_room_message")}
         WHERE "id" = ${messageId}::uuid AND "roomId" = ${id}::uuid
         FOR UPDATE
       `;

@@ -17,11 +17,12 @@ Create one or more projects
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                       | Description                                 |
+| ------------------------------ | ------------------------------------------- |
 | `[<org>/]<name>:<platform>...` | One or more project name and platform pairs |
 
 **Flags:**
+
 - `-t, --team <value> - Team to create the project under`
 - `-n, --dry-run - Show what would happen without making changes`
 
@@ -52,11 +53,12 @@ Delete a project
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument        | Description                                                         |
+| --------------- | ------------------------------------------------------------------- |
 | `<org/project>` | &lt;org&gt;/&lt;project&gt; or &lt;project&gt; (search across orgs) |
 
 **Flags:**
+
 - `-y, --yes - Skip confirmation prompt`
 - `-f, --force - Force the operation without confirmation`
 - `-n, --dry-run - Show what would happen without making changes`
@@ -80,11 +82,12 @@ List projects
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all), &lt;org&gt;/&lt;name&gt; or &lt;name&gt; (a project, else matching names), or a name glob (&lt;org&gt;/web-*) |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum number of projects to list - (default: "25")`
 - `-p, --platform <value> - Filter by platform (e.g., javascript, python)`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
@@ -92,26 +95,26 @@ List projects
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Project ID |
-| `slug` | string | Project slug |
-| `name` | string | Project name |
-| `platform` | string \| null | Platform of the project |
-| `platforms` | array | Platforms seen in the project's events |
-| `dateCreated` | string | When the project was created (ISO 8601) |
-| `firstEvent` | string \| null | When the project received its first event (ISO 8601) |
-| `status` | string | Project status |
-| `isBookmarked` | boolean | Whether the requesting user bookmarked the project |
-| `isMember` | boolean | Whether the requesting user is a member of a team with access to the project |
-| `hasAccess` | boolean | Whether the requesting user has access to the project |
-| `features` | array | Features enabled for the project |
-| `team` | object \| null | First team with access to the project; use teams instead |
-| `teams` | array | Teams with access to the project |
-| `environments` | array | Environments seen in the project's events |
-| `latestRelease` | object \| null | Latest release of the project |
-| `organization` | object | Organization (detail responses only) |
-| `orgSlug` | string | Organization slug |
+| Field           | Type           | Description                                                                  |
+| --------------- | -------------- | ---------------------------------------------------------------------------- |
+| `id`            | string         | Project ID                                                                   |
+| `slug`          | string         | Project slug                                                                 |
+| `name`          | string         | Project name                                                                 |
+| `platform`      | string \| null | Platform of the project                                                      |
+| `platforms`     | array          | Platforms seen in the project's events                                       |
+| `dateCreated`   | string         | When the project was created (ISO 8601)                                      |
+| `firstEvent`    | string \| null | When the project received its first event (ISO 8601)                         |
+| `status`        | string         | Project status                                                               |
+| `isBookmarked`  | boolean        | Whether the requesting user bookmarked the project                           |
+| `isMember`      | boolean        | Whether the requesting user is a member of a team with access to the project |
+| `hasAccess`     | boolean        | Whether the requesting user has access to the project                        |
+| `features`      | array          | Features enabled for the project                                             |
+| `team`          | object \| null | First team with access to the project; use teams instead                     |
+| `teams`         | array          | Teams with access to the project                                             |
+| `environments`  | array          | Environments seen in the project's events                                    |
+| `latestRelease` | object \| null | Latest release of the project                                                |
+| `organization`  | object         | Organization (detail responses only)                                         |
+| `orgSlug`       | string         | Organization slug                                                            |
 
 **Examples:**
 
@@ -153,36 +156,37 @@ View details of a project
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                             |
+| ----------------- | ------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/&lt;project&gt; or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Project ID |
-| `slug` | string | Project slug |
-| `name` | string | Project name |
-| `platform` | string \| null | Platform of the project |
-| `platforms` | array | Platforms seen in the project's events |
-| `dateCreated` | string | When the project was created (ISO 8601) |
-| `firstEvent` | string \| null | When the project received its first event (ISO 8601) |
-| `status` | string | Project status |
-| `isBookmarked` | boolean | Whether the requesting user bookmarked the project |
-| `isMember` | boolean | Whether the requesting user is a member of a team with access to the project |
-| `hasAccess` | boolean | Whether the requesting user has access to the project |
-| `features` | array | Features enabled for the project |
-| `team` | object \| null | First team with access to the project; use teams instead |
-| `teams` | array | Teams with access to the project |
-| `environments` | array | Environments seen in the project's events |
-| `latestRelease` | object \| null | Latest release of the project |
-| `organization` | object | Organization (detail responses only) |
-| `dsn` | string \| null | Primary DSN |
+| Field           | Type           | Description                                                                  |
+| --------------- | -------------- | ---------------------------------------------------------------------------- |
+| `id`            | string         | Project ID                                                                   |
+| `slug`          | string         | Project slug                                                                 |
+| `name`          | string         | Project name                                                                 |
+| `platform`      | string \| null | Platform of the project                                                      |
+| `platforms`     | array          | Platforms seen in the project's events                                       |
+| `dateCreated`   | string         | When the project was created (ISO 8601)                                      |
+| `firstEvent`    | string \| null | When the project received its first event (ISO 8601)                         |
+| `status`        | string         | Project status                                                               |
+| `isBookmarked`  | boolean        | Whether the requesting user bookmarked the project                           |
+| `isMember`      | boolean        | Whether the requesting user is a member of a team with access to the project |
+| `hasAccess`     | boolean        | Whether the requesting user has access to the project                        |
+| `features`      | array          | Features enabled for the project                                             |
+| `team`          | object \| null | First team with access to the project; use teams instead                     |
+| `teams`         | array          | Teams with access to the project                                             |
+| `environments`  | array          | Environments seen in the project's events                                    |
+| `latestRelease` | object \| null | Latest release of the project                                                |
+| `organization`  | object         | Organization (detail responses only)                                         |
+| `dsn`           | string \| null | Primary DSN                                                                  |
 
 **Examples:**
 

@@ -3,7 +3,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { MCP_TOOLS, type McpTool, toolsetOf } from "@/lib/sokosumi-mcp/tools";
+import {
+  MCP_TOOLS,
+  type McpTool,
+  routeGroupOf,
+} from "@/lib/sokosumi-mcp/tools";
 
 import apiV1 from "./index.js";
 
@@ -130,9 +134,9 @@ function mcpBindingProblems(
   }
 
   for (const tool of tools) {
-    if (!manifests.has(toolsetOf(tool.name))) {
+    if (!manifests.has(routeGroupOf(tool.name))) {
       problems.push(
-        `${registry} "${tool.name}": start the name with a route group; it is the toolset (a hyphenated group goes in HYPHENATED_TOOLSETS).`,
+        `${registry} "${tool.name}": start the name with a route group (a hyphenated group goes in HYPHENATED_GROUPS).`,
       );
     }
     const row = manifests.get(groupOf(tool.operation))?.operations[
@@ -234,7 +238,7 @@ describe("agent surface", () => {
           [{ ...tool, name: "todo_list" }],
         ),
       ).toEqual([
-        'src/lib/sokosumi-mcp/tools.ts "todo_list": start the name with a route group; it is the toolset (a hyphenated group goes in HYPHENATED_TOOLSETS).',
+        'src/lib/sokosumi-mcp/tools.ts "todo_list": start the name with a route group (a hyphenated group goes in HYPHENATED_GROUPS).',
       ]);
     });
 

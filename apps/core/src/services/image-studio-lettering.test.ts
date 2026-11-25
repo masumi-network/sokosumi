@@ -453,6 +453,49 @@ describe("optional two-step lettering", () => {
     }
   });
 
+  it.each(["api_key", "oauth"] as const)(
+    "keeps the original product for an agent's %s cutout start (ADR 0077)",
+    async (kind) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response(new Uint8Array([7, 8, 9]), {
+              headers: { "content-type": "image/png" },
+            }),
+        ),
+      );
+      try {
+        await createImageJob({
+          ...INPUT,
+          lettering: "ideogram",
+          useProductCutout: true,
+          referenceFileIds: ["photo-1"],
+          referenceFileActor: { kind, userId: "user-1", organizationId: null },
+        });
+        await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+        expect(mocks.compose).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
+  it("still refuses a Soko Bot's cutout start", async () => {
+    await expect(
+      createImageJob({
+        ...INPUT,
+        useProductCutout: true,
+        referenceFileIds: ["photo-1"],
+        referenceFileActor: {
+          kind: "soko_bot",
+          userId: "user-1",
+          organizationId: null,
+        },
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
   it("retries lettering against the delivered product composite without inheriting a cutout pass", async () => {
     vi.stubGlobal(
       "fetch",

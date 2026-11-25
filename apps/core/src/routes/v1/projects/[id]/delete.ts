@@ -25,7 +25,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "delete",
     path: "/{id}",
     description:
-      "Project deletion is no longer available. Close the project instead. Interactive session user only; coworker keys are rejected.",
+      "Project deletion is no longer available. Close the project instead. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

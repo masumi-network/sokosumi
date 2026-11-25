@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { notFound } from "@/helpers/error";
 
@@ -22,19 +23,19 @@ export async function lockTaskChatSend(
   input: { taskId: string; roomId: string; userId: string },
 ): Promise<void> {
   const tasks = await tx.$queryRaw<{ workspaceId: string }[]>`
-    SELECT "workspaceId" FROM "task" WHERE "id" = ${input.taskId} FOR SHARE
+    SELECT "workspaceId" FROM ${sharedTable("task")} WHERE "id" = ${input.taskId} FOR SHARE
   `;
   const task = tasks[0];
   if (!task) throw notFound("Task not found");
 
   const workspaces = await tx.$queryRaw<{ organizationId: string | null }[]>`
-    SELECT "organizationId" FROM "workspace"
+    SELECT "organizationId" FROM ${sharedTable("workspace")}
     WHERE "id" = ${task.workspaceId}::uuid
   `;
   const organizationId = workspaces[0]?.organizationId ?? null;
   if (organizationId) {
     const members = await tx.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM "member"
+      SELECT "id" FROM ${sharedTable("member")}
       WHERE "organizationId" = ${organizationId} AND "userId" = ${input.userId}
       FOR SHARE
     `;
@@ -46,13 +47,13 @@ export async function lockTaskChatSend(
   // hold it and then deadlock upgrading it. Room before room membership, as
   // the roster flows lock it.
   const rooms = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "chat_room" WHERE "id" = ${input.roomId}::uuid
+    SELECT "id" FROM ${sharedTable("chat_room")} WHERE "id" = ${input.roomId}::uuid
     FOR NO KEY UPDATE
   `;
   if (rooms.length === 0) throw notFound("Room not found");
 
   const roomMembers = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "chat_room_user_member"
+    SELECT "id" FROM ${sharedTable("chat_room_user_member")}
     WHERE "roomId" = ${input.roomId}::uuid AND "userId" = ${input.userId}
     FOR SHARE
   `;
