@@ -13,7 +13,7 @@ import { GitMerge, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
@@ -163,9 +163,6 @@ export function ContactsWorkspace({
   // and a link that names both opens the archive.
   const archived = view === "archived";
   const layout = archived ? null : urlLayout;
-  useEffect(() => {
-    if (archived && urlLayout) void setLayout(null);
-  }, [archived, urlLayout, setLayout]);
   const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -243,6 +240,7 @@ export function ContactsWorkspace({
 
   function changeView(next: string) {
     void setView(next === "all" ? null : next);
+    if (next === "archived") void setLayout(null);
     setSelected([]);
   }
   function changeOrganization(next: string | null) {

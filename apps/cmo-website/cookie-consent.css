@@ -1,0 +1,9 @@
+.cookie-settings { color: inherit; font: inherit; background: transparent; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; padding: 0; }
+.cookie-panel { position: fixed; z-index: 1000; left: var(--s-4); right: var(--s-4); bottom: var(--s-4); max-width: 400px; max-height: 80dvh; overflow-y: auto; padding: var(--s-4) var(--s-5) var(--s-5); background: var(--paper); color: var(--ink); border: var(--line); border-radius: var(--radius-control); box-shadow: var(--shadow); }
+.cookie-panel h2 { font: 600 18px / 1.3 var(--font-display); margin: 0 0 var(--s-2); }
+.cookie-panel p { margin: 0 0 var(--s-2); font-size: var(--text-small); line-height: 1.5; }
+.cookie-panel a { font-size: var(--text-small); text-decoration: underline; text-underline-offset: 3px; }
+.cookie-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-top: var(--s-4); }
+.cookie-actions button { background: var(--paper); color: var(--ink); font: 600 15px / 1 var(--font-body); border: var(--line); border-radius: var(--radius-control); padding: var(--s-3); min-height: 44px; cursor: pointer; }
+.cookie-actions button:hover { background: var(--ink); color: var(--paper); }
+.cookie-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
