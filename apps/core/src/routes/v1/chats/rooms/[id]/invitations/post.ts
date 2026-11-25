@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { getEmailLocale } from "@sokosumi/utils";
 
 import { getWebAppBaseUrl } from "@/config/env";
@@ -99,12 +100,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // - room lock: pending-per-room cap and unique pending email
         // - inviter lock: hourly create cap across rooms (room lock alone is not enough)
         await tx.$queryRaw`
-        SELECT "id" FROM "chat_room"
+        SELECT "id" FROM ${sharedTable("chat_room")}
         WHERE "id" = ${room.id}::uuid
         FOR UPDATE
       `;
         await tx.$queryRaw`
-        SELECT "id" FROM "user"
+        SELECT "id" FROM ${sharedTable("user")}
         WHERE "id" = ${userContext.userId}
         FOR UPDATE
       `;

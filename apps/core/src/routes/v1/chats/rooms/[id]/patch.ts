@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   expireStalePendingInvitations,
@@ -210,7 +211,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // Serialize against concurrent accept so we cannot flip off external
           // while a guest membership lands under the same window.
           await tx.$queryRaw`
-              SELECT "id" FROM "chat_room"
+              SELECT "id" FROM ${sharedTable("chat_room")}
               WHERE "id" = ${existing.id}::uuid
               FOR UPDATE
             `;

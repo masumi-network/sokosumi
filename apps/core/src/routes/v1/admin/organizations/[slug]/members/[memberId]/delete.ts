@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { OrganizationOwnerRetentionError } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
@@ -71,7 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // order so removal cannot deadlock while a notification is publishing.
         await tx.$queryRaw`
           SELECT id
-          FROM "member"
+          FROM ${sharedTable("member")}
           WHERE id = ${memberId}
             AND "organizationId" = ${organization.id}
           FOR UPDATE

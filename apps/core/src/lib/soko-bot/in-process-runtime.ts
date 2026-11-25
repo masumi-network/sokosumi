@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { SokoBotRuntimeEvent } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type IndexedRuntimeEvent,
   type RuntimeCancelInput,
@@ -299,7 +300,7 @@ export async function* streamStoredEvents(
       // Close commits its marker before taking this lock. Either the drain
       // sees the marker, or close sees the drain's released heartbeat.
       await tx.$queryRaw`
-      SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+      SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turnId}::uuid
       FOR NO KEY UPDATE
     `;
       const terminal = await tx.sokoBotRuntimeEvent.findFirst({
