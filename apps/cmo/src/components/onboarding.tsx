@@ -9,6 +9,7 @@ import { useFormStatus } from "react-dom";
 import type { OnboardFormState } from "../app/cmo-actions";
 import { useFocusFirstInvalid } from "../hooks/effects/use-focus-first-invalid";
 import { AGENT_NAME } from "../lib/agent";
+import { track } from "../lib/analytics";
 import { AccountMenu } from "./account-menu";
 import { cusoArt } from "./cuso";
 import { Logo } from "./logo";
@@ -84,6 +85,7 @@ export function Onboarding({
           key={state.attempt}
           ref={formRef}
           action={formAction}
+          onSubmit={() => track("website_entered")}
           className="ob-hire"
         >
           <input type="hidden" name="timeZone" value={timeZone} />

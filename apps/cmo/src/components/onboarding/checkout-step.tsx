@@ -8,6 +8,8 @@ import {
 } from "@sokosumi/utils";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { usePlansViewed } from "../../hooks/effects/use-analytics";
+import { beginCheckout, planItem, track } from "../../lib/analytics";
 import { channelLabel } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
 import { postsGoingOut } from "../../lib/strategy";
@@ -226,6 +228,7 @@ export function CheckoutStep({
   const [picked, setPicked] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, startOpening] = useTransition();
+  usePlansViewed(phase === "choosing", plans, interval);
 
   if (phase === "confirming") {
     return (
@@ -285,6 +288,10 @@ export function CheckoutStep({
       try {
         const result = await onCheckout(interval, chosenTier);
         if (result.url) {
+          const plan = offered.find(
+            (candidate) => candidate.tier === chosenTier,
+          );
+          if (plan) track(...beginCheckout(plan));
           window.location.assign(result.url);
           return;
         }
@@ -323,14 +330,20 @@ export function CheckoutStep({
             <button
               type="button"
               aria-pressed={interval === "month"}
-              onClick={() => setInterval("month")}
+              onClick={() => {
+                setInterval("month");
+                track("billing_period_select", { billing_period: "month" });
+              }}
             >
               Monthly
             </button>
             <button
               type="button"
               aria-pressed={interval === "year"}
-              onClick={() => setInterval("year")}
+              onClick={() => {
+                setInterval("year");
+                track("billing_period_select", { billing_period: "year" });
+              }}
             >
               Yearly
               {yearly ? <span className="ob-save">{yearly}</span> : null}
@@ -357,7 +370,13 @@ export function CheckoutStep({
                       ? "card ob-plan-option ob-plan-top"
                       : "card ob-plan-option"
                   }
-                  onClick={() => setPicked(plan.tier)}
+                  onClick={() => {
+                    setPicked(plan.tier);
+                    track("select_item", {
+                      item_list_id: `plans_${interval}`,
+                      items: [planItem(plan)],
+                    });
+                  }}
                 >
                   {plan.tier === whole && offered.length > 1 && !floors ? (
                     <span className="ob-plan-fit">Makes all of it</span>

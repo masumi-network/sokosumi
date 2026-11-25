@@ -63,7 +63,8 @@ function sokosumiSignInBody(
       : undefined;
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
-    callbackURL: "/",
+    // The app sends GA4 sign_up or login once it sees the marker.
+    callbackURL: "/?signed_in=1",
     errorCallbackURL: "/",
     ...(additionalParams ? { additionalParams } : {}),
   };
