@@ -149,6 +149,45 @@ describe("SEO first-run setup", () => {
     ).toMatchObject({ share: 0, minutesLeft: 20 });
   });
 
+  it("estimates a full audit from its selected pages and the pages it adds, also after shorter earlier audits", () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "a1",
+        kind: "audit_full",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date("2026-01-02T12:00:00Z"),
+      },
+    ];
+    const now = new Date("2026-01-02T12:10:00Z");
+    const run = (seconds: number) => ({
+      observationId: `audit_full:${seconds}`,
+      kind: "audit_full",
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+      issues: 0,
+      seconds,
+    });
+    // One selected page and four added pages: 50 minutes. 10 minutes are gone.
+    const first = { share: 0.2, minutesLeft: 40, late: false };
+    expect(seoRunProgress(workspace, now)).toEqual(first);
+    // An audit from before the added pages was shorter. It does not shorten the estimate.
+    workspace.runs = [run(300), run(400), run(2900)];
+    expect(seoRunProgress(workspace, now)).toEqual(first);
+    // Audits that usually take longer than the estimate of the pages do lengthen it.
+    workspace.runs = [run(3600), run(3600), run(300)];
+    expect(seoRunProgress(workspace, now)).toMatchObject({ minutesLeft: 50 });
+    // Ten selected pages leave no room for an added page: 2850 seconds for the pages, 1200 after them.
+    workspace.runs = [];
+    workspace.analyses[0].pageIds = Array.from(
+      { length: 10 },
+      () => workspace.scope.pageIds[0],
+    );
+    expect(seoRunProgress(workspace, now)).toMatchObject({ minutesLeft: 58 });
+  });
+
   it("ends a check in flight after three hours: Core has no end for a check whose Task ended without a result", () => {
     const workspace = seoTestWorkspace();
     const started = new Date("2026-01-02T12:00:00Z");
