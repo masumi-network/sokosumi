@@ -8,6 +8,7 @@ import {
   SPEED_HISTORY_STATUSES,
   SPEED_HISTORY_WEEKS,
   type SpeedHistory,
+  seoPageSpeedRow,
   speedHistory,
   speedInsight,
   speedValue,
@@ -404,9 +405,13 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
   return [read];
 }
 
-/** Stored page speed rows before the schema reads them. */
+/** Stored page speed rows before the schema reads them. A measurement the row schema refuses goes, not the audit. */
 export function readableStoredPageSpeed(rows: unknown) {
-  return Array.isArray(rows) ? rows.flatMap(readableStoredMeasurement) : rows;
+  return Array.isArray(rows)
+    ? rows
+        .flatMap(readableStoredMeasurement)
+        .filter((row) => seoPageSpeedRow.safeParse(row).success)
+    : rows;
 }
 
 export function scopedPageSpeed(

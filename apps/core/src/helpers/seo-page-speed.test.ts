@@ -325,6 +325,22 @@ describe("imported full-audit PageSpeed evidence", () => {
     }
   });
 
+  it("drops a stored measurement the row schema refuses and keeps the others and the audit", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const [valid] = stored.pageSpeed;
+    stored.pageSpeed = [valid, { ...valid, lab: { status: "broken" } }];
+    const read = publicSeoPayloadSchema.safeParse(stored);
+    expect(read.success).toBe(true);
+    expect(read.data?.pageSpeed).toEqual([valid]);
+  });
+
   it("stores the checked form of a field URL and reads a stored spelling with another host case", () => {
     const books = "https://example.test/books";
     const spelled = "https://EXAMPLE.test/books";
