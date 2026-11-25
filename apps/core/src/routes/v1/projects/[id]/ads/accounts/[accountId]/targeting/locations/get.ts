@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   listGoogleLocationsResponseSchema,
@@ -21,7 +21,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/ads/accounts/{accountId}/targeting/locations",
     description:
-      "Search the Google locations of an ad account's Google Ads customer by name (`q`) or look them up by geo target constant id (`ids`); send exactly one. Returns the enabled locations Google suggests: for `q`, a page of suggestions ranked by Google, matched in any case. Google Ads accounts only: a Meta account is 404. Requires an interactive user session in the Project's Workspace.",
+      "Search the Google locations of an ad account's Google Ads customer by name (`q`) or look them up by geo target constant id (`ids`); send exactly one. Returns the enabled locations Google suggests: for `q`, a page of suggestions ranked by Google, matched in any case. Google Ads accounts only: a Meta account is 404. Open to a person by any sign-in (browser, API key or OAuth token) in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectAdAccountParamsSchema,
@@ -46,7 +46,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId } = c.req.valid("param");
     const lookup = c.req.valid("query");

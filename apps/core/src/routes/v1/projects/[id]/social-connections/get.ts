@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialPostActor } from "@/helpers/social-post-access";
+import { requireSocialPostReader } from "@/helpers/social-post-access";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/social-connections",
     description:
-      "List a Project's current social connections. Requires an interactive session or an authorized task-capable Coworker with user context. Connection management remains human-only.",
+      "List a Project's current social connections. Open to a person by any sign-in (browser, API key or OAuth token) or an authorized task-capable Coworker with user context. Connection management remains human-only.",
     tags: ["Projects"],
     request: { params: projectSocialConnectionProjectParamsSchema },
     responses: {
@@ -41,7 +41,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    await requireSocialPostActor(c.var.authContext);
+    await requireSocialPostReader(c.var.authContext);
 
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");

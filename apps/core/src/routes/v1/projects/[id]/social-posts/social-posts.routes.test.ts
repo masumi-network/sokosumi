@@ -364,10 +364,32 @@ describe("Project social post routes", () => {
   });
 
   it.each([
-    ["coworker", COWORKER_CONTEXT_AUTH],
-    ["Soko Bot", SOKO_BOT_CONTEXT_AUTH],
     ["user API key", USER_API_KEY_AUTH],
     ["OAuth token", OAUTH_TOKEN_AUTH],
+  ] as const)(
+    "lets a person's %s read posts, and nothing else",
+    async (_name, auth) => {
+      const responses = await Promise.all(allOperations(createApp(auth)));
+
+      expect(responses.map((response) => response.status)).toEqual([
+        200, 403, 200, 403, 403, 403, 403, 403, 403, 403,
+      ]);
+      expect(listSocialPostsMock).toHaveBeenCalled();
+      expect(getSocialPostMock).toHaveBeenCalled();
+      expect(createSocialPostMock).not.toHaveBeenCalled();
+      expect(updateSocialPostMock).not.toHaveBeenCalled();
+      expect(scheduleSocialPostMock).not.toHaveBeenCalled();
+      expect(cancelSocialPostMock).not.toHaveBeenCalled();
+      expect(approveSocialPostMock).not.toHaveBeenCalled();
+      expect(rejectSocialPostMock).not.toHaveBeenCalled();
+      expect(duplicateSocialPostMock).not.toHaveBeenCalled();
+      expect(publishSocialPostNowMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["coworker", COWORKER_CONTEXT_AUTH],
+    ["Soko Bot", SOKO_BOT_CONTEXT_AUTH],
   ] as const)("rejects %s before every operation", async (_name, auth) => {
     const responses = await Promise.all(allOperations(createApp(auth)));
 
@@ -620,7 +642,6 @@ describe("Project social post routes", () => {
 
   it.each([
     ["signed out", null, 401],
-    ["bare API key", USER_API_KEY_AUTH, 403],
     ["ungranted Coworker", COWORKER_CONTEXT_AUTH, 403],
     ["direct Soko Bot REST", SOKO_BOT_CONTEXT_AUTH, 403],
   ] as const)(
@@ -640,6 +661,24 @@ describe("Project social post routes", () => {
       expect(refreshSocialPostStatisticsMock).not.toHaveBeenCalled();
     },
   );
+
+  it("lets a person's API key read statistics, but not refresh them", async () => {
+    listSocialPostStatisticsMock.mockResolvedValue({
+      posts: [draftPost],
+      summary: [],
+      nextCursor: null,
+    });
+    const app = createApp(USER_API_KEY_AUTH);
+    const base = `http://localhost/${PROJECT_ID}/social-posts`;
+
+    expect((await app.request(`${base}/statistics`)).status).not.toBe(403);
+    expect(listSocialPostStatisticsMock).toHaveBeenCalled();
+    const refresh = await app.request(`${base}/${POST_ID}/statistics/refresh`, {
+      method: "POST",
+    });
+    expect(refresh.status).toBe(403);
+    expect(refreshSocialPostStatisticsMock).not.toHaveBeenCalled();
+  });
 
   it("allows a delegated Coworker to read and refresh workspace statistics", async () => {
     requireAuthorizedUserContextMock.mockResolvedValue({ userId: USER_ID });

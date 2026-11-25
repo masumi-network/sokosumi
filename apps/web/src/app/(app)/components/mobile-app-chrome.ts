@@ -58,6 +58,7 @@ const YOU_HUB_CHILD_PATHS = [
   "/connections",
   "/seo",
   "/ads",
+  "/competitors",
 ] as const;
 
 /**

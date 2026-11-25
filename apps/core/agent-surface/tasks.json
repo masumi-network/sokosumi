@@ -1,5 +1,4 @@
 {
-  "backlog": "SOKD-369",
   "operations": {
     "GET /tasks": {
       "cli": "tasks list",
@@ -52,6 +51,233 @@
     "GET /tasks/{id}/receipt": {
       "cli": "runtime receipt",
       "mcp": "tasks_receipt"
+    },
+    "GET /tasks/summary": {
+      "cli": "tasks summary",
+      "mcp": "tasks_summary"
+    },
+    "GET /tasks/view": {
+      "cli": "tasks view",
+      "mcp": "tasks_view"
+    },
+    "PUT /tasks/view": {
+      "cli": "tasks set-view",
+      "mcp": "tasks_set_view"
+    },
+    "POST /tasks/tag-suggestions": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Answers only an interactive browser session; API keys and MCP tokens get 403."
+    },
+    "POST /tasks/due-dates/move-overdue": {
+      "cli": "tasks move-overdue",
+      "mcp": "tasks_move_overdue"
+    },
+    "POST /tasks/due-dates/undo": {
+      "cli": "tasks undo-move-overdue",
+      "mcp": "tasks_undo_move_overdue"
+    },
+    "GET /tasks/schedules": {
+      "cli": "tasks list-schedules",
+      "mcp": "tasks_list_schedules"
+    },
+    "POST /tasks/schedules": {
+      "cli": "tasks create-schedule",
+      "mcp": "tasks_create_schedule"
+    },
+    "GET /tasks/schedules/assignees": {
+      "cli": "tasks schedule-assignees",
+      "mcp": "tasks_schedule_assignees"
+    },
+    "GET /tasks/schedules/{id}": {
+      "cli": "tasks get-schedule",
+      "mcp": "tasks_get_schedule"
+    },
+    "PATCH /tasks/schedules/{id}": {
+      "cli": "tasks update-schedule",
+      "mcp": "tasks_update_schedule"
+    },
+    "DELETE /tasks/schedules/{id}": {
+      "cli": "tasks delete-schedule",
+      "mcp": "tasks_delete_schedule"
+    },
+    "POST /tasks/schedules/{id}/pause": {
+      "cli": "tasks pause-schedule",
+      "mcp": "tasks_pause_schedule"
+    },
+    "POST /tasks/schedules/{id}/resume": {
+      "cli": "tasks resume-schedule",
+      "mcp": "tasks_resume_schedule"
+    },
+    "POST /tasks/schedules/{id}/end": {
+      "cli": "tasks end-schedule",
+      "mcp": "tasks_end_schedule"
+    },
+    "GET /tasks/schedules/{id}/runs": {
+      "cli": "tasks schedule-runs",
+      "mcp": "tasks_schedule_runs"
+    },
+    "POST /tasks/schedules/{id}/runs": {
+      "cli": "tasks run-schedule",
+      "mcp": "tasks_run_schedule"
+    },
+    "PATCH /tasks/schedules/{id}/runs/{runId}": {
+      "cli": "tasks update-schedule-run",
+      "mcp": "tasks_update_schedule_run"
+    },
+    "PATCH /tasks/{id}/links/{linkId}": {
+      "cli": "tasks update-link",
+      "mcp": "tasks_update_link"
+    },
+    "POST /tasks/{id}/participants": {
+      "cli": "tasks join",
+      "mcp": "tasks_join"
+    },
+    "DELETE /tasks/{id}/participants/{userId}": {
+      "cli": "tasks leave",
+      "mcp": "tasks_leave"
+    },
+    "POST /tasks/{id}/follow": {
+      "cli": "tasks follow",
+      "mcp": "tasks_follow"
+    },
+    "DELETE /tasks/{id}/follow": {
+      "cli": "tasks unfollow",
+      "mcp": "tasks_unfollow"
+    },
+    "PUT /tasks/{id}/share": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Public share link: a person shares a Task in the app."
+    },
+    "DELETE /tasks/{id}/share": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Public share link: a person shares a Task in the app."
+    },
+    "POST /tasks/{id}/chat-messages": {
+      "cli": "tasks send-to-chat",
+      "mcp": "tasks_send_to_chat"
+    },
+    "GET /tasks/{id}/workspace": {
+      "cli": "tasks workspace",
+      "mcp": "tasks_workspace"
+    },
+    "PUT /tasks/{id}/workspace": {
+      "cli": "tasks set-workspace",
+      "mcp": "tasks_set_workspace"
+    },
+    "POST /tasks/{id}/restore": {
+      "cli": "tasks restore",
+      "mcp": "tasks_restore"
+    },
+    "GET /tasks/{id}/files": {
+      "cli": "tasks files",
+      "mcp": "tasks_files"
+    },
+    "POST /tasks/{id}/files": {
+      "cli": "tasks upload-url",
+      "mcp": "tasks_upload_url"
+    },
+    "POST /tasks/{id}/jobs": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Answers only the Task's assigned Coworker or Soko Bot; the CLI and MCP act as a person."
+    },
+    "POST /tasks/{id}/x402-payments": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Payments: a Coworker's own API key pays an x402 demand at run time."
+    },
+    "POST /tasks/{id}/seo-indexing/context-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/seo-indexing/result/context-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/seo-indexing/deferred/context-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/seo-indexing/related-pages/context-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "GET /tasks/{id}/integrations/search-console": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/integrations/search-console/reads": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/events/failed-admission-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/events/start-admission-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
+    "POST /tasks/{id}/events/seo-settlement-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: the SEO worker settles a finished audit's charge."
+    },
+    "POST /tasks/{id}/events/context-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Runtime call for an assigned worker's Coworker key with X-Context headers; not a person's action."
+    },
+    "POST /tasks/{id}/files/context-v1": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Runtime call for an assigned worker's Coworker key with X-Context headers; not a person's action."
+    },
+    "POST /tasks/scheduled": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks create-schedule`."
+    },
+    "PUT /tasks/{id}/schedule": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks create-schedule`."
+    },
+    "DELETE /tasks/{id}/schedule": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks delete-schedule`."
+    },
+    "PUT /tasks/{id}/calendar-schedule": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks update-schedule`."
+    },
+    "PUT /tasks/{id}/calendar-source": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks update-schedule`."
+    },
+    "GET /tasks/{id}/schedule/occurrences": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks schedule-runs`."
+    },
+    "PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: answers 410. Use `tasks update-schedule-run`."
     }
   }
 }

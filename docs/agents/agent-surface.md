@@ -10,7 +10,6 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 
 ```json
 {
-  "backlog": "SOKD-369",
   "operations": {
     "GET /tasks": { "cli": "tasks list", "mcp": "tasks_list" },
     "POST /coworkers/{id}/api-keys": {
@@ -32,7 +31,7 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 
 A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
 
-**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset.
+**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset; a hyphenated group keeps its words (`image_studio_catalog` is in `image-studio`, listed in `HYPHENATED_TOOLSETS` in `tools.ts`).
 
 ## What may be `false`
 
@@ -43,6 +42,7 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 - The steps a person takes: approving, rejecting or publishing a Social post, approving, scheduling or sending a newsletter, resuming an ad campaign, and connecting a social or ad account ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). The other writes on those routes (drafting or scheduling a Social post, ad campaign changes, image-studio generations) stay `false` with the same citation until that ADR's follow-up tickets open them.
 - Binary or multipart uploads: the generic CLI runner and MCP tools send JSON only (`POST /coworkers/{id}/image`; a person sets the picture in the Web app).
 - The admin back office: CLI only, `mcp: false`.
+- Downloads that return file bytes (images, CSV, spreadsheets): the CLI and MCP carry JSON. An API key still reads them over HTTP.
 
 "Nobody needs it yet" is not a reason. Leave the operation to the group's `backlog` instead.
 
@@ -68,7 +68,7 @@ A row in `CLI_COMMAND_CATALOG` with an `operation` needs no handler: the CLI run
 { command: "jobs events", usage: "JOB_ID", operation: "GET /jobs/{id}/events" }
 ```
 
-Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (required for writes, refused for reads), and `--organization-slug` selects the Workspace. Any other option is an error. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
+Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (required for writes, refused for reads and for a row with `noBody: true`, such as `tasks pause-schedule`), and `--organization-slug` selects the Workspace. Any other option is an error. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
 
 CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the manifest operation:
 

@@ -1,7 +1,8 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { Activity, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { QueuedGeneration } from "./use-generation-queue";
+import type { GenerationQueue, QueuedGeneration } from "./use-generation-queue";
 import { useGenerationQueue } from "./use-generation-queue";
 
 const startImageGeneration = vi.hoisted(() => vi.fn());
@@ -47,7 +48,7 @@ const brokeK = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   startImageGeneration.mockResolvedValue(accepted);
 });
 
@@ -167,6 +168,451 @@ describe("useGenerationQueue", () => {
     });
 
     expect(result.current.queued).toHaveLength(0);
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a busy request after leaving Studio via Activity hide and returning before the retry timer fires", async () => {
+    vi.useFakeTimers();
+    startImageGeneration.mockResolvedValueOnce(busy);
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(QueueHarness),
+      }),
+    );
+
+    await act(async () => {
+      latestQueue.enqueue([request("1")]);
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(latestQueue.waitingForSlot).toBe(true);
+    expect(latestQueue.queued).toHaveLength(1);
+
+    // Leave Studio before the 4 s retry timer fires.
+    act(() => {
+      rerender(
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    // The cancelled retry timer must not fire while hidden.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+
+    // Return to Studio: the queued request should retry and clear waiting state.
+    await act(async () => {
+      rerender(
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+    expect(startImageGeneration.mock.calls[1]?.[0]).toEqual(
+      startImageGeneration.mock.calls[0]?.[0],
+    );
+    expect(latestQueue.queued).toHaveLength(0);
+    expect(latestQueue.waitingForSlot).toBe(false);
+    expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+  });
+
+  it("schedules a fresh retry timer if Core is still busy after returning from Activity hide", async () => {
+    vi.useFakeTimers();
+    startImageGeneration
+      .mockResolvedValueOnce(busy)
+      .mockResolvedValueOnce(busy);
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(QueueHarness),
+      }),
+    );
+
+    await act(async () => {
+      latestQueue.enqueue([request("1")]);
+    });
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(latestQueue.waitingForSlot).toBe(true);
+
+    act(() => {
+      rerender(
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    await act(async () => {
+      rerender(
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+    expect(latestQueue.waitingForSlot).toBe(true);
+    expect(latestQueue.queued).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_999);
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+    expect(latestQueue.waitingForSlot).toBe(true);
+    expect(latestQueue.queued).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(3);
+    expect(latestQueue.queued).toHaveLength(0);
+    expect(latestQueue.waitingForSlot).toBe(false);
+    expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+  });
+
+  it("keeps a generation Core accepted while Studio was hidden under Activity instead of re-sending on reveal", async () => {
+    let releaseFirst!: (value: unknown) => void;
+    startImageGeneration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(QueueHarness),
+      }),
+    );
+
+    await act(async () => {
+      latestQueue.enqueue([request("1")]);
+    });
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(latestQueue.queued.map((item) => item.id)).toEqual(["1"]);
+
+    // Hide Studio while the in-flight request is still waiting on Core.
+    act(() => {
+      rerender(
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    // Core accepts while Studio is hidden; side-effect callback waits for reveal.
+    await act(async () => {
+      releaseFirst(accepted);
+    });
+    expect(onAccepted).not.toHaveBeenCalled();
+
+    // Reveal Studio: the accepted item is gone and never sent a second time.
+    await act(async () => {
+      rerender(
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(latestQueue.queued).toEqual([]);
+    expect(latestQueue.waitingForSlot).toBe(false);
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+    expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+  });
+
+  it("advances a busy multi-item queue on reveal after Core accepted the head while hidden", async () => {
+    vi.useFakeTimers();
+    let releaseRetry!: (value: unknown) => void;
+    startImageGeneration
+      .mockResolvedValueOnce(busy)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseRetry = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(accepted);
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(QueueHarness),
+      }),
+    );
+
+    await act(async () => {
+      latestQueue.enqueue([request("1"), request("2")]);
+    });
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(latestQueue.waitingForSlot).toBe(true);
+
+    // Let the 4 s busy retry fire so item "1" is in flight again.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+
+    // Hide Studio before Core answers the retry.
+    act(() => {
+      rerender(
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    // Core accepts item "1" while Studio is hidden.
+    await act(async () => {
+      releaseRetry(accepted);
+    });
+    expect(onAccepted).not.toHaveBeenCalled();
+    // Item "2" must not start while Studio is hidden.
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+
+    // Reveal Studio: item "1" is not resent; item "2" dispatches and drains.
+    await act(async () => {
+      rerender(
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    expect(
+      startImageGeneration.mock.calls.map(
+        (call) => (call[0] as { idempotencyKey: string }).idempotencyKey,
+      ),
+    ).toEqual(["ui:1", "ui:1", "ui:2"]);
+    expect(latestQueue.queued).toEqual([]);
+    expect(latestQueue.waitingForSlot).toBe(false);
+    expect(onAccepted.mock.calls).toEqual([
+      [{ remaining: 1 }],
+      [{ remaining: 0 }],
+    ]);
+  });
+
+  it("defers a busy retry until reveal when Core answers busy while Studio is hidden", async () => {
+    vi.useFakeTimers();
+    let releaseFirst!: (value: unknown) => void;
+    startImageGeneration
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(accepted);
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(QueueHarness),
+      }),
+    );
+
+    await act(async () => {
+      latestQueue.enqueue([request("1")]);
+    });
+
+    act(() => {
+      rerender(
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    await act(async () => {
+      releaseFirst(busy);
+    });
+
+    // No retry timer should fire while Studio remains hidden.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender(
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+    expect(latestQueue.queued).toEqual([]);
+    expect(latestQueue.waitingForSlot).toBe(false);
+    expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+  });
+
+  it("keeps a non-busy rejection that settled while hidden instead of re-sending on reveal", async () => {
+    let releaseFirst!: (value: unknown) => void;
+    startImageGeneration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
+
+    let latestQueue!: GenerationQueue;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted: vi.fn() });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(QueueHarness),
+      }),
+    );
+
+    await act(async () => {
+      latestQueue.enqueue([request("1")]);
+    });
+
+    act(() => {
+      rerender(
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    await act(async () => {
+      releaseFirst({
+        ok: false,
+        kind: "image_studio_unsupported_model_settings",
+        message: "That model cannot produce 9:16.",
+      });
+    });
+
+    await act(async () => {
+      rerender(
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(QueueHarness),
+        }),
+      );
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(latestQueue.queued).toEqual([]);
+    expect(latestQueue.waitingForSlot).toBe(false);
+    expect(latestQueue.failed[0]?.message).toBe(
+      "That model cannot produce 9:16.",
+    );
+  });
+
+  it("does not invoke onAccepted or schedule a retry timer if a request settles after unmount", async () => {
+    vi.useFakeTimers();
+    let releaseAccepted!: (value: unknown) => void;
+    startImageGeneration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseAccepted = resolve;
+        }),
+    );
+
+    const onAccepted = vi.fn();
+    const first = renderHook(() => useGenerationQueue({ onAccepted }));
+    await act(async () => {
+      first.result.current.enqueue([request("1")]);
+    });
+
+    first.unmount();
+    await act(async () => {
+      releaseAccepted(accepted);
+    });
+    expect(onAccepted).not.toHaveBeenCalled();
+
+    let releaseBusy!: (value: unknown) => void;
+    startImageGeneration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseBusy = resolve;
+        }),
+    );
+
+    const second = renderHook(() => useGenerationQueue({ onAccepted }));
+    await act(async () => {
+      second.result.current.enqueue([request("2")]);
+    });
+
+    second.unmount();
+    await act(async () => {
+      releaseBusy(busy);
+    });
+    expect(vi.getTimerCount()).toBe(0);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
     expect(startImageGeneration).toHaveBeenCalledTimes(2);
   });
 

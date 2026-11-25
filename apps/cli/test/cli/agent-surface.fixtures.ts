@@ -477,4 +477,274 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /organizations/{id}/members/me/seat": {
     argv: [...API, "workspaces", "check", "org-1", "--json"],
   },
+  // SOKD-378: ads, image-studio, social and calendar reads.
+  "GET /image-studio/catalog": { argv: [...API, "image-studio", "catalog"] },
+  "GET /image-studio/state": { argv: [...API, "image-studio", "state"] },
+  "GET /image-studio/recent-projects": {
+    argv: [...API, "image-studio", "recent-projects"],
+  },
+  "GET /projects/{id}/ads/accounts": {
+    argv: [...API, "projects", "ads-accounts", "p-1"],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/campaigns": {
+    argv: [...API, "projects", "ads-campaigns", "p-1", "acc-1"],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+    argv: [...API, "projects", "ads-campaign", "p-1", "acc-1", "42"],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-locations",
+      "p-1",
+      "acc-1",
+      "--query",
+      "q=Berlin",
+    ],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/targeting/languages": {
+    argv: [...API, "projects", "ads-languages", "p-1", "acc-1"],
+  },
+  "GET /projects/{id}/ads/market": {
+    argv: [...API, "projects", "ads-market", "p-1"],
+  },
+  "GET /projects/{id}/image-studio": {
+    argv: [...API, "projects", "image-studio", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/batches/{batchId}/assets": {
+    argv: [...API, "projects", "image-studio-batch", "p-1", "b-1"],
+  },
+  "GET /projects/{id}/image-studio/batches/{batchId}/compare": {
+    argv: [...API, "projects", "image-studio-compare", "p-1", "b-1"],
+  },
+  "GET /projects/{id}/image-studio/model-scoreboard": {
+    argv: [...API, "projects", "image-studio-scoreboard", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/brand-kit": {
+    argv: [...API, "projects", "image-studio-brand-kit", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/brand-kit/website-copy": {
+    argv: [...API, "projects", "image-studio-website-copy", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/website-draft": {
+    argv: [...API, "projects", "image-studio-website-draft", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/products": {
+    argv: [...API, "projects", "image-studio-products", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/talking-videos": {
+    argv: [...API, "projects", "image-studio-talking-videos", "p-1"],
+  },
+  "GET /projects/{id}/social-connections": {
+    argv: [...API, "projects", "social-connections", "p-1"],
+  },
+  "GET /projects/{id}/social-connections/{connectionId}/subscription": {
+    argv: [...API, "projects", "social-connection-subscription", "p-1", "c-1"],
+  },
+  "GET /projects/{id}/social-connections/{connectionId}/tiktok-creator": {
+    argv: [
+      ...API,
+      "projects",
+      "social-connection-tiktok-creator",
+      "p-1",
+      "c-1",
+    ],
+  },
+  "GET /projects/{id}/social-connections/{connectionId}/suggested-times": {
+    argv: [
+      ...API,
+      "projects",
+      "social-connection-suggested-times",
+      "p-1",
+      "c-1",
+      "--query",
+      "timezone=Europe/Berlin",
+    ],
+  },
+  "GET /projects/{id}/social-connections/statistics": {
+    argv: [...API, "projects", "social-statistics", "p-1"],
+  },
+  "GET /projects/{id}/social-posts": {
+    argv: [...API, "projects", "social-posts", "p-1"],
+  },
+  "GET /projects/{id}/social-posts/{postId}": {
+    argv: [...API, "projects", "social-post", "p-1", "sp-1"],
+  },
+  "GET /projects/{id}/social-posts/statistics": {
+    argv: [...API, "projects", "social-posts-statistics", "p-1"],
+  },
+  "GET /projects/{id}/social-queue-slots": {
+    argv: [...API, "projects", "social-queue-slots", "p-1"],
+  },
+  "GET /projects/{id}/calendar": {
+    argv: [
+      ...API,
+      "projects",
+      "calendar",
+      "p-1",
+      "--query",
+      "from=2026-11-01T00:00:00.000Z",
+      "--query",
+      "to=2026-12-01T00:00:00.000Z",
+    ],
+  },
+  "GET /workspaces/calendar": {
+    argv: [
+      ...API,
+      "workspaces",
+      "calendar",
+      "--query",
+      "from=2026-11-01T00:00:00.000Z",
+      "--query",
+      "to=2026-12-01T00:00:00.000Z",
+    ],
+  },
+  "GET /workspaces/calendar/sources": {
+    argv: [...API, "workspaces", "calendar-sources"],
+  },
+  "GET /workspaces/social-posts": {
+    argv: [...API, "workspaces", "social-posts"],
+  },
+  "GET /workspaces/{id}/social-connections/statistics": {
+    argv: [...API, "workspaces", "social-statistics", "ws-1"],
+  },
+  // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
+  "GET /tasks/summary": {
+    argv: [...API, "tasks", "summary", "--query", "scope=workspace"],
+  },
+  "GET /tasks/view": { argv: [...API, "tasks", "view"] },
+  "PUT /tasks/view": {
+    argv: [...API, "tasks", "set-view", "--input-json", '{"query":""}'],
+  },
+  "POST /tasks/due-dates/move-overdue": {
+    argv: [
+      ...API,
+      "tasks",
+      "move-overdue",
+      "--input-json",
+      '{"today":"2026-11-24","to":"2026-11-25"}',
+    ],
+  },
+  "POST /tasks/due-dates/undo": {
+    argv: [...API, "tasks", "undo-move-overdue", "--input-json", "{}"],
+  },
+  "GET /tasks/schedules": { argv: [...API, "tasks", "list-schedules"] },
+  "POST /tasks/schedules": {
+    argv: [
+      ...API,
+      "tasks",
+      "create-schedule",
+      "--input-json",
+      '{"name":"Weekly report","rule":{"expr":"0 9 * * 1"}}',
+    ],
+  },
+  "GET /tasks/schedules/assignees": {
+    argv: [...API, "tasks", "schedule-assignees"],
+  },
+  "GET /tasks/schedules/{id}": {
+    argv: [...API, "tasks", "get-schedule", "sched-1"],
+  },
+  "PATCH /tasks/schedules/{id}": {
+    argv: [
+      ...API,
+      "tasks",
+      "update-schedule",
+      "sched-1",
+      "--input-json",
+      '{"expectedRevision":3}',
+    ],
+  },
+  "DELETE /tasks/schedules/{id}": {
+    argv: [...API, "tasks", "delete-schedule", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/pause": {
+    argv: [...API, "tasks", "pause-schedule", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/resume": {
+    argv: [...API, "tasks", "resume-schedule", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/end": {
+    argv: [...API, "tasks", "end-schedule", "sched-1"],
+  },
+  "GET /tasks/schedules/{id}/runs": {
+    argv: [...API, "tasks", "schedule-runs", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/runs": {
+    argv: [
+      ...API,
+      "tasks",
+      "run-schedule",
+      "sched-1",
+      "--input-json",
+      '{"expectedRevision":3}',
+    ],
+  },
+  "PATCH /tasks/schedules/{id}/runs/{runId}": {
+    argv: [
+      ...API,
+      "tasks",
+      "update-schedule-run",
+      "sched-1",
+      "run-1",
+      "--input-json",
+      '{"expectedRevision":3,"action":"skip"}',
+    ],
+  },
+  "PATCH /tasks/{id}/links/{linkId}": {
+    argv: [
+      ...API,
+      "tasks",
+      "update-link",
+      "task-1",
+      "link-1",
+      "--input-json",
+      '{"note":"Waits on the copy."}',
+    ],
+  },
+  "POST /tasks/{id}/participants": {
+    argv: [...API, "tasks", "join", "task-1"],
+  },
+  "DELETE /tasks/{id}/participants/{userId}": {
+    argv: [...API, "tasks", "leave", "task-1", "user-1"],
+  },
+  "POST /tasks/{id}/follow": { argv: [...API, "tasks", "follow", "task-1"] },
+  "DELETE /tasks/{id}/follow": {
+    argv: [...API, "tasks", "unfollow", "task-1"],
+  },
+  "POST /tasks/{id}/chat-messages": {
+    argv: [
+      ...API,
+      "tasks",
+      "send-to-chat",
+      "task-1",
+      "--input-json",
+      '{"roomId":"room-1","clientMessageId":"msg-1"}',
+    ],
+  },
+  "GET /tasks/{id}/workspace": {
+    argv: [...API, "tasks", "workspace", "task-1"],
+  },
+  "PUT /tasks/{id}/workspace": {
+    argv: [
+      ...API,
+      "tasks",
+      "set-workspace",
+      "task-1",
+      "--input-json",
+      '{"organizationId":"org-1"}',
+    ],
+  },
+  "POST /tasks/{id}/restore": { argv: [...API, "tasks", "restore", "task-1"] },
+  "GET /tasks/{id}/files": { argv: [...API, "tasks", "files", "task-1"] },
+  "POST /tasks/{id}/files": {
+    argv: [
+      ...API,
+      "tasks",
+      "upload-url",
+      "task-1",
+      "--input-json",
+      '{"filename":"brief.pdf","contentType":"application/pdf","size":2048}',
+    ],
+  },
 };

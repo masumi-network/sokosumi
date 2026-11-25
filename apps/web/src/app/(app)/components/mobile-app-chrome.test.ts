@@ -286,14 +286,24 @@ describe("mobile-app-chrome", () => {
       "/account/notifications",
       "/billing",
       "/connections",
-      // Phones open SEO and Ads from the You page.
+      // Phones open SEO, Ads and Competitors from the You page.
       "/seo",
       "/ads",
+      "/competitors",
     ])("sends You page row %s back to You", (pathname) => {
       expect(resolveMobileAppBackTarget(pathname)).toEqual({
         href: "/you",
         labelKey: "backToYou",
       });
+    });
+
+    it("keeps Competitors going back to You once a project is picked", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/competitors",
+          new URLSearchParams("projectId=p1"),
+        ),
+      ).toEqual({ href: "/you", labelKey: "backToYou" });
     });
 
     it.each(["/ads/campaigns/c1", "/ads/campaigns/c1/edit"])(

@@ -16,6 +16,8 @@ import { MCP_TOOLS, MCP_TOOLSETS } from "./tools";
  * the tool's operation (docs/agents/agent-surface.md). Add a fixture with
  * every new tool.
  */
+const TASK_ID = "01a20919-70ff-7529-9bd5-78b72b6a3ea2";
+
 const FIXTURES: Record<string, Record<string, unknown>> = {
   users_get: { id: "me" },
   workspaces_list: { id: "me" },
@@ -36,6 +38,69 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   tasks_unlink: { id: "SOK-123", linkId: "link-1" },
   tasks_move: { id: "SOK-124", body: { parentTaskId: "SOK-123" } },
   tasks_receipt: { id: "SOK-123" },
+  // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
+  tasks_summary: { workspace: "acme", scope: "workspace" },
+  tasks_view: { workspace: "acme" },
+  tasks_set_view: { workspace: "acme", body: { query: "status=READY" } },
+  tasks_move_overdue: {
+    workspace: "acme",
+    body: { today: "2026-11-24", to: "2026-11-25" },
+  },
+  tasks_undo_move_overdue: {
+    workspace: "acme",
+    body: {
+      to: "2026-11-25",
+      tasks: [
+        { id: "task-1", from: "2026-11-20", version: "2026-11-24T10:00:00Z" },
+      ],
+    },
+  },
+  tasks_list_schedules: { workspace: "acme", state: "ACTIVE", limit: 10 },
+  tasks_create_schedule: {
+    workspace: "acme",
+    body: { name: "Weekly report", rule: { expr: "0 9 * * 1" } },
+  },
+  tasks_schedule_assignees: { workspace: "acme" },
+  tasks_get_schedule: { id: "sched-1" },
+  tasks_update_schedule: {
+    id: "sched-1",
+    body: { expectedRevision: 3, name: "Monday report" },
+  },
+  tasks_delete_schedule: { id: "sched-1" },
+  tasks_pause_schedule: { id: "sched-1" },
+  tasks_resume_schedule: { id: "sched-1" },
+  tasks_end_schedule: { id: "sched-1" },
+  tasks_schedule_runs: { id: "sched-1", limit: 10 },
+  tasks_run_schedule: { id: "sched-1", body: { expectedRevision: 3 } },
+  tasks_update_schedule_run: {
+    id: "sched-1",
+    runId: "run-1",
+    body: { expectedRevision: 3, action: "skip" },
+  },
+  tasks_update_link: {
+    id: TASK_ID,
+    linkId: "link-1",
+    body: { note: "Waits on the copy." },
+  },
+  tasks_join: { id: TASK_ID },
+  tasks_leave: { id: TASK_ID, userId: "user_mcp" },
+  tasks_follow: { id: TASK_ID },
+  tasks_unfollow: { id: TASK_ID },
+  tasks_send_to_chat: {
+    id: TASK_ID,
+    body: {
+      roomId: "01960001-0001-7001-8001-000000000001",
+      clientMessageId: "msg-1",
+    },
+  },
+  tasks_workspace: { id: TASK_ID },
+  tasks_set_workspace: { id: TASK_ID, body: { organizationId: "org-1" } },
+  tasks_restore: { id: TASK_ID },
+  tasks_files: { id: TASK_ID },
+  tasks_upload_url: {
+    id: TASK_ID,
+    body: { filename: "brief.pdf", contentType: "application/pdf", size: 2048 },
+  },
   jobs_list: { workspace: "acme", status: "COMPLETED" },
   jobs_get: { id: "job-1" },
   jobs_input_request: { id: "job-1" },
@@ -101,6 +166,50 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   developer_task: { id: "task-1" },
   organizations_list: { id: "me" },
   organizations_seat: { id: "org-1" },
+  // SOKD-378: ads, image-studio, social and calendar reads.
+  image_studio_catalog: {},
+  image_studio_state: {},
+  image_studio_recent_projects: {},
+  projects_ads_accounts: { id: "p-1" },
+  projects_ads_campaigns: { id: "p-1", accountId: "acc-1" },
+  projects_ads_campaign: { id: "p-1", accountId: "acc-1", campaignId: "42" },
+  projects_ads_locations: { id: "p-1", accountId: "acc-1", q: "Berlin" },
+  projects_ads_languages: { id: "p-1", accountId: "acc-1" },
+  projects_ads_market: { id: "p-1" },
+  projects_image_studio: { id: "p-1" },
+  projects_image_studio_batch: { id: "p-1", batchId: "b-1" },
+  projects_image_studio_compare: { id: "p-1", batchId: "b-1" },
+  projects_image_studio_scoreboard: { id: "p-1" },
+  projects_image_studio_brand_kit: { id: "p-1" },
+  projects_image_studio_website_copy: { id: "p-1" },
+  projects_image_studio_website_draft: { id: "p-1" },
+  projects_image_studio_products: { id: "p-1" },
+  projects_image_studio_talking_videos: { id: "p-1" },
+  projects_social_connections: { id: "p-1" },
+  projects_social_connection_subscription: { id: "p-1", connectionId: "c-1" },
+  projects_social_connection_tiktok_creator: { id: "p-1", connectionId: "c-1" },
+  projects_social_connection_suggested_times: {
+    id: "p-1",
+    connectionId: "c-1",
+    timezone: "Europe/Berlin",
+  },
+  projects_social_statistics: { id: "p-1" },
+  projects_social_posts: { id: "p-1" },
+  projects_social_post: { id: "p-1", postId: "sp-1" },
+  projects_social_posts_statistics: { id: "p-1" },
+  projects_social_queue_slots: { id: "p-1" },
+  projects_calendar: {
+    id: "p-1",
+    from: "2026-11-01T00:00:00.000Z",
+    to: "2026-12-01T00:00:00.000Z",
+  },
+  workspaces_calendar: {
+    from: "2026-11-01T00:00:00.000Z",
+    to: "2026-12-01T00:00:00.000Z",
+  },
+  workspaces_calendar_sources: {},
+  workspaces_social_posts: {},
+  workspaces_social_statistics: { id: "ws-1" },
 };
 
 const CORE = "https://core.example.test";

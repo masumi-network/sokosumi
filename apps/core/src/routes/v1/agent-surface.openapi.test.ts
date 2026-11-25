@@ -132,7 +132,7 @@ function mcpBindingProblems(
   for (const tool of tools) {
     if (!manifests.has(toolsetOf(tool.name))) {
       problems.push(
-        `${registry} "${tool.name}": start the name with a route group; it is the toolset.`,
+        `${registry} "${tool.name}": start the name with a route group; it is the toolset (a hyphenated group goes in HYPHENATED_TOOLSETS).`,
       );
     }
     const row = manifests.get(groupOf(tool.operation))?.operations[
@@ -234,7 +234,7 @@ describe("agent surface", () => {
           [{ ...tool, name: "todo_list" }],
         ),
       ).toEqual([
-        'src/lib/sokosumi-mcp/tools.ts "todo_list": start the name with a route group; it is the toolset.',
+        'src/lib/sokosumi-mcp/tools.ts "todo_list": start the name with a route group; it is the toolset (a hyphenated group goes in HYPHENATED_TOOLSETS).',
       ]);
     });
 

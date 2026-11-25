@@ -38,12 +38,10 @@ Each tool acts in your personal workspace unless it gets a `workspace` argument:
 
 ## Toolsets
 
-Coming with SOKD-367; until then the server lists every tool it has.
-
-A toolset is one route group, such as `tasks` or `jobs`. By default the server will list `workspaces`, `users`, `tasks`, `jobs`, `agents` and `coworkers`. Pick others with `?toolsets=` on the URL:
+A toolset is one route group, such as `tasks` or `jobs`. By default the server lists `workspaces`, `users`, `tasks`, `jobs`, `agents` and `coworkers`. Pick others with `?toolsets=` on the URL. `projects` reads a Project's ads, Image Studio, Social posts and Calendar; `image-studio` reads the model catalog and Studio results across Projects. Both are read-only for now: a person publishes, sends and starts ad spend ([ADR 0077](./adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)).
 
 ```bash
-claude mcp add --transport http sokosumi "https://api.sokosumi.com/mcp?toolsets=tasks,jobs"
+claude mcp add --transport http sokosumi "https://api.sokosumi.com/mcp?toolsets=workspaces,tasks,projects"
 ```
 
 An unknown toolset name is an error.

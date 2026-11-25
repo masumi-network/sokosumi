@@ -11,6 +11,15 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+let hasSessionCookieMock = true;
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers()),
+}));
+
+vi.mock("@/lib/auth/session-cookie", () => ({
+  hasSessionCookie: () => hasSessionCookieMock,
+}));
+
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     <TParams extends Record<string, unknown>, TResult>(
@@ -1155,5 +1164,34 @@ describe("setTaskDueOn", () => {
       dueOn: null,
     });
     expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+  });
+});
+
+describe("revalidateTasksAfterArchive", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hasSessionCookieMock = true;
+  });
+
+  it("revalidates /tasks without calling Core when a session cookie is present", async () => {
+    const { revalidatePath } = await import("next/cache");
+    const { revalidateTasksAfterArchive } = await import("./action");
+
+    await expect(revalidateTasksAfterArchive()).resolves.toBe(true);
+
+    expect(revalidatePath).toHaveBeenCalledTimes(1);
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
+  });
+
+  it("skips revalidation when no session cookie is present", async () => {
+    hasSessionCookieMock = false;
+    const { revalidatePath } = await import("next/cache");
+    const { revalidateTasksAfterArchive } = await import("./action");
+
+    await expect(revalidateTasksAfterArchive()).resolves.toBe(false);
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
   });
 });

@@ -1780,7 +1780,12 @@
           "needsYou": "{count, plural, one {# request needs you} other {# requests need you}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
-          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
+          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}",
+          "loadError": {
+            "title": "Couldn't load today's numbers.",
+            "help": "Try again in a moment.",
+            "retry": "Try again"
+          }
         },
         "MyDay": {
           "title": "My day",
@@ -1822,7 +1827,8 @@
           "failedReply": "{name} couldn't finish its last reply",
           "openChat": "Open the chat",
           "failedWork": "{name} couldn't finish what it was working on",
-          "openBot": "Open {name}'s page"
+          "openBot": "Open {name}'s page",
+          "welcome": "{name} sent you a welcome"
         },
         "SokoBotSetup": {
           "title": "Get your Soko Bot",
@@ -1960,6 +1966,7 @@
         "loadMore": "Load more"
       },
       "noTitle": "(No title)",
+      "inResult": "In result",
       "unansweredMention": "You have an unanswered mention",
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
@@ -5832,7 +5839,7 @@
       "check": {
         "price": "{count, plural, =0 {It costs {each} credits per competitor a week.} one {It costs {credits} credits a week for # competitor.} other {It costs {credits} credits a week for # competitors, {each} each.}}",
         "last": "Last check {last}, next {next}.",
-        "sourceFailed": "The last check could not read: {sources}. The next one tries again.",
+        "sourceFailed": "The last check could not read: {sources}.{on, select, true { The next one tries again.} other {}}",
         "source": {
           "pages": "websites",
           "news": "news",
@@ -5852,9 +5859,12 @@
         "status": {
           "off": "The weekly check is off",
           "running": "The first check is running",
-          "on": "The weekly check is on"
+          "on": "The weekly check is on",
+          "waiting": "No check has run yet"
         },
-        "running": "What it finds shows here in about a minute."
+        "running": "What it finds shows here in about a minute.",
+        "waiting": "Check now runs the first one.",
+        "waitingCmo": "CMO runs it while Cuso is paid for."
       },
       "list": {
         "title": "Watching",
@@ -5867,7 +5877,14 @@
         "removeNamed": "Remove {name}",
         "add": "Add competitor",
         "full": "That is all {limit}. Remove one to watch another.",
-        "failed": "That did not work. Try again."
+        "failed": "That did not work. Try again.",
+        "removed": "{name} removed",
+        "undo": "Undo",
+        "restoreFailed": "{name} could not come back.",
+        "restoreStale": "Removing {name} can no longer be undone.",
+        "restoreFull": "{name} could not come back: you already watch {limit}. Remove one first.",
+        "restoreNameTaken": "{name} could not come back: another competitor has its name now.",
+        "retry": "Try again"
       },
       "form": {
         "addTitle": "Add a competitor",
@@ -6107,6 +6124,7 @@
       "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
+      "tasksSeeAll": "Search tasks and results for “{query}”",
       "filesFilenameMatch": "Filename match",
       "peopleGroup": "People",
       "copyEmail": "Copy {email}",

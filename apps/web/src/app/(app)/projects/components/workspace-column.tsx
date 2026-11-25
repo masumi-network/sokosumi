@@ -144,7 +144,7 @@ export async function NeedsYouPanel({
   feed,
   projects,
   quiet = false,
-  lead,
+  leads = [],
 }: {
   feed: PanelFeed<NotificationItem>;
   /** A read still in flight is awaited next to the feed, not after it. */
@@ -153,8 +153,8 @@ export async function NeedsYouPanel({
     | Promise<WorkspaceColumnProps["projects"]>;
   /** Home's quiet list instead of the column's panel. */
   quiet?: boolean;
-  /** A row above the notifications, such as your bot's failed reply. */
-  lead?: NeedsYouLead;
+  /** Rows above the notifications, such as your bot's failed reply. */
+  leads?: NeedsYouLead[];
 }) {
   // A hole in a link prefetch: the time labels read the clock, and a clock
   // read, or an uncached Core read, would cut that prefetch short.
@@ -181,7 +181,10 @@ export async function NeedsYouPanel({
         showAll: t("showAll"),
       }}
       quiet={quiet}
-      lead={lead}
+      leads={leads.map((lead) => ({
+        ...lead,
+        time: lead.at ? timeLabel(lead.at) : "",
+      }))}
     />
   );
 }

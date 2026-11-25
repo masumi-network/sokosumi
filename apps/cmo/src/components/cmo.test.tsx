@@ -527,7 +527,7 @@ describe("pages", () => {
           },
         })}
         onOpenCalendar={() => {}}
-        connectMeasurement={async () => ({ url: null, error: null })}
+        onSetAds={async () => null}
       />,
     );
     expect(html).toContain("40 trial sign-ups");
@@ -647,7 +647,7 @@ describe("pages", () => {
           },
         })}
         onOpenCalendar={() => {}}
-        connectMeasurement={async () => ({ url: null, error: null })}
+        onSetAds={async () => null}
       />,
     );
     expect(html).not.toContain("What you approved");
@@ -667,7 +667,7 @@ describe("pages", () => {
           production: { ...base.production, beyondPlan: ["beyond"] },
         }}
         onOpenCalendar={() => {}}
-        connectMeasurement={async () => ({ url: null, error: null })}
+        onSetAds={async () => null}
       />,
     );
     // No post counts on the Strategy page (owner, 2026-11-23).
@@ -700,7 +700,7 @@ describe("pages", () => {
           },
         })}
         onOpenCalendar={() => {}}
-        connectMeasurement={async () => ({ url: null, error: null })}
+        onSetAds={async () => null}
       />,
     );
     expect(html).toContain("What you approved");

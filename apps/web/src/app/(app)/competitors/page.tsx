@@ -10,6 +10,7 @@ import { CompetitorsFindings } from "./components/competitors-findings";
 import { CompetitorsScoreboard } from "./components/competitors-scoreboard";
 import { CompetitorsStart } from "./components/competitors-start";
 import { CompetitorsThisWeek } from "./components/competitors-this-week";
+import { showsExample } from "./components/competitors-view";
 import { CompetitorsWatchList } from "./components/competitors-watch-list";
 
 // Wait for the current session and project access before rendering.
@@ -27,8 +28,11 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * A Project's competitors: what the weekly check found, who it watches, and
  * the check's switch in one line. Before anybody is watched it shows what the
- * check gives and one action, finding competitors. Competitors belong to one project, so the page reads
- * `?projectId=` like Ads and Social, and asks for a project without one.
+ * check gives and one action, finding competitors. While Findings can only
+ * show the example, Watching comes first, so the competitors just added are
+ * not below the fold on a phone; on wide screens it stays on the right.
+ * Competitors belong to one project, so the page reads `?projectId=` like
+ * Ads and Social, and asks for a project without one.
  * A CMO Project shows here and is changed in CMO.
  */
 export default async function CompetitorsPage({
@@ -53,6 +57,17 @@ export default async function CompetitorsPage({
 
   const { project, competitors } = page;
   const readOnly = project.cmo;
+  const watchingFirst = showsExample(competitors);
+  const watchList = (
+    <CompetitorsWatchList
+      className={watchingFirst ? "xl:order-last" : undefined}
+      competitors={competitors.competitors}
+      limit={competitors.limit}
+      projectId={project.id}
+      projectName={project.name}
+      readOnly={readOnly}
+    />
+  );
 
   return (
     <WorkspacePageShell title={t("title")}>
@@ -74,18 +89,13 @@ export default async function CompetitorsPage({
               readOnly={readOnly}
             />
             <div className="grid items-start gap-4 xl:grid-cols-3">
+              {watchingFirst ? watchList : null}
               <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
                 <CompetitorsThisWeek data={competitors} />
                 <CompetitorsFindings data={competitors} />
                 <CompetitorsScoreboard data={competitors} />
               </div>
-              <CompetitorsWatchList
-                competitors={competitors.competitors}
-                limit={competitors.limit}
-                projectId={project.id}
-                projectName={project.name}
-                readOnly={readOnly}
-              />
+              {watchingFirst ? null : watchList}
             </div>
           </>
         )}

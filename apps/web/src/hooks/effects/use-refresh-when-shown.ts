@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import {
   TASKS_BOARD_REFRESH_DEBOUNCE_MS,
@@ -20,6 +20,14 @@ export function useRefreshWhenShown(refresh: () => void): () => void {
   );
   const changedWhileHiddenRef = useRef(false);
 
+  const scheduleRefresh = useCallback(() => {
+    if (document.visibilityState === "hidden") {
+      changedWhileHiddenRef.current = true;
+      return;
+    }
+    debounced();
+  }, [debounced]);
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (
@@ -37,11 +45,5 @@ export function useRefreshWhenShown(refresh: () => void): () => void {
     };
   }, [debounced]);
 
-  return () => {
-    if (document.visibilityState === "hidden") {
-      changedWhileHiddenRef.current = true;
-      return;
-    }
-    debounced();
-  };
+  return scheduleRefresh;
 }

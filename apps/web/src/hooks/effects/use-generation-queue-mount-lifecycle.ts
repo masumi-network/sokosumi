@@ -14,7 +14,10 @@ export function useGenerationQueueMountLifecycle(
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      if (retryTimerRef.current !== null) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
     };
   }, []);
 }
