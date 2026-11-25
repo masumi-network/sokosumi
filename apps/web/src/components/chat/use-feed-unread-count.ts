@@ -40,14 +40,22 @@ export function useFeedUnreadCount({
     userId: currentUserId,
     workspaceId: organizationId,
   });
-  // A read still running from before this mount may predate the last change
-  // the unmounted row saw; the mount read reuses it. Read once more after it.
-  const [refreshDue, setRefreshDue] = useState(
-    () => queryClient.isFetching({ queryKey: countKey, exact: true }) > 0,
+  // When the last change waiting for a read was seen, or null when none
+  // waits. A read still running from before this mount may predate the last
+  // change the unmounted row saw; the mount read reuses it, so it waits too.
+  const [changedAt, setChangedAt] = useState(() =>
+    queryClient.isFetching({ queryKey: countKey, exact: true }) > 0
+      ? Date.now()
+      : null,
   );
   const { data } = useQuery({
     queryKey: countKey,
-    queryFn: async () => (await fetchChatFeed({ limit: 1 })).unreadCount,
+    // `startedAt` says which changes the count already includes.
+    queryFn: async () => {
+      const startedAt = Date.now();
+      const { unreadCount } = await fetchChatFeed({ limit: 1 });
+      return { unreadCount, startedAt };
+    },
     retry: false,
     refetchOnWindowFocus: false,
     // A change seen just before the row unmounted loses its timer; the count
@@ -63,22 +71,23 @@ export function useFeedUnreadCount({
       )
       .sort()
       .join(",") ?? null;
-  // The rooms' unread last seen, and whether a change waits for its read.
-  // Needs-you is part of it: a signal tagged on a message already unread makes
-  // it a Feed message without changing the room's unread, and muting a room
-  // drops its messages from the Feed. Sorted, so a room moving to the top of
-  // the list is no change. Rooms present at mount are not a change, the query
-  // reads with them; rooms that load later are, as a message can land between
-  // the two reads. A change inside the wait needs no wait of its own: the read
-  // at its end sees it.
+  // The rooms' unread last seen. Needs-you is part of it: a signal tagged on a
+  // message already unread makes it a Feed message without changing the
+  // room's unread, and muting a room drops its messages from the Feed.
+  // Sorted, so a room moving to the top of the list is no change. Rooms
+  // present at mount are not a change, the query reads with them; rooms that
+  // load later are, as a message can land between the two reads, unless they
+  // load empty and so hold no message. A change inside the wait needs no wait
+  // of its own: the read at its end sees it.
   const [seenRoomsUnread, setSeenRoomsUnread] = useState(roomsUnread);
-  // Counts the timer's rounds. Each round re-arms the timer whenever a refresh
-  // is still due after it, also when a change lands in the same render that
-  // cleared the flag.
+  // Counts the timer's rounds. Each round re-arms the timer whenever a change
+  // still waits after it, also when one lands in the render that cleared it.
   const [timerRound, setTimerRound] = useState(0);
   if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
     setSeenRoomsUnread(roomsUnread);
-    setRefreshDue(true);
+    if (seenRoomsUnread !== null || roomsUnread !== "") {
+      setChangedAt(Date.now());
+    }
   }
   useTimeout(
     () => {
@@ -89,12 +98,17 @@ export function useFeedUnreadCount({
       if (queryClient.isFetching({ queryKey: countKey, exact: true }) > 0) {
         return;
       }
-      setRefreshDue(false);
+      setChangedAt(null);
+      // Another Feed row on the page may have read since the change.
+      const last = queryClient.getQueryData<{ startedAt: number }>(countKey);
+      if (changedAt !== null && last && last.startedAt > changedAt) {
+        return;
+      }
       void queryClient.invalidateQueries({ queryKey: countKey, exact: true });
     },
-    refreshDue ? FEED_COUNT_REFRESH_DELAY_MS : null,
+    changedAt === null ? null : FEED_COUNT_REFRESH_DELAY_MS,
     timerRound,
   );
 
-  return { unreadCount: data ?? 0, showCount };
+  return { unreadCount: data?.unreadCount ?? 0, showCount };
 }

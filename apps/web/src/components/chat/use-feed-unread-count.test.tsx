@@ -232,6 +232,41 @@ describe("useFeedUnreadCount", () => {
     expect(result.current.unreadCount).toBe(3);
   });
 
+  it("reads once for a change both Feed rows on the page see", async () => {
+    fetchChatFeedMock
+      .mockResolvedValueOnce(feedCount(1))
+      .mockResolvedValueOnce(feedCount(0));
+    liveRooms.current = [room(1)];
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: 60 * 1000 } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const scope = { currentUserId: "user-1", organizationId: "org-1" };
+    const { result, rerender } = renderHook(
+      () => [useFeedUnreadCount(scope), useFeedUnreadCount(scope)],
+      { wrapper },
+    );
+    await advance(0);
+    liveRooms.current = [room(0)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS * 3);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
+    expect(result.current[1]?.unreadCount).toBe(0);
+  });
+
+  it("does not read again when no rooms load after the count", async () => {
+    fetchChatFeedMock.mockResolvedValue(feedCount(0));
+    liveRooms.current = null;
+    const { rerender } = renderCount();
+    await advance(0);
+    liveRooms.current = [];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS * 2);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not read again when rooms only change places", async () => {
     fetchChatFeedMock.mockResolvedValue(feedCount(1));
     const other = { ...room(0), id: "room-2" };
