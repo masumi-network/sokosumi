@@ -270,6 +270,44 @@ describe("ImageViewer", () => {
     });
   });
 
+  it("removes the print iframe if it never loads", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const printSpy = vi.fn();
+    try {
+      render(
+        <ImageViewer
+          images={[PHOTO]}
+          activeSrc={PHOTO.src}
+          onActiveSrcChange={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Print" }));
+
+      const iframe = document.querySelector("iframe");
+      expect(iframe).not.toBeNull();
+      // Simulate a print document whose load event never fires.
+      iframe!.addEventListener(
+        "load",
+        (event) => {
+          event.stopImmediatePropagation();
+        },
+        true,
+      );
+      Object.defineProperty(iframe!.contentWindow, "print", {
+        value: printSpy,
+        writable: true,
+      });
+
+      vi.advanceTimersByTime(15_000);
+
+      expect(document.querySelector("iframe")).toBeNull();
+      expect(printSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe("gallery", () => {
     it("shows the active image of the list and its position", () => {
       render(

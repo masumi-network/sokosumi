@@ -270,6 +270,14 @@ Drive:
   Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
   Uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
 
+Chats:
+  Rooms come from sokosumi chats rooms --organization-slug WORKSPACE_SLUG; a room's id fills ROOM_ID.
+  sokosumi chats messages ROOM_ID, sokosumi chats send ROOM_ID --input-json '{"content":"Draft is ready."}'.
+  chats send spends credits when it mentions a Coworker or Soko Bot, or goes to a Soko Bot Direct: it replies as a paid turn.
+  A 1:1 Coworker Direct replies only in Sokosumi Web.
+  Star, mute, pin, read, join and archive take no body. Inviting guests and invite links are CLI-only;
+  stickers, voice transcription and the live reply stream stay in Sokosumi Web.
+
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
@@ -302,6 +310,14 @@ Organization Tasks:
     run-schedule may spend credits: each Run creates a Task that can start paid work. run-schedule creates one now.
     tasks update-schedule-run SCHEDULE_ID RUN_ID skips, moves or restores one Run.
   Files: tasks upload-url TASK_ID returns uploadUrl and headers; PUT the bytes there and the file shows in tasks files.
+
+Contacts (personal data; each contacts command calls one Core operation):
+  contacts list|map|breakdown|export take the same --query filters, e.g. --query stage=PROSPECT --query listId=LIST_ID.
+  contacts export prints CSV (up to 10,000 contacts): sokosumi contacts export > contacts.csv
+  Contact lists use LIST_ID (contacts list-lists); company lists use COMPANY_LIST_ID (contacts list-company-lists).
+  contacts update needs the contact's current version: --input-json '{"version":3,"role":"Founder"}'.
+  contacts enrich and contacts find-people spend workspace credits. contacts merge cannot be undone.
+  contacts import-linkedin takes LinkedIn's Connections.csv as JSON: jq -Rs '{csv: .}' Connections.csv > in.json, then --input-file in.json.
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

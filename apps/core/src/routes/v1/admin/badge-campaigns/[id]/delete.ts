@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
@@ -44,7 +45,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const deleted = await tx.$executeRaw`
-        DELETE FROM "badge_campaign" WHERE "id" = ${id}
+        DELETE FROM ${sharedTable("badge_campaign")} WHERE "id" = ${id}
           AND "startsAt" > (clock_timestamp() AT TIME ZONE 'UTC')
       `;
       if (!deleted)

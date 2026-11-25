@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
@@ -92,9 +93,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : PrismaRaw.empty;
     const visibilityFilter = PrismaRaw.sql`
       AND (
-        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+        t.visibility = ${TaskVisibility.PUBLIC}::${sharedType("TaskVisibility")}
         OR (
-          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+          t.visibility = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
           AND t."ownerId" = ${userContext.userId}
         )
       )
@@ -144,13 +145,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                  LEAD(ev."createdAt") OVER (
                    PARTITION BY ev."taskId" ORDER BY ev."createdAt"
                  ) AS next_at
-          FROM "task" t
+          FROM ${sharedTable("task")} t
           -- Per task, read only the events that can bear on the window rather
           -- than its whole history: without this the landing page sorted every
           -- status event the workspace had ever recorded, on every load.
           CROSS JOIN LATERAL (
             SELECT e."taskId", e."createdAt", e.status
-            FROM "taskEvent" e
+            FROM ${sharedTable("taskEvent")} e
             WHERE e."taskId" = t.id
               -- Only status transitions close a span. Progress comments are
               -- written with a NULL status, and letting one win the LEAD cut
@@ -164,7 +165,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             -- only one that can open a span crossing into it.
             (
               SELECT e."taskId", e."createdAt", e.status
-              FROM "taskEvent" e
+              FROM ${sharedTable("taskEvent")} e
               WHERE e."taskId" = t.id
                 AND e.status IS NOT NULL
                 AND e."createdAt" < ${from}
@@ -180,11 +181,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             -- window: still-running, recently written, or with a status event
             -- inside the window. Avoids lateral work over the full archive.
             AND (
-              t.status = ${TaskStatus.RUNNING}::"TaskStatus"
+              t.status = ${TaskStatus.RUNNING}::${sharedType("TaskStatus")}
               OR t."updatedAt" >= ${from}
               OR EXISTS (
                 SELECT 1
-                FROM "taskEvent" e
+                FROM ${sharedTable("taskEvent")} e
                 WHERE e."taskId" = t.id
                   AND e.status IS NOT NULL
                   AND e."createdAt" >= ${from}
@@ -196,7 +197,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         -- did work inside it, and GREATEST/LEAST clip the parts outside so no
         -- run can report more minutes than the window holds. COALESCE keeps a
         -- still-open run counting up to now.
-        WHERE s.status = ${TaskStatus.RUNNING}::"TaskStatus"
+        WHERE s.status = ${TaskStatus.RUNNING}::${sharedType("TaskStatus")}
           AND s.started_at < ${to}
           AND COALESCE(s.next_at, now()) > ${from}
       `;

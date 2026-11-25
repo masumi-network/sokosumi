@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
@@ -76,7 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const lockedRooms = await tx.$queryRaw<LockedJoinableRoom[]>`
         SELECT "id", "kind", "discoverability", "archivedAt", "organizationId"
-        FROM "chat_room"
+        FROM ${sharedTable("chat_room")}
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
       `;

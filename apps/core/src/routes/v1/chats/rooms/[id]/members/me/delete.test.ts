@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { expectCoreLogWhys } from "@/test/core-log";
@@ -233,10 +234,10 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       remainingUserMemberCount: 1,
     });
 
-    const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
-    const sql = sqlParts.join(" ");
+    const [strings, ...values] = queryRawMock.mock.calls[0];
+    const { sql } = PrismaRaw.sql(strings as TemplateStringsArray, ...values);
     expect(sql).toContain("FOR UPDATE");
-    expect(sql).toContain("chat_room");
+    expect(sql).toContain('FROM "public"."chat_room"');
     expect(sql).toContain("archivedAt");
     expect(userMemberCountMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID, userId: { not: SELF_ID } },

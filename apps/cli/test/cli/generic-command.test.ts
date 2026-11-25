@@ -341,3 +341,49 @@ for (const [argv, message] of [
     assert.equal(f.calls.length, 0);
   });
 }
+
+test("contacts export prints Core's CSV as is", async (t) => {
+  const csv = 'name,email\n"Keller, Nina",nina@example.com\n';
+  const output: string[] = [];
+  const urls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    urls.push(String(input));
+    return new Response(csv, {
+      headers: { "content-type": "Text/CSV; charset=utf-8" },
+    });
+  });
+  await runCli([...API, "contacts", "export", "--query", "stage=PROSPECT"], {
+    env: { SOKOSUMI_AUTH_TOKEN: "fixture-token" },
+    authManager: new AuthManager({
+      credentialStore: { read: () => null, write() {}, clear() {} },
+      apiKeyStore: { read: () => null, write() {}, clear() {} },
+    }),
+    stdout: { write: (value) => output.push(value) },
+  });
+  assert.deepEqual(urls, [
+    "https://fixture.invalid/v1/contacts/export.csv?stage=PROSPECT",
+  ]);
+  assert.equal(output.join(""), csv);
+});
+
+test("a JSON command still refuses a non-JSON body", async (t) => {
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response("<html>proxy</html>", {
+        headers: { "content-type": "text/html" },
+      }),
+  );
+  await assert.rejects(
+    runCli([...API, "jobs", "events", "job-1"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "fixture-token" },
+      authManager: new AuthManager({
+        credentialStore: { read: () => null, write() {}, clear() {} },
+        apiKeyStore: { read: () => null, write() {}, clear() {} },
+      }),
+      stdout: { write() {} },
+    }),
+    /invalid JSON/,
+  );
+});
