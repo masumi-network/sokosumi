@@ -152,19 +152,16 @@
       "reason": "A person approves, publishes and connects accounts (ADR 0077)."
     },
     "POST /projects/{id}/ads/accounts/{accountId}/campaigns": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects ads-campaign-create",
+      "mcp": "projects_ads_campaign_create"
     },
     "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects ads-campaign-edit",
+      "mcp": "projects_ads_campaign_edit"
     },
     "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "A person resumes ad spend (ADR 0077); pausing and budgets wait for its follow-up tickets."
+      "cli": "projects ads-campaign-update",
+      "mcp": "projects_ads_campaign_update"
     },
     "PUT /projects/{id}/ads/market": {
       "cli": false,

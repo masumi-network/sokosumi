@@ -1311,6 +1311,24 @@ export const CLI_COMMAND_CATALOG = [
     usage: "PROJECT_ID SUBSCRIBER_ID [--organization-slug WORKSPACE_SLUG]",
     operation: "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}",
   },
+  // Ad campaign writes (SOKD-384, ADR 0077): created paused; a person resumes.
+  {
+    command: "projects ads-campaign-create",
+    usage: "PROJECT_ID ACCOUNT_ID --input-json JSON",
+    operation: "POST /projects/{id}/ads/accounts/{accountId}/campaigns",
+  },
+  {
+    command: "projects ads-campaign-update",
+    usage: "PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json JSON",
+    operation:
+      "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+  },
+  {
+    command: "projects ads-campaign-edit",
+    usage: "PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json JSON",
+    operation:
+      "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

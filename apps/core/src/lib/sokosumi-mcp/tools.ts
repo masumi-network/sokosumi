@@ -21,6 +21,8 @@ export interface McpTool {
    * clients ask the person first; the description starts with the warning.
    */
   spendsCredits?: boolean;
+  /** Acts on a service outside Sokosumi (Google, Meta). Annotated open-world. */
+  openWorld?: boolean;
 }
 
 export const MCP_TOOLS: readonly McpTool[] = [
@@ -1575,6 +1577,34 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}",
     description:
       "Delete an active or pending subscriber. Unsubscribed and bounced ones are kept so they are never emailed again (409).",
+  },
+  // Ad campaign writes (SOKD-384, ADR 0077). Ad money is billed by Google or
+  // Meta outside Sokosumi credits, so these are destructive and say so first.
+  {
+    name: "projects_ads_campaign_create",
+    operation: "POST /projects/{id}/ads/accounts/{accountId}/campaigns",
+    description:
+      "Can lead to ad spend once a person resumes the campaign. Create a campaign in a Project's attached ad account; it is always created paused. `body.name` and `body.dailyBudget` (decimal in the account currency), plus `body.objective` for Meta or `body.google` for Google. A person resumes it in Sokosumi.",
+    destructive: true,
+    openWorld: true,
+  },
+  {
+    name: "projects_ads_campaign_update",
+    operation:
+      "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+    description:
+      'Can lead to ad spend once a person resumes the campaign. Pause a campaign with `body: { "status": "PAUSED" }` at any time, or change a paused campaign\'s budget with `body.dailyBudget` (409 if it is not paused). Send one of the two per call. Only a person resumes a campaign: `ACTIVE` answers 403 with `details.webUrl`, the page to send the person to.',
+    destructive: true,
+    openWorld: true,
+  },
+  {
+    name: "projects_ads_campaign_edit",
+    operation:
+      "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+    description:
+      "Can lead to ad spend once a person resumes the campaign. Edit a paused Google campaign (409 if it is not paused): `body.name`, `body.dailyBudget` and the whole `body.google` spec, as for a create. Pause it first with projects_ads_campaign_update.",
+    destructive: true,
+    openWorld: true,
   },
 ];
 

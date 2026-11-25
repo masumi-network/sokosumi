@@ -491,6 +491,35 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     body: { name: "Ada Lovelace" },
   },
   newsletter_remove_subscriber: { id: "p-1", subscriberId: "sub-1" },
+  projects_ads_campaign_create: {
+    id: "project-1",
+    accountId: "account-1",
+    body: { name: "Spring", dailyBudget: 5, objective: "OUTCOME_TRAFFIC" },
+  },
+  projects_ads_campaign_update: {
+    id: "project-1",
+    accountId: "account-1",
+    campaignId: "42",
+    body: { status: "PAUSED" },
+  },
+  projects_ads_campaign_edit: {
+    id: "project-1",
+    accountId: "account-1",
+    campaignId: "42",
+    body: {
+      name: "Spring",
+      dailyBudget: 5,
+      google: {
+        type: "SEARCH",
+        locationIds: [],
+        languageIds: [],
+        finalUrl: "https://example.com",
+        keywords: [{ text: "running shoes", matchType: "BROAD" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First description", "Second description"],
+      },
+    },
+  },
 };
 
 const CORE = "https://core.example.test";

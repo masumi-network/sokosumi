@@ -1594,4 +1594,40 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}": {
     argv: [...API, "newsletter", "remove-subscriber", "p-1", "sub-1"],
   },
+  // Ad campaign writes (SOKD-384).
+  "POST /projects/{id}/ads/accounts/{accountId}/campaigns": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-campaign-create",
+      "project-1",
+      "account-1",
+      "--input-json",
+      '{"name":"Spring","dailyBudget":5,"objective":"OUTCOME_TRAFFIC"}',
+    ],
+  },
+  "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-campaign-update",
+      "project-1",
+      "account-1",
+      "42",
+      "--input-json",
+      '{"status":"PAUSED"}',
+    ],
+  },
+  "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-campaign-edit",
+      "project-1",
+      "account-1",
+      "42",
+      "--input-json",
+      '{"name":"Spring","dailyBudget":5,"google":{"type":"SEARCH"}}',
+    ],
+  },
 };

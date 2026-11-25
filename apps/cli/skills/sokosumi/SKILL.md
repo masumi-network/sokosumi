@@ -386,6 +386,19 @@ sokosumi newsletter submit-issue PROJECT_ID ISSUE_ID --input-json '{"revision":2
 
 [VERIFIED: ADR 0077] Agents draft and stop; a person approves. Submit a newsletter issue or write a Marketing strategy, then tell the person to approve it in Sokosumi: no command approves, schedules or sends a newsletter, approves a strategy, or confirms a Brand Brain. `projects competitor-checks` and `projects check-competitors` spend credits: confirm the price with the person first. Answer Brand Brain and strategy questions with the person's own answer, never a guess. Adding newsletter subscribers stays in Sokosumi for now.
 
+## Ad campaigns
+
+[VERIFIED: ADR 0077, `apps/core/src/routes/v1/projects/[id]/ads/accounts/[accountId]/campaigns/`] An agent prepares and stops ad campaigns; a person starts the spend. Ad money is billed by Google or Meta, outside Sokosumi credits, so confirm the budget with the operator before any of these writes:
+
+```bash
+sokosumi projects ads-campaign-create PROJECT_ID ACCOUNT_ID --input-file ./campaign.json
+sokosumi projects ads-campaign-update PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json '{"status":"PAUSED"}'
+sokosumi projects ads-campaign-update PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json '{"dailyBudget":20}'
+sokosumi projects ads-campaign-edit PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-file ./campaign.json
+```
+
+A new campaign is always paused. Pause at any time. Change the budget or edit only a paused campaign (`409` otherwise), and send a status or a budget per call, not both (`400`). Only a person resumes: `{"status":"ACTIVE"}` answers `403` with kind `person_approval_required` and `webUrl`. Give the operator that link.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
