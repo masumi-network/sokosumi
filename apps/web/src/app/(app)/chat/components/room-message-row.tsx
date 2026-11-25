@@ -2266,12 +2266,13 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-foreground press underline-offset-4 mx-0.5 mt-1 inline-flex min-h-9 items-center gap-1.5 rounded-md px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press underline-offset-4 mx-0.5 mt-1 inline-flex min-h-9 items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium sm:mt-1 sm:min-h-0",
         // The bar is where focus lands when its thread closes, so its ring
         // must show whole. The content column's `overflow-x-clip` cuts
         // anything left of its edge: `mx-0.5` keeps the box, and its 2px
-        // ring, inside the column. Bespoke-chip ring (DESIGN.md, Focus
-        // rings); `outline-hidden` keeps a mark in forced colors.
+        // ring, inside the column; `px-1 py-0.5` keep the faces clear of
+        // it. Bespoke-chip ring (DESIGN.md, Focus rings); `outline-hidden`
+        // keeps a mark in forced colors.
         "outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
