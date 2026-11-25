@@ -3,6 +3,8 @@ import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import {
   SEO_RANK_HISTORY_KINDS,
   SEO_RANK_HISTORY_OBSERVATIONS,
+  SEO_RANK_POINT_LOAD,
+  type SeoRankPointRow,
   type SeoRankSource,
 } from "./project-seo-rankings";
 import { seoOwnerWhere } from "./project-seo-store";
@@ -26,17 +28,15 @@ export function seoRankPeriodWhere(
 }
 
 /**
- * The public results the rank history reads, newest first, at most SEO_RANK_HISTORY_OBSERVATIONS of the period.
- * The period cuts in the query: cut after the load, a period older than the newest results came back empty.
- * `limited`: the period holds more results than the load takes, so older reads are missing.
+ * The public results the SERP history reads, newest first, at most SEO_RANK_HISTORY_OBSERVATIONS of the period.
  */
 export async function loadSeoRankSources(
   actor: SeoActor,
   pageIds: string[],
   period: Pick<SeoWorkspaceQuery, "from" | "to">,
-): Promise<{ rows: SeoRankSource[]; limited: boolean }> {
+): Promise<SeoRankSource[]> {
   const observedAt = seoRankPeriodWhere(period);
-  const rows = await prisma.projectSeoObservation.findMany({
+  return prisma.projectSeoObservation.findMany({
     where: {
       ...seoOwnerWhere(actor),
       pageIds: { hasSome: pageIds },
@@ -47,11 +47,52 @@ export async function loadSeoRankSources(
     },
     select: { id: true, observedAt: true, payload: true },
     orderBy: { observedAt: "desc" },
-    // One more than the history reads: it says that older results exist.
-    take: SEO_RANK_HISTORY_OBSERVATIONS + 1,
+    take: SEO_RANK_HISTORY_OBSERVATIONS,
   });
-  return {
-    rows: rows.slice(0, SEO_RANK_HISTORY_OBSERVATIONS),
-    limited: rows.length > SEO_RANK_HISTORY_OBSERVATIONS,
-  };
+}
+
+/** Keys one query names. PostgreSQL takes 32,767 bound values in a statement. */
+const KEY_CHUNK = 5_000;
+
+/**
+ * The stored position reads of the given keys in the period, from this owner's public results, newest first.
+ * At most `limit` per query. `limited`: a query held more, so older reads are missing.
+ */
+export async function loadSeoRankPoints(
+  actor: SeoActor,
+  keys: string[],
+  period: Pick<SeoWorkspaceQuery, "from" | "to">,
+  limit = SEO_RANK_POINT_LOAD,
+): Promise<{ rows: SeoRankPointRow[]; limited: boolean }> {
+  const observedAt = seoRankPeriodWhere(period);
+  const rows: SeoRankPointRow[] = [];
+  let limited = false;
+  for (let start = 0; start < keys.length; start += KEY_CHUNK) {
+    const found = await prisma.projectSeoRankPoint.findMany({
+      where: {
+        key: { in: keys.slice(start, start + KEY_CHUNK) },
+        // The period reads the result's time, as every other part of the workspace does.
+        observation: {
+          ...seoOwnerWhere(actor),
+          ownerId: null,
+          ...(observedAt && { observedAt }),
+        },
+      },
+      select: {
+        key: true,
+        observationId: true,
+        observedAt: true,
+        position: true,
+        positionStatus: true,
+        checkedResults: true,
+        device: true,
+      },
+      orderBy: { observedAt: "desc" },
+      // One more than the history reads: it says that older points exist.
+      take: limit + 1,
+    });
+    limited ||= found.length > limit;
+    rows.push(...found.slice(0, limit));
+  }
+  return { rows, limited };
 }

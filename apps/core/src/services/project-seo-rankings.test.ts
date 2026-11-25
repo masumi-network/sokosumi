@@ -14,6 +14,7 @@ import {
 } from "@/test-fixtures/project-seo";
 
 import { projectSeoProjection } from "./project-seo-projection";
+import { seoRankPoints } from "./project-seo-rank-points";
 import { withSeoRankings } from "./project-seo-rankings";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
@@ -126,7 +127,13 @@ function workspaceOf(
   return withSeoRankings(
     projectSeoProjection({ ...base, observations: rows }),
     historyRows,
-    limited,
+    {
+      // The points the import stores for these results, newest first as the load gives them.
+      rows: historyRows.flatMap((row, index) =>
+        seoRankPoints(row.id, history[index]),
+      ),
+      limited,
+    },
   );
 }
 
@@ -222,17 +229,6 @@ describe("keyword position history", () => {
     expect(
       workspaceOf(short, input(), short, true).keywords[0].positionHistoryCut,
     ).toBe(true);
-  });
-
-  it("follows the period of the workspace", () => {
-    const base = input();
-    const workspace = workspaceOf(
-      [result(3, [{ position: 3 }]), result(1, [{ position: 5 }])],
-      { ...base, query: { from: at(2).slice(0, 10) } },
-    );
-    expect(
-      workspace.keywords[0].positionHistory?.map((point) => point.position),
-    ).toEqual([3]);
   });
 });
 

@@ -1,4 +1,7 @@
-import type { ProjectSeoObservation } from "@sokosumi/database";
+import type {
+  ProjectSeoObservation,
+  ProjectSeoRankPoint,
+} from "@sokosumi/database";
 import {
   type PublicSeoPayload,
   publicSeoPayloadSchema,
@@ -10,20 +13,25 @@ import {
   SEO_RANK_HISTORY_POINTS,
   SEO_SERP_SERIES_MAX,
 } from "@/schemas/project-seo-rankings.schema";
-import { seoKeywordIdentity } from "./project-seo-keyword-rows";
+import { seoRankPointKey } from "./project-seo-rank-points";
 import { matchesSeoPeriod, normalizeSeoUrl } from "./project-seo-store";
 
 /**
- * Public results the rank history reads, newest first. Its own bound: metric syncs and audits share the
+ * Public results the SERP history reads, newest first. Its own bound: metric syncs and audits share the
  * workspace load, and a daily monitor fills this with about half a year of checks.
  */
 export const SEO_RANK_HISTORY_OBSERVATIONS = 200;
 /**
- * Result kinds whose Run can read keyword positions and SERPs (`keyword.refresh`): "rankings", and "audit_lite"
- * when it asks for it. A full audit's positions stay out of the history: its payload holds up to 10 page
- * Reports, too heavy to load 200 times per workspace read.
+ * Result kinds whose Run can read SERPs (`keyword.refresh`): "rankings", and "audit_lite" when it asks for it.
+ * A full audit's payload holds up to 10 page Reports, too heavy to load 200 times per workspace read. Its
+ * position reads reach the history through the rank point table.
  */
 export const SEO_RANK_HISTORY_KINDS = ["rankings", "audit_lite"];
+/**
+ * Rank points one workspace read loads, newest first. A daily monitor of 20 keywords on 2 devices writes 40
+ * a day, so this holds the 90 newest points of every keyword of more than two such monitors.
+ */
+export const SEO_RANK_POINT_LOAD = 10_000;
 
 export type SeoRankSource = Pick<
   ProjectSeoObservation,
@@ -33,7 +41,32 @@ type PositionPoint = NonNullable<
   ProjectSeoWorkspace["keywords"][number]["positionHistory"]
 >[number];
 type SerpSeries = NonNullable<ProjectSeoWorkspace["serpHistory"]>[number];
+/** A stored position read, as the rank point table holds it. */
+export type SeoRankPointRow = Pick<
+  ProjectSeoRankPoint,
+  | "key"
+  | "observationId"
+  | "observedAt"
+  | "position"
+  | "positionStatus"
+  | "checkedResults"
+  | "device"
+>;
 type Source = { row: SeoRankSource; data: PublicSeoPayload };
+
+const keyOf = (row: ProjectSeoWorkspace["keywords"][number]) =>
+  row.observationId && row.pageUrl
+    ? seoRankPointKey(
+        { ...row, pageUrl: row.pageUrl },
+        row.countryCode,
+        row.languageCode,
+      )
+    : null;
+
+/** The rank point keys of the workspace's observed keyword rows: the points its history reads. */
+export function seoRankKeys(workspace: ProjectSeoWorkspace): string[] {
+  return [...new Set(workspace.keywords.flatMap((row) => keyOf(row) ?? []))];
+}
 
 /** The readable results in the workspace period, oldest first. */
 function rankSources(workspace: ProjectSeoWorkspace, rows: SeoRankSource[]) {
@@ -55,20 +88,23 @@ function rankSources(workspace: ProjectSeoWorkspace, rows: SeoRankSource[]) {
 }
 
 /**
- * The rank views over time: each observed keyword row gets every loaded paid read of its keyword, page, device,
+ * The rank views over time: each observed keyword row gets the stored paid reads of its keyword, page, device,
  * reason and Market, newest last; a read where the page was not in the checked results stays a point without a
  * position. The SERP reads give one series per keyword, device and Market, and the weekly share of voice.
  */
 export function withSeoRankings(
   workspace: ProjectSeoWorkspace,
   rows: SeoRankSource[],
-  /** The load left out older results of the period: every history can miss older reads. */
-  limited = false,
+  /** The points of `seoRankKeys(workspace)` in the workspace period. `limited`: the load left older ones out. */
+  points: { rows: SeoRankPointRow[]; limited: boolean } = {
+    rows: [],
+    limited: false,
+  },
 ): ProjectSeoWorkspace {
   const sources = rankSources(workspace, rows);
   return {
     ...workspace,
-    keywords: withPositionHistory(workspace.keywords, sources, limited),
+    keywords: withPositionHistory(workspace.keywords, points),
     serpHistory: serpHistory(sources),
     shareOfVoice: shareOfVoice(workspace, sources),
   };
@@ -101,50 +137,33 @@ function shareOfVoice(
 
 function withPositionHistory(
   keywords: ProjectSeoWorkspace["keywords"],
-  sources: Source[],
-  limited: boolean,
+  points: { rows: SeoRankPointRow[]; limited: boolean },
 ): ProjectSeoWorkspace["keywords"] {
   const history = new Map<string, PositionPoint[]>();
-  for (const { row, data } of sources) {
-    const seen = new Set<string>();
-    // A keyword of an unselected page has another identity: no workspace row asks for it.
-    for (const item of data.keywords) {
-      const identity = seoKeywordIdentity(
-        item,
-        data.countryCode,
-        data.languageCode,
-      );
-      // The workspace row is the first match of a result; so is its point.
-      if (seen.has(identity)) continue;
-      seen.add(identity);
-      history.set(identity, [
-        ...(history.get(identity) ?? []),
-        {
-          observedAt: item.observedAt,
-          observationId: row.id,
-          position: item.position,
-          positionStatus: item.positionStatus,
-          checkedResults: item.checkedResults,
-          device: item.device,
-        },
-      ]);
-    }
-  }
+  const oldestFirst = points.rows.toSorted(
+    (a, b) => a.observedAt.getTime() - b.observedAt.getTime(),
+  );
+  for (const point of oldestFirst)
+    history.set(point.key, [
+      ...(history.get(point.key) ?? []),
+      {
+        observedAt: point.observedAt.toISOString(),
+        observationId: point.observationId,
+        position: point.position,
+        positionStatus: point.positionStatus as PositionPoint["positionStatus"],
+        checkedResults: point.checkedResults,
+        device: point.device as PositionPoint["device"],
+      },
+    ]);
   return keywords.map((row) => {
-    if (!row.observationId || !row.pageUrl) return row;
-    const points = history.get(
-      seoKeywordIdentity(
-        { ...row, pageUrl: row.pageUrl },
-        row.countryCode,
-        row.languageCode,
-      ),
-    );
-    return points
+    const key = keyOf(row);
+    const series = key ? history.get(key) : undefined;
+    return series
       ? {
           ...row,
-          positionHistory: points.slice(-SEO_RANK_HISTORY_POINTS),
+          positionHistory: series.slice(-SEO_RANK_HISTORY_POINTS),
           positionHistoryCut:
-            limited || points.length > SEO_RANK_HISTORY_POINTS,
+            points.limited || series.length > SEO_RANK_HISTORY_POINTS,
         }
       : row;
   });

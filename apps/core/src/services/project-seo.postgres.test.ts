@@ -79,7 +79,7 @@ import {
 } from "./project-seo-operations.service";
 import { seoRankPoints } from "./project-seo-rank-points";
 import { backfillSeoRankPoints } from "./project-seo-rank-points-backfill";
-import { SEO_RANK_HISTORY_OBSERVATIONS } from "./project-seo-rankings";
+import { loadSeoRankPoints } from "./project-seo-rank-sources";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import { acknowledgeSeoReview } from "./seo-action-reviews";
 import { getSeoBrief } from "./seo-audit-brief.service";
@@ -3033,45 +3033,15 @@ describe.skipIf(!enabled)(
       ]);
     });
 
-    it("says that older rank checks are missing only when the period holds more results than the load takes", async () => {
+    it("reads the rank points of the period, and says when the load left older ones out", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/rank-period",
         relationship: "primary",
       });
-      for (const day of [1, 2])
-        await storeResult(
-          page.id,
-          rankingsPayload(page.url, `2026-09-0${day}T09:00:00.000Z`, {
-            position: 9,
-          }),
-        );
-      // With the newest result below, exactly what the history load takes. They read no keyword,
-      // so only the load limit can cut the series, not the point limit.
-      const empty = focusedRankingsReport();
-      const start = Date.parse("2026-10-01T00:00:00.000Z");
-      await prisma.projectSeoObservation.createMany({
-        data: Array.from(
-          { length: SEO_RANK_HISTORY_OBSERVATIONS - 1 },
-          (_, index) => {
-            const observedAt = new Date(start + index * 60_000);
-            return {
-              projectId,
-              source: "seo_coworker",
-              kind: "rankings",
-              sourceKey: `rank-period:${index}`,
-              pageIds: [page.id],
-              artifactHash: "rank-period",
-              payload: parsePublicSeoArtifact({
-                ...empty,
-                observedAt: observedAt.toISOString(),
-                scope: { ...empty.scope, pageUrls: [page.url] },
-                keywords: [],
-              }),
-              observedAt,
-            };
-          },
-        ),
-      });
+      const older = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-09-01T09:00:00.000Z", { position: 9 }),
+      );
       const newest = await storeResult(
         page.id,
         rankingsPayload(page.url, "2026-11-01T09:00:00.000Z", { position: 2 }),
@@ -3085,10 +3055,48 @@ describe.skipIf(!enabled)(
           row?.positionHistoryCut,
         ];
       };
-      // No period: the load leaves out both September results.
-      expect(await read({})).toEqual([[newest.id], true]);
-      // The period holds one result. The load has all of it.
+      expect(await read({})).toEqual([[older.id, newest.id], false]);
       expect(await read({ from: "2026-11-01" })).toEqual([[newest.id], false]);
+      // Another owner's public result of the same keyword and page gives this owner no point.
+      const stranger = await prisma.project.create({
+        data: { workspaceId, name: "Rank point stranger" },
+      });
+      const key = (
+        await prisma.projectSeoRankPoint.findFirstOrThrow({
+          where: { observationId: newest.id },
+        })
+      ).key;
+      const foreign = await prisma.projectSeoObservation.create({
+        data: {
+          projectId: stranger.id,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [],
+          artifactHash: "rank-period",
+          payload: {},
+          observedAt: new Date("2026-10-01T09:00:00.000Z"),
+        },
+      });
+      await prisma.projectSeoRankPoint.create({
+        data: {
+          observationId: foreign.id,
+          key,
+          observedAt: foreign.observedAt,
+          position: 1,
+          positionStatus: "ranked",
+        },
+      });
+      expect(await read({})).toEqual([[older.id, newest.id], false]);
+      // The load takes the newest points and says that it left one out.
+      const cut = await loadSeoRankPoints(actor, [key], {}, 1);
+      expect([cut.rows.map((row) => row.observationId), cut.limited]).toEqual([
+        [newest.id],
+        true,
+      ]);
+      expect((await loadSeoRankPoints(actor, [key], {}, 2)).limited).toBe(
+        false,
+      );
     });
 
     it("backfills the rank points of a result stored before the import wrote them, once", async () => {
@@ -3099,6 +3107,7 @@ describe.skipIf(!enabled)(
       const stored = await storeResult(
         page.id,
         rankingsPayload(page.url, "2026-10-04T09:00:00.000Z", { position: 4 }),
+        { points: false },
       );
       const points = () =>
         prisma.projectSeoRankPoint.findMany({
@@ -3139,7 +3148,7 @@ describe.skipIf(!enabled)(
       ).toEqual([{ checkedResults: 2 ** 31 }]);
     });
 
-    it("reads the rank history only from rankings and audit_lite results", async () => {
+    it("reads the rank history from every result kind that reads positions, and from no other", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/rank-kinds",
         relationship: "primary",
@@ -3182,14 +3191,21 @@ describe.skipIf(!enabled)(
       expect(
         read?.positionHistory?.map((point) => point.observationId),
       ).toEqual([lite.id, rankings.id]);
-      // The full audit's own keyword rows exist, without a history.
+      // A full audit's position reads are points of its own keyword rows. Its payload is never loaded for them.
       const fullRows = workspace.keywords.filter(
         (item) => item.observationId === full.id,
       );
-      expect(fullRows.length).toBeGreaterThan(0);
-      expect(fullRows.map((item) => item.positionHistory)).toEqual(
-        fullRows.map(() => undefined),
+      const answered = fullRows.filter(
+        (item) => item.positionStatus !== "unavailable",
       );
+      expect(answered.length).toBeGreaterThan(0);
+      for (const item of fullRows)
+        expect(
+          item.positionHistory?.map((point) => point.observationId),
+        ).toEqual(
+          item.positionStatus === "unavailable" ? undefined : [full.id],
+        );
+      // The page check claims a position for the same keyword. Its kind reads none, so it gives no point.
       expect(
         workspace.serpHistory?.flatMap((series) =>
           series.points.map((point) => point.observationId),
@@ -3443,12 +3459,13 @@ function rankingsPayload(
 }
 
 /** Stores a public result of the test project for one page. */
-function storeResult(
+async function storeResult(
   pageId: string,
   payload: ReturnType<typeof parsePublicSeoArtifact>,
-  extra: { ownerId?: string } = {},
+  extra: { ownerId?: string; points?: false } = {},
 ) {
-  return prisma.projectSeoObservation.create({
+  const { points, ...data } = extra;
+  const stored = await prisma.projectSeoObservation.create({
     data: {
       projectId,
       source: "seo_coworker",
@@ -3458,7 +3475,13 @@ function storeResult(
       artifactHash: "rank-history",
       payload,
       observedAt: new Date(payload.observedAt),
-      ...extra,
+      ...data,
     },
   });
+  // As the import does for a public result.
+  if (points !== false && !data.ownerId)
+    await prisma.projectSeoRankPoint.createMany({
+      data: seoRankPoints(stored.id, payload),
+    });
+  return stored;
 }
