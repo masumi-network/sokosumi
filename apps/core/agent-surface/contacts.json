@@ -42,6 +42,11 @@
       "mcp": false,
       "reason": "Bulk import: writes up to thousands of contacts from one call. A person runs it from the CLI or the app."
     },
+    "POST /contacts/linkedin-connections": {
+      "cli": "contacts import-linkedin",
+      "mcp": false,
+      "reason": "Bulk import: writes up to 20,000 contacts from a LinkedIn Connections.csv export in one call. A person runs it from the CLI or the app."
+    },
     "GET /contacts/organizations": {
       "cli": "contacts list-organizations",
       "mcp": "contacts_list_organizations"

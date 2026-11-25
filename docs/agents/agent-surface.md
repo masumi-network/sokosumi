@@ -44,7 +44,7 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 - Binary or multipart uploads: the generic CLI runner and MCP tools send JSON only (`POST /coworkers/{id}/image`; a person sets the picture in the Web app).
 - The admin back office: CLI only, `mcp: false`.
 - Downloads that return file bytes (images, CSV, spreadsheets): the CLI and MCP carry JSON. An API key still reads them over HTTP.
-- Bulk imports (contacts from a Files table, pasted addresses into a list): CLI only, `mcp: false`. The contacts CSV export is the one exception to the downloads rule above: the generic runner prints a `text/csv` body as is, so it is CLI only.
+- Bulk imports (contacts from a Files table or a LinkedIn Connections.csv, pasted addresses into a list): CLI only, `mcp: false`. The contacts CSV export is the one exception to the downloads rule above: the generic runner prints a `text/csv` body as is, so it is CLI only.
 
 "Nobody needs it yet" is not a reason. Leave the operation to the group's `backlog` instead.
 

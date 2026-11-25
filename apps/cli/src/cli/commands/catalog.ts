@@ -1879,6 +1879,11 @@ export const CLI_COMMAND_CATALOG = [
     operation: "POST /contacts/import",
   },
   {
+    command: "contacts import-linkedin",
+    usage: "--input-file FILE",
+    operation: "POST /contacts/linkedin-connections",
+  },
+  {
     command: "contacts list-organizations",
     usage: "[--query KEY=VALUE]",
     operation: "GET /contacts/organizations",

@@ -309,6 +309,7 @@ Contacts (personal data; each contacts command calls one Core operation):
   Contact lists use LIST_ID (contacts list-lists); company lists use COMPANY_LIST_ID (contacts list-company-lists).
   contacts update needs the contact's current version: --input-json '{"version":3,"role":"Founder"}'.
   contacts enrich and contacts find-people spend workspace credits. contacts merge cannot be undone.
+  contacts import-linkedin takes LinkedIn's Connections.csv as JSON: jq -Rs '{csv: .}' Connections.csv > in.json, then --input-file in.json.
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

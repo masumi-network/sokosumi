@@ -2457,6 +2457,15 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"tableId":"table-1","mapping":{"name":"Name"}}',
     ],
   },
+  "POST /contacts/linkedin-connections": {
+    argv: [
+      ...API,
+      "contacts",
+      "import-linkedin",
+      "--input-json",
+      '{"csv":"First Name,Last Name,URL\\nNina,Keller,https://www.linkedin.com/in/nina"}',
+    ],
+  },
   "GET /contacts/organizations": {
     argv: [...API, "contacts", "list-organizations"],
   },
