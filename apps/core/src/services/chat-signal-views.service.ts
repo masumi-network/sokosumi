@@ -46,14 +46,15 @@ export function placeholders(count: number): string {
  * SQL predicate: message `m` is unread for the viewer `userSql`, by the same
  * baselines as room unread: a top-level message after the room's last read,
  * a reply after the Thread's Look (else the viewer's join). Needs the
- * `room_read` and `thread_read` joins.
+ * `room_read` and `thread_read` joins. `atSql` is the time compared with the
+ * read baselines: the message's `createdAt` unless the caller passes another.
  */
-export function sqlUnreadForViewer(): string {
+export function sqlUnreadForViewer(atSql = 'm."createdAt"'): string {
   return `(
     (m."parentMessageId" IS NULL
-      AND m."createdAt" > COALESCE(room_read."lastReadAt", '-infinity'::timestamp))
+      AND ${atSql} > COALESCE(room_read."lastReadAt", '-infinity'::timestamp))
     OR (m."parentMessageId" IS NOT NULL
-      AND m."createdAt" > COALESCE(thread_read."lastReadAt", room_read."createdAt", '-infinity'::timestamp))
+      AND ${atSql} > COALESCE(thread_read."lastReadAt", room_read."createdAt", '-infinity'::timestamp))
   )`;
 }
 

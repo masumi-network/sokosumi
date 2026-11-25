@@ -22,7 +22,9 @@ import { getChatRoomUnreadMentionCounts } from "./room-mention-counts";
  * Ordinary edits do not change the mention's terminal timestamp. Keep message
  * createdAt for timeline position and pagination. Aliases are code constants.
  */
-export function sqlMessageAttentionAt(alias: "message" | "reply"): string {
+export function sqlMessageAttentionAt(
+  alias: "message" | "reply" | "m",
+): string {
   return `GREATEST(${alias}."createdAt", (
     SELECT response_mention."updatedAt"
     FROM "chat_room_mention" response_mention

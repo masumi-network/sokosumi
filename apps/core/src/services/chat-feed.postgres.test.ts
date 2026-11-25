@@ -78,11 +78,16 @@ async function question(input: {
   return { messageId, signalId: signal.id };
 }
 
-/** The Soko Bot's answer to `sourceMessageId`, linked the way a turn links it. */
+/**
+ * The Soko Bot's answer to `sourceMessageId`, linked the way a turn links it.
+ * A turn links its Thought placeholder at once and marks it `responded` when
+ * the answer is complete.
+ */
 async function botAnswer(input: {
   roomId: string;
   minute: number;
   sourceMessageId: string;
+  status?: "pending" | "failed" | "responded";
 }): Promise<string> {
   const answer = await message({
     roomId: input.roomId,
@@ -94,7 +99,7 @@ async function botAnswer(input: {
       messageId: input.sourceMessageId,
       sokoBotId: botId,
       responseMessageId: answer,
-      status: "sent",
+      status: input.status ?? "responded",
     },
   });
   return answer;
@@ -297,6 +302,28 @@ describe.runIf(enabled)("chat feed on PostgreSQL", () => {
       minute: 14,
       sourceMessageId: aliceAsksBot,
     });
+    const aliceAsksAgain = await message({
+      roomId: channelId,
+      minute: 16,
+      senderUserId: alice,
+    });
+    excluded.pendingAnswer = await botAnswer({
+      roomId: channelId,
+      minute: 17,
+      sourceMessageId: aliceAsksAgain,
+      status: "pending",
+    });
+    const aliceAsksOnceMore = await message({
+      roomId: channelId,
+      minute: 18,
+      senderUserId: alice,
+    });
+    excluded.failedAnswer = await botAnswer({
+      roomId: channelId,
+      minute: 19,
+      sourceMessageId: aliceAsksOnceMore,
+      status: "failed",
+    });
     excluded.muted = await message({
       roomId: mutedChannelId,
       minute: 15,
@@ -352,5 +379,22 @@ describe.runIf(enabled)("chat feed on PostgreSQL", () => {
     expect(
       (await listChatFeed(alice, organizationId, { take: 1 })).unreadCount,
     ).toBe(3);
+  });
+
+  it("keeps an answer unread when the viewer read only its Thought placeholder", async () => {
+    // Alice reads the channel after the placeholder was posted (minute 6) but
+    // before the answer completed (the mention's updatedAt, now).
+    await prisma.chatRoomReadState.update({
+      where: { roomId_userId: { roomId: channelId, userId: alice } },
+      data: { lastReadAt: at(7) },
+    });
+    await prisma.chatRoomReadState.upsert({
+      where: { roomId_userId: { roomId: bobDirectId, userId: alice } },
+      create: { roomId: bobDirectId, userId: alice, lastReadAt: new Date() },
+      update: { lastReadAt: new Date() },
+    });
+    expect(
+      (await listChatFeed(alice, organizationId, { take: 1 })).unreadCount,
+    ).toBe(1);
   });
 });

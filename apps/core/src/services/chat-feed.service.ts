@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { sqlMessageAttentionAt } from "@/routes/v1/chats/rooms/room-unread";
 import {
   loadListedMessages,
   placeholders,
@@ -13,8 +14,10 @@ import {
  * live, from someone else, and one of: a person's message in a Direct, a
  * message that mentions the viewer, a question or decision Jev addressed to
  * the viewer, or an agent's answer to a message the viewer sent or was
- * mentioned in. An agent answer in a room with one person is that person's
- * own conversation with the agent, so it stays out.
+ * mentioned in. An agent answer counts once it is complete: a Thought
+ * placeholder still waiting, or one that failed, is not an answer. An agent
+ * answer in a room with one person is that person's own conversation with the
+ * agent, so it stays out.
  */
 function sqlFeedCandidate(userSql: string): string {
   return `m."deletedAt" IS NULL
@@ -32,6 +35,7 @@ function sqlFeedCandidate(userSql: string): string {
           SELECT 1 FROM "chat_room_mention" asked
           INNER JOIN "chat_room_message" source ON source.id = asked."messageId"
           WHERE asked."responseMessageId" = m.id
+            AND asked.status = 'responded'
             AND (source."senderUserId" = ${userSql}
               OR EXISTS (
                 SELECT 1 FROM "chat_room_user_mention" source_mention
@@ -73,6 +77,9 @@ export async function listChatFeed(
       page.take + 1,
       ...(page.after ? [page.after.createdAt, page.after.id] : []),
     ),
+    // Unread by attention time: an agent answer completes after its Thought
+    // placeholder was posted, and reading the placeholder must not mark the
+    // answer read. Paging keeps `createdAt`, the message's place in time.
     prisma.$queryRawUnsafe<Array<{ count: number }>>(
       `SELECT COUNT(*)::int AS count
       FROM "chat_room_message" m
@@ -80,7 +87,7 @@ export async function listChatFeed(
       ${sqlReadJoins(user)}
       WHERE m."roomId" IN (${placeholders(n)})
         AND ${sqlFeedCandidate(user)}
-        AND ${sqlUnreadForViewer()}`,
+        AND ${sqlUnreadForViewer(sqlMessageAttentionAt("m"))}`,
       ...roomIds,
       userId,
     ),
