@@ -159,6 +159,7 @@ function FileChipMiniPreviewTrigger({
       href={url}
       target="_blank"
       rel="noreferrer noopener"
+      aria-label={resolvedFileName}
       className={cn(previewTriggerClassName, sizeClass)}
     >
       <div className="text-muted-foreground flex size-full items-center justify-center">

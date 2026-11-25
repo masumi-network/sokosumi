@@ -63,14 +63,16 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: "Create" }).click();
       await page.waitForURL(/\/chat\/rooms\//);
 
-      await page
-        .locator('input[type="file"]')
-        .first()
-        .setInputFiles({
-          name: "shops.csv",
-          mimeType: "text/csv",
-          buffer: Buffer.from(CSV),
-        });
+      await page.getByRole("button", { name: "Attach file" }).click();
+      const chooser = page.waitForEvent("filechooser");
+      await page.getByRole("menuitem", { name: "Upload from device" }).click();
+      await (await chooser).setFiles({
+        name: "shops.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(CSV),
+      });
+      // Send stays disabled until the upload lands as a chip.
+      await page.getByRole("button", { name: "Remove shops.csv" }).waitFor();
       await page.getByRole("button", { name: "Send message" }).click();
       const open = page.getByRole("button", { name: "Open as table" });
       await open.waitFor();

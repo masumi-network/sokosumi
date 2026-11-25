@@ -98,19 +98,23 @@ interface CsvFileCopy {
  */
 function OpenAsTableButton({
   label,
+  labelled,
   ...props
-}: ComponentProps<typeof Button> & { label: string }) {
+}: ComponentProps<typeof Button> & { label: string; labelled?: boolean }) {
   return (
     <Button
       variant="outline"
       size="icon"
-      className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
+      className={cn(
+        "size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8",
+        labelled && "w-auto gap-1.5 px-3",
+      )}
       aria-label={label}
       title={label}
       {...props}
     >
       <Table className="size-3.5" aria-hidden />
-      <span className="hidden sm:inline">{label}</span>
+      <span className={labelled ? undefined : "hidden sm:inline"}>{label}</span>
     </Button>
   );
 }
@@ -141,10 +145,13 @@ function useCsvFileRead() {
 export function TableCreateDialog({
   workspaceId,
   csvFile,
+  labelled,
 }: {
   workspaceId: string | null;
   /** A CSV already in Files or chat: the trigger reads it into the import, ready to map. */
   csvFile?: { url: string; name: string };
+  /** Keep the trigger's label on phones, where it has no header to explain it. */
+  labelled?: boolean;
 }) {
   const t = useTranslations("App.Tables");
   const router = useRouter();
@@ -298,7 +305,7 @@ export function TableCreateDialog({
     <Dialog open={open} onOpenChange={(value) => void handleOpenChange(value)}>
       <DialogTrigger asChild>
         {csvFile ? (
-          <OpenAsTableButton label={t("openAsTable")} />
+          <OpenAsTableButton label={t("openAsTable")} labelled={labelled} />
         ) : (
           /* The Files toolbar states the house rule for this row: 32px
         controls, and the view's own create action is the solid one. */
