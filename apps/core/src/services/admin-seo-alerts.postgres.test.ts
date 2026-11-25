@@ -1,4 +1,10 @@
-import { expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import {
+  configureSqlTables,
+  netTable,
+  sharedTable,
+} from "@sokosumi/database/sql-tables";
+import { expect, it, onTestFinished } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { listAdminSeoAlerts } from "./admin-seo-alerts";
 
@@ -9,7 +15,24 @@ const enabled =
 it.skipIf(!enabled)(
   "deduplicates runs, counts only real page exceptions and distinguishes consent, evidence, and unknowns",
   async () => {
+    const schemaPrefix = `seo_alerts_${randomUUID().replaceAll("-", "")}`;
+    const sharedSchema = `${schemaPrefix}_shared`;
+    const mainnetSchema = `${schemaPrefix}_mainnet`;
+    onTestFinished(
+      configureSqlTables({
+        shared: sharedSchema,
+        mainnet: mainnetSchema,
+        preprod: `${schemaPrefix}_preprod`,
+        preprodOn: false,
+      }),
+    );
     await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`CREATE SCHEMA "${sharedSchema}"`);
+      await tx.$executeRawUnsafe(`CREATE SCHEMA "${mainnetSchema}"`);
+      // The alerts query still reads taskEvent by its bare name outside the billing CTEs.
+      await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${sharedSchema}"`);
+      await tx.$executeRaw`CREATE TABLE ${sharedTable("taskEvent")} ("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint)`;
+      await tx.$executeRaw`CREATE TABLE ${netTable("mainnet", "Transaction")} (id text, amount bigint)`;
       for (const ddl of [
         'project_seo_analysis(id uuid, "auditId" uuid, "projectId" uuid, "requestedBy" text, request jsonb, status text, "taskId" text, kind text, "createdAt" timestamp, "updatedAt" timestamp, "failureReason" text)',
         'seo_audit(id uuid, "workspaceId" uuid, "deletedAt" timestamp, "archivedAt" timestamp)',
@@ -17,8 +40,6 @@ it.skipIf(!enabled)(
         "organization(id text, slug text)",
         'project(id uuid, "workspaceId" uuid)',
         'task(id text, "assigneeId" text, status text, "updatedAt" timestamp)',
-        '"taskEvent"("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint)',
-        '"Transaction"(id text, amount bigint)',
         'seo_connection("workspaceId" uuid, "userId" text, provider text, status text, id uuid DEFAULT gen_random_uuid(), "updatedAt" timestamp DEFAULT now())',
         'project_seo_observation(id uuid, "auditId" uuid, "projectId" uuid, "sourceTaskId" text, source text, kind text, "ownerId" text, payload jsonb, "pageIds" uuid[], "createdAt" timestamp)',
       ])
@@ -88,7 +109,7 @@ it.skipIf(!enabled)(
       // Autovacuum cannot analyze temporary tables. Give the planner the fixture's row counts
       // before the dashboard reads so PostgreSQL can choose a plan for these small tables.
       await tx.$executeRaw`ANALYZE pg_temp.project_seo_analysis, pg_temp.seo_audit, pg_temp.workspace,
-        pg_temp.organization, pg_temp.project, pg_temp.task, pg_temp."taskEvent", pg_temp."Transaction",
+        pg_temp.organization, pg_temp.project, pg_temp.task, ${sharedTable("taskEvent")}, ${netTable("mainnet", "Transaction")},
         pg_temp.seo_connection, pg_temp.project_seo_observation`;
       const beforeDisconnect = await listAdminSeoAlerts(
         { period: "all", page: 1 },
@@ -298,7 +319,7 @@ it.skipIf(!enabled)(
       await tx.$executeRaw`UPDATE project_seo_analysis SET request=request - 'pendingFullAuditCost' - 'limits' WHERE "taskId"='metered31'`;
       await tx.$executeRaw`UPDATE project_seo_analysis SET request=request || jsonb_build_object('fullAuditCost',${JSON.stringify(cost)}::jsonb) WHERE "taskId" IN ('metered31','metered32')`;
       await tx.$executeRaw`UPDATE task SET status='COMPLETED' WHERE id IN ('metered31','metered32')`;
-      await tx.$executeRaw`INSERT INTO "Transaction" VALUES ('real-debit',-9000000000000)`;
+      await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Transaction")} VALUES ('real-debit',-9000000000000)`;
       await tx.$executeRaw`INSERT INTO "taskEvent" ("taskId",status,"coworkerId","transactionId",cents,"createdAt",id) VALUES ('metered31','COMPLETED','worker','real-debit',9000000000000,timezone('UTC',now()),'settled'),('metered32','COMPLETED','different',NULL,12000000000000,timezone('UTC',now()),'untrusted')`;
       const done = await billing();
       expect(done.pricingAttention).toBe(1);
@@ -337,7 +358,7 @@ it.skipIf(!enabled)(
         reasons: ["priceUnverified"],
       });
       await tx.$executeRaw`UPDATE project_seo_analysis SET request=jsonb_set(request,'{fullAuditCost}',${JSON.stringify(cost)}::jsonb) WHERE "taskId"='metered31'`;
-      await tx.$executeRaw`INSERT INTO "Transaction" VALUES ('duplicate-debit',-9000000000000)`;
+      await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Transaction")} VALUES ('duplicate-debit',-9000000000000)`;
       await tx.$executeRaw`INSERT INTO "taskEvent" ("taskId",status,"coworkerId","transactionId",cents,"createdAt",id) VALUES ('metered31','COMPLETED','worker','duplicate-debit',9000000000000,timezone('UTC',now()),'duplicate')`;
       expect(
         (await billing()).billing.find((row) => row.taskId === "metered31"),
@@ -405,6 +426,9 @@ it.skipIf(!enabled)(
           tx,
         ),
       ).toMatchObject({ total: 8, critical: 2, warning: 5, items: [] });
+      await tx.$executeRawUnsafe(
+        `DROP SCHEMA "${sharedSchema}", "${mainnetSchema}" CASCADE`,
+      );
     });
   },
 );

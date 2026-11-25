@@ -7,6 +7,7 @@ import {
   agentTagsInclude,
   type Prisma,
 } from "@sokosumi/database";
+import { netTable, netType } from "@sokosumi/database/sql-tables";
 
 import {
   getAgentApiBaseUrl,
@@ -244,15 +245,15 @@ export async function findAdminAgentIdsOrderedByDisplayName(
           ROW_NUMBER() OVER (
             ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
           ) AS rn
-        FROM "Agent" a
-        LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
+        FROM ${netTable("mainnet", "Agent").sql} a
+        LEFT JOIN ${netTable("mainnet", "AgentMetadataOverride").sql} o ON o."agentId" = a.id
         WHERE (
           $1::text IS NULL
           OR a.name ILIKE $1 ESCAPE '\\'
           OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
           OR o.name ILIKE $1 ESCAPE '\\'
         )
-        AND ($2::"AgentStatus" IS NULL OR a.status = $2::"AgentStatus")
+        AND ($2::${netType("mainnet", "AgentStatus").sql} IS NULL OR a.status = $2::${netType("mainnet", "AgentStatus").sql})
       )
       SELECT id
       FROM ordered
@@ -271,15 +272,15 @@ export async function findAdminAgentIdsOrderedByDisplayName(
   const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
     `
     SELECT a.id
-    FROM "Agent" a
-    LEFT JOIN "AgentMetadataOverride" o ON o."agentId" = a.id
+    FROM ${netTable("mainnet", "Agent").sql} a
+    LEFT JOIN ${netTable("mainnet", "AgentMetadataOverride").sql} o ON o."agentId" = a.id
     WHERE (
       $1::text IS NULL
       OR a.name ILIKE $1 ESCAPE '\\'
       OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
       OR o.name ILIKE $1 ESCAPE '\\'
     )
-    AND ($2::"AgentStatus" IS NULL OR a.status = $2::"AgentStatus")
+    AND ($2::${netType("mainnet", "AgentStatus").sql} IS NULL OR a.status = $2::${netType("mainnet", "AgentStatus").sql})
     ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
     LIMIT $3
     `,

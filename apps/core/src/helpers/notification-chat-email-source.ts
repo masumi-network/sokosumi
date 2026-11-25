@@ -4,6 +4,7 @@ import {
   NotificationKind,
   type Prisma,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { roomUnreadCountOf } from "@/helpers/notification-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
@@ -93,7 +94,7 @@ export async function lockNotificationEmailSource(
   const messageId = messageIdOf(notification);
   if (!messageId) return;
   await client.$queryRaw`
-    SELECT "id" FROM "chat_room_message"
+    SELECT "id" FROM ${sharedTable("chat_room_message")}
     WHERE "id" = ${messageId}::uuid AND "roomId" = ${notification.referenceId}::uuid
     FOR UPDATE
   `;

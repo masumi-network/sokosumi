@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
@@ -337,14 +338,12 @@ describe("assertCanChangeVendorMembership", () => {
       assertCanChangeVendorMembership(TEST_VENDOR_ID, "user_123", "admin", tx),
     ).resolves.toBeUndefined();
 
-    const [lockStrings, ...lockValues] = txQueryRaw.mock.calls[0] as [
-      TemplateStringsArray,
-      ...unknown[],
-    ];
-    expect(lockStrings.join("?")).toMatch(
-      /FROM "vendor"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
+    const [strings, ...values] = txQueryRaw.mock.calls[0];
+    const lock = PrismaRaw.sql(strings as TemplateStringsArray, ...values);
+    expect(lock.sql).toMatch(
+      /FROM "public"."vendor"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
     );
-    expect(lockValues).toEqual([TEST_VENDOR_ID]);
+    expect(lock.values).toEqual([TEST_VENDOR_ID]);
     expect(txQueryRaw.mock.invocationCallOrder[0]).toBeLessThan(
       txVendorMemberFindFirst.mock.invocationCallOrder[0],
     );

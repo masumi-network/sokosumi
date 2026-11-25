@@ -1,4 +1,5 @@
 import { NotificationKind } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
@@ -174,12 +175,13 @@ beforeEach(() => {
   schedulePublishMock.mockClear();
   vi.clearAllMocks();
   executeRawMock.mockResolvedValue(0);
-  queryRawMock.mockImplementation((strings: TemplateStringsArray) =>
-    Promise.resolve(
-      strings.join("").includes('FROM "chat_room_user_member"')
+  queryRawMock.mockImplementation(
+    async (strings: TemplateStringsArray, ...values: unknown[]) =>
+      PrismaRaw.sql(strings, ...values).sql.includes(
+        'FROM "public"."chat_room_user_member"',
+      )
         ? [{ access: "member", mutedAt: null }]
         : [],
-    ),
   );
   transactionMock.mockImplementation(async (callback) =>
     callback({
@@ -1765,9 +1767,10 @@ describe("preview rewrite ordering", () => {
     expect(paramsWrittenTo(0)).toEqual({
       messagePreview: "edit committed while waiting",
     });
-    const [sql, ...values] = queryRawMock.mock.calls[0];
-    expect(sql.join("?")).toContain("FOR UPDATE");
-    expect(values).toEqual([MESSAGE_ID, ROOM_ID]);
+    const [strings, ...values] = queryRawMock.mock.calls[0];
+    const lock = PrismaRaw.sql(strings as TemplateStringsArray, ...values);
+    expect(lock.sql).toContain("FOR UPDATE");
+    expect(lock.values).toEqual([MESSAGE_ID, ROOM_ID]);
     expect(messageFindUniqueMock).toHaveBeenCalledWith({
       where: { id: MESSAGE_ID, roomId: ROOM_ID },
       select: expect.objectContaining({ content: true, deletedAt: true }),
