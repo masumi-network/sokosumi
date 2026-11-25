@@ -144,6 +144,9 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
+  // The address the notice is about. A phone's field cuts a long one short,
+  // and the notice asks for a typo check.
+  const [detouredEmail, setDetouredEmail] = useState("");
   const [followingState, setFollowingState] = useState<
     "preparing" | "navigating" | null
   >(null);
@@ -278,6 +281,7 @@ export function EmailStep({
           }
           detouredSince.current = performance.now();
           detourAccount.current = account;
+          setDetouredEmail(email);
           changeDetoured(true);
           return;
         }
@@ -309,7 +313,9 @@ export function EmailStep({
       {/* Announces the notice. The visible copy below is the same text, so
           it is hidden from assistive technology rather than read twice. */}
       <p id={noticeId} role="status" className="sr-only">
-        {isDetoured && notice ? `${notice.title}. ${notice.description}` : null}
+        {isDetoured && notice
+          ? `${notice.title}. ${detouredEmail}. ${notice.description}`
+          : null}
       </p>
       <div
         data-testid="email-step-detour"
@@ -335,6 +341,7 @@ export function EmailStep({
           <div className="min-h-0 overflow-hidden">
             <div className="grid gap-0.5 pb-3 text-center">
               <p className="font-medium tracking-tight">{notice?.title}</p>
+              <p className="text-foreground wrap-anywhere">{detouredEmail}</p>
               <p className="text-muted-foreground">{notice?.description}</p>
             </div>
           </div>

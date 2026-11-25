@@ -104,11 +104,21 @@ for (const { name, ...viewport } of PROJECTS) {
         registerBox && registerBox.height >= 24,
         "Register is 24px tall",
       );
-      await register.click();
-      await expectStep(page, /\/signup/, "Create your account");
-      const signupLogo = await logoBox(page);
+      // Like the visitor in the demo, they try Log in first. The notice
+      // that asks for a typo check shows the whole address, which a phone's
+      // field cuts short.
       await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);
       await page.getByRole("button", { name: "Continue with email" }).click();
+      await page
+        .getByTestId("email-step-detour")
+        .getByText(mailbox.address, { exact: true })
+        .waitFor();
+      await shot("0-no-account");
+      // The link ignores a click in its first 400ms (a double-click guard).
+      await page.waitForTimeout(500);
+      await page.getByRole("link", { name: "Create account" }).click();
+      await expectStep(page, /\/signup/, "Create your account");
+      const signupLogo = await logoBox(page);
 
       // The chip is named by the address it shows, then what it does.
       await page
@@ -232,13 +242,18 @@ for (const { name, ...viewport } of PROJECTS) {
       const saved = await context.newPage();
       saved.on("pageerror", (e) => errors.push(e.message));
       await reloadUntilShown(saved, page.url(), QUESTION);
-      // Home lists that first question as the reader's own, sent to the bot.
-      await saved.goto(`${BASE_URL}/`);
-      await saved
-        .getByRole("link", {
-          name: new RegExp(`${RegExp.escape(QUESTION)}.*You to ${BOT}`),
-        })
-        .waitFor();
+      // Home lists the chat with the bot: "You to Juno" while the answer is
+      // on its way, then "Juno replied" with the answer. The bot answers on
+      // its own clock, so wait for the final row instead of racing the
+      // first one.
+      await reloadUntilShown(saved, `${BASE_URL}/`, `${BOT} replied`);
+      const row = saved
+        .getByRole("main")
+        .getByRole("link", { name: new RegExp(`${BOT} replied`) });
+      assert.ok(
+        !(await row.textContent())?.includes(QUESTION),
+        "the row shows the answer, not the question",
+      );
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });

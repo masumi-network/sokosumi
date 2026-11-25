@@ -1819,6 +1819,7 @@
           "newSchedule": "New schedule for {name}",
           "open": "Open",
           "youTo": "You to {name}",
+          "replied": "{name} replied",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
