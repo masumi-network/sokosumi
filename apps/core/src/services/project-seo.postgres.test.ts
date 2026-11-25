@@ -3185,7 +3185,7 @@ describe.skipIf(!enabled)(
         positionStatus: "not_in_range",
         checkedResults: 2 ** 31,
       });
-      const deep = await storeResult(page.id, wide);
+      const deep = await storeResult(page.id, wide, { points: false });
       await backfillSeoRankPoints();
       expect(
         await prisma.projectSeoRankPoint.findMany({

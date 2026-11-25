@@ -1,3 +1,5 @@
+import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import prisma from "@/lib/db/prisma";
 import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import { SEO_RANK_HISTORY_POINTS } from "@/schemas/project-seo-rankings.schema";
@@ -68,6 +70,10 @@ export async function loadSeoRankPoints(
   const from = range?.gte?.toISOString() ?? null;
   const before = range?.lt?.toISOString() ?? null;
   const owner = seoOwnerWhere(actor);
+  // An equality on the owner's own column lets the owner index serve the join.
+  const owned = owner.projectId
+    ? Prisma.sql`o."projectId" = ${owner.projectId}::uuid AND o."auditId" IS NULL`
+    : Prisma.sql`o."auditId" = ${owner.auditId}::uuid AND o."projectId" IS NULL`;
   // The period reads the result's time, as every other part of the workspace does.
   return prisma.$queryRaw<SeoRankPointRow[]>`
     SELECT "key", "observationId", "observedAt", "position", "positionStatus", "checkedResults", "device"
@@ -77,12 +83,11 @@ export async function loadSeoRankPoints(
         row_number() OVER (
           PARTITION BY p."key" ORDER BY p."observedAt" DESC, p."observationId" DESC
         ) AS "place"
-      FROM "project_seo_rank_point" p
-      JOIN "project_seo_observation" o ON o."id" = p."observationId"
+      FROM ${sharedTable("project_seo_rank_point")} p
+      JOIN ${sharedTable("project_seo_observation")} o ON o."id" = p."observationId"
       WHERE p."key" = ANY(${keys}::text[])
         AND o."ownerId" IS NULL
-        AND o."projectId" IS NOT DISTINCT FROM ${owner.projectId}::uuid
-        AND o."auditId" IS NOT DISTINCT FROM ${owner.auditId}::uuid
+        AND ${owned}
         AND (${from}::timestamp IS NULL OR o."observedAt" >= ${from}::timestamp)
         AND (${before}::timestamp IS NULL OR o."observedAt" < ${before}::timestamp)
     ) ranked
