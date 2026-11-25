@@ -353,8 +353,8 @@ export function cmoTalkingVideoCount(input: {
  * Turns short videos (or, without them, lead-network posts) into talking
  * videos, spread evenly over the month, each on its slot's own network so
  * it counts where the slot did. One a week also goes out on LinkedIn,
- * which stays slow; every one goes out on Facebook in place of one of its
- * own posts; the rest stay on the short-video networks.
+ * which stays slow; up to half of Facebook's posts are talking Reels in
+ * place of its own; all go out on the short-video networks.
  */
 function withTalkingVideos(
   positions: Position[],
@@ -406,7 +406,12 @@ function withTalkingVideos(
   const weekOf = (date: string) => Math.floor(dayIndex(input.start, date) / 7);
   const widelyShared = new Set(
     talking
-      .filter((entry) => cmoSlotNetworks(entry).length === takes.length)
+      .filter((entry) => {
+        const reaches = cmoSlotNetworks(entry);
+        return takes.every(
+          (key) => key === "facebook" || reaches.includes(key),
+        );
+      })
       .map((entry) => weekOf(entry.date)),
   );
   for (let turn = 0; turn < left; turn++) {
@@ -429,33 +434,62 @@ function withTalkingVideos(
     };
   }
   return takes.includes("facebook")
-    ? onFacebookToo(positions, input.start)
+    ? onFacebookToo(positions, input.start, input.existing)
     : positions;
 }
 
 /** Facebook's own formats, the first given up for a talking video's Reel. */
 const FACEBOOK_GIVES_UP = ["link", "reel", "post"];
 
+/** At most this share of Facebook's posts in a month are talking Reels. */
+export const CMO_FACEBOOK_TALKING_SHARE = 0.5;
+
 /**
- * Sends every talking video out on Facebook as a Reel too, in place of one
- * of Facebook's own posts that week, so Facebook keeps its pace: a link
- * post or its weekly Reel first, a picture post only when none is left. A
- * week with no Facebook post left keeps its talking videos off Facebook.
+ * Sends talking videos out on Facebook as Reels too, each in place of one of
+ * Facebook's own posts that week, so Facebook keeps its pace: a link post or
+ * its weekly Reel first, a picture post only when none is left. At most half
+ * of Facebook's month is talking Reels (owner, 2026-11-25), spread evenly;
+ * the others stay on the short-video networks.
  */
-function onFacebookToo(positions: Position[], start: string): Position[] {
+function onFacebookToo(
+  positions: Position[],
+  start: string,
+  existing: readonly Pick<CmoCalendarEntry, "channel" | "format" | "alsoOn">[],
+): Position[] {
   const weekOf = (date: string) => Math.floor(dayIndex(start, date) / 7);
+  const onFacebook = (entry: { format: string; alsoOn?: string[] }) =>
+    entry.format === "talking_video" &&
+    Boolean(entry.alsoOn?.includes("facebook"));
+  const facebookPosts =
+    positions.filter((position) => position.channel === "facebook").length +
+    existing.filter(
+      (entry) =>
+        entry.channel.toLowerCase() === "facebook" || onFacebook(entry),
+    ).length;
+  const room =
+    Math.floor(facebookPosts * CMO_FACEBOOK_TALKING_SHARE) -
+    existing.filter(onFacebook).length;
+  const talking = positions
+    .flatMap((position, at) =>
+      position.format === "talking_video" &&
+      position.channel !== "facebook" &&
+      !onFacebook(position)
+        ? [at]
+        : [],
+    )
+    .sort((a, b) => positions[a]!.date.localeCompare(positions[b]!.date));
+  const count = Math.min(Math.max(0, room), talking.length);
+  const chosen = Array.from(
+    { length: count },
+    (_, turn) => talking[Math.floor(((turn + 0.5) * talking.length) / count)]!,
+  );
   const given = new Set<number>();
   const order = (format: string) => {
     const rank = FACEBOOK_GIVES_UP.indexOf(format);
     return rank < 0 ? FACEBOOK_GIVES_UP.length : rank;
   };
-  for (const [index, position] of positions.entries()) {
-    if (
-      position.format !== "talking_video" ||
-      position.channel === "facebook" ||
-      position.alsoOn?.includes("facebook")
-    )
-      continue;
+  for (const index of chosen) {
+    const position = positions[index]!;
     const week = weekOf(position.date);
     const own = positions
       .map((other, at) => ({ other, at }))

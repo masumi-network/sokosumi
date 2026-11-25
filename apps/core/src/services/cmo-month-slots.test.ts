@@ -15,6 +15,7 @@ import {
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
+  CMO_FACEBOOK_TALKING_SHARE,
   CMO_TALKING_EVERY_LEAD_POST,
   CMO_TALKING_EVERY_SHORT,
   type CmoMonthSlot,
@@ -226,7 +227,7 @@ describe("cmoPlanMonthSlots", () => {
     }
   });
 
-  it("sends one talking video a week out on LinkedIn, every one on Facebook, the rest on the short-video networks", () => {
+  it("sends one talking video a week out on LinkedIn, and every one on the short-video networks", () => {
     const talking = slotsAt("all_in").filter((slot) =>
       isCmoTalkingFormat(slot.channel, slot.format),
     );
@@ -236,17 +237,35 @@ describe("cmoPlanMonthSlots", () => {
       slot.alsoOn?.includes("linkedin"),
     );
     expect(onLinkedIn.map(week).toSorted()).toEqual([0, 1, 2, 3]);
-    for (const slot of talking)
-      expect(new Set(cmoSlotNetworks(slot))).toEqual(
-        new Set([
-          ...(onLinkedIn.includes(slot) ? ["linkedin"] : []),
-          "instagram",
-          "facebook",
-          "tiktok",
-          "youtube",
-        ]),
-      );
+    for (const slot of talking) {
+      const networks = new Set(cmoSlotNetworks(slot));
+      networks.delete("linkedin");
+      networks.delete("facebook");
+      expect(networks).toEqual(new Set(["instagram", "tiktok", "youtube"]));
+    }
   });
+
+  it.each(CMO_VOLUME_LEVELS)(
+    "makes at most half of Facebook's %s month talking Reels, spread over the weeks",
+    (level) => {
+      const slots = slotsAt(level);
+      const facebook = slots.filter((slot) =>
+        cmoSlotNetworks(slot).includes("facebook"),
+      );
+      const reels = facebook.filter((slot) => slot.format === "talking_video");
+      const half = Math.floor(facebook.length * CMO_FACEBOOK_TALKING_SHARE);
+      const talking = slots.filter((slot) => slot.format === "talking_video");
+      expect(reels).toHaveLength(Math.min(half, talking.length));
+      const weeks = new Set(
+        reels.map((slot) =>
+          Math.floor(
+            (Date.parse(slot.date) - Date.parse(START)) / 86_400_000 / 7,
+          ),
+        ),
+      );
+      expect(weeks.size).toBe(4);
+    },
+  );
 
   it("gives up Facebook's link posts and Reels before its pictures for talking videos", () => {
     for (const level of CMO_VOLUME_LEVELS) {
