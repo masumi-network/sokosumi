@@ -749,7 +749,7 @@ describe("getPublicSharedResourceByToken", () => {
         updatedAt: new Date("2026-03-30T10:10:00.000Z"),
         name: "Human shared task",
         description:
-          'Full SEO audit of 1 page.\n\nseo_audit: {"price":{"markupPercent":50}}',
+          'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}',
         status: "READY",
         assignee: null,
         assigneeUser: {
@@ -771,7 +771,9 @@ describe("getPublicSharedResourceByToken", () => {
 
     expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
     // The SEO request line and its price terms stay out of the public response.
-    expect(resource.task.description).toBe("Full SEO audit of 1 page.");
+    expect(resource.task.description).toBe(
+      "Full SEO audit of 2 selected pages:",
+    );
     expect(publicSharedTaskSchema.parse(resource.task).assignee).toEqual({
       id: "user_123",
       name: "Bob",

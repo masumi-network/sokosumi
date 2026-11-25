@@ -302,15 +302,17 @@ describe("TaskDetailView (rights follow the Owner)", () => {
     expect(activity.canComment).toBe(true);
   });
 
-  it("starts a repeat of an SEO Task without its request line and price terms", async () => {
+  it("starts a repeat of an SEO Task without its full-audit request line", async () => {
     const { actions } = await renderFor(
       createTask([], {
         description:
-          'Full audit of example.com\n\nseo_audit: {"price":{"markupPercent":50}}',
+          'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}',
       }),
     );
 
-    expect(actions.taskBlueprint.description).toBe("Full audit of example.com");
+    expect(actions.taskBlueprint.description).toBe(
+      "Full SEO audit of 2 selected pages:",
+    );
   });
 
   it("keeps a focused check's request line in its repeat, so the repeated Task can start", async () => {
