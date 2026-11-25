@@ -1088,9 +1088,10 @@ describe("WorkspaceCalendar editing", () => {
       id: "social:failed",
       status: "FAILED" as const,
     };
-    renderCalendar({
-      items: [SOCIAL_POST, failed, published, canceled],
-    });
+    renderCalendar(
+      { items: [SOCIAL_POST, failed, published, canceled] },
+      "?timezone=UTC&showCanceled=true",
+    );
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
     function event(id: string) {

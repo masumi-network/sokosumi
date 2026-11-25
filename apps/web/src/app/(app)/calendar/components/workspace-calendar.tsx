@@ -1208,6 +1208,7 @@ function WorkspaceCalendarView({
     if (socialOnly && item.kind !== "socialPost") return false;
     if (item.kind === "socialPost")
       return (
+        (state.showCanceled || item.status !== "CANCELED") &&
         (view !== "agenda" ||
           (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
             getCalendarItemDateKey(item.scheduledAt, timeZone) >=
@@ -1715,6 +1716,13 @@ function WorkspaceCalendarView({
               available={availableTypes}
               selected={shownTypes}
               onChange={types ? undefined : handleTypesChange}
+              showCanceled={state.showCanceled}
+              onShowCanceledChange={(showCanceled) =>
+                void setState(
+                  { showCanceled: showCanceled || null },
+                  { shallow: false },
+                )
+              }
               sections={filterSections}
               filtersActive={filtersActive}
               socialOnly={socialOnly}

@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/core-client";
 import {
   parseAsArrayOf,
+  parseAsBoolean,
   parseAsString,
   parseAsStringEnum,
   parseAsStringLiteral,
@@ -25,6 +26,7 @@ export const SOCIAL_POST_STATUSES = Object.values(SocialPostStatus).filter(
 );
 
 export const calendarParsers = {
+  showCanceled: parseAsBoolean.withDefault(false),
   assigneeId: parseAsString,
   assigneeUserId: parseAsString,
   date: parseAsString,
