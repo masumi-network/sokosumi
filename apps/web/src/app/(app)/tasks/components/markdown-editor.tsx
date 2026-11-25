@@ -216,6 +216,7 @@ export interface MarkdownEditorHandle {
   insertText: (text: string) => void;
   insertLink: (label: string, url: string) => void;
   openDrivePicker: () => void;
+  focus: () => void;
 }
 
 export const MarkdownEditor = forwardRef<
@@ -787,6 +788,7 @@ export const MarkdownEditor = forwardRef<
       insertText,
       insertLink,
       openDrivePicker: () => setDrivePickerOpen(true),
+      focus: () => editorRef.current?.focus(),
     }),
     [insertText, insertLink],
   );

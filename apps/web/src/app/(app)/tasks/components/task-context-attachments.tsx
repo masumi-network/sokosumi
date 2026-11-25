@@ -68,7 +68,7 @@ function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
       className={cn(
         "focus-visible:ring-ring inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
         pressed
-          ? "bg-secondary text-secondary-foreground border-transparent"
+          ? "bg-muted text-foreground border-transparent"
           : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
       )}
       onClick={() => onPressedChange(!pressed)}
@@ -287,7 +287,7 @@ export function TaskContextAttachmentsField({
         className={cn(
           "inline-flex h-7 items-center overflow-hidden rounded-full border text-xs font-medium transition-colors",
           brandPressed
-            ? "bg-secondary text-secondary-foreground border-transparent"
+            ? "bg-muted text-foreground border-transparent"
             : "text-muted-foreground",
         )}
       >
