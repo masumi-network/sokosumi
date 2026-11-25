@@ -12,7 +12,6 @@ import {
   channelRoom,
   listRoomMessagesAction,
   markOrganizationChatRoomReadAction,
-  mockPathname,
   mockReplace,
   mockSearch,
   renderWithQueryClient,
@@ -157,7 +156,6 @@ describe("RoomsClient reads a room only at the end of its transcript", () => {
     await act(async () => {});
 
     transcriptViewportEnd.openAtEnd = true;
-    mockPathname.mockReturnValue("/chat/rooms/room-other");
     const other = { ...channelRoom(), id: "room-other", name: "other" };
     view.rerender(
       <RoomsClient

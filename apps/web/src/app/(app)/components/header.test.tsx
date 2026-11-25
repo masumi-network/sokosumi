@@ -43,16 +43,46 @@ vi.mock("@/app/components/header/header-profile-section", () => ({
 
 import Header from "@/app/components/header";
 
-describe("Header", () => {
-  // From md, Search sits in the sidebar header beside New task; the top bar
-  // ends in the notification bell.
-  it("leaves Search to the sidebar header", () => {
-    render(<Header />);
+vi.mock(
+  "@/app/components/workspace-switcher/workspace-switcher-menu.client",
+  () => ({
+    default: () => <button type="button">Acme</button>,
+  }),
+);
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-new-task-button.client",
+  () => ({
+    SidebarNewTaskButton: () => <button type="button">New task</button>,
+  }),
+);
+vi.mock("@/app/components/header/header-mobile-search.client", () => ({
+  HeaderMobileSearchControl: () => (
+    <button type="button" className="md:hidden">
+      Mobile search
+    </button>
+  ),
+}));
 
-    const banner = screen.getByRole("banner");
-    expect(within(banner).queryByRole("button", { name: "open" })).toBeNull();
+describe("Header", () => {
+  it("keeps the workspace switcher, panel toggle, Search and New task together", () => {
+    render(<Header />);
+    const controls = within(screen.getByTestId("header-workspace-controls"));
     expect(
-      within(banner).getByRole("button", { name: "notifications" }),
-    ).toBeInTheDocument();
+      controls.getAllByRole("button").map((button) => button.textContent ?? ""),
+    ).toEqual(["Acme", "toggle", "", "Mobile search", "New task"]);
+    expect(
+      controls.getByRole("button", { name: "Acme" }).parentElement,
+    ).toHaveClass("md:sidebar-hidden:block");
+    expect(controls.getByRole("button", { name: "open" })).toHaveClass(
+      "md:inline-flex",
+    );
+    expect(controls.getByRole("button", { name: "Mobile search" })).toHaveClass(
+      "md:hidden",
+    );
+    expect(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: "notifications",
+      }),
+    ).toBeVisible();
   });
 });

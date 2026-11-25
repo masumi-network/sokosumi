@@ -51,7 +51,6 @@ function room(id = "room-1"): ChatRoom {
 function options() {
   return {
     room: room(),
-    committedRoomId: "room-1" as string | null,
     messagesPending: false,
     messageLoadFailed: false,
     messages: [{ id: "message-1", content: "Hello" }],
@@ -106,22 +105,6 @@ describe("useRoomReadAttention", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("waits for the room route to commit, even with a ready transcript", async () => {
-    const props = { ...options(), openThreadParentId: "thread-1" };
-    const { rerender } = renderHook(useRoomReadAttention, {
-      initialProps: { ...props, committedRoomId: null as string | null },
-    });
-    await showTab("focus");
-    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
-    expect(markThreadReadAction).not.toHaveBeenCalled();
-
-    rerender(props);
-    await waitFor(() => {
-      expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith("room-1");
-    });
-    expect(markThreadReadAction).toHaveBeenCalledWith("room-1", "thread-1");
   });
 
   it.each(["visibilitychange", "focus"])(
@@ -331,7 +314,7 @@ describe("useRoomReadAttention", () => {
         openThreadParentId: "thread-1" as string | null,
       },
     });
-    rerender({ ...options(), room: room("room-2"), committedRoomId: "room-2" });
+    rerender({ ...options(), room: room("room-2") });
     await act(async () => pending.resolve(threadReadResult()));
     expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
     expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith("room-2");

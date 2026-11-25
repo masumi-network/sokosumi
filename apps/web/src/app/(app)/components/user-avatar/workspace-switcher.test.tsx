@@ -199,7 +199,7 @@ describe("workspace switcher", () => {
 
       await switchToOrgOne();
 
-      expect(replaceMock).toHaveBeenCalledWith("/");
+      expect(replaceMock).toHaveBeenCalledWith("/chat");
     });
 
     // Its Pinned row lists it in every workspace (ADR-0062).

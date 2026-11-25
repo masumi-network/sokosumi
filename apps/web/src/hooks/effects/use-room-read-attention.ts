@@ -21,7 +21,6 @@ import {
 
 interface RoomReadAttentionOptions {
   room: ChatRoom | null;
-  committedRoomId: string | null;
   messagesPending: boolean;
   messageLoadFailed: boolean;
   messages: RoomReadAttentionSnapshot["messages"];
@@ -63,7 +62,6 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
     return (
       mountedRef.current &&
       document.visibilityState === "visible" &&
-      current.committedRoomId === roomId &&
       current.room?.id === roomId &&
       !current.messagesPending &&
       !current.messageLoadFailed
@@ -220,7 +218,6 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
     void readCurrentRoom();
   }, [
     options.room?.id,
-    options.committedRoomId,
     options.messages,
     options.openThreadParentId,
     options.threadMessages,

@@ -40,11 +40,11 @@ const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
   sidebar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
     SIDEBAR_CONTROL_INTERACTION_CLASS,
-    "text-foreground press rounded-full transition-[opacity,background-color]",
+    "text-foreground press w-full rounded-full transition-[opacity,background-color]",
   ),
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
-    "text-foreground press transition-opacity hover:opacity-80",
+    "text-foreground press w-full justify-start transition-opacity hover:opacity-80",
   ),
 };
 

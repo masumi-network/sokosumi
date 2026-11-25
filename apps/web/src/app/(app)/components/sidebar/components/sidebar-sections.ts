@@ -7,7 +7,6 @@ import {
   Clapperboard,
   FolderArchive,
   HardDrive,
-  House,
   ImagePlus,
   ListTodo,
   Mail,
@@ -55,16 +54,6 @@ interface NavDestination extends MenuItemConfig {
 }
 
 export const NAV_DESTINATIONS = [
-  // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
-  {
-    key: "home",
-    href: "/",
-    labelKey: "home",
-    Icon: House,
-    group: "work",
-    desktopOnly: true,
-    prefetchContent: true,
-  },
   {
     key: "explore-agents",
     href: "/agents",
@@ -189,6 +178,7 @@ export type SidebarDestination = NavDestination &
 export type SidebarSection = NavGroup | "chats";
 
 export function sidebarSection(pathname: string): SidebarSection | null {
+  if (pathname === "/") return "chats";
   if (
     ["/chat", SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE].some((route) =>
       isPathActive(pathname, route),

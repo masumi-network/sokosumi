@@ -49,8 +49,7 @@ vi.mock("@/app/chat/catch-up/components/catch-up-view", () => ({
   CatchUpView: () => null,
 }));
 
-import { CatchUpView } from "@/app/chat/catch-up/components/catch-up-view";
-import ChatPage from "@/app/chat/page";
+import ChatPage from "@/app/chat/rooms/page";
 import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
 
 const USER_ID = "user_1";
@@ -102,21 +101,6 @@ describe("ChatPage progressive rooms (mobile LCP)", () => {
       user: { id: USER_ID, email: "alice@example.com" },
       session: { activeOrganizationId: ORG_ID },
     });
-  });
-
-  it("renders Catch up in the desktop landing while keeping the mobile list", async () => {
-    loadSidebarChatListMock.mockResolvedValue({
-      rooms,
-      deferred: Promise.resolve({}),
-    });
-    const tree = await ChatPage({ searchParams: Promise.resolve({}) });
-
-    expect(
-      findElement(tree, (element) => element.type === CatchUpView)?.props,
-    ).toEqual({ currentUserId: USER_ID, organizationId: ORG_ID });
-    expect(
-      findElement(tree, (element) => element.type === SidebarChatList),
-    ).not.toBeNull();
   });
 
   it("mounts one list with the rooms while archived+members stay pending", async () => {

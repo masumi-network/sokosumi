@@ -169,7 +169,7 @@ describe("WorkspaceSwitcherProvider", () => {
     expect(screen.getByRole("menu")).toHaveAttribute("data-align", align);
   });
 
-  it("shows the name in the sidebar, and only reads it out in the top bar", () => {
+  it("shows the workspace name in both placements", () => {
     renderChrome();
 
     const sidebarName = within(trigger("sidebar")).getByText("Org A");
@@ -178,19 +178,19 @@ describe("WorkspaceSwitcherProvider", () => {
     expect(sidebarName.className.split(/\s+/)).not.toContain("sr-only");
     // The phone/desktop split is md (MOBILE_BREAKPOINT 768): the top bar
     // shows the avatar alone up to it.
-    expect(topBarName.className.split(/\s+/)).toContain("max-md:sr-only");
+    expect(topBarName.className.split(/\s+/)).not.toContain("max-md:sr-only");
   });
 
   // As in Linear: the sidebar's switcher is a pill as wide as its content.
   // Both placements carry the switch arrows the project title uses, so the
   // two pickers read alike.
-  it("gives the sidebar trigger the switch arrows and its content's width", () => {
+  it("fills the shared sidebar row and retains the switch arrows", () => {
     renderChrome();
 
     expect(
       trigger("sidebar").querySelector("svg.lucide-chevrons-up-down"),
     ).not.toBeNull();
-    expect(trigger("sidebar").className.split(/\s+/)).not.toEqual(
+    expect(trigger("sidebar").className.split(/\s+/)).toEqual(
       expect.arrayContaining([expect.stringMatching(/(^|:)w-full$/)]),
     );
     expect(

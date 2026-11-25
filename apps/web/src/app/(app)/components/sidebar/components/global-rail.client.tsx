@@ -22,7 +22,7 @@ export function GlobalRail({ mobile = false }: { mobile?: boolean }) {
     <Suspense
       fallback={
         mobile ? null : (
-          <div className="bg-sidebar border-sidebar-border hidden h-dvh w-(--app-rail-width) shrink-0 border-e md:block" />
+          <div className="bg-sidebar border-sidebar-border hidden mt-16 h-[calc(100dvh-4rem)] w-(--app-rail-width) shrink-0 border-e md:block" />
         )
       }
     >
@@ -83,7 +83,7 @@ function RailControls({ mobile }: { mobile: boolean }) {
         "bg-sidebar text-sidebar-foreground border-sidebar-border items-center gap-1",
         mobile
           ? "flex shrink-0 justify-around gap-0.5 border-b px-1 py-1 md:hidden"
-          : "relative z-20 max-lg:z-[41] hidden h-dvh w-(--app-rail-width) shrink-0 flex-col border-e pt-3 md:flex",
+          : "relative z-20 max-lg:z-[41] hidden mt-16 h-[calc(100dvh-4rem)] w-(--app-rail-width) shrink-0 flex-col border-e pt-15 md:flex sidebar-hidden:pt-3",
       )}
     >
       {sections
@@ -129,7 +129,13 @@ function RailControls({ mobile }: { mobile: boolean }) {
                 }
               }}
             >
-              <Icon aria-hidden className="size-5 shrink-0" />
+              <Icon
+                aria-hidden
+                className={cn(
+                  "size-4 shrink-0",
+                  id !== "work" && "md:size-3.5",
+                )}
+              />
               <span aria-hidden className="max-w-full truncate">
                 {label}
               </span>

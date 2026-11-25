@@ -1734,7 +1734,7 @@ const SUSPENSE_WRAPPED = new Set([
  * Shrink this list. Do not add to it: a new route picks a side on day one.
  */
 const INSTANT_WORKLIST = new Set([
-  "(app)/(welcome)/page.tsx",
+  "(app)/(welcome)/home-page.tsx",
   "(app)/agents/[agentId]/jobs/@modal/[jobId]/page.tsx",
   "(app)/agents/[agentId]/jobs/@right/[jobId]/page.tsx",
   "(app)/agents/[agentId]/jobs/@right/page.tsx",

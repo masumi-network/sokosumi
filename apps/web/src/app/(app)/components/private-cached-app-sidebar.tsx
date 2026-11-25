@@ -1,6 +1,5 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { Suspense } from "react";
-import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
 import { loadSidebarChatList } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
 import PersonalAssistantNav from "./sidebar/components/personal-assistant-nav";
@@ -9,6 +8,7 @@ import { SidebarChatList } from "./sidebar-chat-list.client";
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
 } from "./sidebar-deferred-account";
+import WorkspaceSwitcherMenu from "./workspace-switcher/workspace-switcher-menu.client";
 
 interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;

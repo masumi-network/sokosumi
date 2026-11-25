@@ -36,7 +36,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathname,
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/hooks/effects/use-mobile", () => ({ useIsMobile: () => mobile }));
 vi.mock("@/app/chat/components/use-chat-tab-unread-presence", () => ({
@@ -148,7 +151,7 @@ it("keeps Chats out of the phone rail and provides an All chats destination", ()
   expect(within(rail).getAllByRole("button")).toHaveLength(4);
   expect(
     within(drawer).getByRole("link", { name: "allChats" }),
-  ).toHaveAttribute("href", "/chat");
+  ).toHaveAttribute("href", "/chat/rooms");
 });
 
 it("overlays the compact panel and dismisses it on second click, Escape or navigation", () => {
@@ -187,5 +190,36 @@ it("hands keyboard focus directly to the open panel", async () => {
 it("keeps rail icons distinct from destination icons", () => {
   for (const { Icon } of NAV_GROUPS) {
     expect(NAV_DESTINATIONS.map((item) => item.Icon)).not.toContain(Icon);
+  }
+});
+
+it("starts unknown and Home routes in Chats with Home first", () => {
+  pathname = "/chat";
+  render(<Fixture />);
+  const chats = screen.getByRole("button", { name: "chats" });
+  expect(chats).toHaveAttribute("aria-current", "location");
+  fireEvent.click(chats);
+  expect(screen.getAllByRole("link")[0]).toHaveAttribute("href", "/chat");
+  expect(screen.getAllByRole("link")[0]).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+});
+
+it("keeps the approved Work briefcase at 16px and matches the other row glyphs", () => {
+  render(<Fixture />);
+  for (const button of within(screen.getByRole("navigation")).getAllByRole(
+    "button",
+  )) {
+    expect(button).toHaveClass("h-12", "w-16");
+    const icon = button.querySelector("svg");
+    expect(icon).toHaveAttribute("stroke-width", "2");
+    expect(icon).toHaveClass("size-4");
+    if (button.getAttribute("aria-label") === "groups.work") {
+      expect(icon).toHaveClass("lucide-briefcase");
+      expect(icon).not.toHaveClass("md:size-3.5");
+    } else {
+      expect(icon).toHaveClass("md:size-3.5");
+    }
   }
 });

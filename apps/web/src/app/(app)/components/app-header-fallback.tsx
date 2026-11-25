@@ -8,7 +8,6 @@ import {
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
 import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
-import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 
 interface AppHeaderFallbackProps {
@@ -24,19 +23,26 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         </Suspense>
       </div>
 
-      <SidebarToggle />
+      <div
+        className="flex min-w-0 shrink-0 items-center gap-1"
+        data-testid="header-workspace-controls"
+      >
+        <div className="hidden min-w-0 max-w-48 md:sidebar-hidden:block">
+          <WorkspaceSwitcherSkeleton placement="topBar" />
+        </div>
+        <SidebarToggle />
+        {["search", "new-task"].map((action) => (
+          <span
+            key={action}
+            aria-hidden
+            className="bg-muted size-10 shrink-0 animate-pulse rounded-md md:size-8"
+          />
+        ))}
+      </div>
 
       <HeaderCenter>
         <HeaderProjectScopeFallback />
       </HeaderCenter>
-
-      {/* The phone's Workspace switcher, as `HeaderProfileSection` places
-          it; from md the switcher is the sidebar header's. */}
-      <HeaderTrailing>
-        <div className="flex md:hidden md:sidebar-hidden:flex">
-          <WorkspaceSwitcherSkeleton placement="topBar" />
-        </div>
-      </HeaderTrailing>
     </HeaderChrome>
   );
 }
