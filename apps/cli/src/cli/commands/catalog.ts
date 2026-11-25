@@ -2046,6 +2046,403 @@ export const CLI_COMMAND_CATALOG = [
     usage: "LIST_ID --input-json JSON",
     operation: "POST /contact-lists/{id}/suggestions/dismiss",
   },
+  // SOKD-377 chats
+  {
+    command: "chats invitations",
+    usage: "",
+    operation: "GET /chats/invitations",
+  },
+  {
+    command: "chats get-invitation",
+    usage: "INVITATION_ID",
+    operation: "GET /chats/invitations/{id}",
+  },
+  {
+    command: "chats accept-invitation",
+    usage: "INVITATION_ID",
+    operation: "POST /chats/invitations/{id}/accept",
+
+    noBody: true,
+  },
+  {
+    command: "chats decline-invitation",
+    usage: "INVITATION_ID",
+    operation: "POST /chats/invitations/{id}/decline",
+
+    noBody: true,
+  },
+  {
+    command: "chats people",
+    usage: "",
+    operation: "GET /chats/people",
+  },
+  {
+    command: "chats rooms",
+    usage: "",
+    operation: "GET /chats/rooms",
+  },
+  {
+    command: "chats create-room",
+    usage: "--input-json JSON",
+    operation: "POST /chats/rooms",
+  },
+  {
+    command: "chats discoverable",
+    usage: "",
+    operation: "GET /chats/rooms/discoverable",
+  },
+  {
+    command: "chats slug-available",
+    usage: "--query slug=SLUG",
+    operation: "GET /chats/rooms/channel-slug-availability",
+  },
+  {
+    command: "chats order-starred",
+    usage: "--input-json JSON",
+    operation: "PUT /chats/rooms/starred",
+  },
+  {
+    command: "chats pinned",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/pinned-messages",
+  },
+  {
+    command: "chats get-room",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}",
+  },
+  {
+    command: "chats update-room",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PATCH /chats/rooms/{id}",
+  },
+  {
+    command: "chats delete-room",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}",
+  },
+  {
+    command: "chats archive-room",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/archive",
+
+    noBody: true,
+  },
+  {
+    command: "chats restore-room",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/restore",
+
+    noBody: true,
+  },
+  {
+    command: "chats room-invitations",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/invitations",
+  },
+  {
+    command: "chats invite-guest",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/invitations",
+  },
+  {
+    command: "chats revoke-invitation",
+    usage: "ROOM_ID INVITATION_ID",
+    operation: "DELETE /chats/rooms/{id}/invitations/{invitationId}",
+  },
+  {
+    command: "chats invite-links",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/invite-links",
+  },
+  {
+    command: "chats create-invite-link",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/invite-links",
+  },
+  {
+    command: "chats revoke-invite-link",
+    usage: "ROOM_ID TOKEN",
+    operation: "DELETE /chats/rooms/{id}/invite-links/{token}",
+  },
+  {
+    command: "chats join",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/members/me",
+
+    noBody: true,
+  },
+  {
+    command: "chats leave",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}/members/me",
+  },
+  {
+    command: "chats remove-member",
+    usage: "ROOM_ID USER_ID",
+    operation: "DELETE /chats/rooms/{id}/members/{userId}",
+  },
+  {
+    command: "chats add-members",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/members",
+  },
+  {
+    command: "chats remove-coworker",
+    usage: "ROOM_ID COWORKER_ID",
+    operation: "DELETE /chats/rooms/{id}/coworkers/{coworkerId}",
+  },
+  {
+    command: "chats remove-soko-bot",
+    usage: "ROOM_ID SOKO_BOT_ID",
+    operation: "DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}",
+  },
+  {
+    command: "chats mark-read",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/read",
+
+    noBody: true,
+  },
+  {
+    command: "chats mark-unread",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/unread",
+
+    noBody: true,
+  },
+  {
+    command: "chats star",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/star",
+
+    noBody: true,
+  },
+  {
+    command: "chats unstar",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}/star",
+  },
+  {
+    command: "chats mute",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/mute",
+
+    noBody: true,
+  },
+  {
+    command: "chats unmute",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}/mute",
+  },
+  {
+    command: "chats threads",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/threads",
+  },
+  {
+    command: "chats thread-unread-count",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/threads/unread-count",
+  },
+  {
+    command: "chats read-threads",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/threads/read",
+
+    noBody: true,
+  },
+  {
+    command: "chats get-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/threads/{parentMessageId}",
+  },
+  {
+    command: "chats thread-messages",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/threads/{parentMessageId}/messages",
+  },
+  {
+    command: "chats read-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/threads/{parentMessageId}/read",
+
+    noBody: true,
+  },
+  {
+    command: "chats mute-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/threads/{parentMessageId}/mute",
+
+    noBody: true,
+  },
+  {
+    command: "chats unmute-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute",
+  },
+  {
+    command: "chats unread-threads",
+    usage: "",
+    operation: "GET /chats/threads/unread",
+  },
+  {
+    command: "chats earlier-threads",
+    usage: "",
+    operation: "GET /chats/threads/earlier",
+  },
+  {
+    command: "chats messages",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/messages",
+  },
+  {
+    command: "chats send",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/messages",
+  },
+  {
+    command: "chats get-message",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/messages/{messageId}",
+  },
+  {
+    command: "chats edit-message",
+    usage: "ROOM_ID MESSAGE_ID --input-json JSON",
+    operation: "PATCH /chats/rooms/{id}/messages/{messageId}",
+  },
+  {
+    command: "chats delete-message",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "DELETE /chats/rooms/{id}/messages/{messageId}",
+  },
+  {
+    command: "chats get-message-results",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/messages/{messageId}/results",
+  },
+  {
+    command: "chats message-results",
+    usage: "ROOM_ID --query messageIds=IDS",
+    operation: "GET /chats/rooms/{id}/message-results",
+  },
+  {
+    command: "chats react",
+    usage: "ROOM_ID MESSAGE_ID EMOJI",
+    operation: "PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+
+    noBody: true,
+  },
+  {
+    command: "chats unreact",
+    usage: "ROOM_ID MESSAGE_ID EMOJI",
+    operation:
+      "DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+  },
+  {
+    command: "chats pin",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/pin",
+
+    noBody: true,
+  },
+  {
+    command: "chats unpin",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "DELETE /chats/rooms/{id}/messages/{messageId}/pin",
+  },
+  {
+    command: "chats send-to-self",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/send-to-self",
+
+    noBody: true,
+  },
+  {
+    command: "chats remove-unfurl",
+    usage: "ROOM_ID MESSAGE_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/unfurls/remove",
+  },
+  {
+    command: "chats retry-mention",
+    usage: "ROOM_ID MESSAGE_ID MENTION_ID",
+    operation:
+      "POST /chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry",
+
+    noBody: true,
+  },
+  {
+    command: "chats upload-file",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/files",
+  },
+  {
+    command: "chats saved",
+    usage: "",
+    operation: "GET /chats/saved-messages",
+  },
+  {
+    command: "chats save",
+    usage: "MESSAGE_ID",
+    operation: "PUT /chats/saved-messages/{messageId}",
+
+    noBody: true,
+  },
+  {
+    command: "chats unsave",
+    usage: "MESSAGE_ID",
+    operation: "DELETE /chats/saved-messages/{messageId}",
+  },
+  {
+    command: "chats decisions",
+    usage: "",
+    operation: "GET /chats/signals/decisions",
+  },
+  {
+    command: "chats important",
+    usage: "",
+    operation: "GET /chats/signals/important",
+  },
+  {
+    command: "chats summary",
+    usage: "",
+    operation: "GET /chats/signals/summary",
+  },
+  {
+    command: "chats catch-up",
+    usage: "ROOM_ID",
+    operation: "GET /chats/signals/rooms/{id}/catch-up",
+  },
+  {
+    command: "chats room-decisions",
+    usage: "ROOM_ID",
+    operation: "GET /chats/signals/rooms/{id}/decisions",
+  },
+  {
+    command: "chats correct-signal",
+    usage: "MESSAGE_ID --input-json JSON",
+    operation: "PUT /chats/signals/messages/{messageId}/corrections",
+  },
+  {
+    command: "chats set-loop",
+    usage: "MESSAGE_ID --input-json JSON",
+    operation: "PUT /chats/signals/messages/{messageId}/loop",
+  },
+  {
+    command: "chats routing",
+    usage: "MESSAGE_ID",
+    operation: "GET /chats/signals/messages/{messageId}/routing",
+  },
+  {
+    command: "chats skills",
+    usage: "",
+    operation: "GET /chats/skills",
+  },
+  {
+    command: "chats stickers",
+    usage: "",
+    operation: "GET /chats/stickers",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

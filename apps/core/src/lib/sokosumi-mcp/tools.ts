@@ -2455,6 +2455,390 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Dismiss suggestions (`body.ids`): they are never suggested to this list again.",
     destructive: true,
   },
+  // SOKD-377 chats
+  {
+    name: "chats_invitations",
+    operation: "GET /chats/invitations",
+    description:
+      "List the chat-room invitations sent to your email, pending and unexpired unless `status` says otherwise.",
+  },
+  {
+    name: "chats_get_invitation",
+    operation: "GET /chats/invitations/{id}",
+    description: "Get a chat-room invitation sent to your email.",
+  },
+  {
+    name: "chats_accept_invitation",
+    operation: "POST /chats/invitations/{id}/accept",
+    description:
+      "Accept a chat-room invitation sent to your email: you join that external channel as a guest.",
+  },
+  {
+    name: "chats_decline_invitation",
+    operation: "POST /chats/invitations/{id}/decline",
+    description: "Decline a chat-room invitation sent to your email.",
+  },
+  {
+    name: "chats_people",
+    operation: "GET /chats/people",
+    description:
+      "List everyone you can start a Direct with, sorted by name. Their ids go in chats_create_room `body.memberUserIds`.",
+  },
+  {
+    name: "chats_rooms",
+    operation: "GET /chats/rooms",
+    description:
+      "List the chat rooms you see in a workspace: Channels you belong to and your Directs. Filter by `kind` and `status`; page with `cursor`. A room's `id` is the `id` of the other chats tools.",
+  },
+  {
+    name: "chats_create_room",
+    operation: "POST /chats/rooms",
+    description:
+      'Create a Channel (`body.kind` "channel", `name`, `discoverability`) in an organization workspace, or open a Direct (`body.kind` "direct", `memberUserIds`, `coworkerIds`, `sokoBotIds`). A Direct that exists already comes back as is.',
+  },
+  {
+    name: "chats_discoverable",
+    operation: "GET /chats/rooms/discoverable",
+    description:
+      "List the Channels in the organization workspace you can join but have not. Search with `q`.",
+  },
+  {
+    name: "chats_slug_available",
+    operation: "GET /chats/rooms/channel-slug-availability",
+    description:
+      "Check whether a Channel slug is free in the organization workspace.",
+  },
+  {
+    name: "chats_order_starred",
+    operation: "PUT /chats/rooms/starred",
+    description:
+      "Reorder your starred rooms: `body.roomIds` in the order you want them. Rooms you leave out keep their places.",
+    destructive: true,
+  },
+  {
+    name: "chats_pinned",
+    operation: "GET /chats/rooms/{id}/pinned-messages",
+    description: "List a Channel's pinned messages, newest pin first.",
+  },
+  {
+    name: "chats_get_room",
+    operation: "GET /chats/rooms/{id}",
+    description: "Get a chat room with its members and your read state.",
+  },
+  {
+    name: "chats_update_room",
+    operation: "PATCH /chats/rooms/{id}",
+    description:
+      "Change a Channel's `name`, `slug`, `topic` or `discoverability` (organization owner or admin), or a group Direct's `groupName`. Only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "chats_archive_room",
+    operation: "POST /chats/rooms/{id}/archive",
+    description:
+      "Archive a Channel: it leaves every member's list and its messages stay. Organization owner or admin only. chats_restore_room brings it back.",
+  },
+  {
+    name: "chats_restore_room",
+    operation: "POST /chats/rooms/{id}/restore",
+    description:
+      "Restore an archived Channel. Organization owner or admin only.",
+  },
+  {
+    name: "chats_room_invitations",
+    operation: "GET /chats/rooms/{id}/invitations",
+    description: "List the pending guest invitations of an external Channel.",
+  },
+  {
+    name: "chats_revoke_invitation",
+    operation: "DELETE /chats/rooms/{id}/invitations/{invitationId}",
+    description:
+      "Revoke a pending guest invitation to an external Channel. `invitationId` from chats_room_invitations.",
+  },
+  {
+    name: "chats_join",
+    operation: "POST /chats/rooms/{id}/members/me",
+    description:
+      "Join a Channel of the organization workspace, such as one from chats_discoverable.",
+  },
+  {
+    name: "chats_leave",
+    operation: "DELETE /chats/rooms/{id}/members/me",
+    description:
+      "Leave a chat room. The room and its messages stay for everyone else.",
+  },
+  {
+    name: "chats_remove_member",
+    operation: "DELETE /chats/rooms/{id}/members/{userId}",
+    description:
+      "Remove a person from a Channel. Any host member may remove a guest; only an organization owner or admin may remove a member.",
+  },
+  {
+    name: "chats_add_members",
+    operation: "POST /chats/rooms/{id}/members",
+    description:
+      "Add organization members (`body.userIds`), Coworkers (`body.coworkerIds`) and Soko Bots (`body.sokoBotIds`) to a Channel.",
+  },
+  {
+    name: "chats_remove_coworker",
+    operation: "DELETE /chats/rooms/{id}/coworkers/{coworkerId}",
+    description:
+      "Remove a Coworker from a Channel. Its open mentions there fail.",
+  },
+  {
+    name: "chats_remove_soko_bot",
+    operation: "DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}",
+    description:
+      "Remove a Soko Bot from a Channel. Only its owner may remove a personal Soko Bot.",
+  },
+  {
+    name: "chats_mark_read",
+    operation: "POST /chats/rooms/{id}/read",
+    description: "Mark a chat room read for you and clear its notifications.",
+  },
+  {
+    name: "chats_mark_unread",
+    operation: "POST /chats/rooms/{id}/unread",
+    description: "Mark a chat room unread for you.",
+  },
+  {
+    name: "chats_star",
+    operation: "POST /chats/rooms/{id}/star",
+    description: "Star a chat room for you. A muted room cannot be starred.",
+  },
+  {
+    name: "chats_unstar",
+    operation: "DELETE /chats/rooms/{id}/star",
+    description: "Unstar a chat room for you.",
+    destructive: false,
+  },
+  {
+    name: "chats_mute",
+    operation: "POST /chats/rooms/{id}/mute",
+    description: "Mute a chat room for you. A starred room cannot be muted.",
+  },
+  {
+    name: "chats_unmute",
+    operation: "DELETE /chats/rooms/{id}/mute",
+    description: "Unmute a chat room for you.",
+    destructive: false,
+  },
+  {
+    name: "chats_threads",
+    operation: "GET /chats/rooms/{id}/threads",
+    description:
+      "List a room's Threads, unread first. `unread=true` returns every unread Thread and ignores `cursor`.",
+  },
+  {
+    name: "chats_thread_unread_count",
+    operation: "GET /chats/rooms/{id}/threads/unread-count",
+    description:
+      "Count a room's unread Threads, with each one's unread replies.",
+  },
+  {
+    name: "chats_read_threads",
+    operation: "POST /chats/rooms/{id}/threads/read",
+    description:
+      "Mark every unread Thread you take part in, in one room, read.",
+  },
+  {
+    name: "chats_get_thread",
+    operation: "GET /chats/rooms/{id}/threads/{parentMessageId}",
+    description: "Get one Thread's summary by the id of its top-level message.",
+  },
+  {
+    name: "chats_thread_messages",
+    operation: "GET /chats/rooms/{id}/threads/{parentMessageId}/messages",
+    description:
+      "List a Thread's replies. `parentMessageId` is its top-level message.",
+  },
+  {
+    name: "chats_read_thread",
+    operation: "POST /chats/rooms/{id}/threads/{parentMessageId}/read",
+    description: "Mark one Thread read for you.",
+  },
+  {
+    name: "chats_mute_thread",
+    operation: "POST /chats/rooms/{id}/threads/{parentMessageId}/mute",
+    description:
+      "Mute one Thread for you. Replies that name you still notify you.",
+  },
+  {
+    name: "chats_unmute_thread",
+    operation: "DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute",
+    description: "Unmute one Thread for you.",
+    destructive: false,
+  },
+  {
+    name: "chats_unread_threads",
+    operation: "GET /chats/threads/unread",
+    description:
+      "List your unread Threads across every room, newest reply first.",
+  },
+  {
+    name: "chats_earlier_threads",
+    operation: "GET /chats/threads/earlier",
+    description:
+      "List your Threads with nothing unread across every room, newest first.",
+  },
+  {
+    name: "chats_messages",
+    operation: "GET /chats/rooms/{id}/messages",
+    description:
+      "List a room's messages, newest page first; page older with `cursor`. Search with `q`; `around` centers the page on a message id.",
+  },
+  {
+    name: "chats_send",
+    operation: "POST /chats/rooms/{id}/messages",
+    description:
+      "Spends workspace credits. A Coworker or Soko Bot the message mentions, or the Soko Bot of a Soko Bot Direct, replies into the room as a paid turn. In a Direct with one Coworker and you alone, the Coworker replies only in Sokosumi Web. Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. Confirm the text with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "chats_get_message",
+    operation: "GET /chats/rooms/{id}/messages/{messageId}",
+    description: "Get one message, with the Thread it belongs to.",
+  },
+  {
+    name: "chats_edit_message",
+    operation: "PATCH /chats/rooms/{id}/messages/{messageId}",
+    description: "Replace the text of a message you wrote with `body.content`.",
+    destructive: true,
+  },
+  {
+    name: "chats_delete_message",
+    operation: "DELETE /chats/rooms/{id}/messages/{messageId}",
+    description: "Delete a message you wrote.",
+  },
+  {
+    name: "chats_get_message_results",
+    operation: "GET /chats/rooms/{id}/messages/{messageId}/results",
+    description:
+      "Get the result cards (Tasks, Jobs, files) one message links to.",
+  },
+  {
+    name: "chats_message_results",
+    operation: "GET /chats/rooms/{id}/message-results",
+    description:
+      "Get the result cards for several messages of a room: `messageIds` comma-separated, at most 50.",
+  },
+  {
+    name: "chats_react",
+    operation: "PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+    description: "Add your emoji reaction to a message.",
+  },
+  {
+    name: "chats_unreact",
+    operation:
+      "DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+    description: "Remove your emoji reaction from a message.",
+    destructive: false,
+  },
+  {
+    name: "chats_pin",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/pin",
+    description: "Pin a top-level Channel message for every member.",
+  },
+  {
+    name: "chats_unpin",
+    operation: "DELETE /chats/rooms/{id}/messages/{messageId}/pin",
+    description: "Unpin a Channel message for every member.",
+    destructive: false,
+  },
+  {
+    name: "chats_send_to_self",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/send-to-self",
+    description:
+      "Quote a message into your own Direct with yourself, as a reminder.",
+  },
+  {
+    name: "chats_remove_unfurl",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/unfurls/remove",
+    description:
+      "Remove the link preview for `body.url` from a message you wrote. The link stays in the text.",
+  },
+  {
+    name: "chats_retry_mention",
+    operation:
+      "POST /chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry",
+    description:
+      "Spends workspace credits. Ask a Coworker again after its mention on your message failed: it runs a paid turn and replies into the room. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "chats_saved",
+    operation: "GET /chats/saved-messages",
+    description: "List the messages you saved for later, newest save first.",
+  },
+  {
+    name: "chats_save",
+    operation: "PUT /chats/saved-messages/{messageId}",
+    description: "Save a message for later on your private Saved list.",
+  },
+  {
+    name: "chats_unsave",
+    operation: "DELETE /chats/saved-messages/{messageId}",
+    description: "Remove a message from your Saved list.",
+    destructive: false,
+  },
+  {
+    name: "chats_decisions",
+    operation: "GET /chats/signals/decisions",
+    description: "List the decisions made across your rooms, newest first.",
+  },
+  {
+    name: "chats_important",
+    operation: "GET /chats/signals/important",
+    description:
+      "List your important unread messages of the last 24 hours: questions and requests for you, blockers, decisions.",
+  },
+  {
+    name: "chats_summary",
+    operation: "GET /chats/signals/summary",
+    description:
+      "Summarize what is unread for you since you last read each room, most pressing first. Pass `roomId` for one room.",
+  },
+  {
+    name: "chats_catch_up",
+    operation: "GET /chats/signals/rooms/{id}/catch-up",
+    description:
+      "Summarize one room's unread messages for you, grouped by what they ask of you.",
+  },
+  {
+    name: "chats_room_decisions",
+    operation: "GET /chats/signals/rooms/{id}/decisions",
+    description: "List one room's decisions, newest first.",
+  },
+  {
+    name: "chats_correct_signal",
+    operation: "PUT /chats/signals/messages/{messageId}/corrections",
+    description:
+      "Correct one tag on a message for every reader: `body.tag` (such as `decisionMade`) and `body.applies`.",
+    destructive: true,
+  },
+  {
+    name: "chats_set_loop",
+    operation: "PUT /chats/signals/messages/{messageId}/loop",
+    description:
+      "Close a message's open question or commitment (`body.closed` true, with `body.taskId` when it became a Task), or reopen it.",
+  },
+  {
+    name: "chats_routing",
+    operation: "GET /chats/signals/messages/{messageId}/routing",
+    description:
+      "Suggest up to three Coworkers in the workspace that could do the work a message asks for.",
+  },
+  {
+    name: "chats_skills",
+    operation: "GET /chats/skills",
+    description:
+      "Search the skills.sh catalog, most installed first. Their ids go in chats_send `body.skillIds`.",
+  },
+  {
+    name: "chats_stickers",
+    operation: "GET /chats/stickers",
+    description: "List your saved stickers.",
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */

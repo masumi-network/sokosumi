@@ -270,6 +270,14 @@ Drive:
   Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
   Uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
 
+Chats:
+  Rooms come from sokosumi chats rooms --organization-slug WORKSPACE_SLUG; a room's id fills ROOM_ID.
+  sokosumi chats messages ROOM_ID, sokosumi chats send ROOM_ID --input-json '{"content":"Draft is ready."}'.
+  chats send spends credits when it mentions a Coworker or Soko Bot, or goes to a Soko Bot Direct: it replies as a paid turn.
+  A 1:1 Coworker Direct replies only in Sokosumi Web.
+  Star, mute, pin, read, join and archive take no body. Inviting guests and invite links are CLI-only;
+  stickers, voice transcription and the live reply stream stay in Sokosumi Web.
+
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
