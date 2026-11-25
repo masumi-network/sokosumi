@@ -12,7 +12,10 @@ import {
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
-import { seoMonitorChangeSummary } from "./seo-monitor-model";
+import {
+  seoMonitorChangeOf,
+  seoMonitorChangeSummary,
+} from "./seo-monitor-model";
 
 const pathOf = (url: string) => {
   try {
@@ -25,11 +28,13 @@ const pathOf = (url: string) => {
 
 /** What the newest monitor result changed against the one before, with the named items one press away. */
 export function SeoMonitorChange({
-  change,
+  change: stored,
 }: {
   change: ProjectSeoMonitorChange | null;
 }) {
+  const change = seoMonitorChangeOf(stored);
   const t = useSeoResultTranslations("App.Seo.monitor.change");
+  const devices = useSeoResultTranslations("App.Seo.breakdown.devices");
   const format = useSeoResultFormatter();
   const summary = seoMonitorChangeSummary(change);
   if (summary.kind === "none")
@@ -135,9 +140,20 @@ export function SeoMonitorChange({
               >
                 {t(item.shown ? "lostCitation" : "lostCitationGone", {
                   keyword: item.keyword,
-                })}
+                })}{" "}
+                <span className="text-muted-foreground">
+                  {devices(item.device)}
+                </span>
               </li>
             ))}
+            {change.lostCitations.length < change.lostCitationCount ? (
+              <li className="text-muted-foreground">
+                {t("lostCitationsShowing", {
+                  shown: change.lostCitations.length,
+                  total: change.lostCitationCount,
+                })}
+              </li>
+            ) : null}
           </ChangeList>
         ) : null}
         <p className="text-muted-foreground">{t("band")}</p>

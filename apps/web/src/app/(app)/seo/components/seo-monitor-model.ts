@@ -82,9 +82,26 @@ export type SeoMonitorChangeSummary =
       lostCitations: number;
     };
 
-export function seoMonitorChangeSummary(
+/**
+ * A change as the card reads it. A Core build from before the lost citations sends neither field: it reads as no
+ * lost citation.
+ */
+export function seoMonitorChangeOf(
   change: ProjectSeoMonitorChange | null,
+): ProjectSeoMonitorChange | null {
+  return (
+    change && {
+      ...change,
+      lostCitations: change.lostCitations ?? [],
+      lostCitationCount: change.lostCitationCount ?? 0,
+    }
+  );
+}
+
+export function seoMonitorChangeSummary(
+  raw: ProjectSeoMonitorChange | null,
 ): SeoMonitorChangeSummary {
+  const change = seoMonitorChangeOf(raw);
   if (!change) return { kind: "none" };
   if (!change.comparable) return { kind: "notComparable" };
   const rises = change.moveCount - change.dropCount;

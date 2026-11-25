@@ -76,8 +76,7 @@ const rankMove = z.object({
   from: z.number(),
 });
 
-/** What the newest monitor Run changed against the Run before it. */
-export const seoMonitorChangeSchema = z
+const seoMonitorChange = z
   .object({
     from: dateTime,
     to: dateTime,
@@ -107,7 +106,8 @@ export const seoMonitorChangeSchema = z
     dropCount: z.number().int().nonnegative(),
     /**
      * Keywords whose AI Overview cited the page in the Run before and does not now. `shown` is false when the AI
-     * Overview itself is gone. Counted only when both Runs checked the same pages.
+     * Overview itself is gone. Counted only when both Runs checked the same pages. A record from before these two
+     * fields has neither: it reads as no lost citation.
      */
     lostCitations: z
       .array(z.object({ keyword: z.string(), device, shown: z.boolean() }))
@@ -115,6 +115,18 @@ export const seoMonitorChangeSchema = z
     lostCitationCount: z.number().int().nonnegative(),
   })
   .openapi("ProjectSeoMonitorChange");
+
+/**
+ * What the newest monitor Run changed against the Run before it. The two citation fields are filled before the
+ * parse, not with `.default()`: a default would make them optional in the generated client.
+ */
+export const seoMonitorChangeSchema = z.preprocess(
+  (value) =>
+    value && typeof value === "object"
+      ? { lostCitations: [], lostCitationCount: 0, ...value }
+      : value,
+  seoMonitorChange,
+);
 
 export const seoMonitorLastRunSchema = z
   .object({

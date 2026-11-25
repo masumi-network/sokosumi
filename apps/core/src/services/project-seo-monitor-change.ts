@@ -99,6 +99,22 @@ const pageSet = (payload: PublicSeoPayload) =>
 const serpKey = (read: { keyword: string; device: string }) =>
   JSON.stringify([read.keyword.normalize("NFKC").toLowerCase(), read.device]);
 
+/** True when either Run read the keyword's SERP as suspect: its missing page says nothing about the rank. */
+function hasSuspectSerp(
+  runs: PublicSeoPayload[],
+  row: PublicSeoPayload["keywords"][number],
+): boolean {
+  const keyword = row.keyword.normalize("NFKC").toLowerCase();
+  return runs.some((run) =>
+    run.serps?.some(
+      (read) =>
+        read.suspect &&
+        read.keyword.normalize("NFKC").toLowerCase() === keyword &&
+        (!row.device || read.device === row.device),
+    ),
+  );
+}
+
 /**
  * Keywords whose AI Overview cited the page before and does not now: it names other sources, or it is gone after
  * the read waited for it. A suspect read, a read with no AI Overview data and a citation that was not determined
@@ -193,7 +209,12 @@ export function compareSeoMonitorRuns(
   }
   for (const [key, row] of keywordsWith(after, "not_in_range")) {
     const from = earlierRanks.get(key)?.position;
-    if (from == null || !isSeoRankLost(from, row.checkedResults)) continue;
+    if (
+      from == null ||
+      !isSeoRankLost(from, row.checkedResults) ||
+      hasSuspectSerp([before, after], row)
+    )
+      continue;
     moves.push({
       keyword: row.keyword,
       pageUrl: row.pageUrl,

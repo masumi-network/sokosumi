@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
   seoMonitorBlock,
+  seoMonitorChangeOf,
   seoMonitorChangeSummary,
   seoMonitorPagesDiffer,
   seoMonitorPlan,
@@ -117,6 +118,16 @@ describe("SEO monitor card model", () => {
       kind: "notComparable",
     });
     expect(seoMonitorChangeSummary(null)).toEqual({ kind: "none" });
+    // A Core build from before the lost citations sends neither field.
+    const { lostCitations: _, lostCitationCount: __, ...older } = change;
+    expect(seoMonitorChangeSummary(older as typeof change)).toMatchObject({
+      kind: "changed",
+      lostCitations: 0,
+    });
+    expect(seoMonitorChangeOf(older as typeof change)).toMatchObject({
+      lostCitations: [],
+      lostCitationCount: 0,
+    });
   });
 
   it("lists weekdays Monday first, the way the editor shows the week", () => {

@@ -79,7 +79,7 @@ globalThis.MESSAGES = {
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "A teammate changed an occurrence of {taskName}",
     "Notifications.Task.seoMonitorWorse":
-      "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}.",
+      "{site}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}.",
     "Notifications.Task.seoMonitorClicksDrop":
       "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before.",
     "Notifications.System.seoAdminCritical":
@@ -169,7 +169,7 @@ globalThis.MESSAGES = {
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "Ein Teammitglied hat einen Termin von {taskName} geändert",
     "Notifications.Task.seoMonitorWorse":
-      "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}.",
+      "{site}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}. Verlorene Nennungen in der KI-Übersicht: {lostCitations}.",
     "Notifications.Task.seoMonitorClicksDrop":
       "{site}: Die Search-Console-Klicks sind gegenüber dem Zeitraum davor von {clicksFrom} auf {clicksTo} gesunken.",
     "Notifications.System.seoAdminCritical":
@@ -260,7 +260,7 @@ globalThis.MESSAGES = {
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "Un miembro del equipo cambió una ocurrencia de {taskName}",
     "Notifications.Task.seoMonitorWorse":
-      "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}.",
+      "{site}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}. Citas perdidas en AI Overview: {lostCitations}.",
     "Notifications.Task.seoMonitorClicksDrop":
       "{site}: los clics de Search Console bajaron de {clicksFrom} a {clicksTo} frente al periodo anterior.",
     "Notifications.System.seoAdminCritical":

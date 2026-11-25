@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
 
+import { seoMonitorChangeSchema } from "@/schemas/project-seo-monitor.schema";
+
 import {
   compareSeoMonitorRuns,
   isSeoMonitorChangeWorse,
@@ -212,6 +214,42 @@ describe("compareSeoMonitorRuns", () => {
     expect(isSeoMonitorChangeWorse(change)).toBe(false);
   });
 
+  it.each([
+    ["latest", [], [serp(null, { keyword: "KW", suspect: true })]],
+    ["earlier", [serp(null, { keyword: "kw", suspect: true })], []],
+  ])(
+    "does not count a lost rank when the %s SERP read of the keyword is suspect",
+    (_, serpsBefore, serpsAfter) => {
+      const runs = (suspect: boolean) =>
+        compare(
+          payload({
+            keywords: [ranked("kw", 5)],
+            serps: suspect ? serpsBefore : [],
+          }),
+          payload({
+            keywords: [outside("kw", "not_in_range", 20)],
+            serps: suspect ? serpsAfter : [],
+          }),
+        );
+      // The same rows with no suspect read are a loss: only the suspect read holds it back.
+      expect(runs(false).dropCount).toBe(1);
+      expect(runs(true)).toMatchObject({ moves: [], dropCount: 0 });
+    },
+  );
+
+  it("counts a lost rank when only another device's SERP read is suspect", () => {
+    const change = compare(
+      payload({ keywords: [ranked("kw", 5)] }),
+      payload({
+        keywords: [outside("kw", "not_in_range", 20)],
+        serps: [
+          serp(null, { keyword: "kw", device: "desktop", suspect: true }),
+        ],
+      }),
+    );
+    expect(change.dropCount).toBe(1);
+  });
+
   it("is not worse when ranks only rose", () => {
     const change = compare(
       payload({ keywords: [ranked("x402", 15)] }),
@@ -312,5 +350,24 @@ describe("compareSeoMonitorRuns", () => {
       expect(change).toMatchObject({ comparable: false, newFailureCount: 0 });
       expect(isSeoMonitorChangeWorse(change)).toBe(false);
     }
+  });
+
+  it("parses a change record from before the citation fields as no lost citation", () => {
+    expect(
+      seoMonitorChangeSchema.parse({
+        from: AT,
+        to: AT,
+        comparable: true,
+        newFailureCount: 0,
+        fixedCount: 0,
+        newFailures: [],
+        fixed: [],
+        moves: [
+          { keyword: "kw", pageUrl: PAGE, device: "mobile", from: 3, to: 9 },
+        ],
+        moveCount: 1,
+        dropCount: 1,
+      }),
+    ).toMatchObject({ lostCitations: [], lostCitationCount: 0 });
   });
 });
