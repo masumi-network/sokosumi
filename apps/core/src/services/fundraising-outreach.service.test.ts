@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   contact: { findFirst: vi.fn(), findUniqueOrThrow: vi.fn() },
-  dataRoom: { findFirst: vi.fn() },
+  dataRoom: { findFirst: vi.fn(), findUnique: vi.fn() },
+  organization: { findUnique: vi.fn() },
   dataRoomMember: { upsert: vi.fn() },
   user: { findUnique: vi.fn() },
   contactInteraction: { findMany: vi.fn() },
@@ -113,6 +114,11 @@ describe("draftOutreach", () => {
       },
     ]);
     prismaMock.dataRoom.findFirst.mockResolvedValue({ id: ROOM, token: "tok" });
+    prismaMock.dataRoom.findUnique.mockResolvedValue({
+      welcomeNote: "We make agent payments work.",
+      company: { legalName: "Masumi AG" },
+    });
+    prismaMock.organization.findUnique.mockResolvedValue({ name: "Masumi" });
     prismaMock.dataRoomMember.upsert.mockResolvedValue({});
     prismaMock.fundraisingProspect.upsert.mockResolvedValue({});
     prismaMock.contact.findUniqueOrThrow.mockResolvedValue({ version: 3 });
@@ -141,7 +147,13 @@ describe("draftOutreach", () => {
     expect(prompt).toMatchObject({
       kind: "intro",
       investor: { name: "Ann Partner", firm: "Ann Capital" },
-      raise: { roomLink: "https://app.example.com/share/rooms/tok" },
+      raise: {
+        company: "Masumi",
+        legalName: "Masumi AG",
+        round: "Seed Round 2026",
+        about: "We make agent payments work.",
+        roomLink: "https://app.example.com/share/rooms/tok",
+      },
     });
     expect(prompt.investor.lastTouches[0]).toMatchObject({
       when: "2026-11-01",
