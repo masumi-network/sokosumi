@@ -29,6 +29,11 @@ export function useChatFeed({
     initialData: initialPage
       ? { pages: [initialPage], pageParams: [undefined] }
       : undefined,
+    // `initialData` only seeds an empty cache. Dropping the pages once the
+    // view leaves makes each visit start from the server's fresh first page,
+    // not from pages kept for the default freshness window: a message read,
+    // or a room the reader left, does not come back.
+    gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
   });
