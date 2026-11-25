@@ -184,6 +184,10 @@ const baseEnvSchema = z.object({
   POLAR_WEBHOOK_SECRET: z.string().min(1).optional(),
   POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
 
+  // Measurement Protocol secret of CMO.xyz's GA4 stream: Polar purchases,
+  // refunds and cancellations go to it. Unset sends nothing; production only.
+  GA4_MP_API_SECRET: z.string().min(1).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
