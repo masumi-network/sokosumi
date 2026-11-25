@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
@@ -37,6 +38,8 @@ import {
 
 export interface ProjectsViewLabels {
   newProject: string;
+  /** The link to every open project's due work on one week axis. */
+  timeline: string;
   empty: {
     title: string;
     description: string;
@@ -236,6 +239,12 @@ export function ProjectsView({
             startTransition={startSwitch}
           />
           <PageSearchActions>
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href="/projects/timeline">
+                <CalendarRange className="size-4" aria-hidden />
+                <span className="max-sm:sr-only">{labels.timeline}</span>
+              </Link>
+            </Button>
             <ProjectsFilter
               labels={labels.filter}
               startTransition={startSwitch}

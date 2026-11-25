@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -71,6 +72,7 @@ vi.mock("@/components/time-ago", () => ({
 
 const labels = {
   newProject: "New project",
+  timeline: "Timeline",
   empty: {
     title: "No projects yet",
     description: "Create one to get started",
@@ -296,6 +298,14 @@ describe("ProjectsView toolbar", () => {
     );
   });
 
+  it("links to the Timeline of every open project's due work", () => {
+    renderView();
+
+    const link = screen.getByRole("link", { name: "Timeline" });
+    expect(screen.getByTestId("projects-toolbar")).toContainElement(link);
+    expect(link).toHaveAttribute("href", "/projects/timeline");
+  });
+
   it("has no page title", () => {
     renderView();
 
@@ -322,9 +332,14 @@ describe("ProjectsView grid", () => {
       ],
     });
 
-    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(
-      [expect.stringContaining("Pinned"), expect.stringContaining("Recent")],
-    );
+    expect(
+      within(screen.getByTestId("projects-browse"))
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual([
+      expect.stringContaining("Pinned"),
+      expect.stringContaining("Recent"),
+    ]);
   });
 
   it("loads later pages inside the current view", async () => {
@@ -527,7 +542,9 @@ describe("ProjectsView filter with no matches", () => {
     renderView({ projects: [], query: "zzz", otherMatches: [] });
 
     expect(screen.getByText("No projects match")).toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("projects-browse")).queryByRole("link"),
+    ).not.toBeInTheDocument();
   });
 });
 

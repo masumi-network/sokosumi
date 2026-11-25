@@ -87,6 +87,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         }
         labels={{
           newProject: t("empty.action"),
+          timeline: t("Timeline.title"),
           empty: {
             title: t("empty.title"),
             description: t("empty.description"),

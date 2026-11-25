@@ -4606,6 +4606,23 @@
             "pill": "Pill"
           }
         }
+      },
+      "Timeline": {
+        "title": "Timeline",
+        "back": "All projects",
+        "description": "Open tasks with a due date, by project, for the next 8 weeks. Tasks without a due date don't show here.",
+        "caption": "Due tasks of each open project, by week",
+        "project": "Project",
+        "overdue": "Overdue",
+        "thisWeek": "This week",
+        "due": ", due {date}",
+        "more": "+{count} more",
+        "noDueDates": "No due dates in the next 8 weeks",
+        "truncated": "Showing the first 500 due tasks. Open a project for the rest.",
+        "empty": {
+          "title": "No open projects",
+          "description": "Create a project and give its tasks due dates to see them here."
+        }
       }
     },
     "TikTokStudio": {
