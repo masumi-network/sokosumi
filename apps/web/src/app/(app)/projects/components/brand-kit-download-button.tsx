@@ -84,13 +84,25 @@ function brandKitFiles({
   return files;
 }
 
-/** Null when the store does not answer; the zip step then names the logo as missing. */
+/** A stalled HEAD must not hold the zip; past it the logo is named without a type. */
+const LOGO_TYPE_TIMEOUT_MS = 10_000;
+
+/**
+ * Null when the store does not answer in time; the logo then goes in as
+ * `logo`, and the zip step's own bounded GET still adds or names it as missing.
+ */
 async function logoType(
   url: string,
   signal: AbortSignal,
 ): Promise<string | null> {
   try {
-    const response = await fetch(url, { method: "HEAD", signal });
+    const response = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(LOGO_TYPE_TIMEOUT_MS),
+      ]),
+    });
     return response.ok ? response.headers.get("content-type") : null;
   } catch {
     return null;

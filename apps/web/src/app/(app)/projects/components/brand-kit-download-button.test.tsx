@@ -59,6 +59,7 @@ async function downloadKit(markdown: string, logoUrl: string | null) {
 describe("BrandKitDownloadButton", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -129,6 +130,56 @@ describe("BrandKitDownloadButton", () => {
       "Downloaded 1 of 2 files. Not included: logo. Try again to add it.",
       expect.anything(),
     );
+  });
+
+  it("finishes the zip when the logo's HEAD never answers", async () => {
+    // The HEAD deadline fires on demand; every other timeout stays real.
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+    const headDeadline = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) =>
+      ms === 10_000 ? headDeadline.signal : realTimeout(ms),
+    );
+    const bytes = new Uint8Array([1, 2, 3]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.startsWith("data:")) {
+          return Promise.resolve(
+            new Response(decodeURIComponent(url.slice(url.indexOf(",") + 1))),
+          );
+        }
+        if (init?.method === "HEAD") {
+          // Pending until aborted, like a stalled request.
+          return new Promise<Response>((_, reject) =>
+            init.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason),
+            ),
+          );
+        }
+        return Promise.resolve(new Response(bytes));
+      }),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <BrandKitDownloadButton
+          projectName="Launch plan"
+          markdown="# Brand\n"
+          logoUrl={LOGO_URL}
+        />
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Download brand kit" }),
+    );
+    expect(saveZip).not.toHaveBeenCalled();
+
+    headDeadline.abort(new DOMException("timed out", "TimeoutError"));
+
+    await waitFor(() => expect(saveZip).toHaveBeenCalled());
+    const zip = await JSZip.loadAsync(saveZip.mock.calls[0][0]);
+    // Type unknown: the logo keeps its bytes under a name without extension.
+    expect(Object.keys(zip.files)).toEqual(["DESIGN.md", "logo"]);
+    expect(await zip.file("logo")?.async("uint8array")).toEqual(bytes);
   });
 
   it("leaves out the logo and the token file when there are none", async () => {
