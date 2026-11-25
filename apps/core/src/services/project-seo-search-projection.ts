@@ -36,11 +36,21 @@ function shiftDay(date: string, days: number): string {
 }
 
 /**
+ * Search Console can report the last days of a period later. A sync's last 3
+ * days count as read only where a later sync reads them again.
+ */
+const SEARCH_CONSOLE_OPEN_DAYS = 3;
+
+function collectedAt(source: SearchEvidenceSource): string {
+  return source.data.collectedAt ?? source.row.observedAt.toISOString();
+}
+
+/**
  * The daily positions of one sync, with older days from earlier syncs of the
- * same property. Per keyword and country, an earlier sync adds days only while
- * its period touches the days already read, so no day from `from` on is unread.
- * The sync itself supplies each of its days. An older day comes from the sync
- * with the latest last day. At most 366 days are kept.
+ * same property. Per keyword and country, an earlier sync adds days only when
+ * the days already read cover its last 3 days again, so no day from `from` on
+ * is unread. The sync itself supplies each of its days. An older day comes
+ * from the sync with the latest last day. At most 366 days are kept.
  */
 export function mergedKeywordSeries(
   current: SearchEvidenceSource,
@@ -56,14 +66,23 @@ export function mergedKeywordSeries(
         source.data.keywordSeries &&
         source.data.propertyId === current.data.propertyId,
     )
-    .sort((a, b) => b.data.to.localeCompare(a.data.to));
+    // Of two syncs with one last day, the one collected later holds the fresher values.
+    .sort(
+      (a, b) =>
+        b.data.to.localeCompare(a.data.to) ||
+        collectedAt(b).localeCompare(collectedAt(a)),
+    );
   let truncated = series.truncated;
   const keywords = series.keywords.map((entry) => {
     let from = current.data.from;
     const points = [...entry.points];
     for (const source of older) {
       // Sources come latest last day first: once one ends before the read days, all later ones do.
-      if (from <= floor || source.data.to < shiftDay(from, -1)) break;
+      if (
+        from <= floor ||
+        source.data.to < shiftDay(from, SEARCH_CONSOLE_OPEN_DAYS - 1)
+      )
+        break;
       const match = source.data.keywordSeries?.keywords.find(
         (item) =>
           item.keyword === entry.keyword &&
