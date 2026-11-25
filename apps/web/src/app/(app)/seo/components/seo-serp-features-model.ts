@@ -77,11 +77,22 @@ function pageKey(url: string) {
   return parsed.href;
 }
 
-/** A stored cited source as a site, or none when the value names no host ("Reddit"). */
+// A host name with a dot and a letter-first last label: "Reddit", "2026" and "editor@a.test" name no site.
+const SOURCE_HOST = /^(?:[\p{L}\p{N}_-]+\.)+\p{L}[\p{L}\p{N}-]*\.?$/u;
+/** A stored cited source as a site, or none when the value names no host. No URL.canParse: Safari 16.4 lacks it. */
 const sourceHost = (source: string) => {
-  const url = /^https?:\/\//i.test(source) ? source : `https://${source}`;
-  const host = URL.canParse(url) ? seoHost(url) : "";
-  return host.includes(".") ? [host] : [];
+  let host = source;
+  if (/^https?:\/\//i.test(source)) {
+    try {
+      host = new URL(source).hostname;
+    } catch {
+      return [];
+    }
+  }
+  // seoHost gives the form the checked pages have (lower case, punycode, no "www.").
+  return SOURCE_HOST.test(host)
+    ? [seoHost(`https://${host}`).replace(/\.$/, "")]
+    : [];
 };
 
 /**

@@ -135,7 +135,15 @@ describe("seoSerpMarkers", () => {
           point("01", {
             aiOverview: {
               ...ai(true),
-              citedDomains: ["https://www.rival.test/x", "Reddit", ""],
+              citedDomains: [
+                "https://www.rival.test/x",
+                "Reddit",
+                "",
+                "2026",
+                "editor@example.com",
+                "Rival.test.",
+                "bücher.test",
+              ],
             },
           }),
         ]),
@@ -143,7 +151,10 @@ describe("seoSerpMarkers", () => {
       [seoTestKeyword()],
     );
     expect(mark).toMatchObject({
-      aiSources: [{ domain: "rival.test", own: false }],
+      aiSources: [
+        { domain: "rival.test", own: false },
+        { domain: "xn--bcher-kva.test", own: false },
+      ],
     });
   });
 
