@@ -488,6 +488,16 @@ describe("acceptCmoPreviewCallback", () => {
     ).toBe(true);
   });
 
+  it("accepts the branch alias of the renamed cmo-app project", () => {
+    expect(
+      acceptCmoPreviewCallback(
+        "https://cmo-app-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi",
+        [CMO_CALLBACK],
+        false,
+      ),
+    ).toBe(true);
+  });
+
   it("accepts a branch alias Vercel truncated with a hash", () => {
     expect(
       acceptCmoPreviewCallback(
@@ -503,6 +513,10 @@ describe("acceptCmoPreviewCallback", () => {
     [
       "a per-deployment URL",
       "https://sokosumi-knutofq4p.preview.cmo.xyz/api/auth/callback/sokosumi",
+    ],
+    [
+      "a cmo-app per-deployment URL",
+      "https://cmo-app-knutofq4p.preview.cmo.xyz/api/auth/callback/sokosumi",
     ],
     [
       "another project on the suffix",
