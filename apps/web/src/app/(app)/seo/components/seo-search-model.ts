@@ -137,9 +137,10 @@ export type SeoKeywordTrend =
     };
 
 /**
- * One tracked keyword's daily average position from the last Search Console sync.
- * Days run from the read's first day to the last day Google reported for any
- * tracked keyword; a day without impressions is a gap, never a zero.
+ * One tracked keyword's daily average position from the last Search Console sync,
+ * with the older days Core added from earlier syncs. Days run from the first day
+ * read to the last day Google reported for any tracked keyword; a day without
+ * impressions is a gap, never a zero.
  */
 export function keywordTrend(
   queries: ProjectSeoWorkspace["searchQueries"],
@@ -166,7 +167,7 @@ export function keywordTrend(
   );
   const points: { date: string; value: number | null }[] = [];
   for (
-    let day = Date.parse(`${queries.from}T00:00:00Z`);
+    let day = Date.parse(`${entry.from ?? queries.from}T00:00:00Z`);
     day <= Date.parse(`${last}T00:00:00Z`);
     day += DAY_MS
   ) {
