@@ -370,7 +370,7 @@ export async function importProjectSeoAudit(
   }, "The SEO report import changed. Please retry.");
   if (createdId) {
     await notifySeoMonitorWorseSafely(task.id, createdId);
-    await notifySeoMonitorClicksDropSafely(task.id);
+    await notifySeoMonitorClicksDropSafely(task.id, createdId);
   }
   return result;
 }
