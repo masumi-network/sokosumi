@@ -23,7 +23,7 @@ const THEMES = ["light", "dark"] as const;
 const WIDTHS = [320, 402, 768];
 const STATE_WIDTH = 402;
 const ALL_WIDTHS = new Set(["default", "fullscreen"]);
-const STATES = new Set(["loading", "empty", "error"]);
+const STATES = new Set(["loading", "empty", "error", "approval"]);
 
 const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) =>
   Object.entries(fixtures).flatMap(
@@ -82,6 +82,21 @@ try {
       }
     }
     if (step) await frame.locator(`[data-step="${step}"]`).waitFor();
+    if (play.length > 0) {
+      // Off the last button, so the shot shows no hover.
+      await page.mouse.move(0, 0);
+      // The host resizes the iframe after the view reports its new height:
+      // wait until two reads 100ms apart agree.
+      const height = () =>
+        page.locator("iframe").evaluate((iframe) => iframe.style.height);
+      let previous = "";
+      let current = await height();
+      while (current !== previous) {
+        await page.waitForTimeout(100);
+        previous = current;
+        current = await height();
+      }
+    }
     if (errors.length > 0) {
       throw new Error(`${view}/${fixture}/${theme}: ${errors.join("; ")}`);
     }

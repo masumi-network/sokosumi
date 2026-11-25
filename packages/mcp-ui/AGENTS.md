@@ -33,6 +33,8 @@
 - Size: the App reports its height to the host (`autoResize`).
 - Text: every string goes through `t()` from `messages/en.json`. Dates go through `formatDateTime`, which uses the host's locale and time zone.
 - Links: open only URLs that pass `isUnderBase(url, context.webBaseUrl)`, through `context.app.openLink`.
+- A step only a person takes: an error result with `kind: "person_approval_required"` shows the shell's `approval` state, with "Review in Sokosumi" for its `details.webUrl` when that is under `webBaseUrl` (ADR 0077). No view has an approve control.
+- Task views share `src/views/task.tsx`: the assignee, initials, status words (`task.status.*`) and the Task's Web URL.
 
 ## Rules
 

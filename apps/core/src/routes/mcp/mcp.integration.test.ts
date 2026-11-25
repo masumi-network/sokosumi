@@ -44,9 +44,8 @@ const { CORE, USER, JOB, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } =
       ],
     },
     /**
-     * Extra UI tools on the package's placeholder `hello` view, in this file
-     * only: a twin that needs no database (users_get) and one in a default
-     * toolset outside the tasks toolset's real tool.
+     * An extra UI tool on the package's placeholder `hello` view, in this
+     * file only: its twin needs no database (users_get).
      */
     FIXTURE_UI_TOOLS: [
       {
@@ -54,12 +53,6 @@ const { CORE, USER, JOB, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } =
         data: "users_get",
         ui: "hello",
         description: "Show a user's profile.",
-      },
-      {
-        name: "tasks_show_task",
-        data: "tasks_get",
-        ui: "hello",
-        description: "Show a Task.",
       },
     ] satisfies McpUiTool[],
     CORE: "https://core.example.test",
@@ -161,7 +154,12 @@ vi.mock("@/lib/db/prisma", () => ({
     // The hire form's twin reads the agent, then asks it for its input schema.
     agent: { findUnique: async () => HIRE_AGENT },
     // An empty Task list: the board test needs a successful tasks_list.
-    task: { findMany: async () => [], count: async () => 0 },
+    // No Task by id: tasks_get answers 404 (the Task detail test).
+    task: {
+      findMany: async () => [],
+      count: async () => 0,
+      findFirst: async () => null,
+    },
     // One completed Job: the Job status test needs a successful jobs_get.
     job: { findFirst: async () => JOB },
     taskEventMention: { findMany: async () => [] },
@@ -188,7 +186,7 @@ vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
 
 /** Every view a UI tool uses, real rows first. */
 const VIEW_RESOURCES = (
-  ["tasks-board", "agents-hire", "job-status", "hello"] as const
+  ["tasks-board", "agents-hire", "job-status", "task-detail", "hello"] as const
 ).map((id) => ({
   uri: MCP_UI[id].uri,
   name: id,
@@ -278,11 +276,10 @@ describe("Sokosumi MCP server", () => {
     ]);
     // SOKD-410: feature toolsets keep the default small. Growing it is a
     // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
-    // UI tools count: 34 data tools, tasks_show_board, plus this file's
-    // fixture tasks_show_task.
-    expect(defaults).toHaveLength(35 + 1);
+    // UI tools count: 34 data tools, plus tasks_show_board and tasks_show.
+    expect(defaults).toHaveLength(34 + 2);
     expect(defaults).toContain("tasks_show_board");
-    expect(defaults).toContain("tasks_show_task");
+    expect(defaults).toContain("tasks_show");
     // jobs_show sits in the opt-in jobs toolset with jobs_get.
     expect(defaults).not.toContain("jobs_show");
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
@@ -338,7 +335,7 @@ describe("Sokosumi MCP server", () => {
       _meta: { ui: { resourceUri: MCP_UI.hello.uri } },
     });
     // UI tools sit in their twin's toolset only.
-    expect(tools.map((tool) => tool.name)).not.toContain("tasks_show_task");
+    expect(tools.map((tool) => tool.name)).not.toContain("tasks_show");
 
     const data = await client.callTool({
       name: "users_get",
@@ -545,6 +542,50 @@ describe("Sokosumi MCP server", () => {
     expect(uiMeta).toEqual({
       ...dataMeta,
       ui: { resourceUri: MCP_UI["job-status"].uri },
+      sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+    });
+  }, 15_000);
+
+  it("shows a Task with exactly tasks_get's result", async () => {
+    // Imported here: at the top it would load zod before the routes extend it.
+    const { workspaceRepository } = await import(
+      "@sokosumi/database/repositories"
+    );
+    vi.spyOn(
+      workspaceRepository,
+      "resolveWorkspaceForContext",
+    ).mockResolvedValue({
+      id: "0196a000-0000-7000-8000-00000000a001",
+      userId: USER.id,
+      organizationId: null,
+    } as Awaited<
+      ReturnType<typeof workspaceRepository.resolveWorkspaceForContext>
+    >);
+    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const { tools } = await client.listTools();
+    const twin = tools.find((tool) => tool.name === "tasks_get");
+    const show = tools.find((tool) => tool.name === "tasks_show");
+    expect(show).toMatchObject({
+      inputSchema: twin?.inputSchema,
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { resourceUri: MCP_UI["task-detail"].uri } },
+    });
+
+    // The mocked database has no Task, so both answer the route's 404; the
+    // board test above covers a successful result.
+    const args = { id: "0196a000-0000-7000-8000-000000000039" };
+    const data = await client.callTool({ name: "tasks_get", arguments: args });
+    const ui = await client.callTool({ name: "tasks_show", arguments: args });
+    expect(data).toMatchObject({
+      isError: true,
+      structuredContent: { status: 404 },
+    });
+    const { _meta: uiMeta, ...uiResult } = ui;
+    const { _meta: dataMeta, ...dataResult } = data;
+    expect(uiResult).toEqual(dataResult);
+    expect(uiMeta).toEqual({
+      ...dataMeta,
+      ui: { resourceUri: MCP_UI["task-detail"].uri },
       sokosumi: { webBaseUrl: getWebAppBaseUrl() },
     });
   }, 15_000);

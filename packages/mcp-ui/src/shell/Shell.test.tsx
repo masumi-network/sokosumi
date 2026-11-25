@@ -9,7 +9,13 @@ import {
   type McpUiHostContext,
   type McpUiStyles,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { Shell, type ViewContext } from "./Shell.tsx";
@@ -26,6 +32,7 @@ interface OpenViewOptions {
 let refresh: ViewContext["refresh"];
 let missingTool: ViewContext["missingTool"];
 let refreshStatus: ViewContext["refreshStatus"];
+const links = vi.fn();
 
 /** A fake host: an AppBridge on one end of an in-memory pipe, the view on the other. */
 async function openView(
@@ -40,6 +47,10 @@ async function openView(
     { hostContext },
   );
   if (callTool) bridge.oncalltool = callTool;
+  bridge.onopenlink = async ({ url }) => {
+    links(url);
+    return {};
+  };
   const initialized = new Promise<void>((resolve) => {
     bridge.oninitialized = () => resolve();
   });
@@ -88,6 +99,7 @@ afterEach(() => {
   refresh = undefined;
   missingTool = undefined;
   refreshStatus = undefined;
+  links.mockReset();
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("style");
 });
@@ -370,6 +382,55 @@ describe("Shell", () => {
     expect(state()).toBe("error");
     expect(screen.getByText("This view could not load")).toBeTruthy();
     expect(screen.queryByText("Not found")).toBeNull();
+  });
+
+  it("sends a person to Sokosumi when only a person may take the step", async () => {
+    const bridge = await openView();
+    const webUrl = "https://app.sokosumi.com/tasks/0196a000";
+
+    await act(() =>
+      bridge.sendToolResult({
+        content: [{ type: "text", text: "A person approves this" }],
+        structuredContent: {
+          status: 403,
+          kind: "person_approval_required",
+          message: "A person approves this in Sokosumi",
+          details: { webUrl },
+        },
+        isError: true,
+        _meta: { sokosumi: { webBaseUrl: "https://app.sokosumi.com" } },
+      }),
+    );
+
+    expect(state()).toBe("approval");
+    expect(screen.getByText("A person decides this in Sokosumi")).toBeTruthy();
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Review in Sokosumi" }),
+      ),
+    );
+    expect(links).toHaveBeenCalledWith(webUrl);
+  });
+
+  it("offers no link for a person's step outside the Web base URL", async () => {
+    const bridge = await openView();
+
+    await act(() =>
+      bridge.sendToolResult({
+        content: [],
+        structuredContent: {
+          kind: "person_approval_required",
+          details: { webUrl: "https://evil.example/tasks/1" },
+        },
+        isError: true,
+        _meta: { sokosumi: { webBaseUrl: "https://app.sokosumi.com" } },
+      }),
+    );
+
+    expect(state()).toBe("approval");
+    expect(
+      screen.queryByRole("button", { name: "Review in Sokosumi" }),
+    ).toBeNull();
   });
 
   it("shows the error state when the result does not match the view", async () => {

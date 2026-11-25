@@ -3,13 +3,18 @@ import { z } from "zod";
 import type { ViewContext } from "../../shell/Shell.tsx";
 import {
   formatDay,
-  isMessageKey,
   isPlainReference,
-  isUnderBase,
   type MessageKey,
   t,
 } from "../../shell/text.ts";
 import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import {
+  AssigneeBadge,
+  Party,
+  partyName,
+  statusWord as taskStatusWord,
+  taskWebUrl,
+} from "../task.tsx";
 
 const Named = z.object({ name: z.string() }).nullish();
 
@@ -20,10 +25,7 @@ const BoardTask = z.object({
   name: z.string(),
   status: z.string(),
   dueOn: z.string().nullish(),
-  assignee: z
-    .object({ user: Named, coworker: Named, sokoBot: Named })
-    .partial()
-    .nullish(),
+  assignee: Party,
   workspace: z.object({ organization: Named }).partial().nullish(),
 });
 type BoardTask = z.infer<typeof BoardTask>;
@@ -87,22 +89,7 @@ function columnOf(status: string): Column {
 
 function statusWord(task: BoardTask, column: Column): string | undefined {
   if ("main" in column && column.main === task.status) return undefined;
-  const key = `tasksBoard.status.${task.status}`;
-  return isMessageKey(key) ? t(key) : undefined;
-}
-
-function assigneeName(task: BoardTask): string | undefined {
-  const { user, coworker, sokoBot } = task.assignee ?? {};
-  return (user ?? coworker ?? sokoBot)?.name;
-}
-
-/** Up to two letters: the first of the first and last words. */
-export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  const first = (word?: string) => (word ? Array.from(word)[0] : "");
-  const letters =
-    words.length > 1 ? first(words[0]) + first(words.at(-1)) : first(words[0]);
-  return letters.toUpperCase();
+  return taskStatusWord(task.status);
 }
 
 /**
@@ -150,15 +137,6 @@ export function TasksBoard({
       .catch(warn("ui/update-model-context"));
   };
 
-  // Web resolves a Task by id in any workspace the person can open; an
-  // identifier resolves only in the active one (apps/web task-href.ts).
-  const webUrl = ({ id }: BoardTask) => {
-    const base = context.webBaseUrl;
-    if (!base) return undefined;
-    const url = `${base.replace(/\/$/, "")}/tasks/${encodeURIComponent(id)}`;
-    return isUnderBase(url, base) ? url : undefined;
-  };
-
   const switchMode = () =>
     app
       .requestDisplayMode({ mode: otherMode })
@@ -196,9 +174,7 @@ export function TasksBoard({
               disabled={refreshing === "busy"}
               aria-busy={refreshing === "busy"}
             >
-              {refreshing === "busy"
-                ? t("tasksBoard.refreshing")
-                : t("tasksBoard.refresh")}
+              {refreshing === "busy" ? t("view.refreshing") : t("view.refresh")}
             </QuietButton>
           )}
           {availableDisplayModes.includes(otherMode) && (
@@ -211,7 +187,7 @@ export function TasksBoard({
         </div>
       </header>
       <p role="status" className="text-muted-foreground text-xs empty:hidden">
-        {refreshing === "failed" ? t("tasksBoard.refreshFailed") : ""}
+        {refreshing === "failed" ? t("view.refreshFailed") : ""}
       </p>
 
       <div
@@ -238,7 +214,9 @@ export function TasksBoard({
             >
               {shown.map((task) => {
                 const selected = task.id === selectedId;
-                const url = selected ? webUrl(task) : undefined;
+                const url = selected
+                  ? taskWebUrl(task.id, context.webBaseUrl)
+                  : undefined;
                 return (
                   <li key={task.id} className="flex flex-col gap-2">
                     <TaskRow
@@ -255,7 +233,7 @@ export function TasksBoard({
                             app.openLink({ url }).catch(warn("ui/open-link"))
                           }
                         >
-                          {t("tasksBoard.open")}
+                          {t("task.open")}
                         </PrimaryButton>
                       </div>
                     )}
@@ -319,11 +297,11 @@ function TaskRow({
   context: ViewContext;
   onSelect: () => void;
 }) {
-  const assignee = assigneeName(task);
+  const assignee = partyName(task.assignee);
   const meta = [
     task.identifier,
     status,
-    task.dueOn && t("tasksBoard.due", { date: formatDay(task.dueOn, context) }),
+    task.dueOn && t("task.due", { date: formatDay(task.dueOn, context) }),
   ].filter(Boolean);
 
   return (
@@ -341,17 +319,7 @@ function TaskRow({
           </span>
         )}
       </span>
-      {assignee && (
-        <span
-          title={assignee}
-          className="border-border text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium"
-        >
-          <span aria-hidden="true">{initials(assignee)}</span>
-          <span className="sr-only">
-            {t("tasksBoard.assignee", { name: assignee })}
-          </span>
-        </span>
-      )}
+      {assignee && <AssigneeBadge name={assignee} />}
     </button>
   );
 }
