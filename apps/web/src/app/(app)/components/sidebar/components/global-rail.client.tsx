@@ -60,7 +60,7 @@ function RailControls({ mobile }: { mobile: boolean }) {
       className={cn(
         "bg-sidebar text-sidebar-foreground border-sidebar-border items-center gap-1",
         mobile
-          ? "flex shrink-0 justify-around border-b px-2 py-1 md:hidden"
+          ? "flex shrink-0 justify-around gap-0.5 border-b px-1 py-1 md:hidden"
           : "relative z-20 hidden h-dvh w-(--app-rail-width) shrink-0 flex-col border-e pt-3 md:flex",
       )}
     >
@@ -77,7 +77,7 @@ function RailControls({ mobile }: { mobile: boolean }) {
                 size="icon"
                 className={cn(
                   "relative h-12 min-w-0 flex-col gap-0.5 border border-transparent px-0.5 text-2xs",
-                  mobile ? "flex-1" : "w-14",
+                  mobile ? "w-auto min-w-11 flex-auto" : "w-16",
                   isActive &&
                     "bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border after:bg-current after:absolute after:inset-s-0 after:h-4 after:w-0.5 after:rounded-full",
                 )}
@@ -109,7 +109,12 @@ function RailControls({ mobile }: { mobile: boolean }) {
       })}
       {mobile ? (
         <SheetClose asChild>
-          <Button variant="ghost" size="icon" aria-label={sidebar("hide")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-11 shrink-0"
+            aria-label={sidebar("hide")}
+          >
             <X aria-hidden />
           </Button>
         </SheetClose>

@@ -44,7 +44,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             // Instant Nav.
             defaultOpen
             data-app-shell
-            className="flex max-w-svw overflow-clip [--app-rail-width:calc(var(--spacing)*16)]"
+            className="flex max-w-svw overflow-clip [--app-rail-width:calc(var(--spacing)*18)]"
           >
             {/* AuthenticatedAppFrame owns the session + workspace gate; the
               shell skeleton is the only fallback, so no blank frame. */}
