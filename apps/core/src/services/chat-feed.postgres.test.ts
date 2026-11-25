@@ -448,14 +448,20 @@ describe.runIf(enabled)("chat feed on PostgreSQL", () => {
   }
 
   it("drops a room the viewer leaves after the room list was read", async () => {
+    const where = { roomId_userId: { roomId: bobDirectId, userId: alice } };
+    const membership = await prisma.chatRoomUserMember.findUniqueOrThrow({
+      where,
+    });
     await expectDirectDroppedAfterRoomRead(
       () =>
         prisma.chatRoomUserMember.deleteMany({
           where: { roomId: bobDirectId, userId: alice },
         }),
       () =>
-        prisma.chatRoomUserMember.create({
-          data: { roomId: bobDirectId, userId: alice },
+        prisma.chatRoomUserMember.upsert({
+          where,
+          create: membership,
+          update: {},
         }),
     );
   });
