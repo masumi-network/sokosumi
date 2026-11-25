@@ -1,3 +1,5 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
+
 import prisma from "@/lib/db/prisma";
 import { sqlMessageAttentionAt } from "@/routes/v1/chats/rooms/room-unread";
 import {
@@ -27,29 +29,29 @@ function sqlFeedCandidate(userSql: string): string {
     AND r."archivedAt" IS NULL
     AND m."senderUserId" IS DISTINCT FROM ${userSql}
     AND EXISTS (
-      SELECT 1 FROM "chat_room_user_member" viewer
+      SELECT 1 FROM ${sharedTable("chat_room_user_member").sql} viewer
       WHERE viewer."roomId" = m."roomId" AND viewer."userId" = ${userSql}
         AND viewer."mutedAt" IS NULL)
     AND (
       (r.kind = 'direct' AND m."senderUserId" IS NOT NULL)
       OR EXISTS (
-        SELECT 1 FROM "chat_room_user_mention" mention
+        SELECT 1 FROM ${sharedTable("chat_room_user_mention").sql} mention
         WHERE mention."messageId" = m.id AND mention."userId" = ${userSql})
       OR EXISTS (
-        SELECT 1 FROM "chat_message_signal" s
+        SELECT 1 FROM ${sharedTable("chat_message_signal").sql} s
         WHERE s."messageId" = m.id AND s.state = 'tagged'
           AND ${sqlNeedsViewer(userSql)})
       OR (EXISTS (
-          SELECT 1 FROM "chat_room_mention" asked
-          INNER JOIN "chat_room_message" source ON source.id = asked."messageId"
+          SELECT 1 FROM ${sharedTable("chat_room_mention").sql} asked
+          INNER JOIN ${sharedTable("chat_room_message").sql} source ON source.id = asked."messageId"
           WHERE asked."responseMessageId" = m.id
             AND asked.status = 'responded'
             AND (source."senderUserId" = ${userSql}
               OR EXISTS (
-                SELECT 1 FROM "chat_room_user_mention" source_mention
+                SELECT 1 FROM ${sharedTable("chat_room_user_mention").sql} source_mention
                 WHERE source_mention."messageId" = source.id
                   AND source_mention."userId" = ${userSql})))
-        AND (SELECT COUNT(*) FROM "chat_room_user_member" member
+        AND (SELECT COUNT(*) FROM ${sharedTable("chat_room_user_member").sql} member
           WHERE member."roomId" = m."roomId") > 1)
     )`;
 }
@@ -73,8 +75,8 @@ export async function listChatFeed(
   const [rows, unread] = await Promise.all([
     prisma.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT m.id
-      FROM "chat_room_message" m
-      INNER JOIN "chat_room" r ON r.id = m."roomId"
+      FROM ${sharedTable("chat_room_message").sql} m
+      INNER JOIN ${sharedTable("chat_room").sql} r ON r.id = m."roomId"
       WHERE m."roomId" IN (${placeholders(n)})
         AND ${sqlFeedCandidate(user)}
         ${page.after ? `AND (m."createdAt", m.id) < ($${n + 3}, $${n + 4}::uuid)` : ""}
@@ -90,8 +92,8 @@ export async function listChatFeed(
     // answer read. Paging keeps `createdAt`, the message's place in time.
     prisma.$queryRawUnsafe<Array<{ count: number }>>(
       `SELECT COUNT(*)::int AS count
-      FROM "chat_room_message" m
-      INNER JOIN "chat_room" r ON r.id = m."roomId"
+      FROM ${sharedTable("chat_room_message").sql} m
+      INNER JOIN ${sharedTable("chat_room").sql} r ON r.id = m."roomId"
       ${sqlReadJoins(user)}
       WHERE m."roomId" IN (${placeholders(n)})
         AND ${sqlFeedCandidate(user)}

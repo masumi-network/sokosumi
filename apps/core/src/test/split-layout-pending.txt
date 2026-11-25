@@ -80,6 +80,7 @@ src/routes/v1/webhooks/polar-top-up.postgres.test.ts 17  # unqualified raw SQL; 
 src/routes/v1/webhooks/polar.postgres.test.ts 17  # unqualified raw SQL; its own client names public
 src/routes/v1/webhooks/polar.renewals.postgres.test.ts 17  # unqualified raw SQL; its own client names public
 src/schemas/default-coworker-chat-examples-migration.postgres.test.ts 17  # unqualified raw SQL
+src/services/chat-feed.postgres.test.ts 19  # trigger body
 src/services/chat-room-soko-bot-retry.postgres.test.ts 19  # trigger body
 src/services/chat-signal-effects.postgres.test.ts 19  # trigger body
 src/services/chat-signals.postgres.test.ts 19  # trigger body
