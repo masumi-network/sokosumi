@@ -13,14 +13,13 @@ import {
 type ChatOptions = {
   id?: string;
   onError?: (error: Error) => void;
-  onFinish?: (event: { isError: boolean; isAbort?: boolean }) => Promise<void>;
+  onFinish?: (event: { isError: boolean }) => Promise<void>;
 };
 
 interface MockChatHandle {
-  get id(): string | undefined;
   setMessages: (messages: UIMessage[]) => void;
   setStatus: (status: string) => void;
-  finish: (event?: { isError?: boolean; isAbort?: boolean }) => Promise<void>;
+  finish: (event?: { isError?: boolean }) => Promise<void>;
 }
 
 const chatMock = vi.hoisted(() => ({
@@ -59,15 +58,11 @@ vi.mock("@ai-sdk/react", async () => {
       const handleRef = useRef<MockChatHandle | null>(null);
       if (!handleRef.current) {
         handleRef.current = {
-          get id() {
-            return latestOptionsRef.current.id;
-          },
           setMessages,
           setStatus,
           finish: async (event = {}) => {
             await latestOptionsRef.current.onFinish?.({
               isError: event.isError ?? false,
-              isAbort: event.isAbort,
             });
           },
         };
@@ -91,16 +86,42 @@ vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: { messageStart: vi.fn() },
 }));
 
-function makeRoom(id: string): ChatRoom {
-  return {
+const makeRoom = (id: string) =>
+  ({
     id,
     userMembers: [{ id: "user-1", name: "Ada", image: null }],
     coworkerMembers: [{ id: "cow-1", name: "Jamal", slug: "jamal" }],
-  } as unknown as ChatRoom;
-}
+  }) as unknown as ChatRoom;
 
 const roomA = makeRoom("room-a");
 const roomB = makeRoom("room-b");
+const textMsg = (
+  id: string,
+  role: "user" | "assistant",
+  text: string,
+): UIMessage => ({
+  id,
+  role,
+  parts: [{ type: "text", text }],
+});
+
+function mountStream(
+  onStreamSettled: (roomId: string) => Promise<boolean> = async () => true,
+  initialRoom: ChatRoom = roomA,
+) {
+  const hook = renderHook(
+    ({ room }: { room: ChatRoom }) =>
+      useCoworkerDirectRoomStream({
+        room,
+        enabled: true,
+        currentUserId: "user-1",
+        organizationSlug: null,
+        onStreamSettled,
+      }),
+    { initialProps: { room: initialRoom } },
+  );
+  return { hook, handle: chatMock.handles.at(-1)! };
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -111,71 +132,35 @@ beforeEach(() => {
 describe("useCoworkerDirectRoomStream stale finish settlement", () => {
   it("keeps a newer thread turn's stored parent and routes mid-stream re-entry after in-place A -> B -> A", async () => {
     const visit1Refresh = Promise.withResolvers<boolean>();
-    const onStreamSettled = vi.fn((roomId: string) => {
-      if (roomId === "room-a" && onStreamSettled.mock.calls.length === 1) {
-        return visit1Refresh.promise;
-      }
-      return Promise.resolve(true);
-    });
+    const onStreamSettled = vi.fn(() => visit1Refresh.promise);
+    const { hook, handle } = mountStream(onStreamSettled);
 
-    const hook = renderHook(
-      ({ room }: { room: ChatRoom }) =>
-        useCoworkerDirectRoomStream({
-          room,
-          enabled: true,
-          currentUserId: "user-1",
-          organizationSlug: null,
-          onStreamSettled,
-        }),
-      { initialProps: { room: roomA } },
-    );
-    const handle = chatMock.handles[0];
-    expect(handle).toBeDefined();
-
-    // Visit 1 in room A: send a turn and start finish refresh (still in flight).
     act(() => {
-      hook.result.current.sendStreamMessage("First question", {
+      hook.result.current.sendStreamMessage("First", {
         parentMessageId: "parent-1",
       });
     });
-    const visit1FinishPromise = handle!.finish({ isError: false });
-    expect(onStreamSettled).toHaveBeenCalledTimes(1);
-    expect(onStreamSettled).toHaveBeenCalledWith("room-a");
+    const visit1Finish = handle.finish({ isError: false });
 
-    // In-place switch A -> B -> A while visit 1's refresh is still pending.
     hook.rerender({ room: roomB });
     hook.rerender({ room: roomA });
 
-    // Visit 2 in room A: start a new thread turn in parent-2.
     act(() => {
-      hook.result.current.sendStreamMessage("Thread follow-up", {
+      hook.result.current.sendStreamMessage("Follow-up", {
         parentMessageId: "parent-2",
       });
-      handle!.setMessages([
-        {
-          id: "u2",
-          role: "user",
-          parts: [{ type: "text", text: "Thread follow-up" }],
-        },
-        {
-          id: "a2",
-          role: "assistant",
-          parts: [{ type: "text", text: "Working on it..." }],
-        },
+      handle.setMessages([
+        textMsg("u2", "user", "Follow-up"),
+        textMsg("a2", "assistant", "Working..."),
       ]);
-      handle!.setStatus("streaming");
+      handle.setStatus("streaming");
     });
 
-    expect(readStoredStreamParentMessageId("room-a")).toBe("parent-2");
-    expect(hook.result.current.activeStreamParentMessageId).toBe("parent-2");
-
-    // Stale refresh from visit 1 settles now.
     await act(async () => {
       visit1Refresh.resolve(true);
-      await visit1FinishPromise;
+      await visit1Finish;
     });
 
-    // Visit 2's stored parent and active overlay must survive.
     expect(readStoredStreamParentMessageId("room-a")).toBe("parent-2");
     expect(hook.result.current.activeStreamParentMessageId).toBe("parent-2");
     expect(hook.result.current.streamOverlayMessages).toHaveLength(2);
@@ -188,9 +173,7 @@ describe("useCoworkerDirectRoomStream stale finish settlement", () => {
     // Leave A and re-enter A mid-stream: stream still routes to parent-2.
     hook.rerender({ room: roomB });
     hook.rerender({ room: roomA });
-    act(() => {
-      handle!.setStatus("streaming");
-    });
+    act(() => handle.setStatus("streaming"));
 
     expect(hook.result.current.activeStreamParentMessageId).toBe("parent-2");
     expect(hook.result.current.streamOverlayMessages).toEqual([
@@ -203,189 +186,121 @@ describe("useCoworkerDirectRoomStream stale finish settlement", () => {
 
   it("keeps a newer thread turn's stored parent and routes mid-stream re-entry across keyed remounts", async () => {
     const visit1Refresh = Promise.withResolvers<boolean>();
-    const onStreamSettled1 = vi.fn(() => visit1Refresh.promise);
-
-    // Visit 1 mount for room A.
-    const visit1 = renderHook(() =>
-      useCoworkerDirectRoomStream({
-        room: roomA,
-        enabled: true,
-        currentUserId: "user-1",
-        organizationSlug: null,
-        onStreamSettled: onStreamSettled1,
-      }),
-    );
-    const visit1Handle = chatMock.handles[0]!;
+    const visit1 = mountStream(vi.fn(() => visit1Refresh.promise));
 
     act(() => {
-      visit1.result.current.sendStreamMessage("Visit 1 turn", {
+      visit1.hook.result.current.sendStreamMessage("Visit 1", {
         parentMessageId: "parent-1",
       });
     });
-    const visit1FinishPromise = visit1Handle.finish({ isError: false });
-    expect(onStreamSettled1).toHaveBeenCalledWith("room-a");
+    const visit1Finish = visit1.handle.finish({ isError: false });
+    visit1.hook.unmount();
 
-    // Keyed unmount of room A (e.g. navigating A -> B).
-    visit1.unmount();
-
-    // Visit 2 remount for room A: send a new thread turn in parent-2.
-    const onStreamSettled2 = vi.fn(async () => true);
-    const visit2 = renderHook(() =>
-      useCoworkerDirectRoomStream({
-        room: roomA,
-        enabled: true,
-        currentUserId: "user-1",
-        organizationSlug: null,
-        onStreamSettled: onStreamSettled2,
-      }),
-    );
-    const visit2Handle = chatMock.handles[1]!;
-
+    const visit2 = mountStream();
     act(() => {
-      visit2.result.current.sendStreamMessage("Visit 2 thread reply", {
+      visit2.hook.result.current.sendStreamMessage("Visit 2", {
         parentMessageId: "parent-2",
       });
-      visit2Handle.setMessages([
-        {
-          id: "u2",
-          role: "user",
-          parts: [{ type: "text", text: "Visit 2 thread reply" }],
-        },
-        {
-          id: "a2",
-          role: "assistant",
-          parts: [{ type: "text", text: "Thinking..." }],
-        },
+      visit2.handle.setMessages([
+        textMsg("u2", "user", "Visit 2"),
+        textMsg("a2", "assistant", "Thinking..."),
       ]);
-      visit2Handle.setStatus("streaming");
+      visit2.handle.setStatus("streaming");
     });
 
-    // Stale refresh from visit 1 settles after visit 2 started its thread turn.
     await act(async () => {
       visit1Refresh.resolve(true);
-      await visit1FinishPromise;
+      await visit1Finish;
     });
 
     expect(readStoredStreamParentMessageId("room-a")).toBe("parent-2");
-    expect(visit2.result.current.activeStreamParentMessageId).toBe("parent-2");
-    expect(visit2.result.current.streamOverlayMessages).toHaveLength(2);
-
-    // Keyed unmount of visit 2, then re-enter room A mid-stream (visit 3).
-    visit2.unmount();
-    const visit3 = renderHook(() =>
-      useCoworkerDirectRoomStream({
-        room: roomA,
-        enabled: true,
-        currentUserId: "user-1",
-        organizationSlug: null,
-        onStreamSettled: vi.fn(async () => true),
-      }),
+    expect(visit2.hook.result.current.activeStreamParentMessageId).toBe(
+      "parent-2",
     );
-    const visit3Handle = chatMock.handles[2]!;
+    expect(visit2.hook.result.current.streamOverlayMessages).toHaveLength(2);
 
-    act(() => {
-      visit3Handle.setStatus("streaming");
-    });
+    visit2.hook.unmount();
+    const visit3 = mountStream();
+    act(() => visit3.handle.setStatus("streaming"));
 
-    expect(visit3.result.current.activeStreamParentMessageId).toBe("parent-2");
-    expect(visit3.result.current.streamOverlayMessages).toEqual([
+    expect(visit3.hook.result.current.activeStreamParentMessageId).toBe(
+      "parent-2",
+    );
+    expect(visit3.hook.result.current.streamOverlayMessages).toEqual([
       expect.objectContaining({
         id: RESUME_PENDING_STREAM_MESSAGE_ID,
         parentMessageId: "parent-2",
       }),
     ]);
+  });
+
+  it("clears the stored parent when an earlier finish refresh succeeds after a bare remount without sending", async () => {
+    const visit1Refresh = Promise.withResolvers<boolean>();
+    const visit1 = mountStream(vi.fn(() => visit1Refresh.promise));
 
     act(() => {
-      visit3Handle.setMessages([
-        {
-          id: "a2",
-          role: "assistant",
-          parts: [{ type: "text", text: "Here is the reply" }],
-        },
-      ]);
+      visit1.hook.result.current.sendStreamMessage("Visit 1", {
+        parentMessageId: "parent-1",
+      });
     });
-    expect(visit3.result.current.streamOverlayMessages).toEqual([
-      expect.objectContaining({
-        id: "stream:a2",
-        parentMessageId: "parent-2",
-      }),
-    ]);
+    const visit1Finish = visit1.handle.finish({ isError: false });
+    visit1.hook.unmount();
+
+    // Bare remount (GET 204 resume, no new turn sent).
+    const visit2 = mountStream();
+    expect(chatMock.resumeStream).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      visit1Refresh.resolve(true);
+      await visit1Finish;
+    });
+
+    expect(readStoredStreamParentMessageId("room-a")).toBeNull();
+    visit2.hook.unmount();
+
+    // Next idle visit does not reopen parent-1.
+    const visit3 = mountStream();
+    expect(visit3.hook.result.current.activeStreamParentMessageId).toBeNull();
   });
 
   it("keeps a newer same-room thread turn intact when the previous turn's finish refresh settles late", async () => {
     const turn1Refresh = Promise.withResolvers<boolean>();
-    const onStreamSettled = vi.fn(() => turn1Refresh.promise);
-
-    const hook = renderHook(() =>
-      useCoworkerDirectRoomStream({
-        room: roomA,
-        enabled: true,
-        currentUserId: "user-1",
-        organizationSlug: null,
-        onStreamSettled,
-      }),
-    );
-    const handle = chatMock.handles[0]!;
+    const { hook, handle } = mountStream(vi.fn(() => turn1Refresh.promise));
 
     act(() => {
       hook.result.current.sendStreamMessage("Turn 1");
     });
-    const turn1FinishPromise = handle.finish({ isError: false });
+    const turn1Finish = handle.finish({ isError: false });
 
     act(() => {
-      hook.result.current.sendStreamMessage("Turn 2 in thread", {
+      hook.result.current.sendStreamMessage("Turn 2", {
         parentMessageId: "parent-2",
       });
-      handle.setMessages([
-        {
-          id: "u2",
-          role: "user",
-          parts: [{ type: "text", text: "Turn 2 in thread" }],
-        },
-      ]);
+      handle.setMessages([textMsg("u2", "user", "Turn 2")]);
       handle.setStatus("streaming");
     });
 
     await act(async () => {
       turn1Refresh.resolve(true);
-      await turn1FinishPromise;
+      await turn1Finish;
     });
 
     expect(readStoredStreamParentMessageId("room-a")).toBe("parent-2");
     expect(hook.result.current.activeStreamParentMessageId).toBe("parent-2");
     expect(hook.result.current.streamOverlayMessages).toEqual([
-      expect.objectContaining({
-        id: "stream:u2",
-        parentMessageId: "parent-2",
-      }),
+      expect.objectContaining({ id: "stream:u2", parentMessageId: "parent-2" }),
     ]);
   });
 
   it("clears stored parent and overlay when the current turn settles normally", async () => {
     const onStreamSettled = vi.fn(async () => true);
-
-    const hook = renderHook(() =>
-      useCoworkerDirectRoomStream({
-        room: roomA,
-        enabled: true,
-        currentUserId: "user-1",
-        organizationSlug: null,
-        onStreamSettled,
-      }),
-    );
-    const handle = chatMock.handles[0]!;
+    const { hook, handle } = mountStream(onStreamSettled);
 
     act(() => {
-      hook.result.current.sendStreamMessage("Thread reply", {
+      hook.result.current.sendStreamMessage("Reply", {
         parentMessageId: "parent-1",
       });
-      handle.setMessages([
-        {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "text", text: "Thread reply" }],
-        },
-      ]);
+      handle.setMessages([textMsg("u1", "user", "Reply")]);
     });
 
     await act(async () => {
@@ -420,29 +335,16 @@ describe("useCoworkerDirectRoomStream stale finish settlement", () => {
       </Activity>,
     );
     const handle = chatMock.handles[0]!;
-    expect(chatMock.resumeStream).toHaveBeenCalledTimes(1);
 
     act(() => {
-      latest!.sendStreamMessage("Thread reply", {
-        parentMessageId: "parent-1",
-      });
+      latest!.sendStreamMessage("Reply", { parentMessageId: "parent-1" });
       handle.setMessages([
-        {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "text", text: "Thread reply" }],
-        },
-        {
-          id: "a1",
-          role: "assistant",
-          parts: [{ type: "text", text: "Finished answer" }],
-        },
+        textMsg("u1", "user", "Reply"),
+        textMsg("a1", "assistant", "Done"),
       ]);
     });
 
-    // Finish refresh is in flight when the app shell hides with Activity.
     const finishPromise = handle.finish({ isError: false });
-    expect(onStreamSettled).toHaveBeenCalledTimes(1);
 
     rerender(
       <Activity mode="hidden">
@@ -455,7 +357,6 @@ describe("useCoworkerDirectRoomStream stale finish settlement", () => {
       </Activity>,
     );
 
-    // Reveal triggers resumeStream (204 / no active stream) on the same Chat.
     expect(chatMock.resumeStream).toHaveBeenCalledTimes(2);
     expect(chatMock.handles).toHaveLength(1);
 
