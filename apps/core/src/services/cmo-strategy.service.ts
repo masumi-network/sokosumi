@@ -10,6 +10,7 @@ import {
   type CmoPlanQuestion,
   type CmoStrategySave,
   type CmoStrategySavePart,
+  cmoReadsOnDemand,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
@@ -480,6 +481,38 @@ export async function startCmoPlanAfterResearch(
  * The owner's words a turn carries: their chat message, or the request a
  * strategy change was started with. Null for Cuso's own runs.
  */
+/**
+ * Whether a bot turn worked from an organized context (cmo-v23) without the
+ * calendar window a strategy turn sees: its whole-calendar save then keeps
+ * every entry it did not send, since it may never have read them.
+ */
+export async function cmoTurnSawNoCalendar(turnId: string): Promise<boolean> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { versionId: true, clientTurnId: true, source: true },
+  });
+  if (!turn || !cmoReadsOnDemand(getSokoBotVersion(turn.versionId).skills))
+    return false;
+  return (
+    !turn.clientTurnId.startsWith(STRATEGY_TURN_PREFIX) &&
+    !(await isMonthlyStrategyRhythm(turn))
+  );
+}
+
+async function isMonthlyStrategyRhythm(turn: {
+  source: string;
+  clientTurnId: string;
+}): Promise<boolean> {
+  if (turn.source !== "SCHEDULE") return false;
+  const scheduleId = /^schedule:([0-9a-f-]{36}):/.exec(turn.clientTurnId)?.[1];
+  if (!scheduleId) return false;
+  const schedule = await prisma.sokoBotSchedule.findUnique({
+    where: { id: scheduleId },
+    select: { systemKey: true },
+  });
+  return schedule?.systemKey === "cmo-monthly-strategy";
+}
+
 export async function cmoOwnerRequest(turnId: string): Promise<string | null> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },
@@ -1259,22 +1292,26 @@ export function calendarBounds(
  * the same day and channel, still wins. Owner saves pass no turn id and replace
  * the calendar outright.
  */
-function withHiddenCalendar(
+async function withHiddenCalendar(
   previous: MarketingStrategyPlan["calendar"],
   incoming: MarketingStrategyPlan["calendar"],
   now: Date,
-): MarketingStrategyPlan["calendar"] {
+  /** Whether the turn saw no calendar window: then it keeps every entry it did not send. */
+  sawNone: () => Promise<boolean>,
+): Promise<MarketingStrategyPlan["calendar"]> {
   const { from, to } = calendarBounds(now, CMO_VISIBLE_CALENDAR_DAYS);
   const seen = new Set(incoming.map((entry) => entry.id));
   const covered = new Set(
     incoming.map((entry) => `${entry.date}\0${entry.channel}`),
   );
-  const hidden = previous.filter(
+  const unsent = previous.filter(
     (entry) =>
-      !seen.has(entry.id) &&
-      (entry.date < from || entry.date > to) &&
-      !covered.has(`${entry.date}\0${entry.channel}`),
+      !seen.has(entry.id) && !covered.has(`${entry.date}\0${entry.channel}`),
   );
+  const inWindow = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    entry.date >= from && entry.date <= to;
+  const keepAll = unsent.some(inWindow) && (await sawNone());
+  const hidden = unsent.filter((entry) => keepAll || !inWindow(entry));
   if (hidden.length === 0) return incoming;
   return [...incoming, ...hidden].sort((left, right) =>
     left.date === right.date
@@ -1703,10 +1740,12 @@ export async function saveCmoStrategy(
     const merged = previous
       ? {
           ...parsed,
-          calendar: withHiddenCalendar(
+          calendar: await withHiddenCalendar(
             previous.calendar,
             keepCalendarWork(previous.calendar, parsed.calendar),
             options.now ?? new Date(),
+            async () =>
+              options.turnId ? cmoTurnSawNoCalendar(options.turnId) : false,
           ),
         }
       : parsed;
