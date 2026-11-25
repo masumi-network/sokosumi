@@ -370,12 +370,15 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   projects_close_status: { id: "p-1" },
   projects_close: {
     id: "p-1",
-    body: { operationId: "op-1", expectedProjectRevision: 3 },
+    body: {
+      operationId: "00000000-0000-4000-8000-00000000c101",
+      expectedProjectRevision: 3,
+    },
   },
   projects_retry_close: {
     id: "p-1",
     body: {
-      operationId: "op-2",
+      operationId: "00000000-0000-4000-8000-00000000c102",
       expectedProjectRevision: 3,
       reason: "Provider was down",
     },
@@ -383,7 +386,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   projects_cancel_owed: {
     id: "p-1",
     body: {
-      operationId: "op-3",
+      operationId: "00000000-0000-4000-8000-00000000c103",
       expectedProjectRevision: 3,
       reason: "Not needed",
     },

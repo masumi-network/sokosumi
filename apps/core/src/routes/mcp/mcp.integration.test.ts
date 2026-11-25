@@ -181,10 +181,13 @@ describe("Sokosumi MCP server", () => {
     expect(warned.map((tool) => tool.name)).toEqual(spending);
     for (const tool of warned) {
       expect(tool.description).toMatch(/^Spends workspace credits\./);
-      // A PUT that spends (projects_competitor_checks) stays idempotent.
-      expect(tool.annotations).toMatchObject({
+      const operation =
+        MCP_TOOLS.find(({ name }) => name === tool.name)?.operation ?? "";
+      expect(tool.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
+        // A spending PUT (projects_competitor_checks) is safe to repeat.
+        idempotentHint: operation.startsWith("PUT "),
         openWorldHint: true,
       });
     }

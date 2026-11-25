@@ -1339,26 +1339,26 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "projects_close_status",
     operation: "GET /projects/{id}/close",
     description:
-      "Read a Project's close status, its current `revision` and any failed or owed work.",
+      "Read a Project's close status: state, `projectRevision`, and any failure or owed work. 404 until a close has started.",
   },
   {
     name: "projects_close",
     operation: "POST /projects/{id}/close",
     description:
-      "Close a Project. `body.expectedProjectRevision` comes from projects_close_status; `body.operationId` is a fresh id you choose, so a retry never closes twice. Confirm with the person first.",
+      "Close a Project. `body.expectedProjectRevision` is the Project's `projectRevision` from projects_get; `body.operationId` is a fresh UUID you choose, so a retry never closes twice. Confirm with the person first.",
     destructive: true,
   },
   {
     name: "projects_retry_close",
     operation: "POST /projects/{id}/close/retry",
     description:
-      "Retry a failed close with a new `body.operationId`, the current `body.expectedProjectRevision` and a `body.reason`.",
+      "Retry a failed close with a new `body.operationId` (a UUID), `body.expectedProjectRevision` (`projectRevision` from projects_close_status) and a `body.reason`.",
   },
   {
     name: "projects_cancel_owed",
     operation: "POST /projects/{id}/close/cancel-owed",
     description:
-      "Cancel the owed work of a failed close and carry on closing. The owed work does not run. Confirm with the person first.",
+      "Cancel the owed work of a failed close and carry on closing; the owed work never runs. Send a new `body.operationId` (a UUID), `body.expectedProjectRevision` (`projectRevision` from projects_close_status) and a `body.reason`. Confirm with the person first.",
     destructive: true,
   },
   {
@@ -1544,7 +1544,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "newsletter_remove_sending_domain",
     operation: "DELETE /projects/{id}/newsletter/sending-domain",
     description:
-      "Remove a Project's newsletter sending domain. The newsletter sends from the default domain until a new one is verified. Confirm with the person first.",
+      "Remove a Project's newsletter sending domain. Until a new one is verified, issues send from the shared Sokosumi sender where one is configured, and are refused otherwise. Confirm with the person first.",
   },
   {
     name: "newsletter_check_sending_domain",

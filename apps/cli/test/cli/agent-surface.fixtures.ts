@@ -1349,7 +1349,7 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "close",
       "p-1",
       "--input-json",
-      '{"operationId":"op-1","expectedProjectRevision":3}',
+      '{"operationId":"00000000-0000-4000-8000-00000000c101","expectedProjectRevision":3}',
     ],
   },
   "POST /projects/{id}/close/retry": {
@@ -1359,7 +1359,7 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "retry-close",
       "p-1",
       "--input-json",
-      '{"operationId":"op-2","expectedProjectRevision":3,"reason":"Provider was down"}',
+      '{"operationId":"00000000-0000-4000-8000-00000000c102","expectedProjectRevision":3,"reason":"Provider was down"}',
     ],
   },
   "POST /projects/{id}/close/cancel-owed": {
@@ -1369,7 +1369,7 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "cancel-owed",
       "p-1",
       "--input-json",
-      '{"operationId":"op-3","expectedProjectRevision":3,"reason":"Not needed"}',
+      '{"operationId":"00000000-0000-4000-8000-00000000c103","expectedProjectRevision":3,"reason":"Not needed"}',
     ],
   },
   "GET /projects/{id}/brand-brain": {
