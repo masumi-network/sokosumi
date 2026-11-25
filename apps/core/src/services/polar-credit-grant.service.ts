@@ -1,4 +1,5 @@
 import type { CreditBucketReferenceType, Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { isCreditBucketReferenceUniqueConstraintError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -98,7 +99,7 @@ async function isOrderRefunded(
 ): Promise<boolean> {
   const polarOrderId = referenceId.slice(0, referenceId.lastIndexOf(":"));
   const rows = await tx.$queryRaw<{ refundedAt: Date | null }[]>`
-    INSERT INTO "polar_order" ("polarOrderId") VALUES (${polarOrderId})
+    INSERT INTO ${sharedTable("polar_order")} ("polarOrderId") VALUES (${polarOrderId})
     ON CONFLICT ("polarOrderId") DO UPDATE SET "polarOrderId" = EXCLUDED."polarOrderId"
     RETURNING "refundedAt"`;
   return Boolean(rows[0]?.refundedAt);
@@ -122,11 +123,11 @@ async function lockLiveSubscription(
   const rows =
     "subscriptionRowId" in subscription
       ? await tx.$queryRaw<LockedSubscription[]>`
-          UPDATE "polar_subscription" SET "updatedAt" = "updatedAt"
+          UPDATE ${sharedTable("polar_subscription")} SET "updatedAt" = "updatedAt"
           WHERE "id" = ${subscription.subscriptionRowId}::uuid
           RETURNING "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"`
       : await tx.$queryRaw<LockedSubscription[]>`
-          UPDATE "polar_subscription" SET "updatedAt" = "updatedAt"
+          UPDATE ${sharedTable("polar_subscription")} SET "updatedAt" = "updatedAt"
           WHERE "projectId" = ${subscription.projectId}::uuid AND "endedAt" IS NULL
           RETURNING "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"`;
   const row = rows[0];

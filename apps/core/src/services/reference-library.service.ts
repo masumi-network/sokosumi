@@ -6,6 +6,7 @@
  * style with the brand's own logo, colours and DESIGN.md.
  */
 
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import type { REFERENCE_KINDS, REFERENCE_PURPOSES } from "@sokosumi/soko-bot";
 import { get } from "@vercel/blob";
 import { getEnv } from "@/config/env";
@@ -84,7 +85,7 @@ export async function findStyleReferences(
   return prisma.$queryRaw<StyleReference[]>`
     SELECT "id"::text AS id, "kind", "era", "description", "technique",
       "layout", "lettering", "palette", "suits"
-    FROM "reference_image"
+    FROM ${sharedTable("reference_image")}
     WHERE "embedding" IS NOT NULL
       AND "usable" >= ${MIN_USABLE}
       AND "textAmount" <> 'lots'

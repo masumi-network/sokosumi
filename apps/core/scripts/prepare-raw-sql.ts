@@ -20,6 +20,7 @@ const SOURCE_PATHS = [
   "packages/database/src",
   "apps/core/src/helpers",
   "apps/core/src/routes/v1",
+  "apps/core/src/services",
   "apps/core/src/lib",
   "apps/core/src/types",
 ];

@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { conflict } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -535,7 +536,7 @@ async function changeScheduleRun(
   }
   const mutate = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`
-      SELECT "id" FROM "soko_bot_schedule"
+      SELECT "id" FROM ${sharedTable("soko_bot_schedule")}
       WHERE "id" = ${schedule.id}::uuid
       FOR UPDATE
     `;

@@ -10,6 +10,7 @@
  * idempotent by `sourceRef`, so reading a page twice adds nothing.
  */
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
   SOKO_BOT_X_CAPTURE_TOOLS,
@@ -1804,7 +1805,7 @@ async function recordXFollowerCounts(
   });
   if (counted.length === 0) return;
   await prisma.$executeRaw`
-    UPDATE "contact_channel" ch
+    UPDATE ${sharedTable("contact_channel")} ch
     SET "followers" = v.count
     FROM unnest(${counted.map((c) => c.handle)}::text[], ${counted.map((c) => c.count)}::int[]) AS v(handle, count)
     WHERE ch."workspaceId" = ${workspaceId}::uuid

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { redactSokoBotSensitiveText } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
@@ -302,7 +303,7 @@ export class SokoBotSchedulesSyncService {
         // Same lock a Calendar run change takes before it writes, so the
         // walk below sees every run moved or skipped up to this claim.
         await tx.$queryRaw`
-          SELECT "id" FROM "soko_bot_schedule"
+          SELECT "id" FROM ${sharedTable("soko_bot_schedule")}
           WHERE "id" = ${due.id}::uuid
           FOR UPDATE
         `;

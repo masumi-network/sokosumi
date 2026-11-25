@@ -1,4 +1,5 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
@@ -1133,7 +1134,7 @@ async function alertCmoMonthBelowFloor(
 ): Promise<void> {
   if (!status.floor || status.floor.made >= status.floor.promised) return;
   const alerted = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${versionId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM ${sharedTable("marketing_strategy")} WHERE id = ${versionId}::uuid FOR UPDATE`;
     const version = await tx.marketingStrategy.findUnique({
       where: { id: versionId },
       select: { plan: true },

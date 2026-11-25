@@ -5,6 +5,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
@@ -595,7 +596,7 @@ export async function handlePolarOrderRefunded(
   await serializableTransaction(async (tx) => {
     // The row every grant of this order writes first (`grantPolarCredits`).
     await tx.$executeRaw`
-      INSERT INTO "polar_order" ("polarOrderId", "refundedAt")
+      INSERT INTO ${sharedTable("polar_order")} ("polarOrderId", "refundedAt")
       VALUES (${order.id}, ${new Date(event.timestamp)})
       ON CONFLICT ("polarOrderId") DO UPDATE
       SET "refundedAt" = COALESCE("polar_order"."refundedAt", EXCLUDED."refundedAt")`;

@@ -1,3 +1,4 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
@@ -100,7 +101,7 @@ export async function executeTool(
     existing = await serializableTransaction(async (tx) => {
       await tx.$queryRaw`
           SELECT "id"
-          FROM "soko_bot_turn"
+          FROM ${sharedTable("soko_bot_turn")}
           WHERE "id" = ${input.turnId}::uuid
           FOR UPDATE
         `;

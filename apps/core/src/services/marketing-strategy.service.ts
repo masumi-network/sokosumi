@@ -3,6 +3,7 @@ import {
   type Prisma,
   type SocialPostStatus,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type CmoBrandAnswer,
   type CmoCalendarEntry,
@@ -267,7 +268,7 @@ export async function approveMarketingStrategy(
   }
   return prisma.$transaction(async (tx) => {
     // One approval at a time per Project, so two never race the unique index.
-    await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${input.projectId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${input.projectId}::uuid FOR UPDATE`;
     const version = await tx.marketingStrategy.findFirst({
       where: { id: input.strategyId, projectId: input.projectId },
     });
@@ -1027,7 +1028,7 @@ export async function answerMarketingStrategyQuestion(input: {
   note?: string;
 }): Promise<MarketingStrategy> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT 1 FROM marketing_strategy WHERE id = ${input.strategyId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM ${sharedTable("marketing_strategy")} WHERE id = ${input.strategyId}::uuid FOR UPDATE`;
     const version = await tx.marketingStrategy.findFirst({
       where: { id: input.strategyId, projectId: input.projectId },
     });

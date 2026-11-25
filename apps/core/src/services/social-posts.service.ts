@@ -3,6 +3,7 @@ import type {
   ProjectSocialConnection,
   SocialPostStatus,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   LINKEDIN_HOOK_RULE,
   type SocialPostPlanning,
@@ -543,7 +544,7 @@ async function nearPostId(
   const tail = input.postId.match(/-([0-9a-f]{12})$/i)?.[1]?.toLowerCase();
   if (!tail) return null;
   const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT id::text AS id FROM social_post
+    SELECT id::text AS id FROM ${sharedTable("social_post")}
     WHERE "projectId" = ${input.projectId}::uuid
       AND "workspaceId" = ${input.workspaceId}::uuid
       AND id::text LIKE ${`%-${tail}`}
@@ -791,7 +792,7 @@ export async function linkedInOpeningProblem(
   const [{ refused } = { refused: 0 }] = await prisma.$queryRaw<
     { refused: number }[]
   >`
-    SELECT count(*)::int AS refused FROM "soko_bot_tool_call"
+    SELECT count(*)::int AS refused FROM ${sharedTable("soko_bot_tool_call")}
     WHERE "capability" = 'update_social_post' AND "status" = 'FAILED'
       AND "input"->>'postId' = ${input.postId}
       AND "errorDetail" LIKE ${`%${OPENING_REFUSAL}%`}
