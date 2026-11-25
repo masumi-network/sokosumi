@@ -39,13 +39,13 @@ export const VERCEL_PROJECTS = {
     // CMO has no preprod project; it signs in against mainnet Core only.
     cmo: {
       id: "prj_xtwf8SX1HCG9xfjBiNZ3JmOTlqsN",
-      name: "sokosumi-cmo",
+      name: "cmo-app",
     },
     // The CMO.XYZ website is static and talks to no network; it rides along
     // with CMO on mainnet.
     "cmo-website": {
       id: "prj_EC4gIS0vwLaFoOKZwP6y4ew6nACW",
-      name: "cmo-xyz",
+      name: "cmo-website",
     },
   },
   preprod: {
@@ -517,6 +517,16 @@ export function previewUrl(deployment) {
 }
 
 /**
+ * Old Vercel project names, so a row written before a rename is replaced by
+ * its project's next deploy, not kept beside it.
+ * shortcut: drop once no open fork PR has a comment from before 2026-11-25.
+ */
+const RENAMED_PROJECTS = {
+  "sokosumi-cmo": "cmo-app",
+  "cmo-xyz": "cmo-website",
+};
+
+/**
  * The fork preview comment: one row per Vercel project, the newest deploy
  * replacing that project's row in `previous` (the comment's current body).
  */
@@ -525,7 +535,7 @@ export function forkPreviewCommentBody(deployments, sha, previous = "") {
   for (const line of previous.split("\n")) {
     const name = line.match(/^\| `([^`|]+)` \|/)?.[1];
     if (name) {
-      rows.set(name, line);
+      rows.set(RENAMED_PROJECTS[name] ?? name, line);
     }
   }
   for (const deployment of deployments) {

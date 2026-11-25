@@ -7,11 +7,13 @@ Collecting email addresses responsibly with validation, verification, and proper
 ### Client-Side
 
 **HTML5:**
+
 ```html
 <input type="email" required>
 ```
 
 **Best practices:**
+
 - Validate on blur or with short debounce
 - Show clear error messages
 - Don't be too strict (allow unusual but valid formats)
@@ -22,6 +24,7 @@ Collecting email addresses responsibly with validation, verification, and proper
 Always validate server-side—client-side can be bypassed.
 
 **Check:**
+
 - Email format (RFC 5322)
 - Domain exists (DNS lookup)
 - Domain has MX records
@@ -45,12 +48,12 @@ Confirms address belongs to user and is deliverable.
 
 ### Single vs Double Opt-In
 
-| | Single Opt-In | Double Opt-In |
-|--|---------------|---------------|
-| **Process** | Add to list immediately | Require email confirmation first |
-| **Pros** | Lower friction, faster growth | Verified addresses, better engagement, meets GDPR/CASL |
-| **Cons** | Higher invalid rate, lower engagement | Some users don't confirm |
-| **Use for** | Account creation, transactional | Marketing lists, newsletters |
+|             | Single Opt-In                         | Double Opt-In                                          |
+| ----------- | ------------------------------------- | ------------------------------------------------------ |
+| **Process** | Add to list immediately               | Require email confirmation first                       |
+| **Pros**    | Lower friction, faster growth         | Verified addresses, better engagement, meets GDPR/CASL |
+| **Cons**    | Higher invalid rate, lower engagement | Some users don't confirm                               |
+| **Use for** | Account creation, transactional       | Marketing lists, newsletters                           |
 
 **Recommendation:** Double opt-in for all marketing emails.
 
@@ -108,6 +111,7 @@ Confirms address belongs to user and is deliverable.
 ## Verification Emails
 
 **Content:**
+
 - Clear purpose ("Verify your email address")
 - Prominent verification button
 - Expiration time
@@ -116,6 +120,7 @@ Confirms address belongs to user and is deliverable.
 - Don't include OTP/2FA codes in subject line or preview text as it discourages opens
 
 **Design:**
+
 - Mobile-friendly
 - Large, tappable button
 - Clear call-to-action

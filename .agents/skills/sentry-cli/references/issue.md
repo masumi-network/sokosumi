@@ -17,11 +17,12 @@ List issues in a project
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all projects), &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-q, --query <value> - Search query (Sentry syntax, implicit AND; same-key OR becomes an in-list)`
 - `-n, --limit <value> - Maximum number of issues to list - (default: "25")`
 - `-s, --sort <value> - Sort by: recommended, date, new, freq, user (default: recommended on sentry.io, else date)`
@@ -32,27 +33,27 @@ List issues in a project
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Numeric issue ID |
-| `shortId` | string | Human-readable short ID (e.g. PROJ-ABC) |
-| `title` | string | Issue title |
-| `culprit` | string \| null | Function or module where the issue occurs |
-| `count` | string | Total number of events in the issue |
-| `userCount` | number | Number of users affected by the issue |
-| `firstSeen` | string \| null | When the issue was first seen (ISO 8601) |
-| `lastSeen` | string \| null | When the issue was last seen (ISO 8601) |
-| `level` | string | Severity level of the issue |
-| `status` | string | Issue status |
-| `permalink` | string | URL of the issue in Sentry |
-| `project` | object | Project the issue belongs to |
-| `metadata` | object | Issue metadata |
-| `assignedTo` | object \| null | User or team the issue is assigned to |
-| `priority` | string | Triage priority |
-| `platform` | string | Platform |
-| `substatus` | string \| null | Issue substatus |
-| `isUnhandled` | boolean | Whether the issue is unhandled |
-| `seerFixabilityScore` | number \| null | Seer AI fixability score (0-1) |
+| Field                 | Type           | Description                               |
+| --------------------- | -------------- | ----------------------------------------- |
+| `id`                  | string         | Numeric issue ID                          |
+| `shortId`             | string         | Human-readable short ID (e.g. PROJ-ABC)   |
+| `title`               | string         | Issue title                               |
+| `culprit`             | string \| null | Function or module where the issue occurs |
+| `count`               | string         | Total number of events in the issue       |
+| `userCount`           | number         | Number of users affected by the issue     |
+| `firstSeen`           | string \| null | When the issue was first seen (ISO 8601)  |
+| `lastSeen`            | string \| null | When the issue was last seen (ISO 8601)   |
+| `level`               | string         | Severity level of the issue               |
+| `status`              | string         | Issue status                              |
+| `permalink`           | string         | URL of the issue in Sentry                |
+| `project`             | object         | Project the issue belongs to              |
+| `metadata`            | object         | Issue metadata                            |
+| `assignedTo`          | object \| null | User or team the issue is assigned to     |
+| `priority`            | string         | Triage priority                           |
+| `platform`            | string         | Platform                                  |
+| `substatus`           | string \| null | Issue substatus                           |
+| `isUnhandled`         | boolean        | Whether the issue is unhandled            |
+| `seerFixabilityScore` | number \| null | Seer AI fixability score (0-1)            |
 
 **Examples:**
 
@@ -97,11 +98,12 @@ List events for a specific issue
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of events (1-1000) - (default: "25")`
 - `-q, --query <value> - Search query (Sentry search syntax)`
 - `--full - Include full event body (stacktraces)`
@@ -111,23 +113,23 @@ List events for a specific issue
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Internal event ID |
-| `event.type` | string | Event type (error, default, transaction) |
-| `groupID` | string \| null | ID of the issue the event belongs to |
-| `eventID` | string | UUID-format event ID |
-| `projectID` | string | ID of the project the event belongs to |
-| `message` | string | Event message |
-| `title` | string | Event title |
-| `location` | string \| null | Source location of the event, such as a file and line |
-| `culprit` | string \| null | Function or module that caused the event |
-| `user` | object \| null | User context of the event |
-| `tags` | array | Tags attached to the event |
-| `platform` | string \| null | Platform of the event, such as python or javascript |
-| `dateCreated` | string | When the event occurred (ISO 8601) |
-| `crashFile` | string \| null | Crash report attachment of the event, if any |
-| `metadata` | object | Event metadata |
+| Field         | Type           | Description                                           |
+| ------------- | -------------- | ----------------------------------------------------- |
+| `id`          | string         | Internal event ID                                     |
+| `event.type`  | string         | Event type (error, default, transaction)              |
+| `groupID`     | string \| null | ID of the issue the event belongs to                  |
+| `eventID`     | string         | UUID-format event ID                                  |
+| `projectID`   | string         | ID of the project the event belongs to                |
+| `message`     | string         | Event message                                         |
+| `title`       | string         | Event title                                           |
+| `location`    | string \| null | Source location of the event, such as a file and line |
+| `culprit`     | string \| null | Function or module that caused the event              |
+| `user`        | object \| null | User context of the event                             |
+| `tags`        | array          | Tags attached to the event                            |
+| `platform`    | string \| null | Platform of the event, such as python or javascript   |
+| `dateCreated` | string         | When the event occurred (ISO 8601)                    |
+| `crashFile`   | string \| null | Crash report attachment of the event, if any          |
+| `metadata`    | object         | Event metadata                                        |
 
 **Examples:**
 
@@ -160,24 +162,25 @@ Show the top values of an issue tag
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
-| `<key>` | Tag key, e.g. release, server_name, browser.name |
+| `<key>`   | Tag key, e.g. release, server_name, browser.name                                                                      |
 
 **Flags:**
+
 - `-e, --environment <value> - Filter to one environment (default: all environments)`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `uniqueValues` | number \| null | Number of distinct values seen for the tag key |
-| `totalValues` | number \| null | Total retained events, including missing tag values; not a lifetime count |
-| `topValues` | array \| null | Up to 9 values ordered by count, with nullable counts and first/last seen timestamps |
-| `key` | string | Tag key, with the `sentry:` prefix removed from built-in keys |
-| `name` | string | Display label of the tag key |
+| Field          | Type           | Description                                                                          |
+| -------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `uniqueValues` | number \| null | Number of distinct values seen for the tag key                                       |
+| `totalValues`  | number \| null | Total retained events, including missing tag values; not a lifetime count            |
+| `topValues`    | array \| null  | Up to 9 values ordered by count, with nullable counts and first/last seen timestamps |
+| `key`          | string         | Tag key, with the `sentry:` prefix removed from built-in keys                        |
+| `name`         | string         | Display label of the tag key                                                         |
 
 **Examples:**
 
@@ -201,11 +204,12 @@ Analyze one or more issues using Seer AI
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description           |
+| ------------ | --------------------- |
 | `<issue...>` | One or more issue IDs |
 
 **Flags:**
+
 - `--force - Force new analysis even if one exists`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
@@ -240,11 +244,12 @@ Generate a solution plan using Seer AI
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
 
 **Flags:**
+
 - `--force - Force new plan even if one exists`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
@@ -270,11 +275,12 @@ View details of one or more issues
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description           |
+| ------------ | --------------------- |
 | `<issue...>` | One or more issue IDs |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `--force - Allow --web to open more than 5 issues`
 - `--spans <value> - Span tree depth limit (number, "all" for unlimited, "no" to disable) - (default: "3")`
@@ -282,31 +288,31 @@ View details of one or more issues
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Numeric issue ID |
-| `shortId` | string | Human-readable short ID (e.g. PROJ-ABC) |
-| `title` | string | Issue title |
-| `culprit` | string \| null | Function or module where the issue occurs |
-| `count` | string | Total number of events in the issue |
-| `userCount` | number | Number of users affected by the issue |
-| `firstSeen` | string \| null | When the issue was first seen (ISO 8601) |
-| `lastSeen` | string \| null | When the issue was last seen (ISO 8601) |
-| `level` | string | Severity level of the issue |
-| `status` | string | Issue status |
-| `permalink` | string | URL of the issue in Sentry |
-| `project` | object | Project the issue belongs to |
-| `metadata` | object | Issue metadata |
-| `assignedTo` | object \| null | User or team the issue is assigned to |
-| `priority` | string | Triage priority |
-| `platform` | string | Platform |
-| `substatus` | string \| null | Issue substatus |
-| `isUnhandled` | boolean | Whether the issue is unhandled |
-| `seerFixabilityScore` | number \| null | Seer AI fixability score (0-1) |
-| `event` | unknown \| null | Latest event for the issue (full detail). Select named fields with `--fields event.id,event.title` to avoid pulling the whole payload; the `request` entry may include live session data. |
-| `org` | string \| null | Organization slug |
-| `replayIds` | array | Related Session Replay IDs |
-| `trace` | object \| null | Trace context from the latest event's span tree |
+| Field                 | Type            | Description                                                                                                                                                                               |
+| --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                  | string          | Numeric issue ID                                                                                                                                                                          |
+| `shortId`             | string          | Human-readable short ID (e.g. PROJ-ABC)                                                                                                                                                   |
+| `title`               | string          | Issue title                                                                                                                                                                               |
+| `culprit`             | string \| null  | Function or module where the issue occurs                                                                                                                                                 |
+| `count`               | string          | Total number of events in the issue                                                                                                                                                       |
+| `userCount`           | number          | Number of users affected by the issue                                                                                                                                                     |
+| `firstSeen`           | string \| null  | When the issue was first seen (ISO 8601)                                                                                                                                                  |
+| `lastSeen`            | string \| null  | When the issue was last seen (ISO 8601)                                                                                                                                                   |
+| `level`               | string          | Severity level of the issue                                                                                                                                                               |
+| `status`              | string          | Issue status                                                                                                                                                                              |
+| `permalink`           | string          | URL of the issue in Sentry                                                                                                                                                                |
+| `project`             | object          | Project the issue belongs to                                                                                                                                                              |
+| `metadata`            | object          | Issue metadata                                                                                                                                                                            |
+| `assignedTo`          | object \| null  | User or team the issue is assigned to                                                                                                                                                     |
+| `priority`            | string          | Triage priority                                                                                                                                                                           |
+| `platform`            | string          | Platform                                                                                                                                                                                  |
+| `substatus`           | string \| null  | Issue substatus                                                                                                                                                                           |
+| `isUnhandled`         | boolean         | Whether the issue is unhandled                                                                                                                                                            |
+| `seerFixabilityScore` | number \| null  | Seer AI fixability score (0-1)                                                                                                                                                            |
+| `event`               | unknown \| null | Latest event for the issue (full detail). Select named fields with `--fields event.id,event.title` to avoid pulling the whole payload; the `request` entry may include live session data. |
+| `org`                 | string \| null  | Organization slug                                                                                                                                                                         |
+| `replayIds`           | array           | Related Session Replay IDs                                                                                                                                                                |
+| `trace`               | object \| null  | Trace context from the latest event's span tree                                                                                                                                           |
 
 **Examples:**
 
@@ -354,11 +360,12 @@ Mark an issue as resolved
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
 
 **Flags:**
+
 - `-i, --in <value> - Resolve in a release, next release, or commit ('<version>' | '@next' | '@commit' | '@commit:<repo>@<sha>')`
 
 **Examples:**
@@ -392,8 +399,8 @@ Reopen a resolved issue
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
 
 **Examples:**
@@ -415,11 +422,12 @@ Archive (ignore) an issue
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
 
 **Flags:**
+
 - `-u, --until <value> - Condition for unarchival: forever, auto, 30m, 10x, 10u, 10x/5m, etc.`
 
 **Examples:**
@@ -467,11 +475,12 @@ Merge 2+ issues into a single canonical group
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                             |
+| ------------ | --------------------------------------- |
 | `<issue...>` | Issue IDs to merge (2 or more required) |
 
 **Flags:**
+
 - `-i, --into <value> - Prefer this issue as the canonical parent (included in the merge if not already listed)`
 
 **Examples:**
@@ -496,12 +505,13 @@ Link an existing external issue
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
-| `<url>` | URL of an existing tracker issue or GitHub pull request |
+| `<url>`   | URL of an existing tracker issue or GitHub pull request                                                               |
 
 **Flags:**
+
 - `--integration <value> - Native integration ID, when multiple installations match`
 - `--app <value> - Sentry App slug (automatically detected for Linear URLs)`
 - `-n, --dry-run - Show what would happen without making changes`
@@ -537,12 +547,13 @@ Unlink an external issue
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
-| `<url>` | URL of an existing tracker issue or GitHub pull request |
+| `<url>`   | URL of an existing tracker issue or GitHub pull request                                                               |
 
 **Flags:**
+
 - `--integration <value> - Native integration ID, when multiple installations match`
 - `--app <value> - Sentry App slug (automatically detected for Linear URLs)`
 - `-y, --yes - Skip confirmation prompt`

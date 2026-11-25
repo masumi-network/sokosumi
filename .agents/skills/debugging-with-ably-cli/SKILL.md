@@ -182,36 +182,36 @@ Many commands (`subscribe`, `presence enter`, `stats --live`, `occupancy subscri
 
 ### Connection States
 
-| State | Meaning | Diagnostic |
-|-------|---------|-----------|
-| `connecting` | Attempting connection | Normal on startup; if stuck, check network/auth |
-| `connected` | Active WebSocket | Healthy |
-| `disconnected` | Temporary loss, SDK retries | Transient is normal; recurring = network issues → watch connection lifecycle logs |
-| `suspended` | Offline >2 min, less frequent retries | Test connection to check connectivity |
-| `failed` | Permanent failure, SDK won't retry | Almost always auth — test with the specific API key |
-| `closed` | Explicitly closed by code | Search for `.close()` calls |
+| State          | Meaning                               | Diagnostic                                                                        |
+| -------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| `connecting`   | Attempting connection                 | Normal on startup; if stuck, check network/auth                                   |
+| `connected`    | Active WebSocket                      | Healthy                                                                           |
+| `disconnected` | Temporary loss, SDK retries           | Transient is normal; recurring = network issues → watch connection lifecycle logs |
+| `suspended`    | Offline >2 min, less frequent retries | Test connection to check connectivity                                             |
+| `failed`       | Permanent failure, SDK won't retry    | Almost always auth — test with the specific API key                               |
+| `closed`       | Explicitly closed by code             | Search for `.close()` calls                                                       |
 
 ### Channel States
 
-| State | Meaning | Diagnostic |
-|-------|---------|-----------|
-| `initialized` | Channel object created, not yet attached | Normal before first subscribe/publish |
-| `attaching` | Requesting attach from server | If stuck, check connection state and auth capabilities |
-| `attached` | Active — messages flowing | Healthy |
-| `detaching` | Requesting detach | Normal during cleanup |
-| `detached` | Not attached, no messages flowing | Check if `detach()` was called intentionally |
-| `suspended` | Attach failed, will retry | Usually follows connection suspension — check connection state first |
-| `failed` | Permanent channel failure | Often capability denied (40160) or invalid channel name |
+| State         | Meaning                                  | Diagnostic                                                           |
+| ------------- | ---------------------------------------- | -------------------------------------------------------------------- |
+| `initialized` | Channel object created, not yet attached | Normal before first subscribe/publish                                |
+| `attaching`   | Requesting attach from server            | If stuck, check connection state and auth capabilities               |
+| `attached`    | Active — messages flowing                | Healthy                                                              |
+| `detaching`   | Requesting detach                        | Normal during cleanup                                                |
+| `detached`    | Not attached, no messages flowing        | Check if `detach()` was called intentionally                         |
+| `suspended`   | Attach failed, will retry                | Usually follows connection suspension — check connection state first |
+| `failed`      | Permanent channel failure                | Often capability denied (40160) or invalid channel name              |
 
 ---
 
 ## 7. Environment-Specific Gotchas
 
-| Environment | Symptom | Root Cause | Diagnostic |
-|-------------|---------|-----------|-----------|
-| Next.js SSR | Connection fails during render | No WebSocket in server-side render | Guard with `typeof window` or `useEffect` |
-| Serverless (Lambda, Edge) | Stale/frozen connections | Connection frozen between invocations | Use `createHttpClient()` from `@ably/pubsub-server` |
-| React StrictMode | Duplicate messages, presence flicker | Double-render duplicates subscriptions | Check occupancy — much higher than expected = duplicates |
-| CSP headers | WebSocket blocked | Ably domains not in `connect-src` | Test connection — ws fails, xhr works = CSP |
-| Corporate proxy | WebSocket fails silently | Proxy blocking upgrade | Test connection — ws fails, xhr works = proxy |
-| Mobile background | Messages missed after resume | OS kills WebSocket | Check channel history for messages sent during gap |
+| Environment               | Symptom                              | Root Cause                             | Diagnostic                                               |
+| ------------------------- | ------------------------------------ | -------------------------------------- | -------------------------------------------------------- |
+| Next.js SSR               | Connection fails during render       | No WebSocket in server-side render     | Guard with `typeof window` or `useEffect`                |
+| Serverless (Lambda, Edge) | Stale/frozen connections             | Connection frozen between invocations  | Use `createHttpClient()` from `@ably/pubsub-server`      |
+| React StrictMode          | Duplicate messages, presence flicker | Double-render duplicates subscriptions | Check occupancy — much higher than expected = duplicates |
+| CSP headers               | WebSocket blocked                    | Ably domains not in `connect-src`      | Test connection — ws fails, xhr works = CSP              |
+| Corporate proxy           | WebSocket fails silently             | Proxy blocking upgrade                 | Test connection — ws fails, xhr works = proxy            |
+| Mobile background         | Messages missed after resume         | OS kills WebSocket                     | Check channel history for messages sent during gap       |

@@ -1411,7 +1411,6 @@ export function ImageStudio({
               catalog={catalog}
               labels={labels}
               sort={studio.sort}
-              onSortChange={studio.setSort}
               onRate={readOnly ? undefined : handleRate}
               onHide={readOnly ? undefined : handleHide}
               ratingBusyIds={ratingBusyIds}

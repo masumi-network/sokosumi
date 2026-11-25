@@ -381,7 +381,7 @@ describe("createGitDeployment", () => {
       }),
       {
         message:
-          "Vercel deploy failed for sokosumi-cmo (400): bad_request: Invalid preview suffix",
+          "Vercel deploy failed for cmo-app (400): bad_request: Invalid preview suffix",
       },
     );
   });
@@ -868,6 +868,27 @@ describe("fork preview comment", () => {
       `| \`sokosumi-app-mainnet\` | https://${web.alias[0]} | READY | ${FORK_SHA} |`,
       `| \`sokosumi-app-preprod\` | https://${preprod.alias[0]} | READY | ${STALE_SHA} |`,
     ]);
+  });
+
+  it("replaces a renamed project's row only when that project deploys", () => {
+    const cmo = {
+      name: "cmo-app",
+      alias: ["cmo-app-git-preview-fork-pr-12.preview.cmo.xyz"],
+      readyState: "READY",
+    };
+    const previous = forkPreviewCommentBody([cmo], STALE_SHA).replace(
+      "`cmo-app`",
+      "`sokosumi-cmo`",
+    );
+    const preprodOnly = forkPreviewCommentBody([preprod], FORK_SHA, previous);
+    assert.ok(preprodOnly.includes("`sokosumi-cmo`"));
+    const redeployed = forkPreviewCommentBody([cmo], FORK_SHA, previous);
+    assert.ok(!redeployed.includes("`sokosumi-cmo`"));
+    assert.ok(
+      redeployed.includes(
+        `| \`cmo-app\` | https://${cmo.alias[0]} | READY | ${FORK_SHA} |`,
+      ),
+    );
   });
 
   function github(pages) {

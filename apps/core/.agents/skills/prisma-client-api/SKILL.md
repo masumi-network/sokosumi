@@ -14,6 +14,7 @@ Complete API reference for Prisma Client. This skill provides guidance on model 
 ## When to Apply
 
 Reference this skill when:
+
 - Writing database queries with Prisma Client
 - Performing CRUD operations (create, read, update, delete)
 - Filtering and sorting data
@@ -23,16 +24,16 @@ Reference this skill when:
 
 ## Rule Categories by Priority
 
-| Priority | Category | Impact | Prefix |
-|----------|----------|--------|--------|
-| 1 | Client Construction | HIGH | `constructor` |
-| 2 | Model Queries | CRITICAL | `model-queries` |
-| 3 | Query Shape | HIGH | `query-options` |
-| 4 | Filtering | HIGH | `filters` |
-| 5 | Relations | HIGH | `relations` |
-| 6 | Transactions | CRITICAL | `transactions` |
-| 7 | Raw SQL | CRITICAL | `raw-queries` |
-| 8 | Client Methods | MEDIUM | `client-methods` |
+| Priority | Category            | Impact   | Prefix           |
+| -------- | ------------------- | -------- | ---------------- |
+| 1        | Client Construction | HIGH     | `constructor`    |
+| 2        | Model Queries       | CRITICAL | `model-queries`  |
+| 3        | Query Shape         | HIGH     | `query-options`  |
+| 4        | Filtering           | HIGH     | `filters`        |
+| 5        | Relations           | HIGH     | `relations`      |
+| 6        | Transactions        | CRITICAL | `transactions`   |
+| 7        | Raw SQL             | CRITICAL | `raw-queries`    |
+| 8        | Client Methods      | MEDIUM   | `client-methods` |
 
 ## Quick Reference
 
@@ -60,51 +61,51 @@ const prisma = new PrismaClient({ adapter })
 
 ## Model Query Methods
 
-| Method | Description |
-|--------|-------------|
-| `findUnique()` | Find one record by unique field |
-| `findUniqueOrThrow()` | Find one or throw error |
-| `findFirst()` | Find first matching record |
-| `findFirstOrThrow()` | Find first or throw error |
-| `findMany()` | Find multiple records |
-| `create()` | Create a new record |
-| `createMany()` | Create multiple records |
-| `createManyAndReturn()` | Create multiple and return them |
-| `update()` | Update one record |
-| `updateMany()` | Update multiple records |
-| `updateManyAndReturn()` | Update multiple and return them |
-| `upsert()` | Update or create record |
-| `delete()` | Delete one record |
-| `deleteMany()` | Delete multiple records |
-| `count()` | Count matching records |
-| `aggregate()` | Aggregate values (sum, avg, etc.) |
-| `groupBy()` | Group and aggregate |
+| Method                  | Description                       |
+| ----------------------- | --------------------------------- |
+| `findUnique()`          | Find one record by unique field   |
+| `findUniqueOrThrow()`   | Find one or throw error           |
+| `findFirst()`           | Find first matching record        |
+| `findFirstOrThrow()`    | Find first or throw error         |
+| `findMany()`            | Find multiple records             |
+| `create()`              | Create a new record               |
+| `createMany()`          | Create multiple records           |
+| `createManyAndReturn()` | Create multiple and return them   |
+| `update()`              | Update one record                 |
+| `updateMany()`          | Update multiple records           |
+| `updateManyAndReturn()` | Update multiple and return them   |
+| `upsert()`              | Update or create record           |
+| `delete()`              | Delete one record                 |
+| `deleteMany()`          | Delete multiple records           |
+| `count()`               | Count matching records            |
+| `aggregate()`           | Aggregate values (sum, avg, etc.) |
+| `groupBy()`             | Group and aggregate               |
 
 ## Query Options
 
-| Option | Description |
-|--------|-------------|
-| `where` | Filter conditions |
-| `select` | Fields to include |
-| `include` | Relations to load |
-| `omit` | Fields to exclude |
-| `orderBy` | Sort order |
-| `take` | Limit results |
-| `skip` | Skip results (pagination) |
-| `cursor` | Cursor-based pagination |
-| `distinct` | Unique values only |
+| Option     | Description               |
+| ---------- | ------------------------- |
+| `where`    | Filter conditions         |
+| `select`   | Fields to include         |
+| `include`  | Relations to load         |
+| `omit`     | Fields to exclude         |
+| `orderBy`  | Sort order                |
+| `take`     | Limit results             |
+| `skip`     | Skip results (pagination) |
+| `cursor`   | Cursor-based pagination   |
+| `distinct` | Unique values only        |
 
 ## Client Methods
 
-| Method | Description |
-|--------|-------------|
-| `$connect()` | Explicitly connect to database |
-| `$disconnect()` | Disconnect from database |
-| `$transaction()` | Execute transaction |
-| `$queryRaw()` | Execute raw SQL query |
-| `$executeRaw()` | Execute raw SQL command |
-| `$on()` | Subscribe to events |
-| `$extends()` | Add extensions |
+| Method           | Description                    |
+| ---------------- | ------------------------------ |
+| `$connect()`     | Explicitly connect to database |
+| `$disconnect()`  | Disconnect from database       |
+| `$transaction()` | Execute transaction            |
+| `$queryRaw()`    | Execute raw SQL query          |
+| `$executeRaw()`  | Execute raw SQL command        |
+| `$on()`          | Subscribe to events            |
+| `$extends()`     | Add extensions                 |
 
 ## Quick Examples
 
@@ -182,28 +183,28 @@ references/client-methods.md     - $connect, $disconnect, $on, $extends
 
 ## Filter Operators
 
-| Operator | Description |
-|----------|-------------|
-| `equals` | Exact match |
-| `not` | Not equal |
-| `in` | In array |
-| `notIn` | Not in array |
-| `lt`, `lte` | Less than |
-| `gt`, `gte` | Greater than |
-| `contains` | String contains |
+| Operator     | Description        |
+| ------------ | ------------------ |
+| `equals`     | Exact match        |
+| `not`        | Not equal          |
+| `in`         | In array           |
+| `notIn`      | Not in array       |
+| `lt`, `lte`  | Less than          |
+| `gt`, `gte`  | Greater than       |
+| `contains`   | String contains    |
 | `startsWith` | String starts with |
-| `endsWith` | String ends with |
-| `mode` | Case sensitivity |
+| `endsWith`   | String ends with   |
+| `mode`       | Case sensitivity   |
 
 ## Relation Filters
 
-| Operator | Description |
-|----------|-------------|
-| `some` | At least one related record matches |
-| `every` | All related records match |
-| `none` | No related records match |
-| `is` | Related record matches (1-to-1) |
-| `isNot` | Related record doesn't match |
+| Operator | Description                         |
+| -------- | ----------------------------------- |
+| `some`   | At least one related record matches |
+| `every`  | All related records match           |
+| `none`   | No related records match            |
+| `is`     | Related record matches (1-to-1)     |
+| `isNot`  | Related record doesn't match        |
 
 ## Resources
 

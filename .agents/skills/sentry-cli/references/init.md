@@ -17,8 +17,8 @@ Print instructions for a coding agent to set up Sentry
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field   | Type   | Description                       |
+| ------- | ------ | --------------------------------- |
 | `guide` | string | The setup guide's Markdown source |
 
 **Examples:**

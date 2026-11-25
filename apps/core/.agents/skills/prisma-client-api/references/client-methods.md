@@ -16,6 +16,7 @@ await prisma.$connect()
 ### When to use
 
 Usually not needed - Prisma connects automatically on first query. Use for:
+
 - Fail fast on startup
 - Health checks
 - Pre-warming connections

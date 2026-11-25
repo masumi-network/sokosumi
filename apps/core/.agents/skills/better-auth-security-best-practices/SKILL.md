@@ -16,6 +16,7 @@ export const auth = betterAuth({
 ```
 
 Better Auth looks for secrets in this order:
+
 1. `options.secret` in your config
 2. `BETTER_AUTH_SECRET` environment variable
 3. `AUTH_SECRET` environment variable

@@ -20,6 +20,7 @@ During an incident, you're grep-ing through thousands of these trying to reconst
 **Wide events emit once with everything:**
 
 Development (pretty format):
+
 ```
 10:23:45.235 ERROR [api] POST /checkout 500 in 234ms
   ├─ user: id=user_123 plan=premium accountAge=847
@@ -29,6 +30,7 @@ Development (pretty format):
 ```
 
 Production (JSON format):
+
 ```json
 {
   "timestamp": "2025-01-24T10:23:45.235Z",
@@ -46,14 +48,14 @@ Production (JSON format):
 
 ## When to Use Wide Events
 
-| Scenario | Use Wide Event? |
-|----------|----------------|
-| HTTP request handling | Yes - one event per request |
-| Background job execution | Yes - one event per job |
-| Database query | No - use simple log |
-| Cache hit/miss | No - include in parent wide event |
-| User action (login, checkout) | Yes - one event per action |
-| Debug statements | No - remove in production |
+| Scenario                      | Use Wide Event?                   |
+| ----------------------------- | --------------------------------- |
+| HTTP request handling         | Yes - one event per request       |
+| Background job execution      | Yes - one event per job           |
+| Database query                | No - use simple log               |
+| Cache hit/miss                | No - include in parent wide event |
+| User action (login, checkout) | Yes - one event per action        |
+| Debug statements              | No - remove in production         |
 
 ## Required Fields
 

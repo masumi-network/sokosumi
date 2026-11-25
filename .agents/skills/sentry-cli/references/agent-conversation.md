@@ -17,11 +17,12 @@ List recent agent conversations
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all projects), &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of conversations (1-1000) - (default: "25")`
 - `-q, --query <value> - Any matching span selects its conversation; totals include all spans in selected projects and time range`
 - `-s, --sort <value> - One conversation field; prefix - for descending (default: -conversation.age; ID breaks ties)`
@@ -31,26 +32,26 @@ List recent agent conversations
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `conversationId` | string |  |
-| `webUrl` | string |  |
-| `title` | string \| null |  |
-| `flow` | array |  |
-| `errors` | number |  |
-| `llmCalls` | number |  |
-| `toolCalls` | number |  |
-| `totalTokens` | number |  |
-| `totalCost` | number |  |
-| `startTimestamp` | number |  |
-| `endTimestamp` | number |  |
-| `traceCount` | number |  |
-| `traceIds` | array |  |
-| `firstInput` | string \| null |  |
-| `lastOutput` | string \| null |  |
-| `user` | object \| null |  |
-| `toolNames` | array |  |
-| `toolErrors` | number |  |
+| Field            | Type           | Description |
+| ---------------- | -------------- | ----------- |
+| `conversationId` | string         |             |
+| `webUrl`         | string         |             |
+| `title`          | string \| null |             |
+| `flow`           | array          |             |
+| `errors`         | number         |             |
+| `llmCalls`       | number         |             |
+| `toolCalls`      | number         |             |
+| `totalTokens`    | number         |             |
+| `totalCost`      | number         |             |
+| `startTimestamp` | number         |             |
+| `endTimestamp`   | number         |             |
+| `traceCount`     | number         |             |
+| `traceIds`       | array          |             |
+| `firstInput`     | string \| null |             |
+| `lastOutput`     | string \| null |             |
+| `user`           | object \| null |             |
+| `toolNames`      | array          |             |
+| `toolErrors`     | number         |             |
 
 **Examples:**
 
@@ -98,11 +99,12 @@ View an agent conversation transcript
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                    | Description                                      |
+| --------------------------- | ------------------------------------------------ |
 | `[<org>/]<conversation-id>` | Organization slug (optional) and conversation ID |
 
 **Flags:**
+
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
 **Examples:**
