@@ -12916,6 +12916,32 @@
         "linkedinDirect": "{who} is connected with them on LinkedIn",
         "onLinkedIn": "connected on LinkedIn",
         "importHint": "Import your LinkedIn connections in Contacts to find more paths."
+      },
+      "outreach": {
+        "title": "Outreach",
+        "noMailbox": "Drafts go into your own Gmail through your Soko Bot. Connect Gmail there first.",
+        "connect": "Open Soko Bots",
+        "kind": "What to write",
+        "kinds": {
+          "intro": "First mail",
+          "follow_up": "Follow-up"
+        },
+        "via": "Through whom",
+        "direct": "Write to them directly",
+        "viaName": "Ask {name} for an intro",
+        "inviteRoom": "Let them into “{room}” and link it",
+        "linkRoom": "Link “{room}” (they are already in)",
+        "noteLabel": "Anything to mention",
+        "notePlaceholder": "e.g. we met at the Draper dinner; mention the Cardano partnership",
+        "noEmail": "No email address on file; add one in Contacts or ask a mutual contact for an intro.",
+        "draft": "Write draft in {mailbox}",
+        "neverSends": "Sokosumi never sends. You read it in your mailbox and send it yourself.",
+        "drafted": "Draft is in your {mailbox}",
+        "failed": "The draft could not be written",
+        "inMailbox": "In your {mailbox} drafts, to {to}",
+        "openDrafts": "Open Gmail drafts",
+        "another": "Write another",
+        "lastDraft": "Last draft “{subject}” · {when}"
       }
     },
     "Seo": {

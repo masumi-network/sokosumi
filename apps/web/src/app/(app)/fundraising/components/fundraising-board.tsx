@@ -318,6 +318,7 @@ export function FundraisingBoard({
 
       <ProspectSheet
         prospect={open}
+        pipeline={pipeline}
         listId={pipeline.list.id}
         members={members.data ?? []}
         now={now}

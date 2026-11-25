@@ -5,8 +5,10 @@ import {
   getFundraisingSuggestions,
   type PatchFundraisingProspectsByContactIdData,
   type PostFundraisingFindData,
+  type PostFundraisingProspectsByContactIdDraftData,
   patchFundraisingProspectsByContactId,
   postFundraisingFind,
+  postFundraisingProspectsByContactIdDraft,
   postFundraisingProspectsByContactIdResearch,
   postFundraisingSuggestionsAdd,
   postFundraisingSuggestionsDismiss,
@@ -17,6 +19,9 @@ export type FundraisingProspectPatch = NonNullable<
   PatchFundraisingProspectsByContactIdData["body"]
 >;
 export type FundraisingFindInput = NonNullable<PostFundraisingFindData["body"]>;
+export type FundraisingDraftInput = NonNullable<
+  PostFundraisingProspectsByContactIdDraftData["body"]
+>;
 
 function options() {
   return { client: getBrowserCoreClient(), throwOnError: true as const };
@@ -61,6 +66,16 @@ export const fundraisingService = {
       await postFundraisingProspectsByContactIdResearch({
         ...options(),
         path: { contactId },
+      })
+    ).data.data;
+  },
+  /** Writes a mail and puts it in the caller's own mailbox as a draft; never sends. */
+  async draft(contactId: string, body: FundraisingDraftInput) {
+    return (
+      await postFundraisingProspectsByContactIdDraft({
+        ...options(),
+        path: { contactId },
+        body,
       })
     ).data.data;
   },

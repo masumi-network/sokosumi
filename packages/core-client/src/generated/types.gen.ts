@@ -6357,6 +6357,10 @@ export type FundraisingPipeline = {
     }>;
     prospects: Array<FundraisingProspect>;
     research: FundraisingResearch;
+    mailbox: {
+        provider: string;
+        botId: string;
+    } | null;
 };
 
 export type FundraisingProspect = {
@@ -6369,6 +6373,8 @@ export type FundraisingProspect = {
     committedUsd: number | null;
     notes: string | null;
     source: string | null;
+    lastDraftAt: Date | null;
+    lastDraftSubject: string | null;
     dataRoom: FundraisingDataRoomVisit | null;
 };
 
@@ -6480,6 +6486,23 @@ export const FundraisingPathKind = {
 } as const;
 
 export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
+
+export type FundraisingDraftResult = {
+    to: string;
+    subject: string;
+    body: string;
+    draftId: string;
+    provider: string;
+    roomLink: string | null;
+    prospect: FundraisingProspect;
+};
+
+export type FundraisingDraftInput = {
+    kind: 'intro' | 'follow_up';
+    viaContactId?: string;
+    inviteToRoomId?: string;
+    note?: string;
+};
 
 export type HistoryList = Array<HistoryItem>;
 
@@ -52929,6 +52952,140 @@ export type PostFundraisingProspectsByContactIdResearchResponses = {
 };
 
 export type PostFundraisingProspectsByContactIdResearchResponse = PostFundraisingProspectsByContactIdResearchResponses[keyof PostFundraisingProspectsByContactIdResearchResponses];
+
+export type PostFundraisingProspectsByContactIdDraftData = {
+    body?: FundraisingDraftInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/draft';
+};
+
+export type PostFundraisingProspectsByContactIdDraftErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No mailbox, or no email address
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The model or the mailbox did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdDraftError = PostFundraisingProspectsByContactIdDraftErrors[keyof PostFundraisingProspectsByContactIdDraftErrors];
+
+export type PostFundraisingProspectsByContactIdDraftResponses = {
+    /**
+     * Draft
+     */
+    200: {
+        data: FundraisingDraftResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdDraftResponse = PostFundraisingProspectsByContactIdDraftResponses[keyof PostFundraisingProspectsByContactIdDraftResponses];
 
 export type GetHistoryData = {
     body?: never;

@@ -65,6 +65,9 @@ export const fundraisingProspectSchema = z
     committedUsd: z.int().nullable(),
     notes: z.string().nullable(),
     source: z.string().nullable(),
+    /** The last outreach draft put in a teammate's mailbox; Sokosumi never sends it. */
+    lastDraftAt: dateTimeSchema.nullable(),
+    lastDraftSubject: z.string().nullable(),
     dataRoom: z.union([fundraisingDataRoomVisitSchema, z.null()]),
   })
   .openapi("FundraisingProspect");
@@ -78,6 +81,11 @@ export const fundraisingPipelineSchema = z
     ),
     prospects: z.array(fundraisingProspectSchema),
     research: fundraisingResearchSchema,
+    /** The caller's connected mailbox for drafts, or null. */
+    mailbox: z.union([
+      z.object({ provider: z.string(), botId: z.uuid() }),
+      z.null(),
+    ]),
   })
   .openapi("FundraisingPipeline");
 
@@ -198,3 +206,32 @@ export const fundraisingPathsSchema = z
 
 export type FundraisingPathDto = z.input<typeof fundraisingPathSchema>;
 export type FundraisingPathsDto = z.input<typeof fundraisingPathsSchema>;
+
+export const FUNDRAISING_DRAFT_KINDS = ["intro", "follow_up"] as const;
+
+export const fundraisingDraftInputSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_DRAFT_KINDS),
+    /** Ask this contact for an introduction instead of writing to the investor. */
+    viaContactId: z.uuid().optional(),
+    /** Let the investor into this data room and put its link in the mail. */
+    inviteToRoomId: z.uuid().optional(),
+    /** Anything the mail should mention. */
+    note: z.string().trim().max(1000).optional(),
+  })
+  .openapi("FundraisingDraftInput");
+
+export const fundraisingDraftResultSchema = z
+  .object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+    /** The mailbox's draft id. */
+    draftId: z.string(),
+    provider: z.string(),
+    roomLink: z.string().nullable(),
+    prospect: fundraisingProspectSchema,
+  })
+  .openapi("FundraisingDraftResult");
+
+export type FundraisingDraftInput = z.infer<typeof fundraisingDraftInputSchema>;
