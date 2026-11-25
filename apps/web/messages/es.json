@@ -9391,6 +9391,7 @@
         "noMatch": "Ningún agente coincide con tu búsqueda.",
         "found": "{count, plural, =0 {Ningún agente coincide} one {# agente coincide} other {# agentes coinciden}}",
         "byVendor": "de {vendor}",
+        "vendorLogo": "Logotipo de la empresa detrás de {agent}",
         "botFallbackName": "Soko Bot",
         "ownerYou": "Tuyo",
         "ownerYouAbout": "Ti",

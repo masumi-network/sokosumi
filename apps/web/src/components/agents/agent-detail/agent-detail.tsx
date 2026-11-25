@@ -2,8 +2,10 @@ import type { AgentReview } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
 import { AgentIcon } from "@/components/agents/agent-icon";
+import { AgentVendor } from "@/components/agents/agent-vendor";
 import {
   AboutList,
   AgentProfile,
@@ -17,6 +19,7 @@ import {
   HOLDER_ITEM_HOVER_CLASS,
 } from "@/components/ui/holder-surface";
 import {
+  getAgentAuthorResolvedImage,
   getAgentDescription,
   getAgentExampleOutputs,
   getAgentLegal,
@@ -91,7 +94,7 @@ function MarketplaceAbout({
   averageExecutionDuration,
 }: {
   agent: CoreAgentDto;
-  vendor: string | null;
+  vendor: ReactNode;
   executedJobsCount: number;
   averageExecutionDuration: number | null;
 }) {
@@ -131,6 +134,16 @@ function MarketplaceAbout({
 }
 
 /** A marketplace agent's profile, in the layout every agent shares. */
+/** Who makes the agent: the author logo first, then the author's name. */
+function vendorOf(agent: CoreAgentDto, alt: string) {
+  const name = getFullAgentAuthorName(agent);
+  const logo = getAgentAuthorResolvedImage(agent);
+  const byline = (label: string) => (
+    <AgentVendor logo={logo} label={label} alt={alt} />
+  );
+  return { name, byline, about: name || logo ? byline(name ?? "") : null };
+}
+
 export function AgentDetail({
   agent,
   executedJobsCount,
@@ -145,7 +158,7 @@ export function AgentDetail({
   const t = useTranslations("App.Agents.Directory");
   const tTaskDetail = useTranslations("App.Tasks.Detail");
   const name = getAgentName(agent);
-  const vendor = getFullAgentAuthorName(agent);
+  const vendor = vendorOf(agent, t("vendorLogo", { agent: name }));
   const description = getAgentDescription(agent);
   const tags = getAgentTags(agent);
   const examples = getAgentExampleOutputs(agent);
@@ -163,7 +176,11 @@ export function AgentDetail({
       }
       name={name}
       tag={t("external")}
-      byline={vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal")}
+      byline={vendor.byline(
+        vendor.name
+          ? t("byVendor", { vendor: vendor.name })
+          : t("aboutSourceExternal"),
+      )}
       actions={<MarketplaceAgentActions agentId={agent.id} />}
       sections={[
         {
@@ -220,7 +237,7 @@ export function AgentDetail({
             <>
               <MarketplaceAbout
                 agent={agent}
-                vendor={vendor}
+                vendor={vendor.about}
                 executedJobsCount={executedJobsCount}
                 averageExecutionDuration={averageExecutionDuration}
               />

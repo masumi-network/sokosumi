@@ -6,6 +6,7 @@ import { useQueryState } from "nuqs";
 import { useMemo } from "react";
 
 import { AgentIcon } from "@/components/agents/agent-icon";
+import { AgentVendor } from "@/components/agents/agent-vendor";
 import {
   AGENT_TILE_GRID_CLASS,
   AgentTile,
@@ -13,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import {
+  getAgentAuthorResolvedImage,
   getAgentResolvedIcon,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
@@ -46,9 +48,15 @@ export function Marketplace({ agents }: { agents: CatalogBrowseAgent[] }) {
     [agents, query],
   );
 
-  function meta(agent: CatalogBrowseAgent): string {
+  function meta(agent: CatalogBrowseAgent) {
     const vendor = getShortAgentAuthorName(agent);
-    return vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal");
+    return (
+      <AgentVendor
+        logo={getAgentAuthorResolvedImage(agent)}
+        label={vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal")}
+        alt={t("vendorLogo", { agent: agent.name })}
+      />
+    );
   }
 
   return (

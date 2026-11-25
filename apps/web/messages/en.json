@@ -9427,6 +9427,7 @@
         "noMatch": "No agents match your search.",
         "found": "{count, plural, =0 {No agents match} one {# agent matches} other {# agents match}}",
         "byVendor": "by {vendor}",
+        "vendorLogo": "Logo of the company behind {agent}",
         "botFallbackName": "Soko Bot",
         "ownerYou": "Yours",
         "ownerYouAbout": "You",

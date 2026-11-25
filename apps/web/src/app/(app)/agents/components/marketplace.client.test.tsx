@@ -40,6 +40,16 @@ const agents = [
   }),
   agent({ id: "seo", name: "SEO Audit", summary: "Fixes for search." }),
   agent({
+    id: "knight",
+    name: "Deepfake Detector - Knight",
+    author: {
+      name: "Default Author",
+      image: "https://c-ipfs-gw.nmkr.io/ipfs/nuauth-logo",
+      organization: null,
+      other: null,
+    },
+  }),
+  agent({
     id: "pay",
     kind: "x402",
     name: "Paywall",
@@ -69,6 +79,23 @@ describe("Marketplace", () => {
     expect(pay).toHaveAttribute("target", "_blank");
     // An x402 agent with no page of its own has nowhere to go.
     expect(screen.queryByText("No link")).not.toBeInTheDocument();
+  });
+
+  it("shows the author logo before the author's name, as the old gallery did", () => {
+    renderMarketplace();
+
+    const knight = screen.getByRole("link", { name: /Knight/ });
+    const card = knight.closest("li");
+    expect(card).not.toHaveTextContent("Default Author");
+    expect(
+      screen.getByAltText(
+        "Logo of the company behind Deepfake Detector - Knight",
+      ),
+    ).toHaveAttribute("src", "https://c-ipfs-gw.nmkr.io/ipfs/nuauth-logo");
+    // No logo: the organization, then the person.
+    expect(
+      screen.getByRole("link", { name: /Deep Research/ }).closest("li"),
+    ).toHaveTextContent("by Masumi");
   });
 
   it("filters by the search and announces the count", async () => {
