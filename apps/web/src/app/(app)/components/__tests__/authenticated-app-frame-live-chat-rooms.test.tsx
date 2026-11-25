@@ -237,3 +237,7 @@ describe("AuthenticatedAppFrame live chat rooms reader placement", () => {
     view.unmount();
   });
 });
+
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));

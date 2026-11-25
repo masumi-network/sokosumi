@@ -33,7 +33,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
       {/* The phone's Workspace switcher, as `HeaderProfileSection` places
           it; from md the switcher is the sidebar header's. */}
       <HeaderTrailing>
-        <div className="flex md:hidden">
+        <div className="flex md:hidden md:sidebar-hidden:flex">
           <WorkspaceSwitcherSkeleton placement="topBar" />
         </div>
       </HeaderTrailing>

@@ -390,6 +390,20 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(within(summary).getByText("A quiet morning")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "App.Channels.Signals.catchUp",
+      }),
+    ).toHaveClass("sr-only");
+    expect(
+      within(summary).getByText("App.Channels.Signals.Briefing.welcomeBack"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: "App.Channels.Signals.whileYouWereAwayTitle",
+      }),
+    ).toBeNull();
     expect(within(summary).queryByText("launch")).toBeNull();
   });
 
