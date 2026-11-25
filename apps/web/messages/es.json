@@ -13632,7 +13632,7 @@
         "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
         "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
         "historyNotInRange": "No está en los resultados comprobados",
-        "historyNotInTop": "No está entre los {count} primeros",
+        "historyNotInTop": "No está en el top {count}",
         "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una marca hueca abajo es una comprobación que no encontró la página en sus resultados: no tiene posición.",
         "historyGscTitle": "Posición media en Search Console, diaria",
         "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación.",

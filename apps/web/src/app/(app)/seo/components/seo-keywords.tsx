@@ -377,7 +377,10 @@ export function SeoKeywords({
                     const trendId = `seo-keyword-trend-${row.id}`;
                     // The paid checks' positions over time, one series per device.
                     // Every row of the group: a device the newest check did not read keeps its history.
-                    const history = seoRankHistory(group.rows);
+                    const history = seoRankHistory(
+                      group.rows,
+                      queries?.timeZone,
+                    );
                     // What the results page showed on each check: AI Overview, featured snippet, other features.
                     const marks = seoSerpMarkers(
                       model.data.serpHistory,
@@ -387,6 +390,7 @@ export function SeoKeywords({
                     // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
                     const cellSaysEmpty =
                       read.state === "empty" &&
+                      !read.truncated &&
                       !reads.length &&
                       Boolean(queries) &&
                       !average?.averagePosition;

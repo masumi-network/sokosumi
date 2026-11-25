@@ -262,17 +262,20 @@ export function SeoTrendChart({
                   height={100}
                 />
               ))}
-              {model.ticks.map((tick) => (
-                <line
-                  key={tick.value}
-                  className="stroke-border"
-                  vectorEffect="non-scaling-stroke"
-                  x1={0}
-                  x2={100}
-                  y1={tick.y}
-                  y2={tick.y}
-                />
-              ))}
+              {/* The dashed line of the band stands for the grid line under it. */}
+              {model.ticks
+                .filter((tick) => tick.y !== model.outsideFrom)
+                .map((tick) => (
+                  <line
+                    key={tick.value}
+                    className="stroke-border"
+                    vectorEffect="non-scaling-stroke"
+                    x1={0}
+                    x2={100}
+                    y1={tick.y}
+                    y2={tick.y}
+                  />
+                ))}
               {model.bars
                 ? model.points.map((point, index) =>
                     point.y === null ? null : point.value === 0 ? (

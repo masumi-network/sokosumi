@@ -16,7 +16,9 @@ export type SeoRankSeries = {
 };
 type RankPoint = SeoRankSeries["points"][number];
 
-const dayOf = (at: Date | string) => new Date(at).toISOString().slice(0, 10);
+/** The calendar day of a read in a time zone, as YYYY-MM-DD ("en-CA" writes a date that way). */
+const dayOf = (at: Date | string, timeZone: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(at));
 const DEVICE_ORDER: Record<string, number> = { mobile: 0, desktop: 1 };
 
 /**
@@ -24,7 +26,14 @@ const DEVICE_ORDER: Record<string, number> = { mobile: 0, desktop: 1 };
  * keyword listed for another reason) share it. A failed read ("unavailable") is no point. A series of one read
  * repeats the position cell, so only a keyword with two days of reads has a history.
  */
-export function seoRankHistory(rows: Keyword[]): SeoRankSeries[] {
+export function seoRankHistory(
+  rows: Keyword[],
+  /**
+   * The time zone of the Search Console days the chart beside it shows, so a read sits on the same day in both.
+   * Default: UTC.
+   */
+  timeZone = "UTC",
+): SeoRankSeries[] {
   const byDevice = new Map<
     Keyword["device"],
     Map<string, Omit<RankPoint, "date">>
@@ -40,7 +49,7 @@ export function seoRankHistory(rows: Keyword[]): SeoRankSeries[] {
     const days =
       byDevice.get(point.device) ?? new Map<string, Omit<RankPoint, "date">>();
     days.set(
-      dayOf(point.observedAt),
+      dayOf(point.observedAt, timeZone),
       point.positionStatus === "ranked"
         ? { value: point.position }
         : { value: null, outside: { top: point.checkedResults ?? null } },

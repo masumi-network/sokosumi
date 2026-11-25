@@ -54,6 +54,27 @@ describe("seoRankHistory", () => {
     });
   });
 
+  it("puts a read on its day in the Search Console time zone", () => {
+    const rows = [
+      row("desktop", [
+        point("2026-10-07T09:00:00Z", 9),
+        // 18:00 on 7 October in Los Angeles: the same Search Console day as the read before.
+        point("2026-10-08T01:00:00Z", 7),
+        point("2026-10-09T09:00:00Z", 5),
+      ]),
+    ];
+    expect(
+      seoRankHistory(rows, "America/Los_Angeles")[0].points.map(
+        (item) => item.date,
+      ),
+    ).toEqual(["2026-10-07", "2026-10-09"]);
+    expect(seoRankHistory(rows)[0].points.map((item) => item.date)).toEqual([
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09",
+    ]);
+  });
+
   it("has no history with one day of reads, from a result before histories existed too", () => {
     expect(
       seoRankHistory([
