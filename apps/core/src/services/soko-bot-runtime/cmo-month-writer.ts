@@ -164,11 +164,17 @@ const writtenPieceSchema = z.object({
   voice: z.string().nullable(),
   /** A talking video's language as a two-letter code. */
   languageCode: z.string().nullable(),
-  /** A short video's kind and its words on screen first (cmo-v20 only). */
-  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable().optional(),
-  hookLine: z.string().nullable().optional(),
+  /**
+   * A short video's kind and its words on screen first (cmo-v20 only).
+   * Nullable, never optional: strict structured output refuses a schema with
+   * a key outside `required`, and every chunk then wrote nothing.
+   */
+  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable(),
+  hookLine: z.string().nullable(),
 });
-const writtenChunkSchema = z.object({ pieces: z.array(writtenPieceSchema) });
+export const cmoWrittenChunkSchema = z.object({
+  pieces: z.array(writtenPieceSchema),
+});
 type WrittenPiece = z.infer<typeof writtenPieceSchema>;
 
 const SHORT_HOOK_LINE_MAX_LENGTH = 48;
@@ -417,13 +423,13 @@ async function writeChunk(
     ...request,
     system,
     prompt,
-    output: Output.object({ schema: writtenChunkSchema }),
+    output: Output.object({ schema: cmoWrittenChunkSchema }),
     maxOutputTokens: 16_000,
     abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
   await chargeWriterCall(input, modelId, result);
-  return writtenChunkSchema.parse(result.output).pieces;
+  return cmoWrittenChunkSchema.parse(result.output).pieces;
 }
 
 /** Charged to the turn like its own steps, with its tokens. */
