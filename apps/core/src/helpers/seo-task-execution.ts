@@ -50,8 +50,7 @@ export async function requireNoSeoTaskExecution(
   if (analysis) throw conflict(SEO_EXECUTION_FROZEN_MESSAGE);
 }
 
-const visibleText = (text: string) =>
-  removeTaskContextAttachmentLinks(text).replace(/\r\n/g, "\n").trim();
+const sameLines = (text: string) => text.replace(/\r\n/g, "\n").trim();
 
 /**
  * True when an edit sends back a full audit's description as people read it:
@@ -63,5 +62,10 @@ export function seoAuditTextUnchanged(
 ): boolean {
   const shown = hideSeoAuditRequest(stored);
   if (!stored || typeof edited !== "string" || shown === stored) return false;
-  return visibleText(edited) === visibleText(shown ?? "");
+  // The Edit page leaves out Context links; a link the edit adds is a change.
+  const text = sameLines(edited);
+  return (
+    text === sameLines(shown ?? "") ||
+    text === sameLines(removeTaskContextAttachmentLinks(shown ?? ""))
+  );
 }
