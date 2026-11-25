@@ -235,7 +235,7 @@
     "POST /projects/{id}/image-studio/talking-video-scripts": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Spends no credits; human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
       "cli": "projects image-studio-cancel",

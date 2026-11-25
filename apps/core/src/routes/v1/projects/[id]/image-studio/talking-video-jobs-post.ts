@@ -8,7 +8,10 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  requirePersonApproval,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createTalkingVideoJobRequestSchema,
@@ -56,6 +59,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       const { id: projectId } = c.req.valid("param");
       const input = c.req.valid("json");
+      // ADR 0077: an agent cannot consent for a real person's face and
+      // voice, so a photo presenter is a person's step. Stock stays open.
+      if (input.presenter.kind === "file") {
+        requirePersonApproval(
+          c.var.authContext,
+          `/studio?${new URLSearchParams({ projectId })}`,
+        );
+      }
 
       const job = await createTalkingVideoJob({
         projectId,

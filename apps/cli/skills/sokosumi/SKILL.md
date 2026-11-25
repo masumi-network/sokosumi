@@ -353,7 +353,7 @@ sokosumi projects image-studio-generate PROJECT_ID --input-json '{"prompt":"..."
 sokosumi projects image-studio-cancel PROJECT_ID JOB_ID --json
 ```
 
-Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for each generation and reuse it on a retry: a repeat returns the first job and buys nothing. A talking video from a photo of a real person needs that person's permission before you send `consent: true`.
+Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for each generation and reuse it on a retry: a repeat returns the first job and buys nothing. A talking video uses a stock presenter. One from a photo of a real person is person-only: Core answers 403 `person_approval_required` with a `webUrl`, so send the person there.
 
 ## Use Sokosumi over MCP
 

@@ -261,13 +261,9 @@ const AGENT_CALLS = [
   },
   {
     path: `/${PROJECT_ID}/image-studio/talking-video-jobs`,
-    body: {
-      script: SCRIPT,
-      presenter: { kind: "file", fileId: PHOTO_ID, consent: true },
-    },
+    body: { script: SCRIPT, presenter: { kind: "stock", id: "ada" } },
     service: createTalkingVideoJobMock,
-    fileActor: (input: Record<string, unknown>) =>
-      (input.presenter as { actor: unknown }).actor,
+    fileActor: null,
   },
   {
     path: `/${PROJECT_ID}/image-studio/jobs/${JOB_ID}/cancel`,
@@ -362,4 +358,62 @@ describe("agents start and cancel Studio generations (ADR 0077)", () => {
       expect(call.service).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("a talking video of a real person's photo (ADR 0077)", () => {
+  const request = (authContext: AuthenticationContext) =>
+    createApp(authContext).request(
+      `/${PROJECT_ID}/image-studio/talking-video-jobs`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: SCRIPT,
+          presenter: { kind: "file", fileId: PHOTO_ID, consent: true },
+          idempotencyKey: "agent-intent-a",
+        }),
+      },
+    );
+
+  beforeEach(() => {
+    createTalkingVideoJobMock.mockResolvedValue(QUEUED_JOB);
+  });
+
+  it.each(["api_key", "oauth"] as const)(
+    "is a person's step for %s: an agent cannot consent for someone's face",
+    async (authenticationMethod) => {
+      const response = await request({ ...SESSION, authenticationMethod });
+
+      expect(response.status).toBe(403);
+      const body = (await response.json()) as {
+        kind: string;
+        webUrl: string;
+      };
+      expect(body.kind).toBe("person_approval_required");
+      expect(new URL(body.webUrl).pathname).toBe("/studio");
+      expect(new URL(body.webUrl).searchParams.get("projectId")).toBe(
+        PROJECT_ID,
+      );
+      expect(createTalkingVideoJobMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still starts for a person in the browser, with their consent", async () => {
+    const response = await request(SESSION);
+
+    expect(response.status).toBe(201);
+    expect(createTalkingVideoJobMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        presenter: expect.objectContaining({
+          kind: "file",
+          fileId: PHOTO_ID,
+          actor: {
+            userId: "user-a",
+            organizationId: null,
+            kind: "interactive",
+          },
+        }),
+      }),
+    );
+  });
 });

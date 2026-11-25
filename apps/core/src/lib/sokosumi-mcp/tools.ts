@@ -1127,7 +1127,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "projects_image_studio_talking_video",
     operation: "POST /projects/{id}/image-studio/talking-video-jobs",
     description:
-      "Spends workspace credits. Start a talking video: a presenter speaks `body.script`. A photo of a real person (`presenter.kind` `file`) needs that person's permission: ask before you send `consent: true`. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
+      "Spends workspace credits. Start a talking video: a presenter speaks `body.script`. Use a stock presenter (`presenter.kind` `stock`). A photo of a real person (`file`) is person-only: an agent gets 403 `person_approval_required` with a link to send the person to. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
     spendsCredits: true,
   },
   {
