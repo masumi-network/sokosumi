@@ -97,6 +97,8 @@ export function mapBot(bot: Awaited<ReturnType<typeof getSokoBotState>>) {
   if (!bot) return null;
   return {
     ...bot,
+    joinsTeamStandup: bot.leftTeamStandupAt === null,
+    leftTeamStandupAt: undefined,
     memory: bot.memoryRevisions[0] ?? null,
     memoryRevisions: undefined,
   };

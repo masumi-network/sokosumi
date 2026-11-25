@@ -184,9 +184,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
     id: "standup-match",
     suite: "soko-bot",
     area: "Stand-up",
-    title: "Each agent posts its own message, one hand-off",
+    title: "The bots speak, Coworker work inside, one hand-off",
     intent:
-      "After a short opener Robin's bot posts its own update and Mira gets a plain line under her name from her Task states; her waiting Task mentions Robin, a private Task stays out, and the DACH need opens a hand-off to Mira under Robin's bot's message, which she answers.",
+      "After a short opener only the bots post: Robin's bot tells what Mira did and is doing for Robin, and her Task waiting for Robin mentions him; Mira posts nothing of her own, a private Task stays out, and the DACH need opens a hand-off to Mira under Robin's bot's message, which she answers.",
     kind: "standup",
     setup: "match",
   },

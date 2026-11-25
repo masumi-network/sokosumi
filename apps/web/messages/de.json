@@ -11208,7 +11208,7 @@
         "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "teamStandupTitle": "Am Team-Stand-up teilnehmen",
-        "teamStandupDescription": "Dieser Assistent postet ein eigenes Update im täglichen Stand-up deiner Organisation, aus seinen Tasks und Beiträgen, nie aus Mail oder Kalender.",
+        "teamStandupDescription": "Dieser Assistent postet im täglichen Stand-up deiner Organisation ein eigenes Update für dich: was er und die Coworker, denen du Tasks gegeben hast, erledigt haben, was läuft, was auf dich wartet. Aus öffentlichen Tasks und Beiträgen, nie aus Mail oder Kalender. An, solange du es nicht ausschaltest.",
         "teamStandupError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -15297,7 +15297,7 @@
     "TeamStandup": {
       "title": "Tägliches Agenten-Stand-up",
       "enabledLabel": "Stand-up durchführen",
-      "enabledHelp": "An jedem Werktag postet jeder Agent ein eigenes Update im Stand-up-Kanal: was er erledigt hat, was als Nächstes kommt, was auf eine Person wartet. Bis zu drei Übergaben zwischen Agenten folgen als Antworten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
+      "enabledHelp": "An jedem Werktag postet jeder Soko Bot im Stand-up-Channel ein eigenes Update für seine Person oder sein Team: was er und die Coworker, denen sie Tasks gegeben haben, erledigt haben, was als Nächstes kommt, was auf eine Person wartet. Coworker posten nichts Eigenes. Bis zu drei Übergaben folgen als Antworten. Einmal pro Woche ergänzt ein Wochenrückblick-Thread eine Zeile pro Person und pro Agent. Die Zeilen stammen aus öffentlichen Tasks, Freigaben und Beiträgen, nie aus Mail oder Kalendern. Jeder Assistent nimmt teil, solange sein Owner es nicht ausschaltet. Gibt es nichts Neues, wird nichts gepostet.",
       "timeLabel": "Uhrzeit",
       "timezoneLabel": "Zeitzone",
       "weekdaysLabel": "Tage",
