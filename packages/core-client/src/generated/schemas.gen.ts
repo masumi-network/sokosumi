@@ -17084,6 +17084,45 @@ export const ContactImportResultSchema = {
     ]
 } as const;
 
+export const ContactLinkedInImportResultSchema = {
+    type: 'object',
+    properties: {
+        connections: {
+            type: 'integer'
+        },
+        created: {
+            type: 'integer'
+        },
+        updated: {
+            type: 'integer'
+        },
+        listId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'connections',
+        'created',
+        'updated',
+        'listId'
+    ]
+} as const;
+
+export const ContactLinkedInImportInputSchema = {
+    type: 'object',
+    properties: {
+        csv: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000000
+        }
+    },
+    required: [
+        'csv'
+    ]
+} as const;
+
 export const ContactOrganizationSchema = {
     type: 'object',
     properties: {
@@ -22905,6 +22944,9 @@ export const FundraisingPathSchema = {
                 }
             ]
         },
+        linkedIn: {
+            type: 'boolean'
+        },
         through: {
             anyOf: [
                 {
@@ -23006,6 +23048,7 @@ export const FundraisingPathSchema = {
     required: [
         'kind',
         'via',
+        'linkedIn',
         'through',
         'company',
         'strength',
@@ -23018,6 +23061,7 @@ export const FundraisingPathKindSchema = {
     type: 'string',
     enum: [
         'direct',
+        'linkedin',
         'fund',
         'portfolio'
     ]

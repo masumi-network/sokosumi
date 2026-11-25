@@ -4706,6 +4706,17 @@ export type ContactImportResult = {
     mergeSuggestions: Array<ContactMergeSuggestion>;
 };
 
+export type ContactLinkedInImportResult = {
+    connections: number;
+    created: number;
+    updated: number;
+    listId: string;
+};
+
+export type ContactLinkedInImportInput = {
+    csv: string;
+};
+
 export type ContactOrganization = {
     name: string;
     /**
@@ -6442,6 +6453,7 @@ export type FundraisingPortfolioCompany = {
 export type FundraisingPath = {
     kind: FundraisingPathKind;
     via: ContactPerson | null;
+    linkedIn: boolean;
     through: {
         id: string;
         name: string;
@@ -6462,6 +6474,7 @@ export type FundraisingPath = {
 
 export const FundraisingPathKind = {
     DIRECT: 'direct',
+    LINKEDIN: 'linkedin',
     FUND: 'fund',
     PORTFOLIO: 'portfolio'
 } as const;
@@ -39920,6 +39933,108 @@ export type PostContactsImportResponses = {
 };
 
 export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
+
+export type PostContactsLinkedinConnectionsData = {
+    body?: ContactLinkedInImportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/linkedin-connections';
+};
+
+export type PostContactsLinkedinConnectionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a LinkedIn export, or too many rows
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsLinkedinConnectionsError = PostContactsLinkedinConnectionsErrors[keyof PostContactsLinkedinConnectionsErrors];
+
+export type PostContactsLinkedinConnectionsResponses = {
+    /**
+     * Imported
+     */
+    200: {
+        data: ContactLinkedInImportResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsLinkedinConnectionsResponse = PostContactsLinkedinConnectionsResponses[keyof PostContactsLinkedinConnectionsResponses];
 
 export type GetContactsOrganizationsData = {
     body?: never;

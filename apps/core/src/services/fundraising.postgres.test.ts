@@ -7,6 +7,10 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import {
+  importLinkedInConnections,
+  parseLinkedInConnections,
+} from "./contact-linkedin-import.service";
+import {
   createContactList,
   updateContactListMembers,
 } from "./contact-lists.service";
@@ -281,6 +285,51 @@ describe.runIf(enabled)("fundraising on PostgreSQL", () => {
     await expect(warmPaths(actor, colleague.contact.id)).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it("imports a teammate's LinkedIn connections and ranks a connected teammate as a path", async () => {
+    const asBob: FundraisingActor = { ...actor, userId: bob };
+    const csv = [
+      "Notes:",
+      '"Some note"',
+      "",
+      "First Name,Last Name,URL,Email Address,Company,Position,Connected On",
+      "Ann,Investor,https://www.linkedin.com/in/ann-investor,,Ann Capital,Partner,20 Nov 2026",
+      "Gus,Guest,https://www.linkedin.com/in/gus-guest,gus@agentpay.io,AgentPay,Engineer,01 Jun 2026",
+      "Gus,Guest,https://www.linkedin.com/in/gus-guest,gus@agentpay.io,AgentPay,Engineer,01 Jun 2026",
+    ].join("\n");
+    const first = await importLinkedInConnections(
+      asBob,
+      parseLinkedInConnections(csv),
+    );
+    expect(first).toMatchObject({ connections: 3, created: 1 });
+    expect(first.updated).toBe(2);
+    const again = await importLinkedInConnections(
+      asBob,
+      parseLinkedInConnections(csv),
+    );
+    expect(again.created).toBe(0);
+
+    const ann = await prisma.contact.findUniqueOrThrow({
+      where: { id: annId },
+      include: { channels: true, linkedInConnections: true },
+    });
+    expect(ann.channels.some((c) => c.type === "LINKEDIN")).toBe(true);
+    expect(ann.linkedInConnections.map((c) => c.userId)).toEqual([bob]);
+    const gus = await prisma.contact.findFirstOrThrow({
+      where: { workspaceId, name: "Gus Guest" },
+    });
+    expect(gus.enrichedAt).not.toBeNull();
+    expect(gus.classifiedAt).not.toBeNull();
+
+    const result = await warmPaths(actor, annId);
+    const bobDirect = result.paths.find(
+      (p) => p.kind === "linkedin" && p.via?.name === "Bob",
+    );
+    expect(bobDirect).toBeDefined();
+    const viaGus = result.paths.find((p) => p.through?.name === "Gus Guest");
+    expect(viaGus).toMatchObject({ kind: "portfolio", linkedIn: true });
+    expect(viaGus?.via?.name).toBe("Bob");
   });
 
   it("returns an empty pipeline without an Investors list", async () => {
