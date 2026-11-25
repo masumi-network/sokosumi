@@ -220,7 +220,7 @@ describe("resetUnwantedPersonalWorkspace", () => {
 
     assert.equal(result.reset, true);
     assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
-    assert.match(queries[1], /DELETE FROM workspace/);
+    assert.match(queries[1], /^DELETE FROM "\w+"\."workspace" /);
     assert.equal(queries[2], "RELEASE SAVEPOINT zero_workspace_reset");
   });
 
@@ -229,7 +229,7 @@ describe("resetUnwantedPersonalWorkspace", () => {
     const client = {
       async query(sql) {
         queries.push(sql);
-        if (String(sql).includes("DELETE FROM workspace")) {
+        if (/^DELETE FROM "\w+"\."workspace" /.test(String(sql))) {
           throw new Error(
             'update or delete on table "workspace" violates foreign key constraint',
           );
@@ -245,7 +245,7 @@ describe("resetUnwantedPersonalWorkspace", () => {
 
     assert.equal(result.reset, false);
     assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
-    assert.match(queries[1], /DELETE FROM workspace/);
+    assert.match(queries[1], /^DELETE FROM "\w+"\."workspace" /);
     assert.equal(queries[2], "ROLLBACK TO SAVEPOINT zero_workspace_reset");
     assert.equal(
       queries.includes("ROLLBACK"),
@@ -280,9 +280,57 @@ describe("clearUnwantedOrganizationMemberships", () => {
 
     await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
 
-    assert.match(queries[0], /DELETE FROM member/);
-    assert.match(queries[1], /preferredOrganizationId/);
-    assert.match(queries[2], /activeOrganizationId/);
+    assert.match(queries[0], /^DELETE FROM "\w+"\."member" /);
+    assert.match(
+      queries[1],
+      /^UPDATE "\w+"\."user" SET "preferredOrganizationId"/,
+    );
+    assert.match(
+      queries[2],
+      /^UPDATE "\w+"\."session" SET "activeOrganizationId"/,
+    );
+  });
+
+  it("names the schema DATABASE_SCHEMA_SHARED names", async (t) => {
+    const before = process.env.DATABASE_SCHEMA_SHARED;
+    t.after(() => {
+      if (before === undefined) delete process.env.DATABASE_SCHEMA_SHARED;
+      else process.env.DATABASE_SCHEMA_SHARED = before;
+    });
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        return { rowCount: 0 };
+      },
+    };
+
+    const firstWords = () =>
+      queries.splice(0).map((sql) => sql.split(" ").slice(0, 3).join(" "));
+
+    // Blank is `public`, as Core reads it.
+    process.env.DATABASE_SCHEMA_SHARED = "";
+    await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
+    assert.deepEqual(firstWords(), [
+      'DELETE FROM "public"."member"',
+      'UPDATE "public"."user" SET',
+      'UPDATE "public"."session" SET',
+    ]);
+
+    process.env.DATABASE_SCHEMA_SHARED = "shared";
+    await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
+    assert.deepEqual(firstWords(), [
+      'DELETE FROM "shared"."member"',
+      'UPDATE "shared"."user" SET',
+      'UPDATE "shared"."session" SET',
+    ]);
+
+    process.env.DATABASE_SCHEMA_SHARED = 'shared"; DROP TABLE x; --';
+    await assert.rejects(
+      clearUnwantedOrganizationMemberships(client, { userId: "user-zero" }),
+      /DATABASE_SCHEMA_SHARED is not a schema name/,
+    );
+    assert.equal(queries.length, 0);
   });
 });
 

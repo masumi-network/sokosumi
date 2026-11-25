@@ -30,6 +30,24 @@ function log(message) {
 const ZERO_WORKSPACE_RESET_SAVEPOINT = "zero_workspace_reset";
 
 /**
+ * A shared table with its schema, `"<schema>"."<table>"`, as `sharedTable` of
+ * `@sokosumi/database/sql-tables` names it: plain Node cannot import that
+ * TypeScript module. `DATABASE_SCHEMA_SHARED` is read as Core reads it (blank
+ * or missing is `public`), from the environment the database URL comes from.
+ *
+ * @param {"account" | "member" | "organization" | "session" | "user" | "workspace"} table
+ */
+function sharedTable(table) {
+  const schema = process.env.DATABASE_SCHEMA_SHARED || "public";
+  if (!/^[a-z_][a-z0-9_]{0,62}$/.test(schema)) {
+    throw new Error(
+      `DATABASE_SCHEMA_SHARED is not a schema name: ${JSON.stringify(schema)}`,
+    );
+  }
+  return `"${schema}"."${table}"`;
+}
+
+/**
  * Best-effort delete of a personal workspace so zero fixtures stay durable.
  * Isolated via SAVEPOINT so Job/Task FK failures do not abort the rest of
  * the fixture transaction (admin/alice/bob password refresh still commits).
@@ -40,9 +58,10 @@ const ZERO_WORKSPACE_RESET_SAVEPOINT = "zero_workspace_reset";
 export async function resetUnwantedPersonalWorkspace(client, fixtureUser) {
   try {
     await client.query(`SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
-    await client.query(`DELETE FROM workspace WHERE "userId" = $1`, [
-      fixtureUser.userId,
-    ]);
+    await client.query(
+      `DELETE FROM ${sharedTable("workspace")} WHERE "userId" = $1`,
+      [fixtureUser.userId],
+    );
     await client.query(`RELEASE SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
     return { reset: true };
   } catch (error) {
@@ -84,15 +103,16 @@ export async function clearUnwantedOrganizationMemberships(
   client,
   fixtureUser,
 ) {
-  await client.query(`DELETE FROM member WHERE "userId" = $1`, [
-    fixtureUser.userId,
-  ]);
   await client.query(
-    `UPDATE "user" SET "preferredOrganizationId" = NULL WHERE id = $1`,
+    `DELETE FROM ${sharedTable("member")} WHERE "userId" = $1`,
     [fixtureUser.userId],
   );
   await client.query(
-    `UPDATE session SET "activeOrganizationId" = NULL WHERE "userId" = $1`,
+    `UPDATE ${sharedTable("user")} SET "preferredOrganizationId" = NULL WHERE id = $1`,
+    [fixtureUser.userId],
+  );
+  await client.query(
+    `UPDATE ${sharedTable("session")} SET "activeOrganizationId" = NULL WHERE "userId" = $1`,
     [fixtureUser.userId],
   );
 }
@@ -116,7 +136,7 @@ async function importFromCore(specifier) {
  */
 async function upsertFixtureUser(client, fixture, passwordHash) {
   const existing = await client.query(
-    `SELECT id FROM "user" WHERE email = $1 LIMIT 1`,
+    `SELECT id FROM ${sharedTable("user")} WHERE email = $1 LIMIT 1`,
     [fixture.email],
   );
 
@@ -126,7 +146,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
   if (existing.rowCount && existing.rows[0]?.id) {
     userId = existing.rows[0].id;
     await client.query(
-      `UPDATE "user"
+      `UPDATE ${sharedTable("user")}
        SET name = $2,
            "emailVerified" = true,
            role = $3,
@@ -139,7 +159,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
   } else {
     userId = randomUUID();
     await client.query(
-      `INSERT INTO "user" (
+      `INSERT INTO ${sharedTable("user")} (
          id, name, email, "emailVerified", role, "createdAt", "updatedAt",
          "marketingOptIn", "termsAccepted", "notificationsOptIn"
        ) VALUES ($1, $2, $3, true, $4, $5, $5, false, true, true)`,
@@ -148,7 +168,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
   }
 
   const account = await client.query(
-    `SELECT id FROM account
+    `SELECT id FROM ${sharedTable("account")}
      WHERE "userId" = $1 AND "providerId" = 'credential'
      LIMIT 1`,
     [userId],
@@ -156,7 +176,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
 
   if (account.rowCount && account.rows[0]?.id) {
     await client.query(
-      `UPDATE account
+      `UPDATE ${sharedTable("account")}
        SET password = $2,
            "accountId" = $3,
            "updatedAt" = $4
@@ -165,7 +185,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
     );
   } else {
     await client.query(
-      `INSERT INTO account (
+      `INSERT INTO ${sharedTable("account")} (
          id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt"
        ) VALUES ($1, $2, 'credential', $2, $3, $4, $4)`,
       [randomUUID(), userId, passwordHash, now],
@@ -174,7 +194,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
 
   if (fixtureWantsPersonalWorkspace(fixture)) {
     await client.query(
-      `INSERT INTO workspace (id, "userId", "createdAt", "updatedAt")
+      `INSERT INTO ${sharedTable("workspace")} (id, "userId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $3)
        ON CONFLICT ("userId") DO NOTHING`,
       [randomUUID(), userId, now],
@@ -203,7 +223,7 @@ async function upsertFixtureOrganization(client, userId, organization) {
   const now = new Date();
 
   const existing = await client.query(
-    `SELECT id FROM organization WHERE slug = $1 LIMIT 1`,
+    `SELECT id FROM ${sharedTable("organization")} WHERE slug = $1 LIMIT 1`,
     [organization.slug],
   );
 
@@ -211,7 +231,7 @@ async function upsertFixtureOrganization(client, userId, organization) {
   if (existing.rowCount && existing.rows[0]?.id) {
     organizationId = existing.rows[0].id;
     await client.query(
-      `UPDATE organization
+      `UPDATE ${sharedTable("organization")}
        SET name = $2
        WHERE id = $1`,
       [organizationId, organization.name],
@@ -219,14 +239,14 @@ async function upsertFixtureOrganization(client, userId, organization) {
   } else {
     organizationId = randomUUID();
     await client.query(
-      `INSERT INTO organization (id, name, slug, "createdAt")
+      `INSERT INTO ${sharedTable("organization")} (id, name, slug, "createdAt")
        VALUES ($1, $2, $3, $4)`,
       [organizationId, organization.name, organization.slug, now],
     );
   }
 
   await client.query(
-    `INSERT INTO member (id, "userId", "organizationId", role, "createdAt")
+    `INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId", role, "createdAt")
      VALUES ($1, $2, $3, 'owner', $4)
      ON CONFLICT ("userId", "organizationId") DO UPDATE
        SET role = 'owner'`,
@@ -234,7 +254,7 @@ async function upsertFixtureOrganization(client, userId, organization) {
   );
 
   await client.query(
-    `INSERT INTO workspace (id, "organizationId", "createdAt", "updatedAt")
+    `INSERT INTO ${sharedTable("workspace")} (id, "organizationId", "createdAt", "updatedAt")
      VALUES ($1, $2, $3, $3)
      ON CONFLICT ("organizationId") DO NOTHING`,
     [randomUUID(), organizationId, now],
