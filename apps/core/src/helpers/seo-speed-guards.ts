@@ -3,6 +3,7 @@ import {
   containsSokoBotSensitiveMaterial,
 } from "@sokosumi/soko-bot";
 import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
+import { reportObject } from "./project-seo-public-report";
 
 /**
  * The guards of speed data. Each one holds on four paths: a fresh import and a stored read, of an audit's
@@ -63,6 +64,20 @@ export function speedFieldUrl(value: unknown) {
     )
     ? href
     : undefined;
+}
+
+/** A lab insight whose title, detail and action are public text without private or credential material. */
+export function publicSpeedInsight(value: unknown) {
+  const insight = reportObject(value);
+  return (
+    !!insight &&
+    [insight.title, insight.detail, insight.action].every(
+      (text) =>
+        typeof text === "string" &&
+        publicExplorationText(text) &&
+        !containsSokoBotSensitiveMaterial(text),
+    )
+  );
 }
 
 /**

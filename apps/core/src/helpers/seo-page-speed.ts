@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
+import { publicExplorationUrl } from "@sokosumi/utils";
 import {
   fieldTimings,
   labTimings,
@@ -15,6 +15,7 @@ import {
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 import {
+  publicSpeedInsight,
   publicSpeedUrl,
   SPEED_DEVICES,
   type SpeedDevice,
@@ -123,14 +124,9 @@ function details(raw: unknown) {
     Array.isArray(row.insights) ? row.insights.slice(0, 20) : []
   ).flatMap((value) => {
     const parsed = speedInsight.safeParse(value);
-    if (
-      !parsed.success ||
-      ![parsed.data.title, parsed.data.detail, parsed.data.action].every(
-        publicExplorationText,
-      )
-    )
-      return [];
-    return [parsed.data];
+    return parsed.success && publicSpeedInsight(parsed.data)
+      ? [parsed.data]
+      : [];
   });
   return {
     scores: scores.success ? scores.data : {},
@@ -370,8 +366,8 @@ export function readPageSpeed(
 
 /**
  * One stored measurement before the schema reads it, with the guards of a fresh import. None: a URL is not
- * public. The field URL gets the form a fresh import stores. A history Core cannot read goes, the
- * measurement stays.
+ * public. The field URL gets the form a fresh import stores. A history Core cannot read and a lab insight
+ * with text that is not public go, the measurement stays.
  */
 export function readableStoredMeasurement(value: unknown): unknown[] {
   const row = reportObject(value);
@@ -394,6 +390,16 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
         ? measured
         : { ...measured, history };
   }
+  const lab = reportObject(row.lab);
+  const details = reportObject(lab?.pageSpeed);
+  if (lab && details && Array.isArray(details.insights))
+    read.lab = {
+      ...lab,
+      pageSpeed: {
+        ...details,
+        insights: details.insights.filter(publicSpeedInsight),
+      },
+    };
   return [read];
 }
 

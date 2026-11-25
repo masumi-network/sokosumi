@@ -620,6 +620,57 @@ describe("the guards of speed data on each path", () => {
     expect([table?.rows.length, table?.dropped]).toEqual([1, 2]);
   });
 
+  it("drops a lab insight with credential material and keeps the measurement, fresh and stored", () => {
+    const insight = {
+      id: "unused-javascript",
+      title: "Reduce unused JavaScript",
+      detail: "Potential savings of 108 KiB.",
+      action: "Defer scripts until they are needed.",
+    };
+    const leaks = (["title", "detail", "action"] as const).map((key, i) => ({
+      ...insight,
+      id: `leak-${i}`,
+      [key]: `Use the key ${SECRET}`,
+    }));
+    const speed = section(EXTRA);
+    const fresh = read([
+      extra(EXTRA, {
+        speed: {
+          ...speed,
+          mobile: {
+            ...speed.mobile,
+            lab: {
+              ...speed.mobile.lab,
+              pageSpeed: {
+                sourceRecord: "c".repeat(64),
+                scores: { performance: 72 },
+                insights: [...leaks, insight],
+              },
+            },
+          },
+        },
+      }),
+    ])?.rows[0]?.devices[0];
+    const measured = {
+      status: "measured",
+      median,
+      pageSpeed: { scores: { performance: 72 }, insights: [insight] },
+    };
+    expect(fresh?.lab).toMatchObject(measured);
+    // A measurement Core stored before this guard holds the text.
+    const old = JSON.parse(JSON.stringify(fresh));
+    old.lab.pageSpeed.insights = [...leaks, insight];
+    const stored = publicSeoPayloadSchema.parse(
+      storedAudit(
+        [{ url: EXTRA, audited: false, devices: [old] }],
+        [{ ...old, pageUrl: SEO_TEST_PAGE, testedUrl: SEO_TEST_PAGE }],
+      ),
+    );
+    expect(stored.pageSpeed?.[0]?.lab).toMatchObject(measured);
+    expect(stored.siteSpeed?.rows[0]?.devices[0]?.lab).toMatchObject(measured);
+    expect(JSON.stringify([fresh, stored])).not.toContain(SECRET);
+  });
+
   it("drops only the stored row Core cannot read and counts it", () => {
     const table = storedRows([
       { url: EXTRA, audited: false, devices: [] },
