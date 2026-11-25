@@ -68,11 +68,11 @@ describe("seoRankHistory", () => {
         (item) => item.date,
       ),
     ).toEqual(["2026-10-07", "2026-10-09"]);
-    expect(seoRankHistory(rows)[0].points.map((item) => item.date)).toEqual([
-      "2026-10-07",
-      "2026-10-08",
-      "2026-10-09",
-    ]);
+    // No time zone, and one the runtime does not know (stored data can hold it): UTC days, no throw.
+    for (const zone of [undefined, "Bad/Zone"])
+      expect(
+        seoRankHistory(rows, zone)[0].points.map((item) => item.date),
+      ).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]);
   });
 
   it("has no history with one day of reads, from a result before histories existed too", () => {

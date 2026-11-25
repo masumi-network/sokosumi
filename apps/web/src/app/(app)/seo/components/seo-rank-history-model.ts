@@ -16,9 +16,33 @@ export type SeoRankSeries = {
 };
 type RankPoint = SeoRankSeries["points"][number];
 
-/** The calendar day of a read in a time zone, as YYYY-MM-DD ("en-CA" writes a date that way). */
-const dayOf = (at: Date | string, timeZone: string) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(at));
+/**
+ * Gives the calendar day of a read in a time zone, as YYYY-MM-DD. One formatter serves every read of a call.
+ * A time zone the runtime does not know (stored data can hold one) reads as UTC: the table must still render.
+ */
+function dayIn(timeZone: string) {
+  const formatter = (zone: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  let format: Intl.DateTimeFormat;
+  try {
+    format = formatter(timeZone);
+  } catch {
+    format = formatter("UTC");
+  }
+  return (at: Date | string) => {
+    const part = Object.fromEntries(
+      format
+        .formatToParts(new Date(at))
+        .map(({ type, value }) => [type, value]),
+    );
+    return `${part.year}-${part.month}-${part.day}`;
+  };
+}
 const DEVICE_ORDER: Record<string, number> = { mobile: 0, desktop: 1 };
 
 /**
@@ -34,6 +58,7 @@ export function seoRankHistory(
    */
   timeZone = "UTC",
 ): SeoRankSeries[] {
+  const dayOf = dayIn(timeZone);
   const byDevice = new Map<
     Keyword["device"],
     Map<string, Omit<RankPoint, "date">>
@@ -49,7 +74,7 @@ export function seoRankHistory(
     const days =
       byDevice.get(point.device) ?? new Map<string, Omit<RankPoint, "date">>();
     days.set(
-      dayOf(point.observedAt, timeZone),
+      dayOf(point.observedAt),
       point.positionStatus === "ranked"
         ? { value: point.position }
         : { value: null, outside: { top: point.checkedResults ?? null } },

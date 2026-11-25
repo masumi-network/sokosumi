@@ -371,7 +371,10 @@ export function SeoKeywords({
                     // no line about a sync: "not read in the last sync" or "no impressions" on every row of a
                     // check would be noise.
                     const trend =
-                      read.state !== "measured" && row.version === 0
+                      read.state !== "measured" &&
+                      row.version === 0 &&
+                      // A cut read is not noise: the keyword can have rows the sync did not get.
+                      !(read.state === "empty" && read.truncated)
                         ? ({ state: "absent" } as const)
                         : read;
                     const trendId = `seo-keyword-trend-${row.id}`;
