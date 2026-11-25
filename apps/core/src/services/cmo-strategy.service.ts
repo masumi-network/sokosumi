@@ -1557,7 +1557,24 @@ export async function saveCmoStrategy(
   const cuso = await requireCuso(where, db);
   // What the last patch changed is Core's to say.
   // So is what the fit cut: a save of Cuso's starts over.
-  const { patched, fitted: _fitted, ...strategy } = save;
+  const { patched, fitted: _fitted, ...sent } = save;
+  // Nothing is written before the owner approves and pays: Core makes every
+  // piece after. A patch keeps what it leaves out, so a draft Cuso sent with
+  // a plan once could never be taken back (the review asked, he resent the
+  // entry without it, the draft stayed): Core leaves it out instead.
+  const strategy =
+    options.turnId && !options.executing && options.part !== "pieces"
+      ? {
+          ...sent,
+          ...(sent.calendar
+            ? {
+                calendar: sent.calendar.map(
+                  ({ draft: _draft, ...entry }) => entry,
+                ),
+              }
+            : {}),
+        }
+      : sent;
   const alsoOn = (strategy.calendar ?? [])
     .map((entry) => cmoAlsoOnProblem(entry))
     .find((problem) => problem !== null);
@@ -1779,9 +1796,17 @@ export async function saveCmoStrategy(
             )?.plan,
           )
         : before;
+    // A cadence the owner lowered cuts the calendar in Core: shares that cut
+    // moves were never Cuso's to keep, so the plan before is cut the same way.
+    const baseline = earlier
+      ? cmoFollowCadenceChange(
+          { ...earlier, channels: stored.channels },
+          earlier,
+        )
+      : null;
     const broken = cmoPlanRulesBrokenSince(
       sendsCalendar ? stored : { ...stored, calendar: [] },
-      earlier ?? null,
+      baseline,
     );
     if (broken.length > 0) {
       throw unprocessableEntity(
