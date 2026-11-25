@@ -3,10 +3,12 @@
 import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useAnalytics } from "../../hooks/effects/use-analytics";
 import { useOnboardingPoll } from "../../hooks/effects/use-onboarding-poll";
 import { useOnboardingReturnNotice } from "../../hooks/effects/use-onboarding-return-notice";
 import { useOnboardingStepScroll } from "../../hooks/effects/use-onboarding-step-scroll";
+import { commonEvents, withEvents } from "../../lib/analytics";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
@@ -58,9 +60,14 @@ export function OnboardingFlow({
   skipped: initialSkipped = [],
   plans = [],
   returnedFromCheckout = false,
-  actions,
+  actions: untracked,
 }: OnboardingFlowProps) {
+  const actions = useMemo(
+    () => withEvents(untracked, commonEvents("onboarding")),
+    [untracked],
+  );
   const [overview, setOverview] = useState(initialOverview);
+  useAnalytics(overview);
   const [messages, setMessages] = useState(initialMessages);
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
