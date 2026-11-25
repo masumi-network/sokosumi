@@ -32,6 +32,7 @@ import {
   replaceVisibleSelection,
   smartFilterOf,
 } from "@/app/contacts/contacts-view";
+import { FundraisingLink } from "@/app/fundraising/components/fundraising-link";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageSearchField } from "@/components/page-search-field";
 import {
@@ -481,6 +482,9 @@ export function ContactsWorkspace({
                 />
               )}
               <span className="ms-auto flex shrink-0 items-center gap-2">
+                {viewList?.name.trim().toLowerCase() === "investors" ? (
+                  <FundraisingLink className="h-10 md:h-8" />
+                ) : null}
                 {duplicateGroups.length ? (
                   <Button
                     size="sm"

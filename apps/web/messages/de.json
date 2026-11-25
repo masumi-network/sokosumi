@@ -216,7 +216,8 @@
       "inviteMembers": "Mitglieder einladen",
       "organizationSettings": "Einstellungen",
       "membersAndSettings": "Mitglieder & Einstellungen",
-      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}",
+      "justYou": "Nur du"
     },
     "DataTable": {
       "Data": {
@@ -12762,6 +12763,78 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      }
+    },
+    "Fundraising": {
+      "title": "Fundraising",
+      "description": "Die Runde: jeder Investor auf der Liste „Investors“, wo er steht und was er im Datenraum geöffnet hat.",
+      "loading": "Runde wird geladen",
+      "subtitle": "{count, plural, one {# Investor} other {# Investoren}} auf der Liste „Investors“",
+      "openList": "Liste „Investors“ öffnen",
+      "openContacts": "Kontakte öffnen",
+      "all": "Alle",
+      "noListTitle": "Noch keine Liste „Investors“",
+      "noList": "Lege in Kontakte eine Kontaktliste mit dem Namen „Investors“ an und füge die Investoren hinzu, mit denen du sprichst. Die Runde läuft über diese Liste.",
+      "emptyTitle": "Noch niemand auf der Liste",
+      "empty": "Füge in Kontakte Investoren zur Liste „Investors“ hinzu. Jeder erscheint hier mit Phase, Verantwortlichem und seiner Aktivität im Datenraum.",
+      "unassigned": "Niemand",
+      "noNextStep": "Nächsten Schritt eintragen",
+      "noTouch": "Noch kein Kontakt",
+      "saveFailed": "Die Änderung konnte nicht gespeichert werden",
+      "link": "Fundraising",
+      "columns": {
+        "investor": "Investor",
+        "stage": "Phase",
+        "owner": "Verantwortlich",
+        "nextStep": "Nächster Schritt",
+        "lastTouch": "Letzter Kontakt",
+        "dataRoom": "Datenraum",
+        "cheque": "Ticket"
+      },
+      "stages": {
+        "TO_RESEARCH": "Zu recherchieren",
+        "WARM_PATH": "Warmer Weg",
+        "REACHED_OUT": "Angeschrieben",
+        "MEETING": "Gespräch",
+        "DATA_ROOM": "Datenraum",
+        "DILIGENCE": "Prüfung",
+        "COMMITTED": "Zugesagt",
+        "PASSED": "Abgesagt"
+      },
+      "room": {
+        "notInvited": "Nicht eingeladen",
+        "invited": "Eingeladen {when}, noch kein Besuch",
+        "opened": "{views, plural, one {# Aufruf} other {# Aufrufe}}",
+        "revoked": "Zugang entzogen"
+      },
+      "sheet": {
+        "noFund": "Noch kein Fonds oder keine Rolle",
+        "openContact": "Kontakt öffnen",
+        "nextStep": "Nächster Schritt",
+        "followUp": "Wiedervorlage",
+        "noFollowUp": "Kein Datum",
+        "ticket": "Ticketgröße",
+        "ticketPlaceholder": "z. B. 500K–2M $",
+        "committed": "Zugesagt",
+        "committedPlaceholder": "z. B. 250k",
+        "thesis": "These",
+        "thesisPlaceholder": "Worin sie investieren, in ein, zwei Zeilen",
+        "notes": "Notizen",
+        "notesPlaceholder": "Was gesagt wurde, was sie brauchen, wer noch beteiligt ist",
+        "knownBy": "Wer sie kennt",
+        "knownByNobody": "Noch niemand im Team hatte Kontakt.",
+        "touches": "{count, plural, one {# Kontakt} other {# Kontakte}}",
+        "room": "Raum",
+        "firstVisit": "Erster Besuch",
+        "downloads": "Downloads",
+        "lastOpened": "Zuletzt geöffnet",
+        "openRoom": "Raumaktivität öffnen",
+        "source": "Quelle: {source}"
+      },
+      "error": {
+        "title": "Die Runde konnte nicht geladen werden",
+        "description": "Etwas ist schiefgegangen. Versuch es noch einmal.",
+        "retry": "Noch einmal versuchen"
       }
     },
     "Seo": {

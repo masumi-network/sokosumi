@@ -1,0 +1,48 @@
+// ---------------------------------------------------------------------------
+// Fundraising: a workspace's raise, run over the contacts on its "Investors"
+// list (docs/adr/0080-fundraising-workspace.md). The investor stays a Contact;
+// this row adds what only the raise cares about.
+// ---------------------------------------------------------------------------
+
+/// Where an investor stands in the raise. The order is the pipeline's order.
+enum FundraisingStage {
+  TO_RESEARCH
+  WARM_PATH
+  REACHED_OUT
+  MEETING
+  DATA_ROOM
+  DILIGENCE
+  COMMITTED
+  PASSED
+}
+
+/// One investor in the raise. Exists only once someone changed something;
+/// an investor on the list without a row reads as `TO_RESEARCH` with no
+/// owner. Next step, follow-up date and last touch live on the Contact.
+model FundraisingProspect {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contactId   String    @unique @db.Uuid
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  stage          FundraisingStage @default(TO_RESEARCH)
+  stageChangedAt DateTime         @default(now())
+  /// The teammate driving this investor.
+  ownerUserId    String?
+  /// Typical cheque as written: "$500K–$3.5M".
+  ticketSize     String?
+  /// What the fund invests in, in a line or two.
+  thesis         String?
+  /// What they committed, in whole US dollars, once they did.
+  committedUsd   Int?
+  notes          String?
+  /// Where the investor came from: "The Swarm", "Find people", "Imported".
+  source         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId, stage])
+  @@map("fundraising_prospect")
+}

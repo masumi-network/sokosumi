@@ -1,7 +1,6 @@
 {
   "src/app/(app)/chat/components/transcript-viewport.tsx": 2,
   "src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts": 1,
-  "src/app/(app)/projects/components/image-studio/studio-gallery.tsx": 1,
   "src/app/(app)/projects/components/image-studio/use-generation-queue.ts": 1,
   "src/app/(app)/seo/components/seo-connection-button.tsx": 1,
   "src/app/(app)/tasks/components/use-tasks-view-model.ts": 2,
