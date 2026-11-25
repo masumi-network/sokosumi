@@ -501,7 +501,7 @@ describe("CMO auth handler", () => {
     const response = await followLink(
       jar,
       "/signup",
-      "?url=nmkr.io&ref=a&ref=b&seats=3",
+      "?url=nmkr.io&ref=a&ref=b&seats=3&_gl=1*abc*_ga*MTIz",
     );
 
     const authorize = new URL(response.headers.get("location") ?? "");
@@ -654,7 +654,7 @@ describe("CMO auth handler", () => {
     const response = await signIn(auth, jar, core);
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/");
+    expect(response.headers.get("location")).toBe("/?signed_in=1");
     for (const header of response.headers.getSetCookie()) {
       expect(header).toMatch(/HttpOnly/i);
     }
@@ -1157,7 +1157,7 @@ describe("CMO auth handler", () => {
         "/api/auth/sign-in/social",
         {
           method: "POST",
-          body: { provider: "sokosumi", callbackURL: "/" },
+          body: { provider: "sokosumi", callbackURL: "/?signed_in=1" },
         },
       );
       request.headers.set("x-vercel-forwarded-for", ip);

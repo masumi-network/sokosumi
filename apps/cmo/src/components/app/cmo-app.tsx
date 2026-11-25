@@ -7,6 +7,7 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useRef, useState, useTransition } from "react";
+import { useAnalytics, useAppEvents } from "../../hooks/effects/use-analytics";
 import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
 import { useCmoAppPoll } from "../../hooks/effects/use-cmo-app-poll";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
@@ -257,9 +258,11 @@ export function CmoApp({
   plans = [],
   manyCusos = false,
   mayHire = false,
-  actions,
+  actions: untracked,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
+  useAnalytics(overview);
+  const actions = useAppEvents(untracked, overview);
   const [messages, setMessages] = useState(initialMessages);
   const [work, setWork] = useState(initialWork);
   const [nav, setNav] = useState({

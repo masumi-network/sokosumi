@@ -603,6 +603,8 @@ export interface XUser {
 }
 
 export interface XDmEvent {
+  /** Empty when X left it out. */
+  id: string;
   conversationId: string;
   senderId: string;
   participantIds: string[];
@@ -650,6 +652,7 @@ export function parseXDmEvent(raw: unknown): XDmEvent | null {
   const createdAt = isoDate(field(raw, "created_at"));
   if (!conversationId || !senderId || !createdAt) return null;
   return {
+    id: text(field(raw, "id")),
     conversationId,
     senderId,
     participantIds: list(field(raw, "participant_ids")).map(text),

@@ -5990,3 +5990,42 @@ button.week-more {
   margin: 0;
   padding-left: 1.1em;
 }
+
+/* Analytics consent, the same choice and words as www.cmo.xyz's banner. */
+.cookie-panel {
+  position: fixed;
+  z-index: 1000;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  max-width: 400px;
+  padding: 16px 20px 20px;
+  background: var(--card);
+  color: var(--foreground);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.cookie-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.cookie-panel p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cookie-panel a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cookie-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}

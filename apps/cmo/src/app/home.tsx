@@ -200,6 +200,7 @@ export interface HomeSearchParams {
   ads?: string | string[];
   measure?: string | string[];
   from?: string | string[];
+  signed_in?: string | string[];
 }
 
 interface HomeProps {
@@ -258,8 +259,11 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   if (opened.kind === "only") {
+    // The sign-in marker rides along, so the next page sends sign_up or login.
+    const signedIn =
+      first(params.signed_in) === undefined ? "" : "&signed_in=1";
     redirect(
-      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
+      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}${signedIn}`,
     );
   }
   if (opened.kind === "picker") {
