@@ -36,11 +36,17 @@ export function useFeedUnreadCount({
 }): { unreadCount: number; showCount: boolean } {
   const showCount = useShowRoomUnreadCount();
   const queryClient = useQueryClient();
+  const countKey = chatQueryKeys.feedUnread({
+    userId: currentUserId,
+    workspaceId: organizationId,
+  });
+  // A read still running from before this mount may predate the last change
+  // the unmounted row saw; the mount read reuses it. Read once more after it.
+  const [refreshDue, setRefreshDue] = useState(
+    () => queryClient.isFetching({ queryKey: countKey, exact: true }) > 0,
+  );
   const { data } = useQuery({
-    queryKey: chatQueryKeys.feedUnread({
-      userId: currentUserId,
-      workspaceId: organizationId,
-    }),
+    queryKey: countKey,
     queryFn: async () => (await fetchChatFeed({ limit: 1 })).unreadCount,
     retry: false,
     refetchOnWindowFocus: false,
@@ -66,7 +72,6 @@ export function useFeedUnreadCount({
   // the two reads. A change inside the wait needs no wait of its own: the read
   // at its end sees it.
   const [seenRoomsUnread, setSeenRoomsUnread] = useState(roomsUnread);
-  const [refreshDue, setRefreshDue] = useState(false);
   const [waitsForRead, setWaitsForRead] = useState(0);
   if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
     setSeenRoomsUnread(roomsUnread);
@@ -74,19 +79,15 @@ export function useFeedUnreadCount({
   }
   useTimeout(
     () => {
-      const queryKey = chatQueryKeys.feedUnread({
-        userId: currentUserId,
-        workspaceId: organizationId,
-      });
       // A running read may have read before the change, and an invalidation
       // can hand back that same read. Wait another round for it to finish,
       // then read again; never cancel it, or steady changes starve the count.
-      if (queryClient.isFetching({ queryKey, exact: true }) > 0) {
+      if (queryClient.isFetching({ queryKey: countKey, exact: true }) > 0) {
         setWaitsForRead((waits) => waits + 1);
         return;
       }
       setRefreshDue(false);
-      void queryClient.invalidateQueries({ queryKey, exact: true });
+      void queryClient.invalidateQueries({ queryKey: countKey, exact: true });
     },
     refreshDue ? FEED_COUNT_REFRESH_DELAY_MS : null,
     waitsForRead,

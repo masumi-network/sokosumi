@@ -183,6 +183,35 @@ describe("useFeedUnreadCount", () => {
     expect(result.current.unreadCount).toBe(0);
   });
 
+  it("reads again on a remount that reuses a read from before the change", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: 60 * 1000 } },
+    });
+    let finishFirstRead: (value: ReturnType<typeof feedCount>) => void =
+      () => {};
+    fetchChatFeedMock
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishFirstRead = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(feedCount(0));
+    liveRooms.current = [room(3)];
+    const first = renderCount(client);
+    // The reader reads the room while the first read still runs.
+    liveRooms.current = [room(0)];
+    first.rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    first.unmount();
+    const { result } = renderCount(client);
+    await act(async () => {
+      finishFirstRead(feedCount(3));
+    });
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
+    expect(result.current.unreadCount).toBe(0);
+  });
+
   it("does not read again when rooms only change places", async () => {
     fetchChatFeedMock.mockResolvedValue(feedCount(1));
     const other = { ...room(0), id: "room-2" };
