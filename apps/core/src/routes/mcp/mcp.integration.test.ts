@@ -177,9 +177,14 @@ describe("Sokosumi MCP server", () => {
       "projects_competitor_checks",
       "projects_check_competitors",
     ]);
-    const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
-    expect(warned.map((tool) => tool.name)).toEqual(spending);
-    for (const tool of warned) {
+    // Open-world: tools that spend credits, plus the ad tools (next test).
+    const openWorld = tools.filter((tool) => tool.annotations?.openWorldHint);
+    expect(openWorld.map((tool) => tool.name)).toEqual(
+      MCP_TOOLS.filter((tool) => tool.spendsCredits || tool.openWorld).map(
+        (tool) => tool.name,
+      ),
+    );
+    for (const tool of tools.filter((tool) => spending.includes(tool.name))) {
       expect(tool.description).toMatch(/^Spends workspace credits\./);
       const operation =
         MCP_TOOLS.find(({ name }) => name === tool.name)?.operation ?? "";
@@ -208,9 +213,9 @@ describe("Sokosumi MCP server", () => {
       "projects_ads_campaign_update",
       "projects_ads_campaign_edit",
     ]);
-    const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
-    expect(warned.map((tool) => tool.name)).toEqual(outside);
-    for (const tool of warned) {
+    const ads = tools.filter((tool) => outside.includes(tool.name));
+    expect(ads.map((tool) => tool.name)).toEqual(outside);
+    for (const tool of ads) {
       expect(tool.description).toMatch(
         /^Can lead to ad spend once a person resumes the campaign\./,
       );
