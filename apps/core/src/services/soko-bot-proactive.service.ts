@@ -34,6 +34,7 @@ import {
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import { listChatOpenLoops } from "@/services/chat-signal-views.service";
 import { calendarPeopleBlock } from "@/services/contacts-context.service";
+import { raiseBlock } from "@/services/fundraising-brief.service";
 import {
   activityStats,
   activityStatsLines,
@@ -562,6 +563,7 @@ export async function buildSystemBeatMessage(input: {
   if (input.key === "standup") {
     lines.push(...(await dueSoonBlock(bot, now)));
     lines.push(...(await chatOpenLoopsBlock(bot, now).catch(() => [])));
+    lines.push(...(await raiseBlock(bot, now).catch(() => [])));
     const events: SokoBotCalendarEvent[] = [];
     for (const integration of await activeIntegrationsForBot(
       bot.id,

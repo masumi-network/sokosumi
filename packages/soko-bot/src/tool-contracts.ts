@@ -710,6 +710,8 @@ export const sokoBotFundraisingPipelineInputSchema = z
     openedDataRoom: z.boolean().optional(),
     /** Only investors whose follow-up date is today or past, or who have not answered for 7 days. */
     needsFollowUp: z.boolean().optional(),
+    /** Only investors with an intro asked of a connector and no answer yet. */
+    introPending: z.boolean().optional(),
     limit: z.number().int().min(1).max(100).default(50),
   })
   .strict();
@@ -2070,7 +2072,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   find_people:
     "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. People already on the list are skipped, so the same search twice finds almost nobody new: focus narrows one search (a region, sector, stage, firm type) without changing the description. Found people wait on the list as suggestions for your owner to add; say who you found and why. For many people, confirm the total cost first and vary focus from search to search.",
   fundraising_pipeline:
-    'The owner\'s raise, when their workspace has Fundraising: every investor on the Investors list with stage (TO_RESEARCH, WARM_PATH, REACHED_OUT, MEETING, DATA_ROOM, DILIGENCE, COMMITTED, PASSED), owner, next step and follow-up date, last touch and reply state, what they opened in the data room and when, and a link. Filter by stage, openedDataRoom or needsFollowUp. Use it for "who opened the deck", "who went quiet", "where do we stand with X". Owner only; refused elsewhere, say so plainly. Read only: drafting follow-ups is draft_email, one per investor, never a send.',
+    'The owner\'s raise, when their workspace has Fundraising: every investor on the Investors list with stage (TO_RESEARCH, WARM_PATH, REACHED_OUT, MEETING, DATA_ROOM, DILIGENCE, COMMITTED, PASSED), owner, next step and follow-up date, last touch and reply state, what they opened in the data room and when, the intro in flight (who was asked, when, made or declined) and the best warm path, and a link. Filter by stage, openedDataRoom, needsFollowUp or introPending. Use it for "who opened the deck", "who went quiet", "which intro asks are still open", "where do we stand with X". Owner only; refused elsewhere, say so plainly. Read only: drafting follow-ups is draft_email, one per investor, never a send.',
   investor_warm_paths:
     "How the owner can reach one investor on the raise, strongest first: a teammate who already knows them, a teammate connected on LinkedIn, a contact at the fund, or a contact at a company the fund backed (name, role, who on the team knows them, touches, last touch, strength 0-100), plus the fund's researched portfolio (company, round, date, source). research: true first looks the portfolio up with Exa for a flat $0.10; only when the owner asks for research. Owner only. Name the path and the teammate; never promise an intro the owner has not asked for. When the call is refused because Fundraising is not on for this workspace, say exactly that.",
   find_investors:
