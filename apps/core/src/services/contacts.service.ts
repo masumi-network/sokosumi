@@ -1895,7 +1895,7 @@ export async function contactCompanyMembersByName(
       JOIN assigned a ON a.org = regexp_replace(lower(w.name), '[^[:alnum:]]+', '', 'g')
       UNION
       SELECT w.name, cc.key FROM wanted w
-      JOIN contact_company cc ON cc."workspaceId" = ${workspaceId}::uuid
+      JOIN ${sharedTable("contact_company")} cc ON cc."workspaceId" = ${workspaceId}::uuid
         AND lower(cc.name) = lower(btrim(w.name))
     )
     SELECT DISTINCT k.name, a.id::text AS id
