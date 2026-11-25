@@ -94,6 +94,10 @@ function renderTraffic(
           ...(workspace.brandTerms?.length && {
             brand: {
               limited: false,
+              // The term "newer" stands for a list that another tab saved after this one loaded.
+              terms: workspace.brandTerms?.includes("older")
+                ? ["newer"]
+                : workspace.brandTerms,
               daily: noDays
                 ? []
                 : [
@@ -933,6 +937,19 @@ describe("SEO Traffic branded split", () => {
     const section = within(heading.closest("section") as HTMLElement);
     expect(section.getByRole("button", { name: "Branded" })).toBeVisible();
     expect(section.queryByRole("table")).toBeNull();
+  });
+
+  it("shows no split that Core made with another term list", async () => {
+    renderTraffic(brandWorkspace(["older"]), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    await screen.findByRole("heading", { name: "Traffic by page" });
+    expect(
+      section.getByText(
+        "Could not read the queries for this period, so there is no brand split.",
+      ),
+    ).toBeVisible();
+    expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
   });
 
   it("shows no split for a feed, which has no queries", async () => {

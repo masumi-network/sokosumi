@@ -64,7 +64,10 @@ describe("site brand split", () => {
 
   it("puts the traffic without a listed query in a third part", () => {
     const split = seoSiteBrandSplit(
-      { daily, brand: { daily: [day("2026-11-01", 2, 1)], limited: false } },
+      {
+        daily,
+        brand: { daily: [day("2026-11-01", 2, 1)], limited: false, terms: [] },
+      },
       "clicks",
     );
     expect(split?.totals).toEqual({ branded: 2, nonBranded: 1, unlisted: 7 });
@@ -75,10 +78,16 @@ describe("site brand split", () => {
   });
 
   it("gives no third part when it cannot be proved", () => {
-    const brand = { daily: [day("2026-11-01", 2, 1)], limited: false };
+    const brand = {
+      daily: [day("2026-11-01", 2, 1)],
+      limited: false,
+      terms: [],
+    };
     const unlisted = (report: Parameters<typeof seoSiteBrandSplit>[0]) =>
       seoSiteBrandSplit(report, "clicks")?.totals.unlisted;
-    expect(unlisted({ daily, brand: { ...brand, limited: true } })).toBeNull();
+    expect(
+      unlisted({ daily, brand: { ...brand, limited: true, terms: [] } }),
+    ).toBeNull();
     expect(unlisted({ brand })).toBeNull();
     // The rows hold more clicks than the day total, or a day the totals do not have.
     expect(
@@ -100,7 +109,7 @@ describe("site brand split", () => {
     const split = seoSiteBrandSplit(
       {
         daily: daily.slice(0, 1),
-        brand: { daily: [day("2026-11-02", 7, 0)], limited: false },
+        brand: { daily: [day("2026-11-02", 7, 0)], limited: false, terms: [] },
       },
       "clicks",
     );
@@ -111,7 +120,10 @@ describe("site brand split", () => {
 
   it("takes shares of the whole traffic when the rows were cut", () => {
     const split = seoSiteBrandSplit(
-      { daily, brand: { daily: [day("2026-11-01", 1, 0)], limited: true } },
+      {
+        daily,
+        brand: { daily: [day("2026-11-01", 1, 0)], limited: true, terms: [] },
+      },
       "clicks",
     );
     expect(split).toMatchObject({ all: 10, limited: true });
