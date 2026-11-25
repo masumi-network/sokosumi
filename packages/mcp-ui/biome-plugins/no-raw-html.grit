@@ -1,0 +1,16 @@
+language js
+
+// ADR 0083: views render record text as plain text, never as HTML.
+or {
+  `$target.innerHTML = $_`,
+  `$target.innerHTML += $_`,
+  `$target.outerHTML = $_`,
+  `$target.outerHTML += $_`,
+  `$target.insertAdjacentHTML($_, $_)`,
+  `$target.setHTMLUnsafe($_)`,
+  `$target.createContextualFragment($_)`,
+  `document.write($_)`,
+  `document.writeln($_)`
+} as $node where {
+  register_diagnostic(span=$node, message="Views render text, never HTML (ADR 0083). Render it as a React text node.", severity="error")
+}
