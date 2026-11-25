@@ -226,6 +226,162 @@ const hireCalls = {
 };
 const fillTopic = { fill: "Topic", value: "Pricing in the DACH market" };
 
+const JOB_ID = "cmi4gmksz000104l8wps8p7fp";
+const AGENT = {
+  id: "agent_research",
+  name: "Research Agent",
+  overrideName: "Market Research",
+  icon: "https://example.com/icon.png",
+  image: null,
+};
+
+/** A `jobs_get` Job event, trimmed to what the view may read. */
+function jobEvent(
+  status: string,
+  createdAt: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    id: `event_${status.toLowerCase()}`,
+    createdAt,
+    updatedAt: createdAt,
+    status,
+    inputSchema: null,
+    input: null,
+    result: null,
+    blobs: [],
+    links: [],
+    ...extra,
+  };
+}
+
+const RESULT_TEXT = `# DACH pricing summary
+
+Three competitors list prices in euros; two of them bill yearly only.
+
+- Median monthly price: 49 EUR
+- Lowest: 29 EUR (annual plan)
+
+<script>alert("record text stays text")</script>`;
+
+/** A `jobs_get` Job in `status`, with the events that led there. */
+function job(status: string, events: unknown[], extra = {}) {
+  return {
+    id: JOB_ID,
+    createdAt: "2026-11-25T09:00:00.000Z",
+    updatedAt: "2026-11-25T09:04:00.000Z",
+    completedAt: null,
+    agentId: AGENT.id,
+    organizationId: ACME.organizationId,
+    organization: ACME.organization,
+    workspace: ACME,
+    taskId: null,
+    name: "Competitor pricing in DACH",
+    jobType: "PAID",
+    status,
+    credits: 5,
+    result: null,
+    jobStatusSettled: false,
+    input: '{"prompt":"Compare pricing"}',
+    agentJobId: "agent_job_1",
+    agent: AGENT,
+    events,
+    share: null,
+    ...extra,
+  };
+}
+
+const jobResult = (data: unknown) => ({
+  content: [{ type: "text" as const, text: JSON.stringify({ data }) }],
+  structuredContent: { data },
+  _meta: sokosumi,
+});
+
+const started = jobEvent("INITIATED", "2026-11-25T09:00:00.000Z");
+const running = jobEvent("RUNNING", "2026-11-25T09:01:00.000Z");
+
+/** `jobs_show` results: `jobs_get`'s, with Core's `_meta`. */
+export const JOB = {
+  input: { id: JOB_ID, workspace: "acme" },
+  running: jobResult(job("processing", [running, started])),
+  completed: jobResult(
+    job(
+      "completed",
+      [
+        jobEvent("COMPLETED", "2026-11-25T09:12:00.000Z", {
+          result: RESULT_TEXT,
+          blobs: [
+            {
+              id: "blob_report",
+              createdAt: "2026-11-25T09:12:00.000Z",
+              updatedAt: "2026-11-25T09:12:00.000Z",
+              jobId: JOB_ID,
+              sourceUrl: "https://agent.example.com/out/report.pdf",
+              name: "dach-pricing-report.pdf",
+              status: "READY",
+              size: 248_000,
+              mimeType: "application/pdf",
+              fileUrl: "https://blob.sokosumi.com/jobs/report.pdf",
+            },
+            {
+              id: "blob_sheet",
+              createdAt: "2026-11-25T09:12:00.000Z",
+              updatedAt: "2026-11-25T09:12:00.000Z",
+              jobId: JOB_ID,
+              sourceUrl: "http://agent.example.com/out/prices.csv",
+              name: "prices.csv",
+              status: "PENDING",
+              size: null,
+              mimeType: "text/csv",
+              fileUrl: null,
+            },
+          ],
+          links: [
+            {
+              id: "link_1",
+              createdAt: "2026-11-25T09:12:00.000Z",
+              updatedAt: "2026-11-25T09:12:00.000Z",
+              jobId: JOB_ID,
+              url: "https://competitor.example.com/pricing",
+              title: "Competitor A pricing",
+            },
+            {
+              id: "link_2",
+              createdAt: "2026-11-25T09:12:00.000Z",
+              updatedAt: "2026-11-25T09:12:00.000Z",
+              jobId: JOB_ID,
+              url: "javascript:alert(1)",
+              title: null,
+            },
+          ],
+        }),
+        running,
+        started,
+      ],
+      {
+        completedAt: "2026-11-25T09:12:00.000Z",
+        result: RESULT_TEXT,
+      },
+    ),
+  ),
+  failed: jobResult(
+    job("failed", [
+      jobEvent("FAILED", "2026-11-25T09:06:00.000Z"),
+      running,
+      started,
+    ]),
+  ),
+  inputRequired: jobResult(
+    job("input_required", [
+      jobEvent("AWAITING_INPUT", "2026-11-25T09:03:00.000Z", {
+        inputSchema: '{"input_data":[{"id":"tone","type":"string"}]}',
+      }),
+      running,
+      started,
+    ]),
+  ),
+};
+
 /** Tool results the harness feeds each view, by view id, then by fixture name. */
 export const FIXTURES: Record<string, Record<string, Fixture>> = {
   hello: {
@@ -331,6 +487,44 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       input: HIRE.input,
       result: {
         content: [{ type: "text", text: "Agent not found" }],
+        isError: true,
+      },
+    },
+  },
+  "job-status": {
+    default: { input: JOB.input, result: JOB.running, allWidths: true },
+    completed: { input: JOB.input, result: JOB.completed, allWidths: true },
+    failed: { input: JOB.input, result: JOB.failed, allWidths: true },
+    inputRequired: {
+      input: JOB.input,
+      result: JOB.inputRequired,
+      allWidths: true,
+    },
+    missingToolset: {
+      input: JOB.input,
+      result: JOB.running,
+      calls: { jobs_get: "fail" },
+      step: "missing-tool",
+    },
+    gone: {
+      input: JOB.input,
+      result: JOB.running,
+      calls: {
+        jobs_get: {
+          content: [
+            { type: "text", text: '{"status":404,"message":"Job not found"}' },
+          ],
+          structuredContent: { status: 404, message: "Job not found" },
+          isError: true,
+        },
+      },
+      step: "gone",
+    },
+    loading: { input: JOB.input },
+    error: {
+      input: JOB.input,
+      result: {
+        content: [{ type: "text", text: "Job not found" }],
         isError: true,
       },
     },

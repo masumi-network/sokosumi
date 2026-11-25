@@ -30,6 +30,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     description:
       "Show the person a form to hire an agent: its input as fields, then the price and the workspace balance to confirm. The person's Hire click starts the paid Job from the view, capped at the price shown. Takes agents_input_schema's arguments (`id`, and `workspace` for an organization) and returns its result. Use it when the person wants to hire an agent and fill in its input themselves; use agents_input_schema and agents_hire when you fill the input.",
   },
+  {
+    name: "jobs_show",
+    data: "jobs_get",
+    ui: "job-status",
+    description:
+      "Show a Job to the person: its status in plain words, the agent, when it started and finished, and once done its result, files and links. The view checks for updates while it is open, until the Job finishes. Takes jobs_get's arguments and returns its result. Use it when the person wants to see or follow a Job; use jobs_get when you only need the data.",
+  },
 ];
 
 /** The MCP Apps MIME type of a view (SEP-1865). */

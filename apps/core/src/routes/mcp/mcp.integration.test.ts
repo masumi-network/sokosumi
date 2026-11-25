@@ -23,8 +23,8 @@ import mcpRouter from "./index";
  * challenge. Token verification and the database are the only fakes.
  */
 
-const { CORE, USER, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } = vi.hoisted(
-  () => ({
+const { CORE, USER, JOB, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } =
+  vi.hoisted(() => ({
     HIRE_AGENT: {
       id: "cm_agent_analyst",
       name: "Market Analyst",
@@ -63,6 +63,66 @@ const { CORE, USER, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } = vi.hoisted(
       },
     ] satisfies McpUiTool[],
     CORE: "https://core.example.test",
+    /** A completed Job as Prisma returns it with `jobInclude`. */
+    JOB: {
+      id: "job_mcp",
+      createdAt: new Date("2026-11-25T09:00:00.000Z"),
+      updatedAt: new Date("2026-11-25T09:12:00.000Z"),
+      completedAt: new Date("2026-11-25T09:12:00.000Z"),
+      agentId: "agent_mcp",
+      ownerId: "user_mcp",
+      owner: { id: "user_mcp", name: "Ada", image: null },
+      organizationId: null,
+      organization: null,
+      taskId: null,
+      name: "Competitor pricing",
+      jobType: "FREE",
+      agentJobId: "agent_job_mcp",
+      identifierFromPurchaser: null,
+      payByTime: null,
+      submitResultTime: null,
+      unlockTime: null,
+      externalDisputeUnlockTime: null,
+      blockchainIdentifier: null,
+      sellerVkey: null,
+      refundedTransaction: null,
+      refundedTransactionId: null,
+      share: null,
+      agent: {
+        id: "agent_mcp",
+        name: "Research Agent",
+        icon: null,
+        image: null,
+        legalPrivacyPolicy: null,
+        legalTerms: null,
+        legalDpa: null,
+        legalOther: null,
+        metadataOverride: null,
+      },
+      transaction: null,
+      transactionId: null,
+      workspaceId: "0196a000-0000-7000-8000-00000000a001",
+      workspace: {
+        id: "0196a000-0000-7000-8000-00000000a001",
+        organizationId: null,
+        organization: null,
+      },
+      purchase: null,
+      purchaseId: null,
+      events: [
+        {
+          id: "event_completed",
+          createdAt: new Date("2026-11-25T09:12:00.000Z"),
+          updatedAt: new Date("2026-11-25T09:12:00.000Z"),
+          status: "COMPLETED",
+          inputSchema: null,
+          input: null,
+          result: "Three competitors bill yearly.",
+          blobs: [],
+          links: [],
+        },
+      ],
+    },
     USER: {
       id: "user_mcp",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -75,8 +135,7 @@ const { CORE, USER, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } = vi.hoisted(
       image: null,
       role: "user",
     },
-  }),
-);
+  }));
 
 vi.mock("@/lib/auth", () => ({
   auth: { $context: Promise.resolve({ baseURL: `${CORE}/auth` }) },
@@ -103,6 +162,8 @@ vi.mock("@/lib/db/prisma", () => ({
     agent: { findUnique: async () => HIRE_AGENT },
     // An empty Task list: the board test needs a successful tasks_list.
     task: { findMany: async () => [], count: async () => 0 },
+    // One completed Job: the Job status test needs a successful jobs_get.
+    job: { findFirst: async () => JOB },
     taskEventMention: { findMany: async () => [] },
   },
 }));
@@ -126,13 +187,13 @@ vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
 });
 
 /** Every view a UI tool uses, real rows first. */
-const VIEW_RESOURCES = (["tasks-board", "agents-hire", "hello"] as const).map(
-  (id) => ({
-    uri: MCP_UI[id].uri,
-    name: id,
-    mimeType: "text/html;profile=mcp-app",
-  }),
-);
+const VIEW_RESOURCES = (
+  ["tasks-board", "agents-hire", "job-status", "hello"] as const
+).map((id) => ({
+  uri: MCP_UI[id].uri,
+  name: id,
+  mimeType: "text/html;profile=mcp-app",
+}));
 
 const app = new Hono();
 app.use(requestId());
@@ -222,6 +283,8 @@ describe("Sokosumi MCP server", () => {
     expect(defaults).toHaveLength(35 + 1);
     expect(defaults).toContain("tasks_show_board");
     expect(defaults).toContain("tasks_show_task");
+    // jobs_show sits in the opt-in jobs toolset with jobs_get.
+    expect(defaults).not.toContain("jobs_show");
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
     expect(await listed("?toolsets=vendors,organizations")).toEqual(
@@ -431,6 +494,57 @@ describe("Sokosumi MCP server", () => {
     expect(uiMeta).toEqual({
       ...dataMeta,
       ui: { resourceUri: MCP_UI["agents-hire"].uri },
+      sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+    });
+  }, 15_000);
+
+  it("shows a Job's status with exactly jobs_get's result, in the jobs toolset", async () => {
+    // Imported here: at the top it would load zod before the routes extend it.
+    const { workspaceRepository } = await import(
+      "@sokosumi/database/repositories"
+    );
+    vi.spyOn(
+      workspaceRepository,
+      "resolveWorkspaceForContext",
+    ).mockResolvedValue({
+      id: JOB.workspaceId,
+      userId: USER.id,
+      organizationId: null,
+    } as Awaited<
+      ReturnType<typeof workspaceRepository.resolveWorkspaceForContext>
+    >);
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=jobs",
+    );
+    const { tools } = await client.listTools();
+    const twin = tools.find((tool) => tool.name === "jobs_get");
+    const show = tools.find((tool) => tool.name === "jobs_show");
+    expect(show).toMatchObject({
+      inputSchema: twin?.inputSchema,
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { resourceUri: MCP_UI["job-status"].uri } },
+    });
+
+    const args = { id: JOB.id };
+    const data = await client.callTool({ name: "jobs_get", arguments: args });
+    const ui = await client.callTool({ name: "jobs_show", arguments: args });
+    expect(data.isError).toBeFalsy();
+    expect(data).toMatchObject({
+      structuredContent: {
+        data: {
+          id: JOB.id,
+          status: "completed",
+          agent: { name: "Research Agent" },
+        },
+      },
+    });
+    const { _meta: uiMeta, ...uiResult } = ui;
+    const { _meta: dataMeta, ...dataResult } = data;
+    expect(uiResult).toEqual(dataResult);
+    expect(uiMeta).toEqual({
+      ...dataMeta,
+      ui: { resourceUri: MCP_UI["job-status"].uri },
       sokosumi: { webBaseUrl: getWebAppBaseUrl() },
     });
   }, 15_000);

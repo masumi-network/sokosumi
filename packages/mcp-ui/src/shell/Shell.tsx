@@ -27,6 +27,16 @@ export interface ViewContext {
    * call server tools or has not sent the arguments.
    */
   refresh?: () => Promise<boolean>;
+  /**
+   * The refresh tool, once the server answered that it does not offer it:
+   * its toolset is off. A view says which toolset to add.
+   */
+  missingTool?: string;
+  /**
+   * The HTTP status Core put on the last refresh's error result, such as 404,
+   * until a refresh succeeds.
+   */
+  refreshStatus?: number;
 }
 
 export interface ShellProps<T> {
@@ -117,6 +127,8 @@ export function Shell<T>({
           displayMode: host.displayMode,
           availableDisplayModes: host.availableDisplayModes,
           refresh,
+          missingTool: connection.missingTool,
+          refreshStatus: connection.refreshStatus,
         })}
     </main>
   );
