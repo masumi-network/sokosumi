@@ -124,8 +124,11 @@ export type SeoKeywordTrend =
   | { state: "absent" }
   /** The last sync did not ask for this keyword (tracked later, or over the limit). */
   | { state: "not_requested" }
-  /** Asked for, but Google listed no impressions for it in the period. */
-  | { state: "empty" }
+  /**
+   * Asked for, but the read has no rows for it in the period. `truncated`: the read stopped at its row limit,
+   * so the rows can be missing and not the impressions.
+   */
+  | { state: "empty"; truncated: boolean }
   | {
       state: "measured";
       points: { date: string; value: number | null }[];
@@ -153,7 +156,8 @@ export function keywordTrend(
       (!item.countryCode || item.countryCode === countryCode),
   );
   if (!entry) return { state: "not_requested" };
-  if (!entry.points.length) return { state: "empty" };
+  if (!entry.points.length)
+    return { state: "empty", truncated: series.truncated };
   const last = series.keywords
     .flatMap((item) => item.points.map((point) => point.date))
     .reduce((latest, date) => (date > latest ? date : latest));

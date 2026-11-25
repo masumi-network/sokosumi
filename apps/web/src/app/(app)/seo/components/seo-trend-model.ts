@@ -245,9 +245,18 @@ export function seoTrendModel(
       run.push(index);
     else runs.push([index]);
   });
-  const ticks = [lower];
-  for (let value = step; value <= upper + step / 2; value += step)
-    if (value > lower) ticks.push(value);
+  // Reads outside the results alone give no position: the axis then names none.
+  const ticks = measured.length || !outside.some(Boolean) ? [lower] : [];
+  if (ticks.length)
+    for (let value = step; value <= upper + step / 2; value += step)
+      if (value > lower) ticks.push(value);
+  // The last day of the x axis: a shared axis can end after this chart's own days.
+  const end =
+    domain && domain.to > (points.at(-1)?.date ?? "")
+      ? domain.to
+      : (points.at(-1)?.date ?? "");
+  const dateOf = (number: number) =>
+    new Date(number * DAY_MS).toISOString().slice(0, 10);
   return {
     points: plotted,
     changes,
@@ -268,8 +277,23 @@ export function seoTrendModel(
      * that runs past that day and so can miss an update.
      */
     updatesAsOf:
-      updates.length > 0 || (points.at(-1)?.date ?? "") > GOOGLE_EVENTS_AS_OF
+      updates.length > 0 || end > GOOGLE_EVENTS_AS_OF
         ? GOOGLE_EVENTS_AS_OF
+        : null,
+    /** The last day of the x axis. */
+    end,
+    /**
+     * Date labels of a shared axis: its first, middle and last day, the same in each chart that shares it.
+     * Null: the chart labels its own days.
+     */
+    axis:
+      domain && !bars && points.length
+        ? [...new Set([first, first + Math.floor(span / 2), first + span])].map(
+            (number) => ({
+              date: dateOf(number),
+              x: span > 0 ? ((number - first) / span) * 100 : 50,
+            }),
+          )
         : null,
     lines: runs.filter((run) => run.length > 1),
     dots: runs.filter((run) => run.length === 1).map(([index]) => index),

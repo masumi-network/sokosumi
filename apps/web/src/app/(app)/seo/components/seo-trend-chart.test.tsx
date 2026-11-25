@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
@@ -65,7 +65,17 @@ describe("SEO trend chart Google updates", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getAllByTestId("seo-trend-outside")).toHaveLength(1);
-    expect(screen.getByTestId("seo-trend-outside-line")).toBeInTheDocument();
+    // The line sits where the band starts, over the mark, not through it.
+    const line = screen.getByTestId("seo-trend-outside-line");
+    expect(line).toHaveAttribute("y1", "85");
+    expect(line).toHaveAttribute("y2", "85");
+    // Chosen with the keyboard, the mark stays hollow and the readout names the read.
+    const plot = screen.getByRole("group", { name: "SERP" });
+    fireEvent.focus(plot);
+    fireEvent.keyDown(plot, { key: "ArrowLeft" });
+    expect(screen.getByRole("status")).toHaveTextContent("Not in the top 20");
+    expect(screen.getAllByTestId("seo-trend-outside")).toHaveLength(1);
+    expect(screen.queryAllByTestId("seo-trend-dot")).toHaveLength(1);
     expect(
       screen.getByRole("cell", { name: "Not in the top 20" }),
     ).toBeInTheDocument();

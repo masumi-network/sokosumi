@@ -37,6 +37,7 @@ describe("seoRankHistory", () => {
         point("2026-10-02T09:00:00Z", null),
         point("2026-10-03T09:00:00Z", null, "unavailable"),
         point("2026-10-04T09:00:00Z", 5),
+        { ...point("2026-10-06T09:00:00Z", null), checkedResults: 100 },
         // A point of a Core that does not send the checked results yet.
         { ...point("2026-10-05T09:00:00Z", null), checkedResults: undefined },
       ]),
@@ -48,6 +49,7 @@ describe("seoRankHistory", () => {
         { date: "2026-10-02", value: null, outside: { top: 20 } },
         { date: "2026-10-04", value: 5 },
         { date: "2026-10-05", value: null, outside: { top: null } },
+        { date: "2026-10-06", value: null, outside: { top: 100 } },
       ],
     });
   });

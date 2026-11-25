@@ -62,7 +62,13 @@ export function SeoKeywordTrendReason({
   if (trend.state === "absent" || trend.state === "measured") return null;
   return (
     <p className={cn("text-muted-foreground text-xs", className)}>
-      {t(trend.state === "empty" ? "trendEmpty" : "trendNotRequested")}
+      {t(
+        trend.state === "not_requested"
+          ? "trendNotRequested"
+          : trend.truncated
+            ? "trendTruncated"
+            : "trendEmpty",
+      )}
     </p>
   );
 }
@@ -96,7 +102,8 @@ export function SeoKeywordTrendChart({
             maximumFractionDigits: 1,
           })
         }
-        unavailable={t("trendNoImpressions")}
+        // A read cut at its row limit cannot tell a day without impressions from a day it did not get.
+        unavailable={t(truncated ? "trendNoPosition" : "trendNoImpressions")}
       />
       {truncated ? (
         <p className="text-muted-foreground mt-2 text-xs">

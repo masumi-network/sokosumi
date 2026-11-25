@@ -315,11 +315,25 @@ describe("keyword trend", () => {
       state: "measured",
       truncated: true,
     });
+    // No rows for a keyword of a cut read: the rows can be missing, so the state says it too.
+    expect(keywordTrend(queries, "eurc", "US")).toEqual({
+      state: "empty",
+      truncated: true,
+    });
+    // The limit of the query list is another read: it says nothing about the daily series.
+    queries.keywordSeries.truncated = false;
+    queries.truncated = true;
+    expect(keywordTrend(queries, "usdc", "US")).toMatchObject({
+      truncated: false,
+    });
   });
 
   it("tells an unrequested keyword from one without impressions", () => {
     const queries = seriesWorkspace();
-    expect(keywordTrend(queries, "EURC", "US")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "EURC", "US")).toEqual({
+      state: "empty",
+      truncated: false,
+    });
     expect(keywordTrend(queries, "usdt", "US")).toEqual({
       state: "not_requested",
     });
@@ -338,7 +352,10 @@ describe("keyword trend", () => {
       },
       { keyword: "eurc", countryCode: "US", points: [] },
     ];
-    expect(keywordTrend(queries, "eurc", "US")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "eurc", "US")).toEqual({
+      state: "empty",
+      truncated: false,
+    });
     expect(keywordTrend(queries, "eurc", "FR")).toEqual({
       state: "not_requested",
     });
