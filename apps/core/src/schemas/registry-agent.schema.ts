@@ -58,7 +58,7 @@ export const registryAgentSchema = z
     description: z.string().nullable(),
     status: z.enum(REGISTRY_AGENT_STATUSES),
     statusUpdatedAt: dateTimeSchema,
-    type: z.enum(["Standard", "OpenApi", "X402"]),
+    type: z.enum(["Standard", "OpenApi", "X402", "A2A"]),
     paymentType: z.enum(["Web3CardanoV1", "Web3CardanoV2", "None"]),
     apiBaseUrl: z.string().nullable(),
     openApiSpecUrl: z.string().nullable(),

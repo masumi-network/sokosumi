@@ -73158,7 +73158,8 @@ export const RegistryAgentSchema = {
             enum: [
                 'Standard',
                 'OpenApi',
-                'X402'
+                'X402',
+                'A2A'
             ]
         },
         paymentType: {

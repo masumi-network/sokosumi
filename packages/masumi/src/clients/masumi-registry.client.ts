@@ -24,7 +24,7 @@ export type RegistryEntry =
 export interface ListRegistryEntriesParams {
   cursorId?: string;
   limit: number;
-  /** Omit to return every status. */
+  /** Omit for the registry default, which returns only Online entries. */
   status?: RegistryEntryStatus[];
 }
 

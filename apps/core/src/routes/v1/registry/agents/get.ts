@@ -12,7 +12,10 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { recordCoreWarning } from "@/lib/evlog";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import {
   type CursorPaginationMeta,
   cursorPaginationMetaSchema,
@@ -76,34 +79,41 @@ const registryAgentsPaginationMetaSchema = cursorPaginationMetaSchema
   .omit({ total: true })
   .openapi("RegistryAgentsPaginationMetadata");
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  operationId: "listRegistryAgents",
-  description:
-    "Lists every agent in the Masumi registry for this deployment's network (Mainnet on api.sokosumi.com), live from the registry and in every status, including agents Sokosumi does not list. Requires a user API key or a Coworker API key; session cookies and OAuth tokens get 403.",
-  tags: ["Registry"],
-  request: { query: querySchema },
-  responses: {
-    200: jsonPaginatedSuccessResponse(
-      z.array(registryAgentSchema),
-      "One page of registry agents, newest first",
-      undefined,
-      registryAgentsPaginationMetaSchema,
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("API key required"),
-    422: jsonErrorResponse("Invalid query"),
-    502: jsonErrorResponse("Masumi registry unavailable"),
-  },
-});
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/",
+    operationId: "listRegistryAgents",
+    description:
+      "Lists every agent in the Masumi registry for this deployment's network (Mainnet on api.sokosumi.com), live from the registry and in every status, including agents Sokosumi does not list. Requires a user API key or a Coworker API key; session cookies and OAuth tokens get 403.",
+    tags: ["Registry"],
+    request: { query: querySchema },
+    responses: {
+      200: jsonPaginatedSuccessResponse(
+        z.array(registryAgentSchema),
+        "One page of registry agents, newest first",
+        undefined,
+        registryAgentsPaginationMetaSchema,
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("API key required"),
+      422: jsonErrorResponse("Invalid query"),
+      502: jsonErrorResponse("Masumi registry unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { cursor, limit, status } = c.req.valid("query");
 
     const result = await registryClient.listEntries(
-      { cursorId: cursor, limit: limit + REGISTRY_EXTRA_ROWS, status },
+      {
+        cursorId: cursor,
+        limit: limit + REGISTRY_EXTRA_ROWS,
+        // The registry returns only Online entries when no status is sent.
+        status: status ?? [...REGISTRY_AGENT_STATUSES],
+      },
       { signal: c.req.raw.signal },
     );
     if (result.isErr()) {

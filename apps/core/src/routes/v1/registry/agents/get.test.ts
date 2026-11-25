@@ -121,6 +121,35 @@ describe("GET /registry/agents", () => {
     expect(response.status).toBe(200);
   });
 
+  it("asks the registry for every status when the caller sends none", async () => {
+    await createApp().request("/");
+
+    expect(listEntriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: ["Online", "Offline", "Deregistered", "Invalid"],
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("serves an A2A agent next to a standard one", async () => {
+    listEntriesMock.mockResolvedValue(
+      ok([
+        entry("a2a", { type: "A2A" } as unknown as Partial<RegistryEntry>),
+        entry("std"),
+      ]),
+    );
+
+    const response = await createApp().request("/");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((agent: { type: string }) => agent.type)).toEqual([
+      "A2A",
+      "Standard",
+    ]);
+  });
+
   it("drops the repeated cursor row and returns the next cursor", async () => {
     listEntriesMock.mockResolvedValue(
       ok([entry("c0"), entry("c1"), entry("c2"), entry("c3")]),
