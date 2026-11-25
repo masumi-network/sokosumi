@@ -9,7 +9,7 @@ import type {
 } from "@sokosumi/core-client";
 import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
 import { reasoningStepsForMetadata } from "@/app/chat/utils/coworker-thought";
@@ -20,6 +20,7 @@ import {
   OUTBOUND_ERROR_METADATA_KEY,
   outboundLocalMessageId,
 } from "@/app/chat/utils/outbound-room-message";
+import { useCoworkerStreamResume } from "@/hooks/effects/use-coworker-stream-resume";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
@@ -367,9 +368,11 @@ export function useCoworkerDirectRoomStream({
   organizationSlugRef.current = organizationSlug;
   const onStreamSettledRef = useRef(onStreamSettled);
   onStreamSettledRef.current = onStreamSettled;
-  const [streamParentMessageId, setStreamParentMessageId] = useState<
-    string | null
-  >(null);
+  const [prevRoomId, setPrevRoomId] = useState(roomId);
+  const [streamParentState, setStreamParentState] = useState<{
+    roomId: string;
+    parentId: string | null;
+  } | null>(null);
   /**
    * First-seen wall clock per useChat message id so overlay `createdAt` (and
    * thus live elapsed timers) do not reset on every stream chunk recompute.
@@ -380,23 +383,27 @@ export function useCoworkerDirectRoomStream({
     roomId: string;
     reason: string;
   } | null>(null);
+
+  if (prevRoomId !== roomId) {
+    setPrevRoomId(roomId);
+    setFailure(null);
+    setStreamParentState(null);
+  }
+
+  const activeFailure = roomId && failure?.roomId === roomId ? failure : null;
   // Sync copy so a double-click Retry starts one request, not two.
-  const failureRef = useRef(failure);
-  failureRef.current = failure;
+  const failureRef = useRef(activeFailure);
+  failureRef.current = activeFailure;
   /** Body of the last send, so Retry keeps its thread parent and quote. */
   const lastSendOptionsRef =
     useRef<ReturnType<typeof buildCoworkerStreamSendMessageOptions>>(undefined);
 
   // Restore thread parent for mid-stream resume (sessionStorage survives remount).
-  useEffect(() => {
-    setFailure(null);
-    if (!roomId) {
-      setStreamParentMessageId(null);
-      overlayCreatedAtByMessageIdRef.current.clear();
-      return;
-    }
-    setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
-  }, [roomId]);
+  const streamParentMessageId = !roomId
+    ? null
+    : streamParentState?.roomId === roomId
+      ? streamParentState.parentId
+      : readStoredStreamParentMessageId(roomId);
 
   const transport = useMemo(
     () =>
@@ -466,7 +473,10 @@ export function useCoworkerDirectRoomStream({
       }
       toast.error(reason);
     },
-    async onFinish({ isError }) {
+    async onFinish({ isAbort, isError }) {
+      if (isAbort) {
+        return;
+      }
       const settledRoomId = roomIdRef.current;
       if (!settledRoomId) {
         return;
@@ -484,21 +494,16 @@ export function useCoworkerDirectRoomStream({
       if (settled && roomIdRef.current === settledRoomId) {
         writeStoredStreamParentMessageId(settledRoomId, null);
         setMessages([]);
-        setStreamParentMessageId(null);
+        setStreamParentState({ roomId: settledRoomId, parentId: null });
       }
     },
   });
 
   const isStreaming = status === "submitted" || status === "streaming";
 
-  // Leave: drop overlay. Enter: reconnect to Core active stream (Thinking…).
-  useEffect(() => {
-    if (!roomId) {
-      setMessages([]);
-      return;
-    }
-    void resumeStream();
-  }, [roomId, resumeStream, setMessages]);
+  // Enter: reconnect to Core active stream (Thinking…). Leaving drops the
+  // overlay because useChat builds a fresh Chat instance when id changes.
+  useCoworkerStreamResume(roomId, resumeStream);
 
   const currentUser = useMemo(() => {
     if (!room) {
@@ -514,10 +519,11 @@ export function useCoworkerDirectRoomStream({
   const coworker = room?.coworkerMembers[0] ?? null;
 
   const streamOverlayMessages = useMemo(() => {
+    const createdAtById = overlayCreatedAtByMessageIdRef.current;
     if (!enabled || !roomId) {
+      createdAtById.clear();
       return [];
     }
-    const createdAtById = overlayCreatedAtByMessageIdRef.current;
     function stableCreatedAt(key: string, indexHint: number): Date {
       return new Date(
         assignStableOverlayCreatedAtMs(createdAtById, key, indexHint),
@@ -544,6 +550,7 @@ export function useCoworkerDirectRoomStream({
           }),
         ];
       }
+      createdAtById.clear();
       return [];
     }
 
@@ -582,8 +589,8 @@ export function useCoworkerDirectRoomStream({
           parentMessageId: streamParentMessageId,
         }),
       );
-    return failure?.roomId === roomId && status === "error"
-      ? markFailedCoworkerTurn(rows, failure.reason)
+    return activeFailure && status === "error"
+      ? markFailedCoworkerTurn(rows, activeFailure.reason)
       : rows;
   }, [
     enabled,
@@ -593,7 +600,7 @@ export function useCoworkerDirectRoomStream({
     coworker,
     status,
     streamParentMessageId,
-    failure,
+    activeFailure,
   ]);
 
   const sendStreamMessage = useCallback(
@@ -613,7 +620,7 @@ export function useCoworkerDirectRoomStream({
       // retag prior top-level UI messages with a new thread parentMessageId.
       setMessages([]);
       setFailure(null);
-      setStreamParentMessageId(parentMessageId);
+      setStreamParentState({ roomId, parentId: parentMessageId });
       writeStoredStreamParentMessageId(roomId, parentMessageId);
       const files = toCoworkerStreamFileParts(options?.files);
       lastSendOptionsRef.current =
