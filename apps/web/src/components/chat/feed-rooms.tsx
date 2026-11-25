@@ -82,7 +82,9 @@ export function FeedRooms({
                   >
                     {t("title")}
                   </span>
-                  {unreadCount > 0 ? (
+                  {/* Spoken only when the reader shows counts, like a room
+                      row; bold still marks the label as unread. */}
+                  {showCount && unreadCount > 0 ? (
                     <span className="sr-only">
                       {unreadCount > ROOM_COUNT_CAP
                         ? t("unreadCountCapped", { max: ROOM_COUNT_CAP })

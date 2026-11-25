@@ -1,9 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { fetchChatFeed } from "@/components/chat/fetch-chat-feed";
+import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { chatQueryKeys } from "@/queries/chat";
+
+/**
+ * How long a change in the rooms' unread waits before the Feed count is read
+ * again. A busy room changes it with every message and every read; one read
+ * after the burst keeps the count right without spending Core's read budget.
+ */
+export const FEED_COUNT_REFRESH_DELAY_MS = 1000;
 
 /**
  * How many Feed messages the reader has not read, for the sidebar Feed row.
@@ -12,6 +22,10 @@ import { chatQueryKeys } from "@/queries/chat";
  * no page of its own. `showCount` is the reader's unread count preference
  * (ADR-0038). With it off the row draws no number, and the count still says
  * whether the label reads as unread.
+ *
+ * The live rooms carry each room's unread, kept current by reads and new
+ * messages. When it changes, the count is read again, so reading a Feed
+ * message in its room clears it here.
  */
 export function useFeedUnreadCount({
   currentUserId,
@@ -21,6 +35,7 @@ export function useFeedUnreadCount({
   organizationId: string | null;
 }): { unreadCount: number; showCount: boolean } {
   const showCount = useShowRoomUnreadCount();
+  const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: chatQueryKeys.feedUnread({
       userId: currentUserId,
@@ -30,5 +45,36 @@ export function useFeedUnreadCount({
     retry: false,
     refetchOnWindowFocus: false,
   });
+
+  const roomsUnread =
+    useLiveChatRooms()
+      ?.map((room) => `${room.id}:${room.unreadCount}`)
+      .join(",") ?? null;
+  // The rooms' unread last seen, and whether a change waits for its read. The
+  // first rooms the reader sees are not a change: the query has just read the
+  // count. A change inside the wait needs no wait of its own: the read at its
+  // end sees it.
+  const [seenRoomsUnread, setSeenRoomsUnread] = useState(roomsUnread);
+  const [refreshDue, setRefreshDue] = useState(false);
+  if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
+    setSeenRoomsUnread(roomsUnread);
+    if (seenRoomsUnread !== null) {
+      setRefreshDue(true);
+    }
+  }
+  useTimeout(
+    () => {
+      setRefreshDue(false);
+      void queryClient.invalidateQueries({
+        queryKey: chatQueryKeys.feedUnread({
+          userId: currentUserId,
+          workspaceId: organizationId,
+        }),
+        exact: true,
+      });
+    },
+    refreshDue ? FEED_COUNT_REFRESH_DELAY_MS : null,
+  );
+
   return { unreadCount: data ?? 0, showCount };
 }
