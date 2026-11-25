@@ -1,4 +1,4 @@
-import { CMO_CHANNELS, type CmoChannelKey } from "@sokosumi/utils";
+import { CMO_CHANNELS, type CmoChannelKey, cmoJargonIn } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -130,5 +130,20 @@ describe("writing skills", () => {
     expect(text.trimEnd().endsWith(linkedin!.checklist.at(-1)!.rule)).toBe(
       true,
     );
+  });
+
+  it("keeps playbooks off every channel, read only on demand", () => {
+    const playbooks = WRITING_SKILLS.filter(
+      (skill) => skill.group === "playbooks",
+    );
+    expect(playbooks.length).toBeGreaterThanOrEqual(14);
+    const preloaded = writingSkillsForChannels(Object.keys(CMO_CHANNELS));
+    for (const skill of playbooks) {
+      expect(skill.channels).toEqual([]);
+      expect(preloaded).not.toContain(skill);
+      expect(skill.description).toMatch(/^Use when /);
+      expect(skill.description.length).toBeLessThanOrEqual(150);
+      expect(cmoJargonIn(renderWritingSkill(skill))).toEqual([]);
+    }
   });
 });

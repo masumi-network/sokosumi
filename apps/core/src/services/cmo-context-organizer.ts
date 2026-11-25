@@ -510,7 +510,15 @@ export function cmoContextCore(input: {
     ...(input.planLevel ? { plan: input.planLevel } : {}),
     connectedChannels: cmoConnectedChannelsContext(sources.channels),
     existingAccounts: sources.existingAccounts,
-    writingSkills: WRITING_SKILLS.map((skill) => skill.id).join(", "),
+    // A network's skill is known by its id; a playbook by when to use it.
+    writingSkills: [
+      WRITING_SKILLS.filter((skill) => skill.channels.length)
+        .map((skill) => skill.id)
+        .join(", "),
+      ...WRITING_SKILLS.filter((skill) => !skill.channels.length).map(
+        (skill) => `${skill.id}: ${skill.description}`,
+      ),
+    ],
     map: items.map((item) => ({
       id: item.id,
       what: item.title,

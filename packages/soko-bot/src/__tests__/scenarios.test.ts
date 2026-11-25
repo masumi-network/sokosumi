@@ -439,3 +439,33 @@ describe("evaluateScenario", () => {
     expect(result.passed).toBeLessThan(result.total);
   });
 });
+
+describe("readsSkills", () => {
+  const scenario: SokoBotScenario = {
+    id: "reads-landing-page",
+    title: "Reads the landing page skill",
+    intent: "",
+    prompt: "",
+    rubric: "",
+    expect: { routes: ["DELEGATE_TASK"], readsSkills: ["landing-page"] },
+  };
+  const check = (calls: SokoBotLabTurn["toolCalls"]) =>
+    evaluateScenario(scenario, turn({ toolCalls: calls })).checks.find(
+      (c) => c.label === "Reads skill landing-page",
+    );
+
+  it("passes when either read tool returned the skill", () => {
+    expect(
+      check([call("read_writing_skill", { skill: "landing-page" })])?.pass,
+    ).toBe(true);
+    expect(check([call("read_skill", { skill: "landing-page" })])?.pass).toBe(
+      true,
+    );
+  });
+
+  it("fails when only another skill was read", () => {
+    expect(
+      check([call("read_writing_skill", { skill: "brand-voice" })])?.actual,
+    ).toBe("not read: read brand-voice");
+  });
+});

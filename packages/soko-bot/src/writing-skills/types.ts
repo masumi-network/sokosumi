@@ -1,6 +1,12 @@
 import type { CmoChannelKey } from "@sokosumi/utils";
 
-export type WritingSkillGroup = "foundations" | "social" | "ads" | "long_form";
+export type WritingSkillGroup =
+  | "foundations"
+  | "social"
+  | "ads"
+  | "long_form"
+  /** Pages, outreach and growth work: no channel, read only when the work comes up. */
+  | "playbooks";
 
 /** One rule a finished piece is checked against. */
 export interface WritingRule {
@@ -30,7 +36,7 @@ export interface WritingSkill {
    * restaurant's LinkedIn serves its catering buyers, not its diners.
    */
   audience?: string;
-  /** The channels it covers; a foundation covers every piece. */
+  /** The channels it covers; a foundation covers every piece, a playbook none. */
   channels: readonly CmoChannelKey[];
   /** The skill in Markdown: what works, the shape of each format, examples. */
   content: string;
