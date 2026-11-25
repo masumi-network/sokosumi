@@ -22,13 +22,16 @@ import {
   AboutList,
   AgentProfile,
   AgentProfileSkeleton,
+  ProfileText,
 } from "@/components/agents/directory/agent-profile";
 import { AgentStatus } from "@/components/agents/directory/agent-status";
+import { AGENTS_CARD_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Directory");
@@ -84,7 +87,7 @@ async function SokoBotProfile({
     : null;
 
   const message = bot.sharedRoomId ? (
-    <Button asChild variant="primary">
+    <Button asChild size="sm">
       <Link href={`/chat/rooms/${encodeURIComponent(bot.sharedRoomId)}`}>
         <MessageSquare aria-hidden className="size-4" />
         {t("message")}
@@ -95,7 +98,7 @@ async function SokoBotProfile({
       sokoBotId={bot.id}
       label={t("message")}
       errorLabel={t("messageError")}
-      variant="primary"
+      size="sm"
     />
   );
 
@@ -107,7 +110,7 @@ async function SokoBotProfile({
           imageUrl={bot.avatarImageUrl}
           seed={bot.seed}
           alt={name}
-          className="size-20"
+          className="size-12"
         />
       }
       name={name}
@@ -120,11 +123,7 @@ async function SokoBotProfile({
         {
           id: "what",
           title: t("sectionWhat"),
-          content: (
-            <p className="text-foreground text-sm leading-relaxed text-pretty">
-              {t(`botDoes.${bot.owner.kind}`)}
-            </p>
-          ),
+          content: <ProfileText>{t(`botDoes.${bot.owner.kind}`)}</ProfileText>,
         },
         stats && {
           id: "work",
@@ -161,11 +160,16 @@ async function SokoBotProfile({
           id: "settings",
           title: t("sectionSettings"),
           content: (
-            <div className="flex flex-col items-start gap-3">
-              <p className="text-muted-foreground text-sm text-pretty">
+            <div
+              className={cn(
+                AGENTS_CARD_CLASS,
+                "flex flex-wrap items-center justify-between gap-3",
+              )}
+            >
+              <p className="text-muted-foreground max-w-prose text-sm text-pretty">
                 {t("botSettingsNote")}
               </p>
-              <Button asChild variant="outline">
+              <Button asChild size="sm">
                 <Link href={consoleHref(bot)}>
                   <Settings aria-hidden className="size-4" />
                   {t("openSettings")}

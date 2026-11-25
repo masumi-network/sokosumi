@@ -9,8 +9,13 @@ import {
   AgentProfile,
   AgentProfileSkeleton,
 } from "@/components/agents/directory/agent-profile";
+import { AGENTS_CARD_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
+import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import {
   getAgentDescription,
   getAgentExampleOutputs,
@@ -22,6 +27,7 @@ import {
 } from "@/lib/helpers/agent";
 import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 import { isCoreAgentDetail } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/utils/duration";
 
 import { AgentDetailExamples } from "./examples/examples";
@@ -148,10 +154,10 @@ export function AgentDetail({
     <AgentProfile
       backLabel={t("backToAgents")}
       avatar={
-        <span className="border-border bg-card-background flex size-20 items-center justify-center rounded-2xl border">
+        <span className="border-border bg-card-background flex size-12 items-center justify-center rounded-xl border">
           <AgentIcon
             agent={{ name, icon: getAgentResolvedIcon(agent) }}
-            className="size-10"
+            className="size-6"
           />
         </span>
       }
@@ -164,21 +170,25 @@ export function AgentDetail({
           id: "what",
           title: t("sectionWhat"),
           content: (
-            <div className="flex flex-col gap-6">
-              {description ? (
-                <ExpandableMarkdown
-                  content={description}
-                  className="text-foreground"
-                  expandLabel={tTaskDetail("expand")}
-                  collapseLabel={tTaskDetail("collapse")}
-                  fadeClassName="to-background"
-                />
+            <>
+              {description || tags.length > 0 ? (
+                <div className={cn(AGENTS_CARD_CLASS, "flex flex-col gap-4")}>
+                  {description ? (
+                    <ExpandableMarkdown
+                      content={description}
+                      className="text-foreground max-w-prose"
+                      expandLabel={tTaskDetail("expand")}
+                      collapseLabel={tTaskDetail("collapse")}
+                      fadeClassName="to-background"
+                    />
+                  ) : null}
+                  {tags.length > 0 ? <AgentBadgeCloud tags={tags} /> : null}
+                </div>
               ) : null}
-              {tags.length > 0 ? <AgentBadgeCloud tags={tags} /> : null}
               {examples.length > 0 ? (
                 <AgentDetailExamples exampleOutputs={examples} />
               ) : null}
-            </div>
+            </>
           ),
         },
         myJobsCount > 0 && {
@@ -187,7 +197,11 @@ export function AgentDetail({
           content: (
             <Link
               href={`/agents/${agent.id}/jobs`}
-              className="border-border hover:bg-accent focus-visible:ring-ring flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm transition-colors outline-none focus-visible:ring-2"
+              className={cn(
+                HOLDER_ITEM_CLASS,
+                HOLDER_ITEM_HOVER_CLASS,
+                "focus-visible:ring-ring flex items-center justify-between gap-3 px-4 py-3 text-sm outline-none focus-visible:ring-2",
+              )}
             >
               <span className="text-foreground font-medium">
                 {t("yourJobs", { count: myJobsCount })}
@@ -203,7 +217,7 @@ export function AgentDetail({
           id: "about",
           title: t("sectionAbout"),
           content: (
-            <div className="flex flex-col gap-8">
+            <>
               <MarketplaceAbout
                 agent={agent}
                 vendor={vendor}
@@ -220,7 +234,7 @@ export function AgentDetail({
                   existingRating={existingRating}
                 />
               ) : null}
-            </div>
+            </>
           ),
         },
       ]}

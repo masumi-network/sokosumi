@@ -23,12 +23,14 @@ export function MarketplaceAgentActions({ agentId }: { agentId: string }) {
   return (
     <>
       {openNewTask ? (
-        <Button type="button" variant="primary" onClick={openNewTask}>
+        <Button type="button" size="sm" onClick={openNewTask}>
           <Plus aria-hidden />
           {t("startTask")}
         </Button>
       ) : null}
-      {url ? <ShareButton url={url} className="hidden sm:inline-flex" /> : null}
+      {url ? (
+        <ShareButton url={url} className="hidden size-8 sm:inline-flex" />
+      ) : null}
     </>
   );
 }
