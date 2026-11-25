@@ -35,14 +35,17 @@ sokosumi evals list                                    # recent runs and scores
 
 `--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. Each run executes with the code of whichever Core ticks it, so when several local Cores share one database, tick from one of them only, and from a checkout whose schema matches that database. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the weekly run before it.
 
-The weekly run runs each case once. A run you start runs once too unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the weekly run on one repeat may be chance: run it with three repeats before chasing it.
+The weekly run runs each case once, judged cases twice. A run you start runs once unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the weekly run on one repeat may be chance: run it with three repeats before chasing it.
 
 ## How a run works
 
 - **Lanes.** Repeat N runs in lane N: its own eval organization (`sokosumi-evals-N`) with an owner (Robin Keller), two teammates (Hannah Weber does research, Alex Kim writes), the Projects "Sokosumi Marketing" (an X account) and "utxo AG Outreach" (a LinkedIn account), a newsletter, a "Launch team" room, a Soko Bot and a Cuso. `eval-lanes.service.ts` makes them on first use and resets the Soko Bot's world before its first case. Agent-to-agent cases add Mira, a research Coworker whose chat answers Core scripts in process (`lib/evals/fake-coworker.ts`, host under `.invalid`), and Juno, Hannah's own Soko Bot in the Launch team room, which runs for real (`eval-a2a.ts`).
 - **Order.** Soko Bot cases run in order, and later ones build on what earlier ones made: the Coworker events act on the Task the first case created. A case with `setup` starts from a clean slate.
 - **Scoring.** A scenario passes when every deterministic check passes and the judge does not say "fail". A judge that cannot answer (the CLI is missing or logged out, the Gateway is down) leaves the case scored by its checks alone. CMO research and strategy cases check the Brand Brain and the plan against what the brand really sells (`cmo-brand-checks.ts`, shared with `cmo:lab`).
-- **Outcomes.** Each case is regressed, fixed, flaky, failing, passing, error (could not run) or skipped (needs something the environment lacks, such as a connected mailbox), from its repeats and the last weekly runs (`lib/evals/eval-compare.ts`).
+- **Outcomes.** Each case is regressed, fixed, flaky, failing, passing, error (could not run) or skipped (needs something the environment lacks, such as a connected mailbox), from its repeats and the last weekly runs (`lib/evals/eval-compare.ts`). Regressed means most repeats fail after a history of passing; one failed repeat of two is flaky, since a judge can flip.
+- **Cost and time.** Each case is also costlier or slower when the median of its scored repeats is more than 1.3 times its median in the last five weekly runs (at least three needed). Admin → Evals, `sokosumi evals show` and the weekly email show both; the email goes out on a regression or a costlier case.
+- **Weekly run.** Cases a judge grades (scenarios) run twice, the rest once, and the weekly run's judge is `WEEKLY_JUDGE_MODEL` (Sonnet 5), not the Opus judge of runs someone starts (`eval-runs.service.ts`).
+- **Stuck runs.** A run still running 24 hours after it started is ended: its open cases become errors and the next run starts. The longest weekly run so far took 9.4 hours.
 
 ## What keeps mainnet safe
 

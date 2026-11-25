@@ -276,3 +276,8 @@ export function selectEvalCases(input: {
       (input.caseIds.length === 0 || input.caseIds.includes(evalCase.id)),
   );
 }
+
+/** Scenario cases end in a judge's verdict; the others are scored by checks alone. */
+export function isJudgedEvalCase(evalCase: EvalCase): boolean {
+  return evalCase.kind === "scenario";
+}

@@ -53,11 +53,11 @@ const TOOL_BUDGET = 60_000;
 export class SokoBotLabJudgeError extends Error {}
 
 /** The judge a verdict is recorded under: a Gateway id, or `claude-code:<model>`. */
-export function sokoBotJudgeModel(): string {
+export function sokoBotJudgeModel(modelOverride?: string): string {
   const env = getEnv();
   return env.SOKO_BOT_JUDGE_RUNNER === "claude-code"
     ? `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`
-    : env.SOKO_BOT_JUDGE_MODEL;
+    : (modelOverride ?? env.SOKO_BOT_JUDGE_MODEL);
 }
 
 function clip(value: unknown, limit = VALUE_LIMIT): string {
@@ -368,11 +368,15 @@ async function addTurnOverheadUsage(
   }, "Another judge recorded usage for this turn at the same moment");
 }
 
-async function storeTurnVerdict(turnId: string, call: JudgeCall) {
+async function storeTurnVerdict(
+  turnId: string,
+  call: JudgeCall,
+  model?: string,
+) {
   await addTurnOverheadUsage(turnId, call.usage, {
     qualityScore: overallScore(call.verdict),
     qualityVerdict: jsonInput(call.verdict),
-    qualityModel: sokoBotJudgeModel(),
+    qualityModel: sokoBotJudgeModel(model),
     judgedAt: new Date(),
   });
 }
@@ -418,13 +422,14 @@ export async function loadLabJudgePayload(turnId: string, scenarioId: string) {
 export async function judgeEvalScenarioTurn(
   turnId: string,
   scenario: SokoBotScenario,
+  model?: string,
 ): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
   const { transcript } = await loadTranscript(turnId);
   const call = await withModelCallTurn(turnId, () =>
-    askJudge(labJudgePayload(scenario, transcript)),
+    askJudge(labJudgePayload(scenario, transcript), model),
   );
-  await storeTurnVerdict(turnId, call);
-  return { verdict: call.verdict, model: sokoBotJudgeModel() };
+  await storeTurnVerdict(turnId, call, model);
+  return { verdict: call.verdict, model: sokoBotJudgeModel(model) };
 }
 
 /**
@@ -435,24 +440,28 @@ export async function judgeEvalChain(
   turnIds: string[],
   scenario: SokoBotScenario,
   roomLog: { room: string; from: string; content: string }[],
+  model?: string,
 ): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
   const transcripts = await Promise.all(
     turnIds.map(async (id) => (await loadTranscript(id)).transcript),
   );
   const last = transcripts.at(-1);
   if (!last) throw new SokoBotLabJudgeError("Turn not found");
-  const call = await askJudge({
-    ...labJudgePayload(scenario, last),
-    note: "This case is a chain: `earlierTurns` are the owner's turn and the follow-ups before `turn`, in order, and `chatLog` is what the chat rooms said meanwhile (the other side's real answers). Grade the whole chain; `turn.finalAnswer` is what the owner read last.",
-    earlierTurns: transcripts
-      .slice(0, -1)
-      .map((transcript, index) =>
-        index === 0 ? transcript : { ...transcript, contextPacket: null },
-      ),
-    chatLog: roomLog,
-  });
-  await storeTurnVerdict(turnIds.at(-1)!, call);
-  return { verdict: call.verdict, model: sokoBotJudgeModel() };
+  const call = await askJudge(
+    {
+      ...labJudgePayload(scenario, last),
+      note: "This case is a chain: `earlierTurns` are the owner's turn and the follow-ups before `turn`, in order, and `chatLog` is what the chat rooms said meanwhile (the other side's real answers). Grade the whole chain; `turn.finalAnswer` is what the owner read last.",
+      earlierTurns: transcripts
+        .slice(0, -1)
+        .map((transcript, index) =>
+          index === 0 ? transcript : { ...transcript, contextPacket: null },
+        ),
+      chatLog: roomLog,
+    },
+    model,
+  );
+  await storeTurnVerdict(turnIds.at(-1)!, call, model);
+  return { verdict: call.verdict, model: sokoBotJudgeModel(model) };
 }
 
 /**
