@@ -1,6 +1,7 @@
 import { globSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createPrismaClient } from "@sokosumi/database/client";
 import ts from "@typescript/typescript6";
 import { expect, it } from "vitest";
 
@@ -11,11 +12,40 @@ const networkTables = JSON.parse(
     resolve(ROOT, "packages/database/prisma/network-tables.json"),
     "utf8",
   ),
-) as { network: Record<string, string> };
-const networkDelegates = new Set(
-  Object.keys(networkTables.network).map(
-    (model) => model.charAt(0).toLowerCase() + model.slice(1),
-  ),
+) as { network: Record<string, string>; shared: Record<string, string> };
+const networkModels = new Set(Object.keys(networkTables.network));
+const modelsByDelegate = new Map(
+  [...networkModels, ...Object.keys(networkTables.shared)].map((model) => [
+    model.charAt(0).toLowerCase() + model.slice(1),
+    model,
+  ]),
+);
+
+interface PrismaModelMetadata {
+  _runtimeDataModel: {
+    models: Record<
+      string,
+      { fields: { name: string; kind: string; type: string }[] }
+    >;
+  };
+}
+
+// Use the generated client's model metadata, as network-tables.test.ts does.
+// Constructing the client does not open a connection.
+const modelMetadata = (
+  createPrismaClient(
+    "postgresql://127.0.0.1:1/none",
+  ) as unknown as PrismaModelMetadata
+)._runtimeDataModel.models;
+const modelRelations = new Map(
+  Object.entries(modelMetadata).map(([model, { fields }]) => [
+    model,
+    new Map(
+      fields
+        .filter(({ kind }) => kind === "object")
+        .map(({ name, type }) => [name, type]),
+    ),
+  ]),
 );
 
 type MemberAccess = ts.PropertyAccessExpression | ts.ElementAccessExpression;
@@ -56,8 +86,49 @@ function importsFrom(
   const path = specifier.text.startsWith("@/")
     ? resolve(CORE_SRC, specifier.text.slice(2))
     : resolve(dirname(declaration.getSourceFile().fileName), specifier.text);
+  if (module.startsWith("@sokosumi/")) return specifier.text === module;
   const target = resolve(CORE_SRC, module);
   return path === target || path === `${target}.js` || path === `${target}.ts`;
+}
+
+function declarationOf(
+  node: ts.Node,
+  bindings: ts.TypeChecker,
+): ts.Declaration | undefined {
+  return bindings.getSymbolAtLocation(node)?.declarations?.[0];
+}
+
+function constInitializer(
+  declaration: ts.Declaration | undefined,
+  reference: ts.Identifier,
+): ts.Expression | undefined {
+  if (
+    declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    declaration.parent.flags & ts.NodeFlags.Const &&
+    declaration.end < reference.pos
+  ) {
+    return declaration.initializer;
+  }
+}
+
+function importedName(
+  node: ts.Node,
+  bindings: ts.TypeChecker,
+  module: string,
+  typePosition = false,
+): string | undefined {
+  const declaration = declarationOf(node, bindings);
+  if (declaration && ts.isImportSpecifier(declaration)) {
+    const clause = declaration.parent.parent;
+    if (
+      (typePosition || (!declaration.isTypeOnly && !clause.isTypeOnly)) &&
+      importsFrom(clause.parent, module)
+    ) {
+      return (declaration.propertyName ?? declaration.name).text;
+    }
+  }
 }
 
 function isDefaultClient(
@@ -66,40 +137,24 @@ function isDefaultClient(
 ): boolean {
   expression = unwrap(expression);
   if (ts.isIdentifier(expression)) {
-    const declaration =
-      bindings.getSymbolAtLocation(expression)?.declarations?.[0];
-    if (!declaration) return false;
-    if (ts.isImportClause(declaration)) {
+    const declaration = declarationOf(expression, bindings);
+    if (declaration && ts.isImportClause(declaration)) {
       return (
         !declaration.isTypeOnly &&
         importsFrom(declaration.parent, "lib/db/prisma")
       );
     }
-    if (ts.isImportSpecifier(declaration)) {
-      return (
-        (declaration.propertyName ?? declaration.name).text === "default" &&
-        !declaration.isTypeOnly &&
-        !declaration.parent.parent.isTypeOnly &&
-        importsFrom(declaration.parent.parent.parent, "lib/db/prisma")
-      );
-    }
-    if (
-      ts.isVariableDeclaration(declaration) &&
-      ts.isVariableDeclarationList(declaration.parent) &&
-      declaration.parent.flags & ts.NodeFlags.Const &&
-      declaration.initializer &&
-      declaration.end < expression.pos
-    ) {
-      return isDefaultClient(declaration.initializer, bindings);
-    }
+    if (importedName(expression, bindings, "lib/db/prisma") === "default")
+      return true;
+    const initializer = constInitializer(declaration, expression);
+    return !!initializer && isDefaultClient(initializer, bindings);
   }
   if (
     isMemberAccess(expression) &&
     memberName(expression) === "default" &&
     ts.isIdentifier(expression.expression)
   ) {
-    const declaration = bindings.getSymbolAtLocation(expression.expression)
-      ?.declarations?.[0];
+    const declaration = declarationOf(expression.expression, bindings);
     return (
       !!declaration &&
       ts.isNamespaceImport(declaration) &&
@@ -108,6 +163,326 @@ function isDefaultClient(
     );
   }
   return false;
+}
+
+function prismaType(
+  name: ts.EntityName,
+  bindings: ts.TypeChecker,
+): string | undefined {
+  if (
+    ts.isQualifiedName(name) &&
+    ts.isIdentifier(name.left) &&
+    (importedName(name.left, bindings, "@sokosumi/database", true) ===
+      "Prisma" ||
+      importedName(name.left, bindings, "@sokosumi/database/client", true) ===
+        "PrismaRaw")
+  ) {
+    return name.right.text;
+  }
+}
+
+function callbackTransaction(
+  callback: ts.Node,
+  bindings: ts.TypeChecker,
+): callback is ts.ArrowFunction | ts.FunctionExpression {
+  if (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback))
+    return false;
+  const call = callback.parent;
+  if (!ts.isCallExpression(call) || call.arguments[0] !== callback)
+    return false;
+  const method = unwrap(call.expression);
+  if (ts.isIdentifier(method)) {
+    const helper = importedName(method, bindings, "lib/db/transaction");
+    return (
+      helper === "serializableTransaction" || helper === "retriedTransaction"
+    );
+  }
+  return (
+    isMemberAccess(method) &&
+    memberName(method) === "$transaction" &&
+    isDefaultClient(method.expression, bindings)
+  );
+}
+
+function declaredTypeName(
+  declaration: ts.Declaration | undefined,
+): ts.EntityName | undefined {
+  if (
+    !declaration ||
+    (!ts.isParameter(declaration) && !ts.isVariableDeclaration(declaration))
+  )
+    return;
+  if (declaration.type && ts.isTypeReferenceNode(declaration.type))
+    return declaration.type.typeName;
+}
+
+function isAuthedRouteContext(
+  expression: ts.Expression,
+  bindings: ts.TypeChecker,
+): boolean {
+  if (!ts.isIdentifier(expression)) return false;
+  const context = declarationOf(expression, bindings);
+  if (!context || !ts.isParameter(context)) return false;
+  const handler = context.parent;
+  if (
+    (!ts.isArrowFunction(handler) && !ts.isFunctionExpression(handler)) ||
+    handler.parameters[0] !== context
+  )
+    return false;
+  const call = handler.parent;
+  if (
+    !ts.isCallExpression(call) ||
+    call.arguments[1] !== handler ||
+    !isMemberAccess(call.expression) ||
+    memberName(call.expression) !== "openapi" ||
+    !ts.isIdentifier(call.expression.expression)
+  )
+    return false;
+  const app = declarationOf(call.expression.expression, bindings);
+  const name = declaredTypeName(app);
+  if (
+    name &&
+    ts.isIdentifier(name) &&
+    importedName(name, bindings, "lib/hono", true) === "OpenAPIHonoWithAuth"
+  )
+    return true;
+  const initializer = constInitializer(app, call.expression.expression);
+  return (
+    !!initializer &&
+    ts.isNewExpression(initializer) &&
+    importedName(initializer.expression, bindings, "lib/hono") ===
+      "OpenAPIHonoWithAuth"
+  );
+}
+
+function isScope(expression: ts.Expression, bindings: ts.TypeChecker): boolean {
+  expression = unwrap(expression);
+  if (
+    ts.isCallExpression(expression) &&
+    ts.isIdentifier(expression.expression)
+  ) {
+    return (
+      importedName(expression.expression, bindings, "lib/db/network-scope") ===
+      "createNetworkScope"
+    );
+  }
+  if (isMemberAccess(expression) && memberName(expression) === "networkScope") {
+    const variables = unwrap(expression.expression);
+    return (
+      isMemberAccess(variables) &&
+      memberName(variables) === "var" &&
+      isAuthedRouteContext(unwrap(variables.expression), bindings)
+    );
+  }
+  if (!ts.isIdentifier(expression)) return false;
+  const declaration = declarationOf(expression, bindings);
+  const name = declaredTypeName(declaration);
+  if (
+    name &&
+    ts.isIdentifier(name) &&
+    importedName(name, bindings, "lib/db/network-scope", true) ===
+      "NetworkScope"
+  )
+    return true;
+  const initializer = constInitializer(declaration, expression);
+  return !!initializer && isScope(initializer, bindings);
+}
+
+function scopeSide(
+  expression: ts.Expression,
+  bindings: ts.TypeChecker,
+): boolean {
+  expression = unwrap(expression);
+  if (!isMemberAccess(expression)) return false;
+  const name = memberName(expression);
+  return (
+    (name === "networkDb" || name === "sharedDb") &&
+    isScope(expression.expression, bindings)
+  );
+}
+
+function isPrismaClient(
+  expression: ts.Expression,
+  bindings: ts.TypeChecker,
+): boolean {
+  expression = unwrap(expression);
+  if (isDefaultClient(expression, bindings) || scopeSide(expression, bindings))
+    return true;
+  if (!ts.isIdentifier(expression)) return false;
+  const declaration = declarationOf(expression, bindings);
+  const name = declaredTypeName(declaration);
+  if (name && prismaType(name, bindings) === "TransactionClient") return true;
+  if (name && ts.isIdentifier(name)) {
+    const side = importedName(name, bindings, "lib/db/network-scope", true);
+    if (
+      side === "NetworkDb" ||
+      side === "SharedDb" ||
+      importedName(name, bindings, "lib/db/prisma", true) === "DbClient"
+    )
+      return true;
+  }
+  if (
+    declaration &&
+    ts.isParameter(declaration) &&
+    declaration.parent.parameters[0] === declaration &&
+    callbackTransaction(declaration.parent, bindings)
+  )
+    return true;
+  const initializer = constInitializer(declaration, expression);
+  return !!initializer && isPrismaClient(initializer, bindings);
+}
+
+type RelationContext =
+  | "args"
+  | "include"
+  | "select"
+  | "where"
+  | "relation filter";
+const relationTypes = new Map<
+  string,
+  { model: string; context: RelationContext }
+>();
+for (const model of modelsByDelegate.values()) {
+  relationTypes.set(`${model}Include`, { model, context: "include" });
+  relationTypes.set(`${model}Select`, { model, context: "select" });
+  relationTypes.set(`${model}WhereInput`, { model, context: "where" });
+  relationTypes.set(`${model}WhereUniqueInput`, { model, context: "where" });
+}
+
+function resolveLiteral(
+  expression: ts.Expression,
+  bindings: ts.TypeChecker,
+): ts.Expression {
+  expression = unwrap(expression);
+  if (!ts.isIdentifier(expression)) return expression;
+  const declaration = ts.isShorthandPropertyAssignment(expression.parent)
+    ? bindings.getShorthandAssignmentValueSymbol(expression.parent)
+        ?.valueDeclaration
+    : declarationOf(expression, bindings);
+  const initializer = constInitializer(declaration, expression);
+  return initializer ? resolveLiteral(initializer, bindings) : expression;
+}
+
+function* propertiesInReverse(
+  literal: ts.ObjectLiteralExpression,
+  bindings: ts.TypeChecker,
+): Generator<[string, ts.PropertyName, ts.Expression] | undefined> {
+  for (const property of [...literal.properties].reverse()) {
+    if (ts.isSpreadAssignment(property)) {
+      const spread = resolveLiteral(property.expression, bindings);
+      if (ts.isObjectLiteralExpression(spread)) {
+        yield* propertiesInReverse(spread, bindings);
+        continue;
+      }
+    }
+    if (
+      !ts.isPropertyAssignment(property) &&
+      !ts.isShorthandPropertyAssignment(property)
+    ) {
+      yield undefined;
+      return;
+    }
+    const key = property.name;
+    const name = ts.isComputedPropertyName(key) ? unwrap(key.expression) : key;
+    if (
+      (!ts.isIdentifier(name) && !ts.isStringLiteralLike(name)) ||
+      (ts.isComputedPropertyName(key) && ts.isIdentifier(name))
+    ) {
+      yield undefined;
+      return;
+    }
+    yield [
+      name.text,
+      key,
+      ts.isPropertyAssignment(property) ? property.initializer : property.name,
+    ];
+  }
+}
+
+const logicalFilters = new Set(["AND", "OR", "NOT"]);
+const relationFilters = new Set(["is", "isNot", "some", "none", "every"]);
+
+function walkRelations(
+  expression: ts.Expression,
+  model: string,
+  context: RelationContext,
+  bindings: ts.TypeChecker,
+  report: (node: ts.Node, reason: string) => void,
+): void {
+  const literal = resolveLiteral(expression, bindings);
+  if (context === "where" && ts.isArrayLiteralExpression(literal)) {
+    for (const element of literal.elements)
+      walkRelations(element, model, context, bindings, report);
+    return;
+  }
+  if (!ts.isObjectLiteralExpression(literal)) return;
+
+  const seen = new Set<string>();
+  for (const property of propertiesInReverse(literal, bindings)) {
+    // An unknown key or spread may override any earlier field.
+    if (!property) break;
+    const [name, key, child] = property;
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    if (context === "args") {
+      if (name === "include" || name === "select" || name === "where") {
+        walkRelations(child, model, name, bindings, report);
+      }
+      continue;
+    }
+
+    const filtering = context === "where" || context === "relation filter";
+    if (
+      filtering &&
+      (logicalFilters.has(name) ||
+        (context === "relation filter" && relationFilters.has(name)))
+    ) {
+      walkRelations(child, model, "where", bindings, report);
+      continue;
+    }
+    const related = modelRelations.get(model)?.get(name);
+    if (!related) continue;
+    const resolved = resolveLiteral(child, bindings);
+    if (
+      resolved.kind === ts.SyntaxKind.FalseKeyword ||
+      (ts.isIdentifier(resolved) &&
+        resolved.text === "undefined" &&
+        !declarationOf(resolved, bindings))
+    )
+      continue;
+
+    if (networkModels.has(model) !== networkModels.has(related)) {
+      report(
+        key,
+        `${model}.${name} → ${related} (${filtering ? "where" : context})`,
+      );
+    }
+    walkRelations(
+      child,
+      related,
+      filtering ? "relation filter" : "args",
+      bindings,
+      report,
+    );
+  }
+}
+
+function typedRelation(
+  node: ts.Node,
+  bindings: ts.TypeChecker,
+  report: (node: ts.Node, reason: string) => void,
+): void {
+  if (!ts.isVariableDeclaration(node) && !ts.isSatisfiesExpression(node))
+    return;
+  const type = node.type;
+  const value = ts.isVariableDeclaration(node)
+    ? node.initializer
+    : node.expression;
+  if (!value || !type || !ts.isTypeReferenceNode(type)) return;
+  const relation = relationTypes.get(prismaType(type.typeName, bindings) ?? "");
+  if (relation)
+    walkRelations(value, relation.model, relation.context, bindings, report);
 }
 
 function assertAllowlist(
@@ -119,18 +494,20 @@ function assertAllowlist(
     .split("\n")
     .filter(Boolean);
   console.log(`Network old path, ${label}: ${findings.size} files`);
-  expect(
-    {
-      new: [...findings]
-        .filter(([file]) => !allowed.includes(file))
-        .flatMap(([, locations]) => locations),
-      stale: allowed.filter((file) => !findings.has(file)),
-    },
-    "Use the Network scope for new calls and remove each allowlist entry when its last call moves.",
-  ).toEqual({ new: [], stale: [] });
+  expect
+    .soft(
+      {
+        new: [...findings]
+          .filter(([file]) => !allowed.includes(file))
+          .flatMap(([, locations]) => locations),
+        stale: allowed.filter((file) => !findings.has(file)),
+      },
+      "Use the Network scope for new calls and remove each allowlist entry when its last call moves.",
+    )
+    .toEqual({ new: [], stale: [] });
 }
 
-it("keeps the default client Network allowlist from growing or going stale", () => {
+it("keeps the Network allowlists from growing or going stale", () => {
   const started = performance.now();
   const files = globSync("**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", {
     cwd: CORE_SRC,
@@ -154,33 +531,59 @@ it("keeps the default client Network allowlist from growing or going stale", () 
     },
   );
   const bindings = program.getTypeChecker();
-  const findings = new Map<string, string[]>();
+  const defaultCalls = new Map<string, string[]>();
+  const relations = new Map<string, string[]>();
 
   for (const source of program.getSourceFiles()) {
-    const locations: string[] = [];
+    const calls: string[] = [];
+    const crossings = new Set<string>();
     const file = relative(ROOT, source.fileName);
+    function location(node: ts.Node): string {
+      const { line } = ts.getLineAndCharacterOfPosition(
+        source,
+        node.getStart(source),
+      );
+      return `${file}:${line + 1}`;
+    }
+    function reportRelation(node: ts.Node, reason: string): void {
+      crossings.add(`${location(node)} ${reason}`);
+    }
     function visit(node: ts.Node): void {
       if (ts.isCallExpression(node)) {
         const operation = unwrap(node.expression);
         if (isMemberAccess(operation)) {
           const delegate = unwrap(operation.expression);
-          if (
-            isMemberAccess(delegate) &&
-            networkDelegates.has(memberName(delegate) ?? "") &&
-            isDefaultClient(delegate.expression, bindings)
-          ) {
-            const { line } = ts.getLineAndCharacterOfPosition(
-              source,
-              node.getStart(source),
-            );
-            locations.push(`${file}:${line + 1}`);
+          if (isMemberAccess(delegate)) {
+            const model = modelsByDelegate.get(memberName(delegate) ?? "");
+            if (
+              model &&
+              networkModels.has(model) &&
+              isDefaultClient(delegate.expression, bindings)
+            ) {
+              calls.push(location(node));
+            }
+            if (
+              model &&
+              node.arguments[0] &&
+              isPrismaClient(delegate.expression, bindings)
+            ) {
+              walkRelations(
+                node.arguments[0],
+                model,
+                "args",
+                bindings,
+                reportRelation,
+              );
+            }
           }
         }
       }
+      typedRelation(node, bindings, reportRelation);
       ts.forEachChild(node, visit);
     }
     visit(source);
-    if (locations.length) findings.set(file, locations);
+    if (calls.length) defaultCalls.set(file, calls);
+    if (crossings.size) relations.set(file, [...crossings]);
   }
 
   console.log(
@@ -189,6 +592,11 @@ it("keeps the default client Network allowlist from growing or going stale", () 
   assertAllowlist(
     "default client Network calls",
     "network-default-client-allowlist.txt",
-    findings,
+    defaultCalls,
+  );
+  assertAllowlist(
+    "cross-schema relations",
+    "network-relation-allowlist.txt",
+    relations,
   );
 });

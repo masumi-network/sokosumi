@@ -1,0 +1,14 @@
+apps/core/src/helpers/access-control.job-share.ts
+apps/core/src/helpers/agent-rating.ts
+apps/core/src/helpers/calendar-erasure.ts
+apps/core/src/helpers/deletion-evaluate.ts
+apps/core/src/helpers/public-share.ts
+apps/core/src/lib/soko-bot/task-charges.ts
+apps/core/src/routes/v1/admin/task-payment-claims/get.ts
+apps/core/src/routes/v1/jobs/[id]/share/put.ts
+apps/core/src/routes/v1/tasks/[id]/share/put.ts
+apps/core/src/services/cmo-billing.service.ts
+apps/core/src/services/seo-chat.service.ts
+apps/core/src/services/soko-bot-activity-stats.service.ts
+apps/core/src/services/soko-bot-events-sync.service.ts
+apps/core/src/services/soko-bot-usage.service.ts
