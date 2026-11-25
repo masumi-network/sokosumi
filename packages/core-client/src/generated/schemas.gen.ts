@@ -53325,6 +53325,37 @@ export const ProjectSeoMonitorChangeSchema = {
         dropCount: {
             type: 'integer',
             minimum: 0
+        },
+        lostCitations: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    keyword: {
+                        type: 'string'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    shown: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'keyword',
+                    'device',
+                    'shown'
+                ]
+            },
+            maxItems: 10
+        },
+        lostCitationCount: {
+            type: 'integer',
+            minimum: 0
         }
     },
     required: [
@@ -53337,7 +53368,9 @@ export const ProjectSeoMonitorChangeSchema = {
         'fixed',
         'moves',
         'moveCount',
-        'dropCount'
+        'dropCount',
+        'lostCitations',
+        'lostCitationCount'
     ]
 } as const;
 

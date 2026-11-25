@@ -286,6 +286,7 @@ export function renderTaskUpdateEmail({
   clicksTo,
   drops,
   locale,
+  lostCitations,
   newFailures,
   projectName,
   reason,
@@ -303,6 +304,7 @@ export function renderTaskUpdateEmail({
     site: site?.trim() || name,
     newFailures: newFailures ?? 0,
     drops: drops ?? 0,
+    lostCitations: lostCitations ?? 0,
     clicksFrom: clicksFrom ?? 0,
     clicksTo: clicksTo ?? 0,
   };

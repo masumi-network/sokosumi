@@ -57,8 +57,12 @@ export function SeoMonitorChange({
     summary.fixed ? t("fixed", { count: summary.fixed }) : null,
     summary.drops ? t("drops", { count: summary.drops }) : null,
     summary.rises ? t("rises", { count: summary.rises }) : null,
+    summary.lostCitations
+      ? t("lostCitations", { count: summary.lostCitations })
+      : null,
   ].filter((part): part is string => part !== null);
-  const worse = summary.newFailures > 0 || summary.drops > 0;
+  const worse =
+    summary.newFailures > 0 || summary.drops > 0 || summary.lostCitations > 0;
   return (
     <Collapsible lang="en" className="text-xs">
       <CollapsibleTrigger className="group flex items-center gap-1 py-1 text-left">
@@ -118,6 +122,20 @@ export function SeoMonitorChange({
                       from: move.from,
                       to: move.to,
                     })}
+              </li>
+            ))}
+          </ChangeList>
+        ) : null}
+        {change.lostCitations.length ? (
+          <ChangeList title={t("lostCitationsTitle")}>
+            {change.lostCitations.map((item) => (
+              <li
+                key={`${item.keyword}|${item.device}`}
+                className="text-status-destructive"
+              >
+                {t(item.shown ? "lostCitation" : "lostCitationGone", {
+                  keyword: item.keyword,
+                })}
               </li>
             ))}
           </ChangeList>

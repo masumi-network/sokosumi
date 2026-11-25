@@ -133,6 +133,7 @@ export interface TaskUpdateEmailProps extends TaskEmailProps {
   site?: null | string;
   newFailures?: null | number;
   drops?: null | number;
+  lostCitations?: null | number;
   /** `seoMonitorClicksDrop`: Search Console clicks in the earlier and in the current period. */
   clicksFrom?: null | number;
   clicksTo?: null | number;

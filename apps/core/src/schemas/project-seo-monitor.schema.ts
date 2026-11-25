@@ -105,6 +105,14 @@ export const seoMonitorChangeSchema = z
     moveCount: z.number().int().nonnegative(),
     /** Moves to a worse place, lost keywords included. Drops come first in `moves`. */
     dropCount: z.number().int().nonnegative(),
+    /**
+     * Keywords whose AI Overview cited the page in the Run before and does not now. `shown` is false when the AI
+     * Overview itself is gone. Counted only when both Runs checked the same pages.
+     */
+    lostCitations: z
+      .array(z.object({ keyword: z.string(), device, shown: z.boolean() }))
+      .max(SEO_MONITOR_CHANGE_ITEMS),
+    lostCitationCount: z.number().int().nonnegative(),
   })
   .openapi("ProjectSeoMonitorChange");
 

@@ -154,7 +154,7 @@
             },
             "seoMonitorWorse": {
               "subject": "Sokosumi - SEO-Ergebnisse für {site} haben sich verschlechtert",
-              "body": "Die neueste geplante Prüfung von {site} ({taskName}) ist schlechter als die davor. Neu fehlgeschlagene Prüfungen: {newFailures}. Ranking-Verluste: {drops}."
+              "body": "Die neueste geplante Prüfung von {site} ({taskName}) ist schlechter als die davor. Neu fehlgeschlagene Prüfungen: {newFailures}. Ranking-Verluste: {drops}. Verlorene Nennungen in der KI-Übersicht: {lostCitations}."
             },
             "seoMonitorClicksDrop": {
               "subject": "Sokosumi - Search-Console-Klicks für {site} sind gesunken",

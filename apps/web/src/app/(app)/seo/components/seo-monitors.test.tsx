@@ -211,6 +211,8 @@ describe("SEO monitor card", () => {
             ],
             moveCount: 1,
             dropCount: 1,
+            lostCitations: [],
+            lostCitationCount: 0,
           },
         }),
       ),

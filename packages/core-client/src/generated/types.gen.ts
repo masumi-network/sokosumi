@@ -13458,6 +13458,12 @@ export type ProjectSeoMonitorChange = {
     }>;
     moveCount: number;
     dropCount: number;
+    lostCitations: Array<{
+        keyword: string;
+        device: 'mobile' | 'desktop';
+        shown: boolean;
+    }>;
+    lostCitationCount: number;
 };
 
 export type AddProjectSeoPageRequest = {

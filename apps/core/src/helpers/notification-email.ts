@@ -318,6 +318,7 @@ export async function buildNotificationEmail(
           site: readString(params, "site"),
           newFailures: readCount(params, "newFailures"),
           drops: readCount(params, "drops"),
+          lostCitations: readCount(params, "lostCitations"),
           clicksFrom: readCount(params, "clicksFrom"),
           clicksTo: readCount(params, "clicksTo"),
         }),

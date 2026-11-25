@@ -154,7 +154,7 @@
             },
             "seoMonitorWorse": {
               "subject": "Sokosumi - SEO results for {site} got worse",
-              "body": "The newest scheduled check of {site} ({taskName}) is worse than the one before. New failing checks: {newFailures}. Ranking drops: {drops}."
+              "body": "The newest scheduled check of {site} ({taskName}) is worse than the one before. New failing checks: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}."
             },
             "seoMonitorClicksDrop": {
               "subject": "Sokosumi - Search Console clicks for {site} fell",

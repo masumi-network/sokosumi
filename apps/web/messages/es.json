@@ -14117,11 +14117,15 @@
           "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
           "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
           "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "lostCitations": "{count, plural, one {# cita perdida en AI Overview} other {# citas perdidas en AI Overview}}",
           "newFailuresTitle": "Ahora fallan",
           "fixedTitle": "Corregidos",
           "movesTitle": "Cambios de posición",
           "move": "{keyword}: posición {from} → {to}",
           "lost": "{keyword}: estaba en la posición {from}, ahora fuera de los primeros {checked}",
+          "lostCitationsTitle": "Citas perdidas en AI Overview",
+          "lostCitation": "{keyword}: AI Overview ya no cita tu página",
+          "lostCitationGone": "{keyword}: el AI Overview que citaba tu página ya no aparece",
           "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
         },
         "plan": {

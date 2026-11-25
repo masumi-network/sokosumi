@@ -93,6 +93,48 @@ function keywordsWith(
   return ranked;
 }
 
+const pageSet = (payload: PublicSeoPayload) =>
+  [...new Set(payload.pageUrls.map(normalizeSeoUrl))].sort().join("\n");
+
+const serpKey = (read: { keyword: string; device: string }) =>
+  JSON.stringify([read.keyword.normalize("NFKC").toLowerCase(), read.device]);
+
+/**
+ * Keywords whose AI Overview cited the page before and does not now: it names other sources, or it is gone after
+ * the read waited for it. A suspect read, a read with no AI Overview data and a citation that was not determined
+ * (null) never count. Other pages give other citations, so both Runs must have checked the same pages.
+ */
+function lostSeoCitations(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+): SeoMonitorChange["lostCitations"] {
+  if (pageSet(before) !== pageSet(after)) return [];
+  const cited = new Set<string>();
+  for (const read of before.serps ?? [])
+    if (
+      !read.suspect &&
+      read.aiOverview?.shown &&
+      read.aiOverview.pageCited === true
+    )
+      cited.add(serpKey(read));
+  const lost: SeoMonitorChange["lostCitations"] = [];
+  for (const read of after.serps ?? []) {
+    const overview = read.aiOverview;
+    if (read.suspect || !overview) continue;
+    const gone = overview.shown
+      ? overview.pageCited === false
+      : overview.asyncLoaded;
+    // delete: a keyword read twice counts once.
+    if (gone && cited.delete(serpKey(read)))
+      lost.push({
+        keyword: read.keyword,
+        device: read.device,
+        shown: overview.shown,
+      });
+  }
+  return lost;
+}
+
 /** What the newest monitor Run changed against the one before. Only checks read in both Runs count. */
 export function compareSeoMonitorRuns(
   previous: SeoMonitorRunResult,
@@ -119,6 +161,8 @@ export function compareSeoMonitorRuns(
       moves: [],
       moveCount: 0,
       dropCount: 0,
+      lostCitations: [],
+      lostCitationCount: 0,
     };
   const earlier = checkResults(before);
   const newFailures: SeoMonitorChange["newFailures"] = [];
@@ -163,6 +207,7 @@ export function compareSeoMonitorRuns(
   const fall = (move: SeoMonitorChange["moves"][number]) =>
     move.to === null ? Number.MAX_SAFE_INTEGER : move.to - move.from;
   moves.sort((a, b) => fall(b) - fall(a));
+  const lostCitations = lostSeoCitations(before, after);
   return {
     ...base,
     comparable: true,
@@ -174,12 +219,20 @@ export function compareSeoMonitorRuns(
     moveCount: moves.length,
     dropCount: moves.filter((move) => move.to === null || move.to > move.from)
       .length,
+    lostCitations: lostCitations.slice(0, SEO_MONITOR_CHANGE_ITEMS),
+    lostCitationCount: lostCitations.length,
   };
 }
 
-/** Worse: a check that passed now fails, or a ranked keyword fell beyond the band or left the results. */
+/**
+ * Worse: a check that passed now fails, a ranked keyword fell beyond the band or left the results, or an AI Overview
+ * stopped citing the page.
+ */
 export function isSeoMonitorChangeWorse(change: SeoMonitorChange): boolean {
   return (
-    change.comparable && (change.newFailureCount > 0 || change.dropCount > 0)
+    change.comparable &&
+    (change.newFailureCount > 0 ||
+      change.dropCount > 0 ||
+      change.lostCitationCount > 0)
   );
 }

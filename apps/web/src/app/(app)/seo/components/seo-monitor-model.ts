@@ -79,6 +79,7 @@ export type SeoMonitorChangeSummary =
       fixed: number;
       drops: number;
       rises: number;
+      lostCitations: number;
     };
 
 export function seoMonitorChangeSummary(
@@ -87,7 +88,12 @@ export function seoMonitorChangeSummary(
   if (!change) return { kind: "none" };
   if (!change.comparable) return { kind: "notComparable" };
   const rises = change.moveCount - change.dropCount;
-  if (!change.newFailureCount && !change.fixedCount && !change.moveCount)
+  if (
+    !change.newFailureCount &&
+    !change.fixedCount &&
+    !change.moveCount &&
+    !change.lostCitationCount
+  )
     return { kind: "same" };
   return {
     kind: "changed",
@@ -95,6 +101,7 @@ export function seoMonitorChangeSummary(
     fixed: change.fixedCount,
     drops: change.dropCount,
     rises,
+    lostCitations: change.lostCitationCount,
   };
 }
 

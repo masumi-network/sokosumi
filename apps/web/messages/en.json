@@ -14117,11 +14117,15 @@
           "fixed": "{count} fixed",
           "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
           "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "lostCitations": "{count, plural, one {# lost AI Overview citation} other {# lost AI Overview citations}}",
           "newFailuresTitle": "Now failing",
           "fixedTitle": "Fixed",
           "movesTitle": "Ranking moves",
           "move": "{keyword}: position {from} → {to}",
           "lost": "{keyword}: was position {from}, now not in the top {checked}",
+          "lostCitationsTitle": "AI Overview citations lost",
+          "lostCitation": "{keyword}: the AI Overview no longer cites your page",
+          "lostCitationGone": "{keyword}: the AI Overview that cited your page no longer shows",
           "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
         },
         "plan": {

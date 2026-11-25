@@ -116,6 +116,7 @@ export async function notifySeoMonitorWorse(
       site: new URL(payload.data.pageUrls[0]).hostname,
       newFailures: change.newFailureCount,
       drops: change.dropCount,
+      lostCitations: change.lostCitationCount,
     },
   });
 }

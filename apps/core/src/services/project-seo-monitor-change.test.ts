@@ -64,6 +64,29 @@ const outside = (
   positionStatus: "not_in_range" | "unavailable",
   checkedResults: number | null,
 ) => ({ ...ranked(keyword, null), positionStatus, checkedResults });
+type Serp = NonNullable<PublicSeoPayload["serps"]>[number];
+const overview = (
+  shown: boolean,
+  pageCited: boolean | null,
+  asyncLoaded = true,
+) => ({ shown, asyncLoaded, citedDomains: [], pageCited });
+const serp = (
+  aiOverview: Serp["aiOverview"],
+  patch: Partial<Serp> = {},
+): Serp => ({
+  keyword: "x402",
+  device: "mobile",
+  sourceRef: "ref",
+  observedAt: AT,
+  itemTypes: [],
+  aiOverview,
+  featured: null,
+  paaOwned: false,
+  top: [],
+  suspect: false,
+  ...patch,
+});
+const CITED = serp(overview(true, true));
 function compare(before: PublicSeoPayload, after: PublicSeoPayload) {
   return compareSeoMonitorRuns(
     { observedAt: new Date("2026-11-01T09:00:00Z"), payload: before },
@@ -195,6 +218,83 @@ describe("compareSeoMonitorRuns", () => {
       payload({ keywords: [ranked("x402", 3)] }),
     );
     expect(change.dropCount).toBe(0);
+    expect(isSeoMonitorChangeWorse(change)).toBe(false);
+  });
+
+  it.each([
+    ["names other sources", overview(true, false), true],
+    ["is gone after the read waited for it", overview(false, false), false],
+  ])("counts a lost citation when the AI Overview %s", (_, now, shown) => {
+    const change = compare(
+      payload({ serps: [CITED] }),
+      // Another letter case and a second read of the same keyword: one loss.
+      payload({ serps: [serp(now, { keyword: "X402" }), serp(now)] }),
+    );
+    expect(change.lostCitations).toEqual([
+      { keyword: "X402", device: "mobile", shown },
+    ]);
+    expect(change.lostCitationCount).toBe(1);
+    expect(isSeoMonitorChangeWorse(change)).toBe(true);
+  });
+
+  it.each([
+    ["the page is still cited", [CITED], [CITED], {}],
+    [
+      "the earlier read was suspect",
+      [serp(overview(true, true), { suspect: true })],
+      [serp(overview(true, false))],
+      {},
+    ],
+    [
+      "the earlier citation was not determined",
+      [serp(overview(true, null))],
+      [serp(overview(true, false))],
+      {},
+    ],
+    [
+      "the earlier AI Overview was not shown",
+      [serp(overview(false, true))],
+      [serp(overview(true, false))],
+      {},
+    ],
+    [
+      "the latest read is suspect",
+      [CITED],
+      [serp(overview(true, false), { suspect: true })],
+      {},
+    ],
+    ["the latest read has no AI Overview data", [CITED], [serp(null)], {}],
+    [
+      "the latest citation is not determined",
+      [CITED],
+      [serp(overview(true, null))],
+      {},
+    ],
+    [
+      "the latest read did not wait for the AI Overview",
+      [CITED],
+      [serp(overview(false, false, false))],
+      {},
+    ],
+    [
+      "the loss is on the other device",
+      [CITED],
+      [serp(overview(true, false), { device: "desktop" })],
+      {},
+    ],
+    [
+      "the latest Run checked other pages",
+      [CITED],
+      [serp(overview(true, false))],
+      { pageUrls: [PAGE, "https://example.test/docs"] },
+    ],
+    ["the latest Run has no SERP reads", [CITED], undefined, {}],
+  ])("has no lost citation when %s", (_, before, after, patch) => {
+    const change = compare(
+      payload({ serps: before }),
+      payload({ serps: after, ...patch }),
+    );
+    expect(change).toMatchObject({ lostCitations: [], lostCitationCount: 0 });
     expect(isSeoMonitorChangeWorse(change)).toBe(false);
   });
 

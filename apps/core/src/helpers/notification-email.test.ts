@@ -312,6 +312,7 @@ describe("buildNotificationEmail", () => {
           site: "shop.example",
           newFailures: 3,
           drops: 2,
+          lostCitations: 4,
         },
         metadata: null,
       }),
@@ -322,7 +323,7 @@ describe("buildNotificationEmail", () => {
     );
     expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task-1/result`);
     expect(textIn(email?.html ?? "")).toContain(
-      "New failing checks: 3. Ranking drops: 2.",
+      "New failing checks: 3. Ranking drops: 2. Lost AI Overview citations: 4.",
     );
   });
 

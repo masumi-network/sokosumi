@@ -96,6 +96,8 @@ describe("SEO monitor card model", () => {
       moves: [],
       moveCount: 3,
       dropCount: 1,
+      lostCitations: [],
+      lostCitationCount: 0,
     };
     expect(seoMonitorChangeSummary(change)).toEqual({
       kind: "changed",
@@ -103,10 +105,14 @@ describe("SEO monitor card model", () => {
       fixed: 0,
       drops: 1,
       rises: 2,
+      lostCitations: 0,
     });
+    const still = { ...change, moveCount: 0, dropCount: 0 };
+    expect(seoMonitorChangeSummary(still)).toEqual({ kind: "same" });
+    // A lost AI Overview citation alone is a change: "No change" would hide the alert's reason.
     expect(
-      seoMonitorChangeSummary({ ...change, moveCount: 0, dropCount: 0 }),
-    ).toEqual({ kind: "same" });
+      seoMonitorChangeSummary({ ...still, lostCitationCount: 1 }),
+    ).toMatchObject({ kind: "changed", lostCitations: 1 });
     expect(seoMonitorChangeSummary({ ...change, comparable: false })).toEqual({
       kind: "notComparable",
     });

@@ -336,6 +336,7 @@ describe("notification emails", () => {
       actionUrl: TASK_URL,
       drops: 2,
       locale: "en",
+      lostCitations: 4,
       newFailures: 3,
       reason: "seoMonitorWorse",
       recipientName: "Sandro",
@@ -348,6 +349,7 @@ describe("notification emails", () => {
     );
     expect(rendered.html).toContain("New failing checks: 3.");
     expect(rendered.html).toContain("Ranking drops: 2.");
+    expect(rendered.html).toContain("Lost AI Overview citations: 4.");
     expect(rendered.html).toContain("shop.example (Weekly SEO check)");
   });
 

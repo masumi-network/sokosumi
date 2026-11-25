@@ -14117,11 +14117,15 @@
           "fixed": "{count} behoben",
           "drops": "{count, plural, one {# Ranking-Verlust} other {# Ranking-Verluste}}",
           "rises": "{count, plural, one {# Ranking-Gewinn} other {# Ranking-Gewinne}}",
+          "lostCitations": "{count, plural, one {# verlorene Nennung in der KI-Übersicht} other {# verlorene Nennungen in der KI-Übersicht}}",
           "newFailuresTitle": "Jetzt fehlerhaft",
           "fixedTitle": "Behoben",
           "movesTitle": "Ranking-Bewegungen",
           "move": "{keyword}: Position {from} → {to}",
           "lost": "{keyword}: war Position {from}, jetzt nicht in den Top {checked}",
+          "lostCitationsTitle": "Nennungen in der KI-Übersicht verloren",
+          "lostCitation": "{keyword}: Die KI-Übersicht nennt deine Seite nicht mehr",
+          "lostCitationGone": "{keyword}: Die KI-Übersicht, die deine Seite nannte, erscheint nicht mehr",
           "band": "Eine Ranking-Bewegung zählt nur, wenn sie größer als das normale Suchrauschen ist: 2 Plätze in den Top 3, 5 in den Top 10, 7 in den Top 20."
         },
         "plan": {
