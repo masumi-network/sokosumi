@@ -1,5 +1,3 @@
-import { containsSokoBotSensitiveMaterial } from "@sokosumi/soko-bot";
-import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import type { PageSpeedRows } from "@/schemas/seo-page-speed.schema";
 import {
   SITE_SPEED_CAUSES,
@@ -9,26 +7,23 @@ import {
   SITE_SPEED_WHY_CHARS,
   type StoredSiteSpeed,
   siteSpeedCheck,
+  siteSpeedMixPeriod,
   storedSiteSpeedRow,
 } from "@/schemas/seo-site-speed.schema";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 import {
   publicLanding,
+  readableStoredPageSpeed,
   readPageSpeed,
-  withReadableHistory,
 } from "./seo-page-speed";
-
-function publicText(value: unknown, max: number) {
-  if (typeof value !== "string") return undefined;
-  const text = value.trim();
-  return text &&
-    text.length <= max &&
-    publicExplorationText(text) &&
-    !containsSokoBotSensitiveMaterial(text)
-    ? text
-    : undefined;
-}
+import {
+  publicSpeedText,
+  publicSpeedUrl,
+  SPEED_DEVICES,
+  speedPageUrl,
+  speedRowDevices,
+} from "./seo-speed-guards";
 
 /** The worker gives its reason as a sentence. Core keeps a code. */
 function gapCode(reason: unknown) {
@@ -38,13 +33,36 @@ function gapCode(reason: unknown) {
   return "other" as const;
 }
 
-function readCheck(value: unknown) {
+/**
+ * How a reduced row was read. The worker gives `notChecked` as a sentence, a stored check holds the code.
+ * A mix period that is no calendar period goes; the shares stay.
+ */
+function readCheck(value: unknown, stored = false) {
   const raw = reportObject(value);
+  const mix = reportObject(raw?.mix);
   const check = siteSpeedCheck.safeParse({
     ...raw,
-    notChecked: raw?.notChecked == null ? null : gapCode(raw.notChecked),
+    ...(mix && {
+      mix: {
+        ...mix,
+        period: siteSpeedMixPeriod.safeParse(mix.period).success
+          ? mix.period
+          : null,
+      },
+    }),
+    notChecked: stored
+      ? raw?.notChecked
+      : raw?.notChecked == null
+        ? null
+        : gapCode(raw.notChecked),
   });
   return check.success ? check.data : undefined;
+}
+
+/** The URL template of a row: a path, and public text. */
+function publicGroup(value: unknown) {
+  const group = publicSpeedText(value, SITE_SPEED_GROUP_CHARS);
+  return group && /^\/[^\s?#]*$/.test(group) ? group : undefined;
 }
 
 function readNotChecked(value: unknown): StoredSiteSpeed["notChecked"] {
@@ -58,13 +76,6 @@ function readNotChecked(value: unknown): StoredSiteSpeed["notChecked"] {
     count: Number(raw.count),
     reason: code === "other" && /limit|up to/i.test(text) ? "limit" : code,
   };
-}
-
-/** The worker can name the home page without its root slash. The page key has one. */
-function pageKey(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const href = URL.parse(value)?.href;
-  return href === value + "/" ? href : value;
 }
 
 /**
@@ -91,43 +102,46 @@ export function readSiteSpeed(
   const rows: StoredSiteSpeed["rows"] = [];
   for (const item of speed.pages.slice(0, SITE_SPEED_ROWS)) {
     const row = reportObject(item);
-    const url = pageKey(row?.url);
+    const url = speedPageUrl(row?.url);
     // A public exploration URL has no hash, so it is its own page key.
     if (
       !row ||
-      !url ||
-      !publicExplorationUrl(url) ||
-      containsSokoBotSensitiveMaterial(url) ||
+      !publicSpeedUrl(url) ||
       seen.has(url) ||
       (!audited.has(url) && !publicLanding(start, url))
     )
       continue;
-    seen.add(url);
     const tier = SITE_SPEED_TIERS.find((value) => value === row.tier);
     const cause = SITE_SPEED_CAUSES.find((value) => value === row.cause);
-    const group = publicText(row.group, SITE_SPEED_GROUP_CHARS);
-    const why = publicText(row.why, SITE_SPEED_WHY_CHARS);
+    const group = publicGroup(row.group);
+    const why = publicSpeedText(row.why, SITE_SPEED_WHY_CHARS);
     const check = tier === "reduced" ? readCheck(row.check) : undefined;
     try {
-      // The worker fills the other device of a reduced test with a placeholder: only the tested device is a result.
-      const devices =
-        audited.has(url) || tier === "none"
-          ? []
-          : readPageSpeed(row.speed, url).filter(
-              (item) => tier !== "reduced" || item.device === check?.device,
-            );
+      // The worker fills the other device of a reduced test with a placeholder. Only the row's own devices are read.
+      const devices = audited.has(url)
+        ? []
+        : readPageSpeed(
+            row.speed,
+            url,
+            undefined,
+            speedRowDevices(tier, check),
+          );
       // One row the stored table cannot hold must not cost the other rows.
       const stored = storedSiteSpeedRow.safeParse({
         url,
         audited: audited.has(url),
-        ...(group && /^\/[^\s?#]*$/.test(group) && { group }),
+        ...(group && { group }),
         ...(cause && { cause }),
         ...(why && { why }),
         ...(tier && { tier }),
         ...(check && { check }),
         devices,
       });
-      if (stored.success) rows.push(stored.data);
+      // An unreadable row does not take the URL from a later, readable row.
+      if (stored.success) {
+        rows.push(stored.data);
+        seen.add(url);
+      }
     } catch {
       // An unreadable speed section drops its row.
     }
@@ -139,16 +153,44 @@ export function readSiteSpeed(
   };
 }
 
-/** A stored table before the schema reads it: see withReadableHistory. */
-export function withReadableTableHistory(value: unknown) {
+/**
+ * A stored table before the schema reads it. Each row is read alone with the guards of a fresh import: a row
+ * Core cannot read is dropped and counted, unsafe text goes and the row stays.
+ */
+export function readableStoredSiteSpeed(value: unknown) {
   const table = reportObject(value);
   if (!table || !Array.isArray(table.rows)) return value;
+  const rows = table.rows.flatMap((item) => {
+    const row = reportObject(item);
+    if (!row || !publicSpeedUrl(row.url)) return [];
+    const { check: _check, why: _why, group: _group, ...rest } = row;
+    const check =
+      row.tier === "reduced" ? readCheck(row.check, true) : undefined;
+    const group = publicGroup(row.group);
+    const why = publicSpeedText(row.why, SITE_SPEED_WHY_CHARS);
+    const allowed: readonly unknown[] = speedRowDevices(row.tier, check);
+    const devices = readableStoredPageSpeed(row.devices);
+    const stored = storedSiteSpeedRow.safeParse({
+      ...rest,
+      ...(group && { group }),
+      ...(why && { why }),
+      ...(check && { check }),
+      devices: Array.isArray(devices)
+        ? devices.filter((device) =>
+            allowed.includes(reportObject(device)?.device),
+          )
+        : devices,
+    });
+    return stored.success ? [stored.data] : [];
+  });
   return {
     ...table,
-    rows: table.rows.map((item) => {
-      const row = reportObject(item);
-      return row ? { ...row, devices: withReadableHistory(row.devices) } : item;
-    }),
+    rows,
+    // A count the schema refuses stays as it is: the schema refuses the table.
+    dropped:
+      Number.isSafeInteger(table.dropped) && Number(table.dropped) >= 0
+        ? Number(table.dropped) + table.rows.length - rows.length
+        : table.dropped,
   };
 }
 
@@ -173,18 +215,25 @@ export function scopedSiteSpeed(
     observationId: row.id,
     observedAt: row.observedAt.toISOString(),
     rows: data.siteSpeed.rows.map((item) => {
-      if (!item.audited) return item;
+      const allowed = speedRowDevices(item.tier, item.check);
+      if (!item.audited)
+        return {
+          ...item,
+          devices: item.devices.filter((row) => allowed.includes(row.device)),
+        };
       // One measurement per device: the page's own, else the one of a page that redirects to it.
       return {
         ...item,
-        devices: (["mobile", "desktop"] as const).flatMap((device) => {
+        devices: SPEED_DEVICES.flatMap((device) => {
           const on = (key: "pageUrl" | "testedUrl") =>
             speed.find(
               (row) =>
                 row.device === device &&
                 auditedSeoPageKey(row[key]) === item.url,
             );
-          return on("pageUrl") ?? on("testedUrl") ?? [];
+          return allowed.includes(device)
+            ? (on("pageUrl") ?? on("testedUrl") ?? [])
+            : [];
         }),
       };
     }),

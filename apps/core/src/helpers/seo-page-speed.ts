@@ -14,6 +14,13 @@ import {
 } from "@/schemas/seo-page-speed.schema";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
+import {
+  publicSpeedMeasurement,
+  publicSpeedUrl,
+  SPEED_DEVICES,
+  type SpeedDevice,
+  speedPageUrl,
+} from "./seo-speed-guards";
 
 const fieldResult = z.object({
   level: z.enum(["url", "origin"]),
@@ -246,6 +253,9 @@ function readHistory(
       );
     });
   const series = reportObject(history.series);
+  // No series is the worker's answer for a read that gave none. A series that is no object is not.
+  if (history.series != null && !series)
+    return { history: { status: "unavailable" } };
   const read: SpeedHistory = { status };
   let given = false;
   for (const key of ["lcp", "inp", "cls"] as const) {
@@ -276,16 +286,24 @@ function readHistory(
 
 export function readPageSpeed(
   raw: unknown,
-  pageUrl: string,
+  page: string,
   finals?: { mobile?: string | null; desktop?: string | null },
+  /** Only these devices are read: a section of another device cannot cost the row. */
+  devices: readonly SpeedDevice[] = SPEED_DEVICES,
 ): PageSpeedRows {
   const speed = reportObject(raw);
-  if (!speed || !publicExplorationUrl(pageUrl)) return [];
+  const pageUrl = speedPageUrl(page);
+  if (!speed || !publicSpeedUrl(pageUrl)) return [];
   const rows: PageSpeedRows = [];
-  for (const device of ["mobile", "desktop"] as const) {
+  for (const device of devices) {
     const evidence = reportObject(speed[device]);
-    const testedUrl = finals?.[device] ?? pageUrl;
-    if (!evidence || !publicLanding(new URL(pageUrl), testedUrl)) continue;
+    const testedUrl = speedPageUrl(finals?.[device]) ?? pageUrl;
+    if (
+      !evidence ||
+      !publicSpeedUrl(testedUrl) ||
+      !publicLanding(new URL(pageUrl), testedUrl)
+    )
+      continue;
     const lab = labResult.safeParse(evidence.lab);
     const field = fieldResult.safeParse(evidence.field);
     const validLab = boundSource(
@@ -299,7 +317,7 @@ export function readPageSpeed(
     const target = new URL(testedUrl);
     const measuredField =
       read &&
-      publicExplorationUrl(new URL(read.url).href) &&
+      publicSpeedUrl(new URL(read.url).href) &&
       (read.level === "origin"
         ? new URL(read.url).origin === target.origin &&
           new URL(read.url).pathname === "/"
@@ -347,10 +365,13 @@ export function readPageSpeed(
   return rows;
 }
 
-/** Stored page speed rows before the schema reads them: a history Core cannot read goes, the measurement stays. */
-export function withReadableHistory(rows: unknown) {
+/**
+ * Stored page speed rows before the schema reads them. A measurement with a URL that is not public goes.
+ * A history Core cannot read goes, the measurement stays.
+ */
+export function readableStoredPageSpeed(rows: unknown) {
   if (!Array.isArray(rows)) return rows;
-  return rows.map((row) => {
+  return rows.filter(publicSpeedMeasurement).map((row) => {
     const field = reportObject(reportObject(row)?.field);
     if (
       !field ||

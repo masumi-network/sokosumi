@@ -54,8 +54,14 @@ export const SPEED_HISTORY_STATUSES = [
   "unavailable",
   "legacy_unverified",
 ] as const;
-/** A plain string: the generated client types a date format as Date and does not convert it here. */
-export const speedDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/**
+ * A calendar day: 2026-02-31 is none. A plain string with a check: the generated client types a date format
+ * as Date and does not convert it here.
+ */
+export const speedDay = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((day) => z.string().date().safeParse(day).success);
 const weekly = z.array(speedValue).max(SPEED_HISTORY_WEEKS);
 /** CrUX History of a measured field. The series is present only for a comparable population. */
 export const speedHistory = z.object({

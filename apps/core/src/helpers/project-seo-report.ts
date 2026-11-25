@@ -60,7 +60,7 @@ import {
   seoTopicLaunch,
 } from "./seo-content-history";
 import { readPageMarketEvidence } from "./seo-page-market-evidence";
-import { readPageSpeed, withReadableHistory } from "./seo-page-speed";
+import { readableStoredPageSpeed, readPageSpeed } from "./seo-page-speed";
 import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
 import {
   readReviewSources,
@@ -70,7 +70,7 @@ import {
   pageResearchCoverage,
   siteResearchCoverage,
 } from "./seo-research-coverage";
-import { readSiteSpeed, withReadableTableHistory } from "./seo-site-speed";
+import { readableStoredSiteSpeed, readSiteSpeed } from "./seo-site-speed";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -134,10 +134,10 @@ const publicSeoPayload = z.object({
   researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
   pageMarketEvidence: seoPageMarketEvidence.optional(),
   publicSitemaps: publicSitemapList.optional().catch(undefined),
-  pageSpeed: z.preprocess(withReadableHistory, seoPageSpeed.optional()),
-  /** A site audit's speed table. One unreadable stored value drops the table, not the audit. */
+  pageSpeed: z.preprocess(readableStoredPageSpeed, seoPageSpeed.optional()),
+  /** A site audit's speed table. A stored row Core cannot read is dropped and counted; an unreadable table goes, not the audit. */
   siteSpeed: z.preprocess(
-    withReadableTableHistory,
+    readableStoredSiteSpeed,
     storedSiteSpeed.optional().catch(undefined),
   ),
   checks: storedSeoChecklist,

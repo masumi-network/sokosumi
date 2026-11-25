@@ -4,6 +4,7 @@ import {
   parsePublicSeoArtifact,
   publicSeoPayloadSchema,
 } from "./project-seo-report";
+import { readPageSpeed } from "./seo-page-speed";
 import { readSiteSpeed, scopedSiteSpeed } from "./seo-site-speed";
 
 const SECRET = ["sk", "live", "51QX9J5eXampleSecretValue123456"].join("_");
@@ -350,5 +351,254 @@ describe("the speed table in a workspace view", () => {
 
   it("gives no table to a view that lacks an audited page", () => {
     expect(scopedSiteSpeed(stored, row, new Set([EXTRA]))).toBeNull();
+  });
+});
+
+describe("the guards of speed data on each path", () => {
+  const view = { id: "o1", observedAt: new Date("2026-11-01T00:00:00Z") };
+  const HIDDEN = `https://example.test/${SECRET}`;
+  const device = (
+    pageUrl: string,
+    name: "mobile" | "desktop",
+    testedUrl = pageUrl,
+  ) => ({
+    pageUrl,
+    testedUrl,
+    device: name,
+    lab: { status: "unavailable" as const },
+    field: { status: "no_data" as const },
+  });
+  /** An audit as the database holds it, with a table Core wrote before these guards. */
+  const storedAudit = (rows: unknown[], pageSpeed?: unknown[]) => ({
+    ...JSON.parse(JSON.stringify(parsePublicSeoArtifact(site([])))),
+    ...(pageSpeed && { pageSpeed }),
+    siteSpeed: { rows, dropped: 0 },
+  });
+  const storedRows = (rows: unknown[]) =>
+    publicSeoPayloadSchema.parse(storedAudit(rows)).siteSpeed;
+  const throws = () => ({
+    get lab(): never {
+      throw new Error("a section Core cannot read");
+    },
+  });
+
+  it("reads no measurement of a fresh import on a tested URL with credential material", () => {
+    const rows = readPageSpeed(section(SEO_TEST_PAGE), SEO_TEST_PAGE, {
+      mobile: HIDDEN,
+    });
+    expect(rows.map((row) => row.device)).toEqual(["desktop"]);
+  });
+
+  it("keeps a redirect with credential material out of an audited row's devices", () => {
+    const [page] = site([]).pages;
+    const audit = parsePublicSeoArtifact({
+      ...site([extra(SEO_TEST_PAGE, { speed: null })]),
+      pages: [
+        { ...page, header: { ...page!.header, finalUrl: { mobile: HIDDEN } } },
+      ],
+    });
+    const table = scopedSiteSpeed(audit, view, new Set([SEO_TEST_PAGE]));
+    expect(table?.rows[0]?.devices.map((row) => row.device)).toEqual([
+      "desktop",
+    ]);
+    expect(JSON.stringify([audit.pageSpeed, table])).not.toContain(SECRET);
+  });
+
+  it("drops a stored measurement with credential material in a URL, of the audit and of the table", () => {
+    const read = publicSeoPayloadSchema.parse(
+      storedAudit(
+        [
+          {
+            url: EXTRA,
+            audited: false,
+            devices: [
+              device(EXTRA, "mobile", HIDDEN),
+              device(EXTRA, "desktop"),
+            ],
+          },
+        ],
+        [
+          device(SEO_TEST_PAGE, "mobile", HIDDEN),
+          device(SEO_TEST_PAGE, "desktop"),
+        ],
+      ),
+    );
+    expect(read.pageSpeed?.map((row) => row.device)).toEqual(["desktop"]);
+    expect(read.siteSpeed?.rows[0]?.devices.map((row) => row.device)).toEqual([
+      "desktop",
+    ]);
+    expect(JSON.stringify(read)).not.toContain(SECRET);
+  });
+
+  it("drops stored row text with credential material and keeps the row", () => {
+    const table = storedRows([
+      {
+        url: EXTRA,
+        audited: false,
+        why: `Use API credential ${SECRET}`,
+        group: `/${SECRET}`,
+        devices: [],
+      },
+      { url: HIDDEN, audited: false, devices: [] },
+    ]);
+    expect(table).toMatchObject({ rows: [{ url: EXTRA }], dropped: 1 });
+    expect(JSON.stringify(table)).not.toContain(SECRET);
+  });
+
+  it("keeps a page with an ISBN in its path: a digit run that passes the card checksum is no credential", () => {
+    const book = "https://example.test/books/9781234567002";
+    expect(
+      read([extra(book), extra(HIDDEN, { speed: null })])?.rows.map(
+        (row) => row.url,
+      ),
+    ).toEqual([book]);
+    expect(
+      storedRows([
+        { url: book, audited: false, devices: [device(book, "mobile")] },
+      ])?.rows[0]?.devices,
+    ).toHaveLength(1);
+  });
+
+  it("reads only the devices of a row's tier on a fresh import", () => {
+    const devices = (more: object) =>
+      read([extra(EXTRA, more)])?.rows[0]?.devices.map((row) => row.device);
+    expect(devices({ tier: "reduced", check })).toEqual(["mobile"]);
+    expect(
+      devices({ tier: "reduced", check: { ...check, device: "tablet" } }),
+    ).toEqual([]);
+    expect(devices({ tier: "none" })).toEqual([]);
+    // The other device's section is not read at all: it cannot cost the row.
+    expect(
+      devices({
+        tier: "reduced",
+        check,
+        speed: { ...section(EXTRA), desktop: throws() },
+      }),
+    ).toEqual(["mobile"]);
+  });
+
+  it("shows only the devices of a stored row's tier", () => {
+    const both = [device(EXTRA, "mobile"), device(EXTRA, "desktop")];
+    const stored = (more: object) =>
+      storedRows([
+        { url: EXTRA, audited: false, devices: both, ...more },
+      ])?.rows[0]?.devices.map((row) => row.device);
+    const { record: _record, ...mix } = check.mix;
+    const kept = { ...check, mix };
+    expect(stored({ tier: "reduced", check: kept })).toEqual(["mobile"]);
+    expect(stored({ tier: "reduced", check: { ...kept, device: 7 } })).toEqual(
+      [],
+    );
+    expect(stored({ tier: "none" })).toEqual([]);
+    expect(stored({})).toEqual(["mobile", "desktop"]);
+  });
+
+  it("gives a row in a view only the devices of its tier, audited or not", () => {
+    const { record: _record, ...mix } = check.mix;
+    const kept = { ...check, mix, notChecked: null } as const;
+    const devices = (audited: boolean, more: object) =>
+      scopedSiteSpeed(
+        {
+          siteSpeed: {
+            rows: [
+              {
+                url: SEO_TEST_PAGE,
+                audited,
+                devices: audited
+                  ? []
+                  : [
+                      device(SEO_TEST_PAGE, "mobile"),
+                      device(SEO_TEST_PAGE, "desktop"),
+                    ],
+                ...more,
+              },
+            ],
+            dropped: 0,
+          },
+          pageSpeed: [
+            device(SEO_TEST_PAGE, "mobile"),
+            device(SEO_TEST_PAGE, "desktop"),
+          ],
+          pageUrls: [SEO_TEST_PAGE],
+        } as Parameters<typeof scopedSiteSpeed>[0],
+        view,
+        new Set([SEO_TEST_PAGE]),
+      )?.rows[0]?.devices.map((row) => row.device);
+    for (const audited of [true, false]) {
+      expect(devices(audited, { tier: "reduced", check: kept })).toEqual([
+        "mobile",
+      ]);
+      expect(devices(audited, { tier: "reduced" })).toEqual([]);
+      expect(devices(audited, { tier: "none" })).toEqual([]);
+      expect(devices(audited, { tier: "full" })).toHaveLength(2);
+    }
+  });
+
+  it("reads the speed of a home page that the audit and the table name without its root slash", () => {
+    const home = "https://example.test";
+    const [page] = site([]).pages;
+    const audit = parsePublicSeoArtifact({
+      ...site([extra(home, { speed: null })]),
+      pages: [{ ...page, request: { url: home }, speed: section(home + "/") }],
+    });
+    expect(audit.pageSpeed).toHaveLength(2);
+    expect(
+      scopedSiteSpeed(audit, view, new Set([home + "/"]))?.rows,
+    ).toMatchObject([{ url: home + "/", audited: true }]);
+    expect(
+      scopedSiteSpeed(audit, view, new Set([home + "/"]))?.rows[0]?.devices,
+    ).toHaveLength(2);
+    // A redirect target without its root slash is the same page.
+    expect(
+      readPageSpeed(section(home + "/"), "https://www.example.test/", {
+        mobile: home,
+      }).map((row) => row.testedUrl),
+    ).toEqual([home + "/", "https://www.example.test/"]);
+  });
+
+  it("keeps the shares of a device mix whose period is no calendar period, fresh and stored", () => {
+    const period = { first: "2026-10-01", last: "2026-99-99" };
+    const { record: _record, ...mix } = check.mix;
+    const fresh = read([
+      extra(EXTRA, {
+        tier: "reduced",
+        check: { ...check, mix: { ...check.mix, period } },
+      }),
+    ])?.rows[0];
+    const stored = storedRows([
+      {
+        url: EXTRA,
+        audited: false,
+        tier: "reduced",
+        check: { ...check, mix: { ...mix, period } },
+        devices: [device(EXTRA, "mobile")],
+      },
+    ])?.rows[0];
+    for (const row of [fresh, stored]) {
+      expect(row?.check?.mix).toEqual({ ...mix, period: null });
+      expect(row?.devices).toHaveLength(1);
+    }
+  });
+
+  it("counts an unreadable row once and keeps a later, readable row of the same page", () => {
+    const table = read([
+      extra(EXTRA, { speed: { mobile: throws() } }),
+      extra(EXTRA),
+      extra(EXTRA),
+    ]);
+    expect([table?.rows.length, table?.dropped]).toEqual([1, 2]);
+  });
+
+  it("drops only the stored row Core cannot read and counts it", () => {
+    const table = storedRows([
+      { url: EXTRA, audited: false, devices: [] },
+      {
+        url: `https://example.test/${"z".repeat(4100)}`,
+        audited: false,
+        devices: [],
+      },
+      { url: "https://example.test/x", audited: "yes", devices: [] },
+    ]);
+    expect(table).toMatchObject({ rows: [{ url: EXTRA }], dropped: 2 });
   });
 });

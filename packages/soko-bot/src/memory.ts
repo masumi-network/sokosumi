@@ -393,7 +393,11 @@ function containsStandaloneLabeledSecretValue(value: string): boolean {
   return false;
 }
 
-export function containsSokoBotSensitiveMaterial(value: string): boolean {
+/**
+ * Credential material without the card number check. For a URL path: a digit run that passes the card
+ * checksum alone is no credential there (1 in 10 ISBN-13 values passes it).
+ */
+export function containsSokoBotCredentialMaterial(value: string): boolean {
   return (
     CONNECTION_URL_WITH_CREDENTIALS.test(value) ||
     PRIVATE_KEY_MATERIAL.test(value) ||
@@ -406,9 +410,12 @@ export function containsSokoBotSensitiveMaterial(value: string): boolean {
     containsDescribedSecretAssignment(value) ||
     containsStandaloneLabeledSecretValue(value) ||
     containsSeparatorlessCredentialValue(value) ||
-    containsPaymentSecurityCode(value) ||
-    containsCardNumber(value)
+    containsPaymentSecurityCode(value)
   );
+}
+
+export function containsSokoBotSensitiveMaterial(value: string): boolean {
+  return containsSokoBotCredentialMaterial(value) || containsCardNumber(value);
 }
 
 /**

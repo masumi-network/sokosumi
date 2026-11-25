@@ -19,6 +19,7 @@ export const SITE_SPEED_TIERS = ["full", "reduced", "none"] as const;
 /** Why the audit read no speed data. A code: the worker's own sentence is never stored. */
 export const SITE_SPEED_GAPS = ["deadline", "quota", "other"] as const;
 const share = z.number().min(0).max(1);
+export const siteSpeedMixPeriod = z.object({ first: speedDay, last: speedDay });
 /** How a page with the reduced test was read: one device, chosen from the visitors' device mix. */
 export const siteSpeedCheck = z.object({
   device: z.enum(["mobile", "desktop"]),
@@ -30,10 +31,7 @@ export const siteSpeedCheck = z.object({
       phone: share,
       desktop: share,
       tablet: share,
-      period: z.union([
-        z.object({ first: speedDay, last: speedDay }),
-        z.null(),
-      ]),
+      period: z.union([siteSpeedMixPeriod, z.null()]),
     }),
     z.null(),
   ]),

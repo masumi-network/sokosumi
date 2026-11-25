@@ -47,6 +47,7 @@ export {
   sokoBotJudgeVerdictSchema,
 } from "./judge.js";
 export {
+  containsSokoBotCredentialMaterial,
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   parseSokoBotMemory,

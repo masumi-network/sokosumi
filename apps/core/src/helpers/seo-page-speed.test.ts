@@ -428,6 +428,16 @@ describe("CrUX History on a measured field", () => {
     ).toEqual({ status: "unavailable" });
   });
 
+  it("reads a series that is no object as an unavailable history", () => {
+    for (const broken of ["broken", 42, [], false])
+      expect(
+        historyOf({ status: "comparable", series: broken }, bound),
+      ).toEqual({ status: "unavailable" });
+    expect(historyOf({ status: "comparable", series: null }, bound)).toEqual({
+      status: "comparable",
+    });
+  });
+
   it("drops a stored history it cannot read and keeps the measurement and the audit", () => {
     const stored = JSON.parse(
       JSON.stringify(
@@ -453,21 +463,28 @@ describe("CrUX History on a measured field", () => {
       ),
     );
     expect(stored.pageSpeed[0].field.history.weeks).toEqual(three);
-    stored.pageSpeed[0].field.history.weeks = ["2026-1-4"];
-    stored.siteSpeed = {
-      rows: [
-        { url: SEO_TEST_PAGE, audited: false, devices: [stored.pageSpeed[0]] },
-      ],
-      dropped: 0,
-    };
-    const read = publicSeoPayloadSchema.safeParse(stored);
-    expect(read.success).toBe(true);
-    for (const field of [
-      read.data?.pageSpeed?.[0]?.field,
-      read.data?.siteSpeed?.rows[0]?.devices[0]?.field,
-    ]) {
-      expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
-      expect(field).not.toHaveProperty("history");
+    // The second value has the form of a day and is no calendar day.
+    for (const weeks of [["2026-1-4"], ["2026-02-31"]]) {
+      stored.pageSpeed[0].field.history.weeks = weeks;
+      stored.siteSpeed = {
+        rows: [
+          {
+            url: SEO_TEST_PAGE,
+            audited: false,
+            devices: [stored.pageSpeed[0]],
+          },
+        ],
+        dropped: 0,
+      };
+      const read = publicSeoPayloadSchema.safeParse(stored);
+      expect(read.success).toBe(true);
+      for (const field of [
+        read.data?.pageSpeed?.[0]?.field,
+        read.data?.siteSpeed?.rows[0]?.devices[0]?.field,
+      ]) {
+        expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
+        expect(field).not.toHaveProperty("history");
+      }
     }
   });
 });
