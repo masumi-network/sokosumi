@@ -16,6 +16,7 @@ import {
 } from "@/app/contacts/components/contact-visuals";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/auth/auth.client";
 import { fundraisingService } from "@/lib/services/fundraising.client";
 import { cn } from "@/lib/utils";
 import { useScopedQuery } from "@/queries/scoped-queries";
@@ -52,6 +53,15 @@ export function WarmPaths({
   now: Date;
 }) {
   const t = useTranslations("App.Fundraising.paths");
+  const me = useSession().data?.user.id ?? null;
+  const whoOf = (path: FundraisingPath) =>
+    path.via && path.via.id !== me ? path.via.name : t("you");
+  const throughOf = (path: FundraisingPath) =>
+    path.through
+      ? path.through.role
+        ? `${path.through.name} (${path.through.role})`
+        : path.through.name
+      : "";
   const format = useFormatter();
   const cache = useQueryClient();
   const organizationId = useFundraisingOrganization();
@@ -92,7 +102,7 @@ export function WarmPaths({
   }
 
   async function usePath(path: FundraisingPath) {
-    const who = path.via?.name ?? t("you");
+    const who = whoOf(path);
     const nextStep =
       path.kind === "direct"
         ? t("nextStepDirect", { who })
@@ -155,11 +165,9 @@ export function WarmPaths({
                   <div className="min-w-0 flex-1">
                     <p className="text-pretty">
                       {path.kind === "direct"
-                        ? t("direct", { who: path.via?.name ?? t("you") })
+                        ? t("direct", { who: whoOf(path) })
                         : path.kind === "linkedin"
-                          ? t("linkedinDirect", {
-                              who: path.via?.name ?? t("you"),
-                            })
+                          ? t("linkedinDirect", { who: whoOf(path) })
                           : path.via
                             ? t(
                                 path.touches
@@ -170,9 +178,8 @@ export function WarmPaths({
                                     ? "linkedinFund"
                                     : "linkedinPortfolio",
                                 {
-                                  who: path.via.name,
-                                  through: path.through?.name ?? "",
-                                  role: path.through?.role ?? "",
+                                  who: whoOf(path),
+                                  through: throughOf(path),
                                   company: path.company?.name ?? "",
                                 },
                               )
@@ -181,8 +188,7 @@ export function WarmPaths({
                                   ? "coldFund"
                                   : "coldPortfolio",
                                 {
-                                  through: path.through?.name ?? "",
-                                  role: path.through?.role ?? "",
+                                  through: throughOf(path),
                                   company: path.company?.name ?? "",
                                 },
                               )}

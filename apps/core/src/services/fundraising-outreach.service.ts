@@ -42,11 +42,14 @@ import {
 const MODEL_TIMEOUT_MS = 30_000;
 const FOLLOW_UP_DAYS = 7;
 
-const COMPOSE_SYSTEM = `You write short, personal fundraising emails for a founder.
-Plain text, no markdown, no greeting line like "I hope this finds you well", no flattery, no buzzwords. Under 130 words. One clear ask. Use only the facts given; never invent numbers, names, deals or dates. Write in the first person as the sender.
-kind "intro": a first mail to the investor, or, when "via" is given, a mail to that mutual contact asking for an introduction to the investor (then address the contact, not the investor, and make the forwardable part short).
-kind "follow_up": a follow-up to the investor after earlier contact; refer to what happened last, do not repeat the pitch.
+const COMPOSE_SYSTEM = `You write short, personal fundraising emails for a founder who is raising a round.
+Plain text, no markdown, no "I hope this finds you well", no flattery, no buzzwords. Under 130 words. Write in the first person as the sender.
+Every mail is about the raise in "raise": say in one line what the company does and what is being raised, from those facts only. End with one clear ask that has a time frame, such as a 20 minute call this week or next.
+kind "intro": a first mail to the investor; or, when "via" is given, a mail to that mutual contact asking for an introduction to the investor (address the contact, not the investor, and keep the part they can forward to three lines).
+kind "follow_up": a follow-up after earlier contact: name the last touch concretely from lastTouches (when and what it was about), then move the raise one step; do not repeat the pitch.
 When a data room link is given, mention it once as the place with the deck and numbers.
+Subject: specific, with the company or the round in it; never just "Following up".
+Use only the facts given; never invent numbers, names, deals or dates.
 Answer with JSON only: {"subject": "...", "body": "..."}.`;
 
 const draftSchema = z.object({
@@ -181,7 +184,8 @@ export async function draftOutreach(
     roomLink = dataRoomLink(room);
   }
 
-  const [sender, interactions] = await Promise.all([
+  const roomRow = pipeline.rooms[0];
+  const [sender, interactions, organization, room] = await Promise.all([
     prisma.user.findUnique({
       where: { id: actor.userId },
       select: { name: true, email: true },
@@ -197,8 +201,18 @@ export async function draftOutreach(
         summary: true,
       },
     }),
+    prisma.organization.findUnique({
+      where: { id: actor.organizationId },
+      select: { name: true },
+    }),
+    roomRow
+      ? prisma.dataRoom.findUnique({
+          where: { id: roomRow.id },
+          select: { welcomeNote: true, company: true },
+        })
+      : null,
   ]);
-  const roomRow = pipeline.rooms[0];
+  const company = room?.company as { legalName?: string } | null;
   const composed = await deps.compose({
     system: COMPOSE_SYSTEM,
     prompt: JSON.stringify({
@@ -226,6 +240,10 @@ export async function draftOutreach(
           }
         : null,
       raise: {
+        company: organization?.name ?? null,
+        legalName: company?.legalName ?? null,
+        round: roomRow ? roomRow.title : null,
+        about: room?.welcomeNote?.slice(0, 800) ?? null,
         dataRoom: roomRow ? roomRow.title : null,
         roomLink,
       },
