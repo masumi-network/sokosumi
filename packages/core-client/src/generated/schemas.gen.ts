@@ -7320,6 +7320,12 @@ export const EvalRunReportSchema = {
                         }
                     }
                 },
+                costlier: {
+                    type: 'integer'
+                },
+                slower: {
+                    type: 'integer'
+                },
                 passed: {
                     type: 'integer'
                 },
@@ -7335,6 +7341,8 @@ export const EvalRunReportSchema = {
             },
             required: [
                 'counts',
+                'costlier',
+                'slower',
                 'passed',
                 'scored',
                 'open',
@@ -7405,6 +7413,36 @@ export const EvalCaseReportSchema = {
                 ]
             }
         },
+        costUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualCostUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        costlier: {
+            type: 'boolean'
+        },
+        durationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualDurationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        slower: {
+            type: 'boolean'
+        },
         results: {
             type: 'array',
             items: {
@@ -7423,6 +7461,12 @@ export const EvalCaseReportSchema = {
         'passRate',
         'baselinePassRate',
         'history',
+        'costUsd',
+        'usualCostUsd',
+        'costlier',
+        'durationMs',
+        'usualDurationMs',
+        'slower',
         'results'
     ]
 } as const;

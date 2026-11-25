@@ -1,8 +1,8 @@
 /**
  * How one case did in a run, against the daily runs on main before it.
  *
- * - regressed: it passed every repeat of the last daily runs and fails now
- *   (all repeats, or any repeat when its history never failed)
+ * - regressed: it passed every repeat of the last daily runs and most of its
+ *   repeats fail now (one failed repeat of two is flaky: a judge can flip)
  * - fixed: it failed every repeat of the last daily run and passes now
  * - flaky: it passes some repeats, and its history already shows failures
  * - failing: it failed before and fails now
@@ -63,7 +63,39 @@ export function evalOutcome(
   if (rate === 1) return baseline === 0 ? "fixed" : "passing";
   if (baseline === undefined) return rate === 0 ? "failing" : "flaky";
   if (rate === 0) return baseline === 0 ? "failing" : "regressed";
-  return alwaysPassed ? "regressed" : "flaky";
+  return alwaysPassed && rate < 0.5 ? "regressed" : "flaky";
+}
+
+/** A case costs or takes more than this many times its usual run. */
+export const USUAL_RATIO = 1.3;
+/** Weekly runs the usual value is the median of. */
+export const USUAL_WINDOW = 5;
+/** Fewer weekly runs than this say nothing about what is usual. */
+export const USUAL_MIN_RUNS = 3;
+
+export function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle]!
+    : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
+/** The median of the last weekly runs, newest first; null without enough of them. */
+export function usualValue(history: readonly number[]): number | null {
+  const recent = history.slice(0, USUAL_WINDOW);
+  return recent.length < USUAL_MIN_RUNS ? null : median(recent);
+}
+
+/** Whether `value` is more than `USUAL_RATIO` times the usual one. */
+export function aboveUsual(
+  value: number | null,
+  usual: number | null,
+): boolean {
+  return (
+    value !== null && usual !== null && usual > 0 && value > usual * USUAL_RATIO
+  );
 }
 
 export const EVAL_OUTCOME_ORDER: readonly EvalOutcome[] = [
