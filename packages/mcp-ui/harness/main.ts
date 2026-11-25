@@ -102,6 +102,7 @@ async function main() {
   // Refresh: the host runs the tool on the server; here it returns the fixture.
   bridge.oncalltool = async ({ name, arguments: args }) => {
     record(`tools/call ${name} ${JSON.stringify(args)}`);
+    if (fixture.callError) throw new Error(fixture.callError);
     if (!fixture.result) throw new Error("The fixture has no result");
     return fixture.result;
   };

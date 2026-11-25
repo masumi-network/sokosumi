@@ -1,6 +1,7 @@
 /**
  * Screenshots every view in the host harness: the default and fullscreen
- * fixtures in light and dark at 320, 402 and 768px; every other fixture
+ * fixtures, and any marked `allWidths`, in light and dark at 320, 402 and
+ * 768px; every other fixture
  * (loading, empty, error, ...) at 402px; and the first control focused from
  * the keyboard. Build first.
  *
@@ -25,14 +26,11 @@ const ALL_WIDTHS = new Set(["default", "fullscreen"]);
 const STATES = new Set(["loading", "empty", "error"]);
 
 const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) =>
-  Object.keys(fixtures).flatMap((fixture) =>
+  Object.entries(fixtures).flatMap(([fixture, { allWidths, waitFor }]) =>
     THEMES.flatMap((theme) =>
-      (ALL_WIDTHS.has(fixture) ? WIDTHS : [STATE_WIDTH]).map((width) => ({
-        view,
-        fixture,
-        theme,
-        width,
-      })),
+      (allWidths || ALL_WIDTHS.has(fixture) ? WIDTHS : [STATE_WIDTH]).map(
+        (width) => ({ view, fixture, theme, width, waitFor }),
+      ),
     ),
   ),
 );
@@ -51,7 +49,7 @@ const browser = await chromium.launch({
 });
 
 try {
-  for (const { view, fixture, theme, width } of shots) {
+  for (const { view, fixture, theme, width, waitFor } of shots) {
     const page = await browser.newPage({
       viewport: { width, height: 900 },
       colorScheme: theme,
@@ -68,7 +66,7 @@ try {
     const expected = STATES.has(fixture) ? fixture : "ready";
     await page
       .frameLocator("iframe")
-      .locator(`[data-state="${expected}"]`)
+      .locator(waitFor ?? `[data-state="${expected}"]`)
       .waitFor();
     await page.locator("iframe[data-sized]").waitFor();
     if (errors.length > 0) {

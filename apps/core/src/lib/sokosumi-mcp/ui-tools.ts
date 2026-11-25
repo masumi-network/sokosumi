@@ -23,6 +23,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     description:
       "Show Tasks in a workspace to the person as a board: counts and the first Tasks per status, and every Task by status in full screen. Takes tasks_list's arguments and returns its result. Pass `limit: 100` so the board holds more than one page. Pass `scope: \"workspace\"` when the person asks for the team's or the workspace's board; otherwise leave the default. Use it when the person wants to see their Tasks; use tasks_list when you only need the data.",
   },
+  {
+    name: "jobs_show",
+    data: "jobs_get",
+    ui: "job-status",
+    description:
+      "Show a Job to the person: its status in plain words, the agent, when it started and finished, and once done its result, files and links. The view checks for updates while it is open, until the Job finishes. Takes jobs_get's arguments and returns its result. Use it when the person wants to see or follow a Job; use jobs_get when you only need the data.",
+  },
 ];
 
 /** The MCP Apps MIME type of a view (SEP-1865). */

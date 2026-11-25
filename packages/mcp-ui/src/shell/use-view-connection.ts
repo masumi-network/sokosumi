@@ -15,6 +15,8 @@ export type ConnectionState = {
   host: McpUiHostContext;
   /** The tool call's arguments, once the host sends them. */
   input?: Record<string, unknown>;
+  /** A tool the last rerun named that the server does not offer. */
+  missingTool?: string;
 } & (
   | { status: "loading" }
   | { status: "result"; result: ToolResult }
@@ -24,13 +26,25 @@ export type ConnectionState = {
 /**
  * Calls a server tool through the host. A result `accept` takes replaces the
  * shown one, keeping its `_meta` (such as Core's `webBaseUrl`, which only the
- * show tool adds) under the new result's own.
+ * show tool adds) under the new result's own. When the server does not offer
+ * the tool (its toolset is off), the state names it in `missingTool`.
  */
 export type Rerun = (
   name: string,
   args: Record<string, unknown>,
   accept: (result: ToolResult) => boolean,
 ) => Promise<boolean>;
+
+/** Core's answer to a tool outside the server's toolsets (`server.ts`). */
+const UNKNOWN_TOOL = /\bUnknown tool\b/i;
+
+function isUnknownTool(failure: unknown): boolean {
+  if (failure instanceof Error) return UNKNOWN_TOOL.test(failure.message);
+  const content = (failure as Partial<ToolResult>).content ?? [];
+  return content.some(
+    (block) => block.type === "text" && UNKNOWN_TOOL.test(block.text),
+  );
+}
 
 export function systemTheme(): McpUiTheme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
@@ -95,13 +109,21 @@ export function useViewConnection(
 
   const rerun = useCallback<Rerun>(
     async (name, args, accept) => {
+      const missing = (failure: unknown) => {
+        if (isUnknownTool(failure)) {
+          update((previous) => ({ ...previous, missingTool: name }));
+        }
+        return false;
+      };
       try {
         const result = await app.callServerTool({ name, arguments: args });
-        if (result.isError || !accept(result)) return false;
+        if (result.isError) return missing(result);
+        if (!accept(result)) return false;
         update((previous) =>
           previous.status === "result"
             ? {
                 ...previous,
+                missingTool: undefined,
                 result: {
                   ...result,
                   _meta: { ...previous.result._meta, ...result._meta },
@@ -110,8 +132,8 @@ export function useViewConnection(
             : previous,
         );
         return true;
-      } catch {
-        return false;
+      } catch (error) {
+        return missing(error);
       }
     },
     [app, update],
