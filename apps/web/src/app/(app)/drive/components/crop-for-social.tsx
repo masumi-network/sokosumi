@@ -341,6 +341,16 @@ function CropStage({
         };
   }
 
+  function isOver(event: PointerEvent<HTMLDivElement>) {
+    const box = event.currentTarget.getBoundingClientRect();
+    return (
+      event.clientX >= box.left &&
+      event.clientX <= box.right &&
+      event.clientY >= box.top &&
+      event.clientY <= box.bottom
+    );
+  }
+
   /** The gesture this event belongs to, or null for any other pointer. */
   function owned(event: PointerEvent<HTMLDivElement>) {
     const current = gesture.current;
@@ -353,7 +363,11 @@ function CropStage({
   // nothing (WCAG 2.5.2).
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     const at = measure(event);
-    if (!at || event.button !== 0 || gesture.current) return;
+    if (!at || event.button !== 0) return;
+    // Another finger is busy. The same pointer pressing again means its last
+    // release never reached the photo, so that gesture is over.
+    const current = gesture.current;
+    if (current && current.pointerId !== event.pointerId) return;
     const grabbed = at.at >= at.from && at.at <= at.from + at.frame;
     gesture.current = {
       pointerId: event.pointerId,
@@ -361,7 +375,8 @@ function CropStage({
       position,
       grabbed,
     };
-    if (grabbed) event.currentTarget.setPointerCapture?.(event.pointerId);
+    // Capture every press, so its release comes back here wherever it lands.
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -376,7 +391,8 @@ function CropStage({
     if (!current) return;
     gesture.current = null;
     const at = measure(event);
-    if (!current.grabbed && at) {
+    // A tap counts only if it ends on the photo.
+    if (!current.grabbed && at && isOver(event)) {
       onPosition(dragPosition({ ...at, start: null }));
     }
   }

@@ -214,6 +214,24 @@ describe("CropForSocial", () => {
     expect(position).toHaveValue("75");
   });
 
+  it("ignores a tap released off the photo and takes the next press", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { stage, position } = await openStage(user);
+
+    // Released past the photo's edge: no placement.
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 190, clientY: 50 });
+    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 300, clientY: 50 });
+    expect(position).toHaveValue("50");
+
+    // A release the photo never saw leaves no stale gesture behind.
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 190, clientY: 50 });
+    fireEvent.pointerUp(document.body, { pointerId: 1, clientX: 300 });
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 100, clientY: 50 });
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 75, clientY: 50 });
+    expect(position).toHaveValue("25");
+  });
+
   it("stops dragging when the photo loses the pointer", async () => {
     const user = userEvent.setup();
     renderCrop();

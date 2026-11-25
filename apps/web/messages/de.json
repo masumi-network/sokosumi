@@ -11088,7 +11088,7 @@
       "Crop": {
         "open": "Für Social zuschneiden",
         "title": "Für Social zuschneiden",
-        "description": "Wähle ein Format und ziehe dann das Foto oder verschiebe den Regler, um den Ausschnitt zu setzen. Eine Kopie wird neben dem Original gespeichert; das Original bleibt unverändert.",
+        "description": "Wähle ein Format und ziehe dann den Rahmen oder verschiebe den Regler, um den Ausschnitt zu setzen. Eine Kopie wird neben dem Original gespeichert; das Original bleibt unverändert.",
         "shapeLabel": "Format",
         "loading": "Bild wird geladen…",
         "loadError": "Bild konnte nicht geladen werden. Schließe den Dialog und versuche es erneut.",

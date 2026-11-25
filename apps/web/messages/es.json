@@ -11088,7 +11088,7 @@
       "Crop": {
         "open": "Recortar para redes",
         "title": "Recortar para redes",
-        "description": "Elige un formato y arrastra la foto o mueve el control para colocar el recorte. Se guarda una copia junto al original; el original no cambia.",
+        "description": "Elige un formato y arrastra el marco o mueve el control para colocar el recorte. Se guarda una copia junto al original; el original no cambia.",
         "shapeLabel": "Formato",
         "loading": "Cargando imagen…",
         "loadError": "No se pudo cargar la imagen. Cierra e inténtalo de nuevo.",
