@@ -1,7 +1,8 @@
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
-import { $Enums, Prisma } from "./generated/prisma/client.js";
+import { PrismaRaw } from "./client.js";
+import { $Enums } from "./index.js";
 import {
   configureSqlTables,
   createSqlTables,
@@ -54,7 +55,7 @@ describe("createSqlTables", () => {
 
   it("goes into a statement as text, not as a parameter", () => {
     const tables = createSqlTables(SPLIT);
-    const statement = Prisma.sql`SELECT id FROM ${tables.netTable("mainnet", "Job")} j JOIN ${tables.sharedTable("workspace")} w ON w.id = j."workspaceId" WHERE j."jobType" = ${"PAID"}::${tables.netType("mainnet", "JobType")}`;
+    const statement = PrismaRaw.sql`SELECT id FROM ${tables.netTable("mainnet", "Job")} j JOIN ${tables.sharedTable("workspace")} w ON w.id = j."workspaceId" WHERE j."jobType" = ${"PAID"}::${tables.netType("mainnet", "JobType")}`;
     expect(statement.text).toBe(
       'SELECT id FROM "mainnet"."Job" j JOIN "shared"."workspace" w ON w.id = j."workspaceId" WHERE j."jobType" = $1::"mainnet"."JobType"',
     );

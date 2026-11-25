@@ -22,6 +22,8 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 // - a table after a comma (`FROM a, b`, `TRUNCATE a, b`), after `ON`
 //   (`CREATE INDEX … ON "x"`) or after `LOCK`, `ANALYZE`, `VACUUM`, `COPY`;
 // - a table after a comment between keyword and name;
+// - a table in escaped quotes inside a plain string literal
+//   (`"SELECT key FROM \"Lock\""`): the source has `\"`, not `"`;
 // - SQL built from string pieces, a table name held in a variable, and
 //   anything passed to `$queryRawUnsafe` that is not literal text;
 // - an enum cast without its schema (`::"TaskStatus"`; use `sharedType` or

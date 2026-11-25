@@ -446,38 +446,6 @@ describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
       query.includes('LEFT JOIN "public"."project" p ON p.id = cb."projectId"'),
     );
   });
-
-  it("names each table in the configured schema", async () => {
-    let queryArgs: unknown[] = [];
-    const tx = {
-      $queryRaw: async (...rawArgs: unknown[]) => {
-        queryArgs = rawArgs;
-        return [];
-      },
-    } as unknown as Prisma.TransactionClient;
-    onTestFinished(
-      configureSqlTables({
-        shared: "shared",
-        mainnet: "mainnet",
-        preprod: "preprod",
-        preprodOn: true,
-      }),
-    );
-    await creditBucketRepository.listProjectBucketsWithBalances(
-      "user-1",
-      "org-1",
-      tx,
-    );
-
-    const [strings, ...parts] = queryArgs as [
-      TemplateStringsArray,
-      ...unknown[],
-    ];
-    const query = Prisma.sql(strings, ...parts).sql;
-    assert.ok(query.includes('FROM "mainnet"."credit_bucket" cb'));
-    assert.ok(query.includes('LEFT JOIN "mainnet"."credit_consumption" cc ON'));
-    assert.ok(query.includes('LEFT JOIN "shared"."project" p ON'));
-  });
 });
 
 describe("creditBucketRepository.prepareConsumption (organization scope SQL)", () => {
@@ -518,6 +486,28 @@ describe("creditBucketRepository with Project credits", () => {
     const [strings, ...values] = args as [TemplateStringsArray, ...unknown[]];
     return Prisma.sql(strings, ...values).sql.replace(/\s+/g, " ");
   }
+
+  it("names each table in the configured schema", async () => {
+    const { tx, calls } = capturingTx([]);
+    onTestFinished(
+      configureSqlTables({
+        shared: "shared",
+        mainnet: "mainnet",
+        preprod: "preprod",
+        preprodOn: true,
+      }),
+    );
+    await creditBucketRepository.listProjectBucketsWithBalances(
+      "user-1",
+      "org-1",
+      tx,
+    );
+
+    const query = queryText(calls[0]);
+    assert.ok(query.includes('FROM "mainnet"."credit_bucket" cb'));
+    assert.ok(query.includes('LEFT JOIN "mainnet"."credit_consumption" cc ON'));
+    assert.ok(query.includes('LEFT JOIN "shared"."project" p ON'));
+  });
 
   it("draws a Project's buckets first, then the pool in today's order", async () => {
     const { tx, calls } = capturingTx([{ id: "bucket-1", available: 10n }]);

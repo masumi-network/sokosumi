@@ -1,6 +1,6 @@
 import { raw, type Sql } from "@prisma/client/runtime/client";
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
-import * as enums from "./generated/prisma/enums.js";
+import { $Enums } from "./index.js";
 
 /**
  * Table and enum type names for raw SQL, always with their schema:
@@ -27,8 +27,8 @@ export interface SqlTables {
   sharedTable(table: string): Sql;
   /**
    * A Network's table. Throws for a `shared` table, an unknown name, an
-   * unknown Network, and for Preprod while it is off or its schema is
-   * Mainnet's: on today's layout that would name Mainnet's rows.
+   * unknown Network, and for Preprod while it is off: on today's layout that
+   * would name Mainnet's rows.
    */
   netTable(network: TableNetwork, table: string): Sql;
   /** A `shared` enum type, for a cast: `${value}::${sharedType("TaskStatus")}`. */
@@ -55,7 +55,7 @@ const TABLES: Names = {
 const TYPES: Names = {
   kind: "type",
   shared: new Set(
-    Object.keys(enums).filter(
+    Object.keys($Enums).filter(
       (name) => !networkTables.networkEnums.includes(name),
     ),
   ),
@@ -160,11 +160,6 @@ export function createSqlTables(layout: SqlTableLayout): SqlTables {
     }
     if (network === "preprod" && !preprodOn) {
       throw new Error("Preprod is off: no SQL may name its schema");
-    }
-    if (network === "preprod" && schemas.preprod === schemas.mainnet) {
-      throw new Error(
-        "Preprod's schema is Mainnet's: the name would reach Mainnet's rows",
-      );
     }
     if (shared.has(name)) {
       throw new Error(

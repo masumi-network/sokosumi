@@ -5,7 +5,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { describe, expect, it } from "vitest";
 
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
-import { $Enums, Prisma, PrismaClient } from "./generated/prisma/client.js";
+import { Prisma, PrismaClient } from "./generated/prisma/client.js";
+import { $Enums } from "./index.js";
 
 const models = Object.values(Prisma.ModelName);
 const network: Record<string, string> = networkTables.network;

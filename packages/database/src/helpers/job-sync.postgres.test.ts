@@ -6,7 +6,7 @@ import {
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/client.js";
-import { netTable } from "../sql-tables.js";
+import { netTable, netType } from "../sql-tables.js";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseTransactionSyncWhere,
@@ -156,22 +156,24 @@ describe.skipIf(!databaseUrl)("job sync PostgreSQL null semantics", () => {
             OnChainJobStatus,
           })) {
             await tx.$executeRawUnsafe(
-              `CREATE TYPE "${name}" AS ENUM (${Object.values(values)
+              `CREATE TYPE ${netType("mainnet", name).sql} AS ENUM (${Object.values(
+                values,
+              )
                 .map((value) => `'${value}'`)
                 .join(",")})`,
             );
           }
           await tx.$executeRawUnsafe(
-            `CREATE TABLE ${netTable("mainnet", "Agent").sql} (id text, status "AgentStatus")`,
+            `CREATE TABLE ${netTable("mainnet", "Agent").sql} (id text, status ${netType("mainnet", "AgentStatus").sql})`,
           );
           await tx.$executeRawUnsafe(
-            `CREATE TABLE ${netTable("mainnet", "Job").sql} (id text, "agentId" text, "jobType" "JobType", "paymentSourceType" text, "createdAt" timestamp, "externalDisputeUnlockTime" timestamp, "agentApiBaseUrl" text, "refundedTransactionId" text)`,
+            `CREATE TABLE ${netTable("mainnet", "Job").sql} (id text, "agentId" text, "jobType" ${netType("mainnet", "JobType").sql}, "paymentSourceType" text, "createdAt" timestamp, "externalDisputeUnlockTime" timestamp, "agentApiBaseUrl" text, "refundedTransactionId" text)`,
           );
           await tx.$executeRawUnsafe(
-            `CREATE TABLE ${netTable("mainnet", "jobPurchase").sql} (id text, "jobId" text, "onChainStatus" "OnChainJobStatus", "onChainTransactionStatus" text)`,
+            `CREATE TABLE ${netTable("mainnet", "jobPurchase").sql} (id text, "jobId" text, "onChainStatus" ${netType("mainnet", "OnChainJobStatus").sql}, "onChainTransactionStatus" text)`,
           );
           await tx.$executeRawUnsafe(
-            `CREATE TABLE ${netTable("mainnet", "jobEvent").sql} (id text, "jobId" text, status "AgentJobStatus")`,
+            `CREATE TABLE ${netTable("mainnet", "jobEvent").sql} (id text, "jobId" text, status ${netType("mainnet", "AgentJobStatus").sql})`,
           );
           await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Agent")} VALUES ('agent', 'ONLINE')`;
           await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Job")} VALUES ('job', 'agent', 'PAID', ${row.rail}, ${new Date(now.getTime() + (row.old ? -1 : 1) * 60_000)}, ${row.noDeadline ? null : new Date(now.getTime() + (row.expired ? -1 : 1) * 60_000)}, 'https://agent.example', ${row.refunded ? "refund" : null})`;
