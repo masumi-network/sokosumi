@@ -10,7 +10,7 @@ import {
 interface UseChatRefreshSchedulerOptions {
   /** Identity of the data set; a new key restarts, null disables. */
   key: string | null;
-  refresh: (isCurrent: () => boolean) => Promise<void>;
+  refresh: (isCurrent: () => boolean, signal?: AbortSignal) => Promise<void>;
   /** Realtime is delivering for this data set; picks the recovery cadence. */
   healthy: boolean;
   /**
@@ -58,7 +58,7 @@ export function useChatRefreshScheduler({
   healthyRef.current = healthy;
   const schedulerRef = useRef<ChatRefreshScheduler | null>(null);
   schedulerRef.current ??= createChatRefreshScheduler({
-    refresh: (isCurrent) => refreshRef.current(isCurrent),
+    refresh: (isCurrent, signal) => refreshRef.current(isCurrent, signal),
     healthy,
     getHealthy: () => healthyRef.current,
     fallbackIntervalMs,
