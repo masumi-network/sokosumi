@@ -10,10 +10,10 @@ import { ChatWithBotButton } from "@/app/soko-bots/components/open-bot-chat.clie
 import { Button } from "@/components/ui/button";
 
 /**
- * The one direct action on an Agents page card. Calm on purpose: a small
- * secondary button, so the card still reads as one card.
+ * The one direct action on an Agents page card: the default bordered button
+ * in its small size, as in the profile header, so the card still reads as one.
  */
-const CARD_ACTION = { variant: "secondary", size: "sm" } as const;
+const CARD_ACTION = { size: "sm" } as const;
 
 /**
  * A shared bot talks in its room; a personal bot in a direct room. A shared

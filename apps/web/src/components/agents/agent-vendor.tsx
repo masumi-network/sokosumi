@@ -29,7 +29,11 @@ export function AgentVendor({
   size?: LogoSize;
 }) {
   const [ratio, setRatio] = useState<number | null>(null);
-  if (!logo) return <span className="min-w-0 truncate">{label}</span>;
+  const [failed, setFailed] = useState(false);
+  // A logo that never loads falls back to the name, so the line is never empty.
+  if (!logo || failed) {
+    return <span className="min-w-0 truncate">{label}</span>;
+  }
   const height = ratio ? logoHeight(ratio, size) : LOGO_SIZE[size].min;
   return (
     <Image
@@ -44,6 +48,7 @@ export function AgentVendor({
           setRatio(image.naturalWidth / image.naturalHeight);
         }
       }}
+      onError={() => setFailed(true)}
       style={{ height, maxWidth: LOGO_SIZE[size].maxWidth }}
       className={cn(LOGO_CLASS, !ratio && "opacity-0")}
     />
