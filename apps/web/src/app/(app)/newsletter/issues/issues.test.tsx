@@ -4,11 +4,19 @@ import {
   NewsletterTemplate,
   type PaginationMetadata,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getEnvPublicConfig } from "@/config/env.public";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -47,6 +55,7 @@ function renderIssues(
   issues: NewsletterIssue[] = [NEWSLETTER_ISSUE],
   pagination = PAGINATION,
   locale: "en" | "de" | "es" = "en",
+  searchParams = "",
 ) {
   return render(
     <NextIntlClientProvider
@@ -57,7 +66,11 @@ function renderIssues(
         dateTime: { dateTime: { dateStyle: "medium", timeStyle: "short" } },
       }}
     >
-      <NuqsTestingAdapter onUrlUpdate={mocks.url} hasMemory>
+      <NuqsTestingAdapter
+        searchParams={searchParams}
+        onUrlUpdate={mocks.url}
+        hasMemory
+      >
         <Issues
           projectId={NEWSLETTER_PROJECT_ID}
           issues={issues}
@@ -73,6 +86,10 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.create.mockResolvedValue({ ok: true, value: NEWSLETTER_ISSUE });
   mocks.remove.mockResolvedValue({ ok: true, value: null });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("newsletter issues list", () => {
@@ -313,5 +330,90 @@ describe("newsletter issues list", () => {
         }),
       ),
     );
+  });
+
+  it("searches as the reader types and resets the cursor in one URL update", async () => {
+    const user = userEvent.setup();
+    renderIssues([NEWSLETTER_ISSUE], PAGINATION, "en", "?cursor=i1");
+    const searchbox = screen.getByRole("searchbox");
+    await user.type(searchbox, "launch");
+    expect(searchbox).toHaveValue("launch");
+    await waitFor(() => expect(mocks.url).toHaveBeenCalledTimes(1));
+    const params: URLSearchParams = mocks.url.mock.lastCall?.[0].searchParams;
+    expect(params.get("q")).toBe("launch");
+    expect(params.has("cursor")).toBe(false);
+  });
+
+  it("switches an empty list to search-mode UI immediately while typing", () => {
+    vi.useFakeTimers();
+    renderIssues([], { ...PAGINATION, total: 0 });
+    expect(screen.getByText(COPY.emptyTitle)).toBeInTheDocument();
+    expect(screen.getByText(COPY.emptyDescription)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "launch" },
+    });
+    expect(mocks.url).not.toHaveBeenCalled();
+    expect(screen.queryByText(COPY.emptyTitle)).not.toBeInTheDocument();
+    expect(screen.queryByText(COPY.emptyDescription)).not.toBeInTheDocument();
+    expect(screen.getByText(en.App.PageSearch.noMatches)).toBeInTheDocument();
+  });
+
+  it("cancels a pending debounced search when a competing action runs", async () => {
+    vi.useFakeTimers();
+    renderIssues(
+      [NEWSLETTER_ISSUE],
+      {
+        ...PAGINATION,
+        nextCursor: NEWSLETTER_ISSUE.id,
+        total: 30,
+      },
+      "en",
+      "?cursor=i1",
+    );
+    const searchbox = screen.getByRole("searchbox");
+    fireEvent.change(searchbox, { target: { value: "launch" } });
+    expect(searchbox).toHaveValue("launch");
+    expect(mocks.url).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: COPY.nextPage }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(mocks.url).toHaveBeenCalledTimes(1);
+    expect(mocks.url.mock.lastCall?.[0].searchParams.get("cursor")).toBe(
+      NEWSLETTER_ISSUE.id,
+    );
+    expect(mocks.url.mock.lastCall?.[0].searchParams.has("q")).toBe(false);
+    expect(searchbox).toHaveValue("");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
+      );
+    });
+    expect(mocks.url).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending debounced search on Back navigation to the same query values", async () => {
+    vi.useFakeTimers();
+    renderIssues([NEWSLETTER_ISSUE], PAGINATION, "en", "?cursor=i1");
+    const searchbox = screen.getByRole("searchbox");
+    fireEvent.change(searchbox, { target: { value: "launch" } });
+    expect(searchbox).toHaveValue("launch");
+    expect(mocks.url).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", "#drafts");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(searchbox).toHaveValue("");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
+      );
+    });
+    expect(mocks.url).not.toHaveBeenCalled();
   });
 });
