@@ -303,4 +303,35 @@ describe("project brand generation across surfaces", () => {
       expect(startDesignMdGeneration).toHaveBeenCalledOnce();
     });
   });
+
+  it("renders the fallback avatar while DESIGN.md start is still pending in a serial action queue", async () => {
+    const order: string[] = [];
+    let tail: Promise<unknown> = Promise.resolve();
+    function enqueue<T>(run: () => Promise<T>): Promise<T> {
+      const next = tail.then(run, run);
+      tail = next.catch(() => {});
+      return next;
+    }
+
+    const designStart = deferred<StartResult>();
+    vi.mocked(resolveProjectSiteIcon).mockImplementation(() => {
+      order.push("resolveProjectSiteIcon");
+      return enqueue(() => Promise.resolve({ ok: true, value: { url: null } }));
+    });
+    vi.mocked(startDesignMdGeneration).mockImplementation(() => {
+      order.push("startDesignMdGeneration");
+      return enqueue(() => designStart.promise);
+    });
+
+    render(wizard());
+
+    // Icon lookup ran first in the serial queue, so the fallback avatar ("L")
+    // appears even though DESIGN.md start is still pending.
+    expect(await screen.findByText("L")).toBeInTheDocument();
+    expect(screen.getByText("fetching")).toBeInTheDocument();
+    expect(order).toEqual([
+      "resolveProjectSiteIcon",
+      "startDesignMdGeneration",
+    ]);
+  });
 });

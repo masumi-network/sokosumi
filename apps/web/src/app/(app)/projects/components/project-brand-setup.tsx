@@ -2,7 +2,8 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
@@ -11,8 +12,11 @@ import {
   type DesignMdOwner,
 } from "@/components/design-md/types";
 import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
-import { useProjectBrandDesignMdStart } from "@/hooks/effects/use-project-brand-design-md-start";
-import { useProjectBrandIconLookup } from "@/hooks/effects/use-project-brand-icon-lookup";
+import { useProjectBrandSetupStart } from "@/hooks/effects/use-project-brand-setup-start";
+import {
+  resolveProjectSiteIcon,
+  updateProject,
+} from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 
 export interface ProjectBrandChange {
@@ -36,14 +40,43 @@ export function ProjectBrandSetup(props: ProjectBrandSetupProps) {
     props;
   const t = useTranslations("App.Projects.Wizard.brand");
   const viewerId = useSession().data?.user.id;
-  const { logoUrl, isResolvingLogo } = useProjectBrandIconLookup({
-    projectId,
-    projectName,
-    websiteUrl,
-    logoFailedMessage: t("logoFailed"),
-    onReadyLogo,
-    onBrandChange,
-  });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isResolvingLogo, setIsResolvingLogo] = useState(true);
+  // Kept here: the icon starts on the first mount and must not start again
+  // when brand setup mounts again for the viewer.
+  const iconStarted = useRef(false);
+
+  const resolveIcon = () => {
+    if (iconStarted.current) return;
+    iconStarted.current = true;
+    void (async () => {
+      try {
+        const result = await resolveProjectSiteIcon({
+          url: websiteUrl,
+          projectId,
+        });
+        const nextLogo = result.ok ? (result.value.url ?? null) : null;
+        setLogoUrl(nextLogo);
+        onReadyLogo?.(nextLogo);
+        onBrandChange?.({ logo: nextLogo });
+        if (nextLogo) {
+          const updateResult = await updateProject({
+            projectId,
+            name: projectName,
+            logo: nextLogo,
+          });
+          if (!updateResult.ok) {
+            toast.error(t("logoFailed"));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to resolve project logo", error);
+        toast.error(t("logoFailed"));
+      } finally {
+        setIsResolvingLogo(false);
+      }
+    })();
+  };
 
   // DESIGN.md setup starts once the viewer is known, so a failure is kept for
   // the project page: it mounts again when the session loads.
@@ -53,6 +86,7 @@ export function ProjectBrandSetup(props: ProjectBrandSetupProps) {
       {...props}
       isResolvingLogo={isResolvingLogo}
       logoUrl={logoUrl}
+      resolveIcon={resolveIcon}
       viewerId={viewerId}
     />
   );
@@ -65,10 +99,12 @@ function BrandSetup({
   onBrandChange,
   isResolvingLogo,
   logoUrl,
+  resolveIcon,
   viewerId,
 }: ProjectBrandSetupProps & {
   isResolvingLogo: boolean;
   logoUrl: string | null;
+  resolveIcon: () => void;
   viewerId: string | undefined;
 }) {
   const t = useTranslations("App.Projects.Wizard.brand");
@@ -100,7 +136,12 @@ function BrandSetup({
     owner,
   });
 
-  useProjectBrandDesignMdStart(viewerId, websiteUrl, brand.generate);
+  useProjectBrandSetupStart({
+    resolveIcon,
+    viewerId,
+    websiteUrl,
+    generateDesignMd: brand.generate,
+  });
 
   const isBusy = isResolvingLogo || brand.isRunning || brand.status === "idle";
 
