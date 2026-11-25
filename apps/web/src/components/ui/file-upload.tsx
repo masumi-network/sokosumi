@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils/index";
 import { Slot } from "@radix-ui/react-slot";
 import * as React from "react";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {getExtensionFromUrl} from "@sokosumi/utils";
 import { FileTypeIcon } from "./file-icon";
@@ -358,13 +359,19 @@ function FileUploadRoot(props: FileUploadRootProps) {
     [accept],
   );
 
+  const storeRef = useLatestRef(store);
+  const invalidPropRef = useLatestRef(invalid);
+  const progressFrameRef = React.useRef(0);
+  const invalidTimeoutRef = React.useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
+
   const onProgress = useLazyRef(() => {
-    let frame = 0;
     return (file: File, progress: number) => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        store.dispatch({
+      if (progressFrameRef.current) return;
+      progressFrameRef.current = requestAnimationFrame(() => {
+        progressFrameRef.current = 0;
+        storeRef.current.dispatch({
           type: "SET_PROGRESS",
           file,
           progress: Math.min(Math.max(0, progress), 100),
@@ -387,6 +394,18 @@ function FileUploadRoot(props: FileUploadRootProps) {
 
   React.useEffect(() => {
     return () => {
+      if (progressFrameRef.current) {
+        cancelAnimationFrame(progressFrameRef.current);
+        progressFrameRef.current = 0;
+      }
+      if (invalidTimeoutRef.current !== undefined) {
+        clearTimeout(invalidTimeoutRef.current);
+        invalidTimeoutRef.current = undefined;
+        storeRef.current.dispatch({
+          type: "SET_INVALID",
+          invalid: invalidPropRef.current,
+        });
+      }
       for (const file of files.keys()) {
         const cachedUrl = urlCache.get(file);
         if (cachedUrl) {
@@ -394,7 +413,7 @@ function FileUploadRoot(props: FileUploadRootProps) {
         }
       }
     };
-  }, [files, urlCache]);
+  }, [files, invalidPropRef, storeRef, urlCache]);
 
   const onFilesChange = React.useCallback(
     (originalFiles: File[]) => {
@@ -482,8 +501,15 @@ function FileUploadRoot(props: FileUploadRootProps) {
 
       if (invalid) {
         store.dispatch({ type: "SET_INVALID", invalid });
-        setTimeout(() => {
-          store.dispatch({ type: "SET_INVALID", invalid: false });
+        if (invalidTimeoutRef.current !== undefined) {
+          clearTimeout(invalidTimeoutRef.current);
+        }
+        invalidTimeoutRef.current = setTimeout(() => {
+          invalidTimeoutRef.current = undefined;
+          storeRef.current.dispatch({
+            type: "SET_INVALID",
+            invalid: invalidPropRef.current,
+          });
         }, 2000);
       }
 
