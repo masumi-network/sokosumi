@@ -519,7 +519,7 @@ describe("TranscriptViewport", () => {
     ).toHaveAttribute("data-search-landed", "true");
   });
 
-  it("clears an active landing highlight and its timer when the viewport unmounts", async () => {
+  it("disposes an active landing highlight and its timer when the viewport unmounts", async () => {
     const removed = vi.spyOn(window, "removeEventListener");
     const handle = createRef<TranscriptViewportHandle>();
     const { container, unmount } = render(
@@ -542,6 +542,15 @@ describe("TranscriptViewport", () => {
     expect(marked).toHaveAttribute("data-search-landed", "true");
 
     unmount();
+    await Promise.resolve();
+
+    expect(marked?.dataset.searchLanded).toBeUndefined();
+    expect(removed).toHaveBeenCalledWith("wheel", expect.any(Function), {
+      capture: true,
+    });
+    expect(removed).toHaveBeenCalledWith("touchmove", expect.any(Function), {
+      capture: true,
+    });
 
     const originalWindow = globalThis.window;
     // @ts-expect-error simulates happy-dom teardown deleting window before the hold expires.
@@ -551,14 +560,6 @@ describe("TranscriptViewport", () => {
     } finally {
       globalThis.window = originalWindow;
     }
-
-    expect(marked?.dataset.searchLanded).toBeUndefined();
-    expect(removed).toHaveBeenCalledWith("wheel", expect.any(Function), {
-      capture: true,
-    });
-    expect(removed).toHaveBeenCalledWith("touchmove", expect.any(Function), {
-      capture: true,
-    });
   });
 
   it("reports a message the room has not loaded", async () => {

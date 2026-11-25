@@ -19,7 +19,6 @@ import type {
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import { transcriptRowKey } from "@/app/chat/utils/transcript-viewport-model";
-import { useListHighlightCleanup } from "@/hooks/effects/use-list-highlight-cleanup";
 
 /**
  * Stand-in for the room transcript viewport in RoomsClient tests: mounts every
@@ -79,7 +78,6 @@ export function TranscriptViewport({
   ref: Ref<TranscriptViewportHandle>;
 }) {
   transcriptViewportSpies.position({ initialPosition, onPositionChange });
-  useListHighlightCleanup(list);
   const atEndRef = useRef(onAtEndChange);
   atEndRef.current = onAtEndChange;
   const opensAboveEndRef = useRef(

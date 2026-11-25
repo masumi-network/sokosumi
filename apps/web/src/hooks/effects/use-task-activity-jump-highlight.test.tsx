@@ -5,11 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TASK_ACTIVITY_MESSAGE_LIST } from "@/app/tasks/utils/task-activity-feed";
 
 const highlightListMessageMock = vi.hoisted(() => vi.fn());
-const clearListHighlightMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/app/chat/utils/room-message-highlight", () => ({
   highlightListMessage: highlightListMessageMock,
-  clearListHighlight: clearListHighlightMock,
 }));
 
 import { useTaskActivityJumpHighlight } from "./use-task-activity-jump-highlight";
@@ -121,9 +119,6 @@ describe("useTaskActivityJumpHighlight", () => {
     expect(highlightListMessageMock).toHaveBeenCalledTimes(4);
 
     unmount();
-    expect(clearListHighlightMock).toHaveBeenCalledWith(
-      TASK_ACTIVITY_MESSAGE_LIST,
-    );
   });
 
   it("matches StrictMode replay and Activity hide/reveal while a jump is pending", () => {
@@ -209,8 +204,5 @@ describe("useTaskActivityJumpHighlight", () => {
     expect(highlightListMessageMock).toHaveBeenCalledTimes(3);
 
     unmount();
-    expect(clearListHighlightMock).toHaveBeenCalledWith(
-      TASK_ACTIVITY_MESSAGE_LIST,
-    );
   });
 });
