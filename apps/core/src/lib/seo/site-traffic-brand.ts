@@ -2,7 +2,7 @@ import { seoBrandMatcher } from "@sokosumi/utils";
 import type { SiteTrafficReport } from "@/schemas/seo-site-traffic.schema";
 import { withinPeriod } from "./native-statistics";
 
-/** Rows per date and query read. A read of 10,000 long queries can pass the 2 MB answer limit. */
+/** Rows per date and query read. A read of 10,000 long queries can pass the 5 MB answer limit. */
 export const BRAND_QUERY_BATCH = 5_000;
 const MAX_BATCHES = 6;
 /** No new read starts after this time, so the split cannot use up the time of the report. */
@@ -62,5 +62,6 @@ export async function readBrandSplit(
   return {
     daily: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
     limited,
+    terms,
   };
 }

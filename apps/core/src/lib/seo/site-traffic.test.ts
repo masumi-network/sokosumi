@@ -279,6 +279,7 @@ describe("website-scoped Search Console traffic", () => {
     );
     expect(report.brand).toEqual({
       limited: false,
+      terms: ["Sample Site"],
       daily: [
         {
           date: "2026-11-17",
@@ -311,6 +312,32 @@ describe("website-scoped Search Console traffic", () => {
     );
     expect(report.brand).toBeUndefined();
     expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
+  });
+  it("reads a query page over the 2 MB limit of the other reads", async () => {
+    // 3,000 rows of 800 bytes each: about 2.4 MB.
+    const rows = Array.from({ length: 3_000 }, (_, index) => ({
+      keys: ["2026-11-17", `${"q".repeat(760)} ${index}`],
+      clicks: 1,
+      impressions: 1,
+    }));
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      (args) =>
+        (args.dimensions as string[]).includes("query")
+          ? Promise.resolve({ rows })
+          : google(args),
+      ["Sample Site"],
+    );
+    expect(report.brand?.daily).toEqual([
+      {
+        date: "2026-11-17",
+        branded: { clicks: 0, impressions: 0 },
+        nonBranded: { clicks: 3_000, impressions: 3_000 },
+      },
+    ]);
   });
   it("returns the totals when the query read never answers", async () => {
     vi.useFakeTimers();

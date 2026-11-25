@@ -31,6 +31,7 @@ describe("brand split of Search Console query rows", () => {
     ]);
     expect(split).toEqual({
       limited: false,
+      terms: ["Acme"],
       daily: [
         {
           date: "2026-11-01",

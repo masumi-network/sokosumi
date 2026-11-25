@@ -59,6 +59,8 @@ export const siteTrafficReport = z
           .max(SEO_STATS_MAX_DAYS),
         /** True when the read stopped at its row limit: the weakest rows are on neither side. */
         limited: z.boolean(),
+        /** The terms this split used, so a reader with an older list can tell. */
+        terms: z.array(z.string()),
       })
       .optional(),
     pages: z.array(

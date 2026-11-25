@@ -54162,11 +54162,18 @@ export const SeoSiteTrafficReportSchema = {
                 },
                 limited: {
                     type: 'boolean'
+                },
+                terms: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
                 }
             },
             required: [
                 'daily',
-                'limited'
+                'limited',
+                'terms'
             ]
         },
         pages: {

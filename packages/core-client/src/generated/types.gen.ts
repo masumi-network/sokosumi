@@ -13617,6 +13617,7 @@ export type SeoSiteTrafficReport = {
             };
         }>;
         limited: boolean;
+        terms: Array<string>;
     };
     pages: Array<{
         clicks: number;

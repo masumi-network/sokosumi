@@ -23,6 +23,8 @@ import {
   readBrandSplit,
 } from "./site-traffic-brand";
 
+/** A page of 5,000 long queries passes the 2 MB limit of the other reads: this route takes 5 MB. */
+export const SITE_TRAFFIC_PAYLOAD_LIMIT = 5 * 1024 * 1024;
 const PAGE_BATCH = 250;
 const MAX_BATCHES = 10;
 const row = z.object({
@@ -41,10 +43,11 @@ const brandResponse = response.extend({
   rows: z.array(row).max(BRAND_QUERY_BATCH).default([]),
 });
 function readRows(value: unknown, schema = response) {
-  const payload = unwrapNativeStatistics(value, [
-    "rows",
-    "responseAggregationType",
-  ]);
+  const payload = unwrapNativeStatistics(
+    value,
+    ["rows", "responseAggregationType"],
+    SITE_TRAFFIC_PAYLOAD_LIMIT,
+  );
   if (
     Object.keys(payload).length &&
     !("rows" in payload) &&
