@@ -34,6 +34,10 @@ import {
   sendRoomMessageToSelfAction,
   setMessageReactionAction,
 } from "@/app/chat/actions";
+import {
+  CHAT_MESSAGE_LIST_ATTRIBUTE,
+  CHAT_MESSAGE_LIST_ROOM,
+} from "@/app/chat/chat-message-list";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
@@ -1964,6 +1968,26 @@ function RoomView({
     clearClassicOutboundQueue(classicThreadRefs);
   }
 
+  // The close button leaves with the pane, so focus would drop to <body>.
+  // Hand it back to the thread's reply bar in the transcript; a thread with
+  // no replies has none, so the composer takes it.
+  function closeThreadAndRestoreFocus() {
+    const parentMessageId = threadParentMessage?.id;
+    closeThreadSidePanel();
+    requestAnimationFrame(() => {
+      const replyBar = parentMessageId
+        ? document.querySelector<HTMLElement>(
+            `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(parentMessageId)}"] [data-slot="thread-reply-bar"]`,
+          )
+        : null;
+      if (replyBar) {
+        replyBar.focus();
+        return;
+      }
+      roomComposerRef.current?.focus();
+    });
+  }
+
   function backToThreadList() {
     closeThreadSidePanel();
     setThreadListOpen(true);
@@ -3333,7 +3357,7 @@ function RoomView({
                 }
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
-                onClose={closeThreadSidePanel}
+                onClose={closeThreadAndRestoreFocus}
                 onToggleReaction={
                   selectedRoom.isReadOnly
                     ? undefined
