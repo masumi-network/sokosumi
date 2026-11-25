@@ -224,7 +224,7 @@ Developer setup on Preprod:
   Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
 
 Organizer setup on Preprod (platform admin):
-  Select an organization Workspace. Workspace creation and email invitations remain in Sokosumi Web.
+  Select an organization Workspace. Email invitations remain in Sokosumi Web; workspaces create me makes a Workspace.
   For an existing Preprod account, use the selected Workspace slug:
   sokosumi --preprod admin members WORKSPACE_SLUG
   sokosumi --preprod admin add-member WORKSPACE_SLUG --email EMAIL
@@ -254,6 +254,12 @@ Commands that call one Core operation, such as jobs events, tasks files and task
   Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
   transactions and history read the selected Workspace; notifications are the signed-in person's own.
   Sharing a Job, refunds and agent ratings stay in the app.
+
+Account, organizations and workspaces:
+  Commands on your own account take the literal me: sokosumi workspaces credits me, sokosumi workspaces create me --input-json '{"kind":"personal"}'.
+  An action with no body still needs one: sokosumi organizations deny-vendor-grant ORGANIZATION_ID GRANT_ID --input-json '{}'.
+  Organization commands take the organization id from workspaces list. Owner and admin commands answer 403 for other members.
+  Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

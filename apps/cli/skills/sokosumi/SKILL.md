@@ -321,6 +321,29 @@ sokosumi notifications read-many --input-json '{"ids":["NOTIFICATION_ID"]}'
 
 Notifications are the signed-in person's own. Marking one read clears it everywhere; mark only what the person asked for.
 
+## Account, organizations and workspaces
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/users.json`, `organizations.json`, `workspaces.json`] These commands each call one Core operation, like `jobs events`. Commands on your own account take the literal `me` first. An action without a body still needs `--input-json '{}'`.
+
+```sh
+sokosumi workspaces credits me --organization-slug WORKSPACE_SLUG
+sokosumi users preferences me
+sokosumi users update me --input-json '{"firstName":"Ada","lastName":"Lovelace"}'
+sokosumi workspaces create me --input-json '{"kind":"personal"}'
+sokosumi users preferred-workspace me
+sokosumi workspaces design-md --organization-slug WORKSPACE_SLUG
+sokosumi organizations memberships me
+sokosumi organizations members ORGANIZATION_ID
+sokosumi organizations assign-seat ORGANIZATION_ID MEMBER_ID --input-json '{}'
+sokosumi organizations vendor-grants ORGANIZATION_ID --query status=PENDING
+sokosumi organizations deny-coworker-access ORGANIZATION_ID ACCESS_ID --input-json '{}'
+sokosumi organizations set-standup ORGANIZATION_ID --input-json '{"enabled":true,"timeOfDay":"09:00"}'
+```
+
+`sokosumi --help` lists the rest: users files, coworker access and vendor grants for the personal Workspace, the same for an organization, invitations, invite links, DESIGN.md and stand-up. Owner and admin commands answer 403 for other members. Commands that take `--input-json`, plus `workspaces delete`, `organizations unassign-seat` and `organizations revoke-invite-link`, are writes: on mainnet they need the operator `yes` above.
+
+Over MCP, the account tools (`users_get`, preferences, files, access and grants for the personal Workspace) are in the `users` toolset and the organization tools in `organizations`, both off by default; `workspaces_credits` and `workspaces_design_md` are on. To check the signed-in account over MCP, add `?toolsets=users` to the server URL and call `users_get` with id `me`. A person approves a Coworker's access request or grants a vendor access in Sokosumi, never an agent, on the CLI or over MCP (ADR 0077); agents may deny or revoke. Over MCP, managing invite links, changing ad-data consent and uploading files are not tools; the person does them in Sokosumi or on the CLI. Billing, account deletion, legal notices, sessions and OAuth consents stay in Sokosumi Web on both.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
@@ -329,7 +352,7 @@ Notifications are the signed-in person's own. Marking one read clears it everywh
 claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 ```
 
-[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`.
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them.
 
 [VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 

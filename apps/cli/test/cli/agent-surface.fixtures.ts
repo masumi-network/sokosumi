@@ -229,31 +229,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "--json",
     ],
   },
-  "POST /users/{id}/workspaces": {
-    argv: [
-      "--preprod",
-      "coworkers",
-      "register",
-      "--personal",
-      "--vendor-id",
-      "vendor-1",
-      "--name",
-      "Agent",
-      "--json",
-    ],
-    response: (request) =>
-      ({
-        "POST /coworkers/cw-1/workspace-access": {
-          data: {
-            id: "req-1",
-            coworkerId: "cw-1",
-            workspaceId: PERSONAL,
-            status: "GRANTED",
-          },
-        },
-        [`GET /workspaces/${PERSONAL}`]: { data: { organizationId: null } },
-      })[request] ?? core(request),
-  },
   "GET /coworkers/{id}": COWORKER_CONNECT,
   "POST /coworkers/{id}/workspace-access": COWORKER_CONNECT,
   "PATCH /coworkers/{id}": {
@@ -642,6 +617,298 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "GET /workspaces/{id}/social-connections/statistics": {
     argv: [...API, "workspaces", "social-statistics", "ws-1"],
+  },
+  // SOKD-371: users, organizations and workspaces.
+  "GET /users/registered": {
+    argv: [...API, "users", "registered", "--query", "email=ada@example.com"],
+  },
+  "PATCH /users/{id}": {
+    argv: [
+      ...API,
+      "users",
+      "update",
+      "me",
+      "--input-json",
+      '{"firstName":"Ada","lastName":"Lovelace"}',
+    ],
+  },
+  "GET /users/{id}/credits": { argv: [...API, "workspaces", "credits", "me"] },
+  "PUT /users/{id}/design-md": {
+    argv: [
+      ...API,
+      "users",
+      "set-design-md",
+      "me",
+      "--input-json",
+      '{"content":"# Brand","extractionId":null}',
+    ],
+  },
+  "GET /users/{id}/preferences": {
+    argv: [...API, "users", "preferences", "me"],
+  },
+  "PATCH /users/{id}/preferences": {
+    argv: [
+      ...API,
+      "users",
+      "update-preferences",
+      "me",
+      "--input-json",
+      '{"marketingOptIn":false}',
+    ],
+  },
+  "GET /users/{id}/files": { argv: [...API, "users", "files", "me"] },
+  "POST /users/{id}/files": {
+    argv: [
+      ...API,
+      "users",
+      "file-upload",
+      "me",
+      "--input-json",
+      '{"filename":"a.png","contentType":"image/png","size":10}',
+    ],
+  },
+  "GET /users/{id}/coworker-access": {
+    argv: [...API, "users", "coworker-access", "me"],
+  },
+  "POST /users/{id}/coworker-access/{accessId}/deny": {
+    argv: [
+      ...API,
+      "users",
+      "deny-coworker-access",
+      "me",
+      "access-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /users/{id}/coworker-access/{accessId}/revoke": {
+    argv: [
+      ...API,
+      "users",
+      "revoke-coworker-access",
+      "me",
+      "access-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "GET /users/{id}/vendor-grants": {
+    argv: [...API, "users", "vendor-grants", "me"],
+  },
+  "POST /users/{id}/vendor-grants/{grantId}/deny": {
+    argv: [
+      ...API,
+      "users",
+      "deny-vendor-grant",
+      "me",
+      "grant-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /users/{id}/vendor-grants/{grantId}/revoke": {
+    argv: [
+      ...API,
+      "users",
+      "revoke-vendor-grant",
+      "me",
+      "grant-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /users/{id}/workspaces": {
+    argv: [
+      ...API,
+      "workspaces",
+      "create",
+      "me",
+      "--input-json",
+      '{"kind":"personal"}',
+    ],
+  },
+  "GET /users/{id}/workspaces/preferred": {
+    argv: [...API, "users", "preferred-workspace", "me"],
+  },
+  "PUT /users/{id}/workspaces/preferred": {
+    argv: [
+      ...API,
+      "users",
+      "set-preferred-workspace",
+      "me",
+      "--input-json",
+      '{"workspaceId":"ws-1"}',
+    ],
+  },
+  "DELETE /users/{id}/workspaces/{workspaceId}": {
+    argv: [...API, "users", "delete-workspace", "me", "ws-1"],
+  },
+  "GET /users/{id}/members": {
+    argv: [...API, "organizations", "memberships", "me"],
+  },
+  "GET /users/{id}/organizations/{organizationId}/credits": {
+    argv: [...API, "organizations", "credits", "me", "org-1"],
+  },
+  "GET /users/{id}/organizations/{organizationId}/member": {
+    argv: [...API, "organizations", "membership", "me", "org-1"],
+  },
+  "GET /users/{id}/pending-organization-invitations": {
+    argv: [...API, "organizations", "pending-invitations", "me"],
+  },
+  "GET /organizations/slug/{slug}": {
+    argv: [...API, "organizations", "get-by-slug", "acme"],
+  },
+  "GET /organizations/{id}": {
+    argv: [...API, "organizations", "get", "org-1"],
+  },
+  "GET /organizations/{id}/members": {
+    argv: [...API, "organizations", "members", "org-1"],
+  },
+  "PUT /organizations/{id}/members/{memberId}/seat": {
+    argv: [
+      ...API,
+      "organizations",
+      "assign-seat",
+      "org-1",
+      "member-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "DELETE /organizations/{id}/members/{memberId}/seat": {
+    argv: [...API, "organizations", "unassign-seat", "org-1", "member-1"],
+  },
+  "GET /organizations/{id}/invitations": {
+    argv: [...API, "organizations", "invitations", "org-1"],
+  },
+  "GET /organizations/{id}/invite-links": {
+    argv: [...API, "organizations", "invite-links", "org-1"],
+  },
+  "POST /organizations/{id}/invite-links": {
+    argv: [
+      ...API,
+      "organizations",
+      "create-invite-link",
+      "org-1",
+      "--input-json",
+      '{"expiresInDays":7}',
+    ],
+  },
+  "DELETE /organizations/{id}/invite-links/{token}": {
+    argv: [
+      ...API,
+      "organizations",
+      "revoke-invite-link",
+      "org-1",
+      "link-token",
+    ],
+  },
+  "GET /organizations/{id}/coworker-access": {
+    argv: [...API, "organizations", "coworker-access", "org-1"],
+  },
+  "POST /organizations/{id}/coworker-access/{accessId}/deny": {
+    argv: [
+      ...API,
+      "organizations",
+      "deny-coworker-access",
+      "org-1",
+      "access-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /organizations/{id}/coworker-access/{accessId}/revoke": {
+    argv: [
+      ...API,
+      "organizations",
+      "revoke-coworker-access",
+      "org-1",
+      "access-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "GET /organizations/{id}/vendor-grants": {
+    argv: [...API, "organizations", "vendor-grants", "org-1"],
+  },
+  "POST /organizations/{id}/vendor-grants/{grantId}/deny": {
+    argv: [
+      ...API,
+      "organizations",
+      "deny-vendor-grant",
+      "org-1",
+      "grant-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /organizations/{id}/vendor-grants/{grantId}/revoke": {
+    argv: [
+      ...API,
+      "organizations",
+      "revoke-vendor-grant",
+      "org-1",
+      "grant-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "PUT /organizations/{id}/design-md": {
+    argv: [
+      ...API,
+      "organizations",
+      "set-design-md",
+      "org-1",
+      "--input-json",
+      '{"content":"# Brand","extractionId":null}',
+    ],
+  },
+  "GET /organizations/{id}/standup": {
+    argv: [...API, "organizations", "standup", "org-1"],
+  },
+  "PUT /organizations/{id}/standup": {
+    argv: [
+      ...API,
+      "organizations",
+      "set-standup",
+      "org-1",
+      "--input-json",
+      '{"enabled":true}',
+    ],
+  },
+  "GET /workspaces/{id}": { argv: [...API, "workspaces", "get", "ws-1"] },
+  "GET /workspaces/{id}/ad-data-consent": {
+    argv: [...API, "workspaces", "ad-data-consent", "ws-1"],
+  },
+  "PUT /workspaces/{id}/ad-data-consent": {
+    argv: [
+      ...API,
+      "workspaces",
+      "set-ad-data-consent",
+      "ws-1",
+      "--input-json",
+      '{"shareForImprovement":false,"allowTraining":false}',
+    ],
+  },
+  "POST /workspaces/{id}/calendar/identity-labels": {
+    argv: [
+      ...API,
+      "workspaces",
+      "calendar-labels",
+      "ws-1",
+      "--input-json",
+      '{"refs":["ref-1"]}',
+    ],
+  },
+  "GET /workspaces/design-md": { argv: [...API, "workspaces", "design-md"] },
+  "POST /workspaces/design-md/adhoc": {
+    argv: [
+      ...API,
+      "workspaces",
+      "adhoc-design-md",
+      "--input-json",
+      '{"content":"# Brand","extractionId":null}',
+    ],
   },
   // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
   "GET /tasks/summary": {

@@ -84,7 +84,10 @@ afterEach(async () => {
 
 describe("Sokosumi MCP server", () => {
   it("serves its tools to a signed-in MCP client", async () => {
-    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=workspaces,users,tasks",
+    );
 
     expect(client.serverInfo).toMatchObject({ name: "sokosumi" });
     expect(client.instructions).toContain("workspaces_list");
@@ -134,27 +137,11 @@ describe("Sokosumi MCP server", () => {
     expect(defaults.length).toBeLessThan(80);
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
-    expect(await listed("?toolsets=vendors,organizations")).toEqual([
-      "vendors_me",
-      "vendors_create",
-      "vendors_list",
-      "vendors_update",
-      "vendors_logo_cleanup",
-      "vendors_members",
-      "vendors_update_member",
-      "vendors_remove_member",
-      "vendors_invites",
-      "vendors_invite",
-      "vendors_revoke_invite",
-      "vendors_my_invites",
-      "vendors_accept_invite",
-      "vendors_decline_invite",
-      "vendors_assignments",
-      "vendors_assign",
-      "vendors_unassign",
-      "organizations_list",
-      "organizations_seat",
-    ]);
+    expect(await listed("?toolsets=vendors,organizations")).toEqual(
+      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
+        ["vendors", "organizations"].includes(toolsetOf(name)),
+      ),
+    );
 
     const client = await connect(auth, "?toolsets=tasks");
     expect(client.instructions).toContain("Toolsets on: tasks.");
@@ -168,7 +155,10 @@ describe("Sokosumi MCP server", () => {
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {
-    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=tasks,agents",
+    );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
       (tool) => tool.name,
@@ -214,7 +204,7 @@ describe("Sokosumi MCP server", () => {
 
   it("answers a 2026-07-28 request with JSON, and opens no subscription stream", async () => {
     const post = (method: string, params: Record<string, unknown>) =>
-      app.request(`${CORE}/mcp`, {
+      app.request(`${CORE}/mcp?toolsets=users`, {
         method: "POST",
         headers: {
           Authorization: "Bearer mcp-token",
