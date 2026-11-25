@@ -4615,7 +4615,7 @@
         "project": "Proyecto",
         "overdue": "Vencidas",
         "thisWeek": "Esta semana",
-        "due": ", vence el {date}",
+        "due": "(vence el {date})",
         "more": "+{count} más",
         "noDueDates": "Sin vencimientos en las próximas 8 semanas",
         "truncated": "Se muestran las primeras 500 tareas con vencimiento. Abre un proyecto para ver el resto.",

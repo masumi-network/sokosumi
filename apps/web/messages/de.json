@@ -4615,7 +4615,7 @@
         "project": "Projekt",
         "overdue": "Überfällig",
         "thisWeek": "Diese Woche",
-        "due": ", fällig am {date}",
+        "due": "(fällig am {date})",
         "more": "+{count} weitere",
         "noDueDates": "Keine Fälligkeiten in den nächsten 8 Wochen",
         "truncated": "Die ersten 500 fälligen Aufgaben werden angezeigt. Öffne ein Projekt für den Rest.",

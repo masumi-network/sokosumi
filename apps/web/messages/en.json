@@ -4615,7 +4615,7 @@
         "project": "Project",
         "overdue": "Overdue",
         "thisWeek": "This week",
-        "due": ", due {date}",
+        "due": "(due {date})",
         "more": "+{count} more",
         "noDueDates": "No due dates in the next 8 weeks",
         "truncated": "Showing the first 500 due tasks. Open a project for the rest.",
