@@ -85,6 +85,18 @@ function renderName(expression: ts.Expression, unsafe: boolean) {
   }
 }
 
+function hasAny(type: ts.Type, checker: ts.TypeChecker): boolean {
+  if (type.flags & ts.TypeFlags.Any) return true;
+  if (type.isUnion())
+    return type.types.some((part: ts.Type) => hasAny(part, checker));
+  return (
+    (checker.isArrayType(type) || checker.isTupleType(type)) &&
+    checker
+      .getTypeArguments(type as ts.TypeReference)
+      .some((part: ts.Type) => hasAny(part, checker))
+  );
+}
+
 function isBoundValue(type: ts.Type, checker: ts.TypeChecker): boolean {
   if (type.isUnion())
     return type.types.every((part: ts.Type) => isBoundValue(part, checker));
@@ -183,12 +195,15 @@ function canPrepare(sql: string) {
   }
 }
 
-function render({ template, unsafe }: Candidate, checker: ts.TypeChecker) {
+function render(
+  { template, unsafe }: Candidate,
+  checker: ts.TypeChecker,
+): string[] | "assembled" | "command" {
   if (
     !template ||
     (!ts.isTemplateLiteral(template) && !ts.isStringLiteral(template))
   )
-    return;
+    return "assembled";
   const head = ts.isTemplateExpression(template)
     ? template.head.text
     : template.text;
@@ -196,14 +211,15 @@ function render({ template, unsafe }: Candidate, checker: ts.TypeChecker) {
     { sql: head, choices: new Map<ts.Symbol | ts.Expression, string>() },
   ];
   if (!ts.isTemplateExpression(template))
-    return canPrepare(head) ? [head] : undefined;
-  let blind = false;
+    return canPrepare(head) ? [head] : "command";
+  let assembled = false;
   let parameter = 0;
   for (const { expression, literal } of template.templateSpans) {
     const type = checker.getTypeAtLocation(expression);
-    if (type.flags & ts.TypeFlags.Any) {
+    if (hasAny(type, checker)) {
+      const verb = type.flags & ts.TypeFlags.Any ? "has" : "contains";
       throw new Error(
-        `Unresolved SQL hole ${expression.getText()} has type any`,
+        `Unresolved SQL hole ${expression.getText()} ${verb} type any`,
       );
     }
     const name = renderName(expression, unsafe);
@@ -229,12 +245,13 @@ function render({ template, unsafe }: Candidate, checker: ts.TypeChecker) {
         }));
       });
     } else {
-      blind = true;
+      assembled = true;
     }
   }
-  return !blind && variants.every(({ sql }) => canPrepare(sql))
+  if (assembled) return "assembled";
+  return variants.every(({ sql }) => canPrepare(sql))
     ? variants.map(({ sql }) => sql)
-    : undefined;
+    : "command";
 }
 
 function reportFailure(location: string, key: string, error: unknown) {
@@ -292,7 +309,13 @@ try {
   let sequence = 0;
   for (const { path, files } of groups) {
     if (!files.length) throw new Error(`No production TypeScript in ${path}`);
-    const counts = { prepared: 0, excepted: 0, blind: 0, failed: 0 };
+    const counts = {
+      prepared: 0,
+      excepted: 0,
+      command: 0,
+      assembled: 0,
+      failed: 0,
+    };
     let fragmentCount = 0;
     for (const file of files) {
       const source = program.getSourceFile(resolve(ROOT, file));
@@ -310,9 +333,9 @@ try {
         const key = `${file}:${hash}`;
         try {
           const variants = render(candidate, checker);
-          if (!variants) {
-            counts.blind++;
-            console.log(`${location} not preparable`);
+          if (typeof variants === "string") {
+            counts[variants]++;
+            console.log(`${location} not preparable (${variants})`);
             continue;
           }
           const exception = EXCEPTIONS.get(key);
@@ -351,10 +374,10 @@ try {
         }
       }
     }
-    const { prepared, excepted, blind, failed } = counts;
-    const statementCount = prepared + excepted + blind + failed;
+    const { prepared, excepted, command, assembled, failed } = counts;
+    const statementCount = prepared + excepted + command + assembled + failed;
     console.log(
-      `${path}: ${files.length} files, ${statementCount} statements (${prepared} prepared, ${excepted} excepted, ${blind} not preparable, ${failed} failed), ${fragmentCount} fragments`,
+      `${path}: ${files.length} files, ${statementCount} statements (${prepared} prepared, ${excepted} excepted, ${command} commands, ${assembled} assembled, ${failed} failed), ${fragmentCount} fragments`,
     );
   }
   for (const [key, { line, reason }] of EXCEPTIONS) {
