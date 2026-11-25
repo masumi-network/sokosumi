@@ -121,6 +121,7 @@ function withPositionHistory(
           observationId: row.id,
           position: item.position,
           positionStatus: item.positionStatus,
+          checkedResults: item.checkedResults,
           device: item.device,
         },
       ]);

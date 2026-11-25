@@ -51116,6 +51116,12 @@ export const ProjectSeoPositionPointSchema = {
                 'unavailable'
             ]
         },
+        checkedResults: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
         device: {
             anyOf: [
                 {

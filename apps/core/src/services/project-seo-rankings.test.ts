@@ -129,17 +129,21 @@ describe("keyword position history", () => {
       result(2, [{ position: null }]),
       result(1, [{ position: 5 }]),
     ]);
+    // The depth of each read: the chart says "not in the top N" from it.
+    const checked = focusedRankingsReport().keywords[0].checkedResults;
+    expect(checked).toBeGreaterThan(0);
     expect(workspace.keywords).toHaveLength(1);
     expect(
       workspace.keywords[0].positionHistory?.map((point) => [
         point.observedAt,
         point.position,
         point.positionStatus,
+        point.checkedResults,
       ]),
     ).toEqual([
-      [at(1), 5, "ranked"],
-      [at(2), null, "not_in_range"],
-      [at(3), 3, "ranked"],
+      [at(1), 5, "ranked", checked],
+      [at(2), null, "not_in_range", checked],
+      [at(3), 3, "ranked", checked],
     ]);
   });
 
