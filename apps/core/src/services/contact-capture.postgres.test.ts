@@ -332,13 +332,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       lastContactAt: new Date("2026-10-20T12:00:00Z"),
     });
     // One person, every way to reach them, each marked with where it came from.
+    // The signature's channels share one `createdAt`, so compare without order.
     expect(
-      nina?.channels.map(({ type, value, source, verified }) => ({
-        type,
-        value,
-        source,
-        verified,
-      })),
+      nina?.channels
+        .map(({ type, value, source, verified }) => ({
+          type,
+          value,
+          source,
+          verified,
+        }))
+        .sort((a, b) => a.type.localeCompare(b.type)),
     ).toEqual([
       {
         type: "EMAIL",
@@ -347,14 +350,14 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         verified: false,
       },
       {
-        type: "PHONE",
-        value: "+41791234567",
+        type: "LINKEDIN",
+        value: "https://www.linkedin.com/in/ninakeller",
         source: "EMAIL",
         verified: false,
       },
       {
-        type: "LINKEDIN",
-        value: "https://www.linkedin.com/in/ninakeller",
+        type: "PHONE",
+        value: "+41791234567",
         source: "EMAIL",
         verified: false,
       },
@@ -407,9 +410,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     ]);
     const lukas = contacts.find((contact) => contact.name === "Lukas Meier");
     expect(lukas).toMatchObject({ role: "CTO" });
-    expect(lukas?.channels.map((channel) => channel.type)).toEqual([
-      "SLACK",
+    // One capture transaction creates both, so `createdAt` ties: no order.
+    expect(lukas?.channels.map((channel) => channel.type).sort()).toEqual([
       "PHONE",
+      "SLACK",
     ]);
     expect(lukas?.interactions[0]).toMatchObject({
       channel: "SLACK",

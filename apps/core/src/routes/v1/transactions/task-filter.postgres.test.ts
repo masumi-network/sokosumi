@@ -29,10 +29,6 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-// Each request runs the ledger query, which is CPU-bound: on a loaded runner
-// one test can pass the 5 s default.
-vi.setConfig({ testTimeout: 90_000 });
-
 const memberA = randomUUID();
 const memberB = randomUUID();
 const outsider = randomUUID();
@@ -77,6 +73,9 @@ async function status(
   const response = await appFor(userId, activeOrganizationId).request(
     `/transactions${path}?scope=workspace&taskId=${taskId}`,
   );
+  // The export streams its ledger query as the body is read: drain it so the
+  // query has settled before `afterAll` deletes the fixtures.
+  await response.arrayBuffer();
   return response.status;
 }
 
@@ -220,12 +219,14 @@ describe.skipIf(!enabled)(
       },
     );
 
+    // Three ledger requests in one case: the one that timed out at 5 s in a
+    // full-suite run (not reproduced alone, even at load average 90).
     it("lets a member read their own private Task's rows on every route", async () => {
       for (const path of ["", "/daily", "/export"]) {
         expect(await status(memberA, organizationId, path, privateTaskId)).toBe(
           200,
         );
       }
-    });
+    }, 30_000);
   },
 );
