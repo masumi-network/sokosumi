@@ -43,6 +43,8 @@ const PROPER_PHRASES = [
   "in Decisions",
   // The Ads Market tab, named as a destination ("Add from Market").
   "from Market",
+  // The chat Feed, named as a feature ("Use the Feed").
+  "the Feed",
   // Legal documents, capitalised as titles in the sign-up consent copy too.
   "Terms of Service",
   "Terms and Conditions",
