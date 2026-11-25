@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MCP UI harness</title>
+    <style>
+      :root { color-scheme: light; background: #f5f5f5; color: #171717; }
+      :root[data-theme="dark"] { color-scheme: dark; background: #171717; color: #fafafa; }
+      body { margin: 0; font: 12px/1.5 ui-monospace, monospace; }
+      iframe { display: block; width: 100%; height: 120px; border: 0; }
+      ol { margin: 0; padding: 8px 16px 8px 32px; }
+    </style>
+    <script type="module" src="./main.ts"></script>
+  </head>
+  <body>
+    <ol id="log" aria-label="Host log"></ol>
+  </body>
+</html>
