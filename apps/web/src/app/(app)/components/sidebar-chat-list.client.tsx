@@ -4,8 +4,8 @@ import type { ChatRoom } from "@sokosumi/core-client";
 
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { useSidebarChatListDeferred } from "@/hooks/effects/use-sidebar-chat-list-deferred";
-
 import type { SidebarChatListDeferred } from "./private-sidebar-cache";
+import { SidebarMobileChatsDestination } from "./sidebar/components/sidebar-context-panel";
 
 // One array for every render before the archived rooms arrive: the list
 // replaces its rows whenever a collection is a new reference.
@@ -18,11 +18,12 @@ interface SidebarChatListProps {
   currentUserId: string;
   organizationId: string | null;
   /**
-   * `sidebar` (default) heads the list with Chats and closes the sheet on
+   * `sidebar` (default) closes the sheet on
    * navigate. `page` is the phone's `/chat` page: titled Chats already and
    * outside any sheet.
    */
   variant?: "sidebar" | "page";
+  directFooter?: React.ReactNode;
 }
 
 /**
@@ -39,6 +40,7 @@ export function SidebarChatList({
   currentUserId,
   organizationId,
   variant = "sidebar",
+  directFooter,
 }: SidebarChatListProps) {
   const settled = useSidebarChatListDeferred(deferred);
 
@@ -49,7 +51,10 @@ export function SidebarChatList({
       currentUserId={currentUserId}
       organizationId={organizationId}
       isOrgOwnerOrAdmin={settled?.isOrgOwnerOrAdmin ?? false}
-      withChatsHeading={variant === "sidebar"}
+      directFooter={directFooter}
+      afterCatchUp={
+        variant === "sidebar" ? <SidebarMobileChatsDestination /> : null
+      }
       dismissSheetOnNavigate={variant === "sidebar"}
     />
   );

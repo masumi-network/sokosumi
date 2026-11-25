@@ -109,7 +109,7 @@ function MobileChatsLink() {
               <SidebarRowSlot aria-hidden>
                 <MessageCircle aria-hidden />
               </SidebarRowSlot>
-              <span className={SIDEBAR_ROW_LABEL_CLASS}>{nav("chats")}</span>
+              <span className={SIDEBAR_ROW_LABEL_CLASS}>{nav("allChats")}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

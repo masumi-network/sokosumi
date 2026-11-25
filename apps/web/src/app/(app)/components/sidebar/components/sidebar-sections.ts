@@ -2,14 +2,17 @@ import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Binoculars,
   Bot,
+  Briefcase,
   CalendarDays,
   Clapperboard,
+  FolderArchive,
   HardDrive,
   House,
   ImagePlus,
   ListTodo,
   Mail,
   Megaphone,
+  PanelsTopLeft,
   Repeat,
   SearchCheck,
   Share2,
@@ -36,9 +39,9 @@ interface MenuItemConfig {
 
 /** The headings the nav's destinations sit under, in the order they show. */
 export const NAV_GROUPS = [
-  { id: "work", Icon: House },
-  { id: "records", Icon: Users },
-  { id: "marketing", Icon: Megaphone },
+  { id: "work", Icon: Briefcase },
+  { id: "records", Icon: FolderArchive },
+  { id: "marketing", Icon: PanelsTopLeft },
 ] as const;
 
 type NavGroup = (typeof NAV_GROUPS)[number]["id"];

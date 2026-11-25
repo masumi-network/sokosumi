@@ -159,11 +159,10 @@ describe("Sidebar project scope", () => {
     ).toBe(false);
   });
 
-  it("shows the existing chat list and assistant links in Chats", () => {
+  it("shows the chat list in Chats", () => {
     renderSidebar("/chat/example");
 
     expect(screen.getByRole("navigation", { name: "chatList" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "sokoBot" })).toBeVisible();
     expect(screen.queryByRole("navigation", { name: "menuItems" })).toBeNull();
   });
 });

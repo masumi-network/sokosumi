@@ -16,11 +16,7 @@ import type { CreditWalletScope } from "./components/account-summary-types";
 import AnnouncementCards from "./components/announcement-cards";
 import { GlobalRail } from "./components/global-rail.client";
 import MenuItems from "./components/menu-items";
-import PersonalAssistantNav from "./components/personal-assistant-nav";
-import {
-  SidebarContextPanel,
-  SidebarMobileChatsDestination,
-} from "./components/sidebar-context-panel";
+import { SidebarContextPanel } from "./components/sidebar-context-panel";
 import SidebarLogo from "./components/sidebar-logo.client";
 import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
 import { SidebarSearchButton } from "./components/sidebar-search-button.client";
@@ -137,15 +133,7 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
-          <SidebarContextPanel
-            chats={
-              <>
-                <SidebarMobileChatsDestination />
-                <PersonalAssistantNav />
-                {chatList}
-              </>
-            }
-          >
+          <SidebarContextPanel chats={chatList}>
             {/* The project scope titles the nav groups it scopes; the chat
               area after them, under its own Chats heading, is outside it. */}
             <Suspense fallback={null}>

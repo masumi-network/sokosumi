@@ -9785,6 +9785,8 @@
     },
     "Channels": {
       "MobileNav": {
+        "rooms": "Rooms",
+        "allChats": "All chats",
         "tasks": "Tasks",
         "agents": "Agents",
         "chats": "Chats",
@@ -9873,6 +9875,7 @@
       },
       "Empty": {
         "noChannels": "No channels yet.",
+        "messageSomeone": "Start a message",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "peopleLoadFailedDescription": "People you can message are temporarily unavailable. Try again in a moment.",

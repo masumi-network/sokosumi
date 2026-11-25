@@ -6,8 +6,8 @@ import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
+import { CatchUpView } from "./catch-up/components/catch-up-view";
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
-import { ChatDesktopHomeRedirect } from "./components/chat-desktop-home-redirect.client";
 import {
   CHAT_WELCOME_PATH,
   hasChatNoticeFromRecord,
@@ -22,8 +22,8 @@ interface ChatPageProps {
 
 /**
  * Mobile Chats tab at bare `/chat`: Personal Assistant (beta-gated) above
- * Channels + DMs (`md:hidden`). Desktop has no list page — client redirect
- * to Welcome. Notice query → Welcome `/?…` (server).
+ * Channels + DMs (`md:hidden`). Desktop opens Catch up in place.
+ * Notice query → Welcome `/?…` (server).
  *
  * Instant Nav uses `chat/loading.tsx` while this page streams after
  * `connection()`.
@@ -56,7 +56,12 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   return (
     <>
-      <ChatDesktopHomeRedirect />
+      <div className="hidden md:contents">
+        <CatchUpView
+          currentUserId={currentUserId}
+          organizationId={activeOrganizationId}
+        />
+      </div>
       <Sheet open>
         {/*
           Shell class: top/side main-pad cancel only — see chat-chats-list-shell.ts.
