@@ -23,7 +23,8 @@ cli:
 # Per-leg filters for the required test jobs. Each is `js` minus the
 # sibling apps its turbo filter cannot reach: web, core, and cmo share no
 # workspace dependency in any direction, and packages depend on no app.
-# The web leg also tests cmo. Root files, packages, and CI changes still
+# The web leg also tests cmo, and @sokosumi/mcp-ui, whose token test reads
+# apps/web/src/app/globals.css. Root files, packages, and CI changes still
 # run all three.
 web:
   - *js

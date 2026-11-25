@@ -1407,6 +1407,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Stop tracking a competitor. What the checks found about it is kept.",
   },
   {
+    name: "projects_restore_competitor",
+    operation: "POST /projects/{id}/competitors/{competitorId}/restore",
+    description:
+      "Undo a projects_remove_competitor: send back the `removal` number it answered with as `body.removal`. 409 if a later removal happened, the name is taken or the limit is reached.",
+  },
+  {
     name: "projects_competitor_checks",
     operation: "PUT /projects/{id}/competitors/checks",
     description:
@@ -1605,6 +1611,295 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Can lead to ad spend once a person resumes the campaign. Edit a paused Google campaign (409 if it is not paused): `body.name`, `body.dailyBudget` and the whole `body.google` spec, as for a create. Pause it first with projects_ads_campaign_update.",
     destructive: true,
     openWorld: true,
+  },
+  // SOKD-374: SEO audits and Project SEO. Not a default toolset.
+  {
+    name: "seo_list_audits",
+    operation: "GET /seo/audits",
+    description:
+      "List the workspace's SEO audits, newest first. Filter by `status` (`active` or `archived`) or `projectId`; pass `cursor` from `pagination.nextCursor` for the next page.",
+  },
+  {
+    name: "seo_create_audit",
+    operation: "POST /seo/audits",
+    description:
+      "Create an SEO audit with its first page: `body.name`, `body.firstPage.url`, and optional `body.projectId` to link a Project. It runs no analysis; use seo_audit_analyze for that.",
+  },
+  {
+    name: "seo_audit_workspace",
+    operation: "GET /seo/audits/{id}/workspace",
+    description:
+      "Find which of the signed-in person's workspaces an SEO audit is in: its `name`, `workspaceId` and `organizationId` (null for the personal workspace). Match it in workspaces_list and pass that workspace's slug as `workspace` to the other seo tools.",
+  },
+  {
+    name: "seo_audit_archive",
+    operation: "PATCH /seo/audits/{id}",
+    description:
+      "Archive an SEO audit and its Tasks with `body.archived: true`, or restore them with `false`.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_chat",
+    operation: "GET /seo/audits/{id}/chat",
+    description:
+      "Read the conversation about an SEO audit: the questions asked and the answers.",
+  },
+  {
+    name: "seo_audit_ask",
+    operation: "POST /seo/audits/{id}/chat",
+    description:
+      "Spends workspace credits. Ask a question about an SEO audit's findings: `body.question` and a `body.idempotencyKey` you choose (8 or more characters). A daily allowance applies. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_audit_get",
+    operation: "GET /seo/audits/{id}",
+    description:
+      "Get an SEO audit: pages, scopes, keywords, competitors, findings, recommendations and statistics. Narrow it with `scopeId`, `pageId` or `pageIds`, and `from` and `to`. `id` is the audit id from seo_list_audits.",
+  },
+  {
+    name: "seo_audit_add_page",
+    operation: "POST /seo/audits/{id}/pages",
+    description:
+      "Add a page to an SEO audit: `body.url`, optional `body.label`, and `body.relationship` (`primary`, or `related` with `body.relatedToPageId`). `id` is the audit id from seo_list_audits.",
+  },
+  {
+    name: "seo_audit_create_scope",
+    operation: "POST /seo/audits/{id}/scopes",
+    description:
+      "Save a named set of pages in an SEO audit: `body.name` and `body.pageIds`.",
+  },
+  {
+    name: "seo_audit_update_scope",
+    operation: "PUT /seo/audits/{id}/scopes/{scopeId}",
+    description:
+      "Rename a saved scope in an SEO audit or replace its pages: `body.name`, `body.pageIds`, and `body.expectedVersion` from seo_audit_get.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_import_report",
+    operation: "POST /seo/audits/{id}/imports",
+    description:
+      "Import a finished SEO report into an SEO audit from a Task's file: `body.taskId` and `body.fileId`.",
+  },
+  {
+    name: "seo_audit_analyze",
+    operation: "POST /seo/audits/{id}/analyses",
+    description:
+      "Spends workspace credits. Request an SEO analysis of the audit's pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). Confirm the analysis and its price with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_audit_save_keyword",
+    operation: "POST /seo/audits/{id}/keywords",
+    description:
+      "Track a keyword in an SEO audit, or change one: `body.keyword`, `body.countryCode`, `body.languageCode`, optional `body.pageId` and `body.priority`. `body.saved: false` stops tracking it.",
+  },
+  {
+    name: "seo_audit_save_competitor",
+    operation: "POST /seo/audits/{id}/competitors",
+    description:
+      "Confirm or dismiss a competitor site in an SEO audit: `body.url` and `body.confirmed`.",
+  },
+  {
+    name: "seo_audit_create_task",
+    operation: "POST /seo/audits/{id}/actions",
+    description:
+      "Turn a recommendation in an SEO audit into a Task: `body.observationId` and `body.actionId` from seo_audit_get, and a `body.idempotencyKey` you choose (8 or more characters).",
+  },
+  {
+    name: "seo_audit_create_monitor",
+    operation: "POST /seo/audits/{id}/monitors",
+    description:
+      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the audit's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_audit_analyze, with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_audit_review_action",
+    operation: "POST /seo/audits/{id}/actions/reviews",
+    description:
+      "Record that the person reviewed a recommendation's result in an SEO audit: `body.pageId`, `body.actionId`, `body.kind`, `body.baselineObservationId` and `body.observationId`.",
+  },
+  {
+    name: "seo_audit_properties",
+    operation: "GET /seo/audits/{id}/statistics/properties",
+    description:
+      "List the Search Console properties the signed-in person's connection can read for an SEO audit.",
+  },
+  {
+    name: "seo_audit_sync_statistics",
+    operation: "POST /seo/audits/{id}/statistics/sync",
+    description:
+      "Collect search statistics for the audit's pages through the signed-in person's connection: `body.provider`, `body.propertyId` from seo_audit_properties, `body.from` and `body.to` (YYYY-MM-DD).",
+  },
+  {
+    name: "seo_audit_record_change",
+    operation: "POST /seo/audits/{id}/page-changes",
+    description:
+      "Note a change made to pages in an SEO audit, so later statistics compare before and after: `body.pageIds`, `body.occurredAt`, `body.title`, optional `body.note`, and a `body.idempotencyKey` you choose.",
+  },
+  {
+    name: "seo_audit_set_brand_terms",
+    operation: "PUT /seo/audits/{id}/brand-terms",
+    description:
+      "Replace the brand terms of an SEO audit, which split branded from unbranded searches: `body.terms`. The list replaces the saved one.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_brief",
+    operation: "GET /seo/audits/{id}/brief",
+    description:
+      "Get the SEO brief of an SEO audit: its objective and each page's role, with `revision`.",
+  },
+  {
+    name: "seo_audit_save_brief",
+    operation: "PUT /seo/audits/{id}/brief",
+    description:
+      "Replace the SEO brief of an SEO audit. Send the whole brief from seo_audit_brief with your changes and `body.expectedRevision`.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_suggest_brief",
+    operation: "GET /seo/audits/{id}/brief/suggestion",
+    description:
+      "Suggest a role in the SEO brief of an SEO audit for one page, or null. Pass `pageId`.",
+  },
+  {
+    name: "seo_audit_console_exports",
+    operation: "GET /seo/audits/{id}/console-exports/{taskId}",
+    description:
+      "List the Search Console export samples imported for an SEO Task of an SEO audit. Only the person who imported them sees them.",
+  },
+  {
+    name: "seo_audit_import_console_export",
+    operation: "POST /seo/audits/{id}/console-exports/{taskId}",
+    description:
+      "Import a Search Console CSV export for an SEO Task of an SEO audit: `body.kind`, `body.date` (YYYY-MM-DD) and `body.csv`; an `indexing_examples` export also takes `body.reason`.",
+  },
+  {
+    name: "seo_project_get",
+    operation: "GET /projects/{id}/seo",
+    description:
+      "Get a Project's SEO workspace: pages, scopes, keywords, competitors, findings, recommendations and statistics. Narrow it with `scopeId`, `pageId` or `pageIds`, and `from` and `to`. `id` is the Project id.",
+  },
+  {
+    name: "seo_project_add_page",
+    operation: "POST /projects/{id}/seo/pages",
+    description:
+      "Add a page to a Project's SEO workspace: `body.url`, optional `body.label`, and `body.relationship` (`primary`, or `related` with `body.relatedToPageId`). `id` is the Project id.",
+  },
+  {
+    name: "seo_project_create_scope",
+    operation: "POST /projects/{id}/seo/scopes",
+    description:
+      "Save a named set of pages in a Project's SEO workspace: `body.name` and `body.pageIds`.",
+  },
+  {
+    name: "seo_project_update_scope",
+    operation: "PUT /projects/{id}/seo/scopes/{scopeId}",
+    description:
+      "Rename a saved scope in a Project's SEO workspace or replace its pages: `body.name`, `body.pageIds`, and `body.expectedVersion` from seo_project_get.",
+    destructive: true,
+  },
+  {
+    name: "seo_project_import_report",
+    operation: "POST /projects/{id}/seo/imports",
+    description:
+      "Import a finished SEO report into a Project's SEO workspace from a Task's file: `body.taskId` and `body.fileId`.",
+  },
+  {
+    name: "seo_project_analyze",
+    operation: "POST /projects/{id}/seo/analyses",
+    description:
+      "Spends workspace credits. Request an SEO analysis of the Project's pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). Confirm the analysis and its price with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_project_save_keyword",
+    operation: "POST /projects/{id}/seo/keywords",
+    description:
+      "Track a keyword in a Project's SEO workspace, or change one: `body.keyword`, `body.countryCode`, `body.languageCode`, optional `body.pageId` and `body.priority`. `body.saved: false` stops tracking it.",
+  },
+  {
+    name: "seo_project_save_competitor",
+    operation: "POST /projects/{id}/seo/competitors",
+    description:
+      "Confirm or dismiss a competitor site in a Project's SEO workspace: `body.url` and `body.confirmed`.",
+  },
+  {
+    name: "seo_project_create_task",
+    operation: "POST /projects/{id}/seo/actions",
+    description:
+      "Turn a recommendation in a Project's SEO workspace into a Task: `body.observationId` and `body.actionId` from seo_project_get, and a `body.idempotencyKey` you choose (8 or more characters).",
+  },
+  {
+    name: "seo_project_create_monitor",
+    operation: "POST /projects/{id}/seo/monitors",
+    description:
+      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the Project's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_project_analyze, with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_project_review_action",
+    operation: "POST /projects/{id}/seo/actions/reviews",
+    description:
+      "Record that the person reviewed a recommendation's result in a Project's SEO workspace: `body.pageId`, `body.actionId`, `body.kind`, `body.baselineObservationId` and `body.observationId`.",
+  },
+  {
+    name: "seo_project_properties",
+    operation: "GET /projects/{id}/seo/statistics/properties",
+    description:
+      "List the Search Console properties the signed-in person's connection can read for a Project's SEO workspace.",
+  },
+  {
+    name: "seo_project_sync_statistics",
+    operation: "POST /projects/{id}/seo/statistics/sync",
+    description:
+      "Collect search statistics for the Project's pages through the signed-in person's connection: `body.provider`, `body.propertyId` from seo_project_properties, `body.from` and `body.to` (YYYY-MM-DD).",
+  },
+  {
+    name: "seo_project_record_change",
+    operation: "POST /projects/{id}/seo/page-changes",
+    description:
+      "Note a change made to pages in a Project's SEO workspace, so later statistics compare before and after: `body.pageIds`, `body.occurredAt`, `body.title`, optional `body.note`, and a `body.idempotencyKey` you choose.",
+  },
+  {
+    name: "seo_project_set_brand_terms",
+    operation: "PUT /projects/{id}/seo/brand-terms",
+    description:
+      "Replace the brand terms of a Project's SEO workspace, which split branded from unbranded searches: `body.terms`. The list replaces the saved one.",
+    destructive: true,
+  },
+  {
+    name: "seo_project_brief",
+    operation: "GET /projects/{id}/seo/brief",
+    description:
+      "Get the SEO brief of a Project's SEO workspace: its objective and each page's role, with `revision`.",
+  },
+  {
+    name: "seo_project_save_brief",
+    operation: "PUT /projects/{id}/seo/brief",
+    description:
+      "Replace the SEO brief of a Project's SEO workspace. Send the whole brief from seo_project_brief with your changes and `body.expectedRevision`.",
+    destructive: true,
+  },
+  {
+    name: "seo_project_suggest_brief",
+    operation: "GET /projects/{id}/seo/brief/suggestion",
+    description:
+      "Suggest a role in the SEO brief of a Project's SEO workspace for one page, or null. Pass `pageId`.",
+  },
+  {
+    name: "seo_project_console_exports",
+    operation: "GET /projects/{id}/seo/console-exports/{taskId}",
+    description:
+      "List the Search Console export samples imported for an SEO Task of a Project's SEO workspace. Only the person who imported them sees them.",
+  },
+  {
+    name: "seo_project_import_console_export",
+    operation: "POST /projects/{id}/seo/console-exports/{taskId}",
+    description:
+      "Import a Search Console CSV export for an SEO Task of a Project's SEO workspace: `body.kind`, `body.date` (YYYY-MM-DD) and `body.csv`; an `indexing_examples` export also takes `body.reason`.",
   },
 ];
 

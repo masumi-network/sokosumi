@@ -1,0 +1,11 @@
+{
+  "shell.loading": "Loading",
+  "shell.empty.title": "Nothing to show yet",
+  "shell.empty.body": "The result has no items. Ask again when there is something new.",
+  "shell.error.title": "This view could not load",
+  "shell.error.body": "The full result is still in the conversation.",
+  "hello.title": "Hello, {name}",
+  "hello.created": "Created {date}",
+  "hello.body": "This view proves the build, the shell and the host harness.",
+  "hello.open": "Review in Sokosumi"
+}
