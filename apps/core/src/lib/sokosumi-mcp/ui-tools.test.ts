@@ -27,6 +27,15 @@ describe("MCP_UI_TOOLS", () => {
     }
   });
 
+  it("tells agents how to fill the Task board", () => {
+    const board = MCP_UI_TOOLS.find((tool) => tool.name === "tasks_show_board");
+
+    expect(board?.description).toContain("`limit: 100`");
+    expect(board?.description).toContain(
+      '`scope: "workspace"` when the person asks for the team',
+    );
+  });
+
   it("ships no tool for the placeholder view", () => {
     expect(MCP_UI_TOOLS.map((tool) => tool.ui)).not.toContain("hello");
   });

@@ -21,7 +21,7 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     data: "tasks_list",
     ui: "tasks-board",
     description:
-      "Show Tasks in a workspace to the person as a board: counts and the first Tasks per status, and every Task by status in full screen. Takes tasks_list's arguments and returns its result. Use it when the person wants to see their Tasks; use tasks_list when you only need the data.",
+      "Show Tasks in a workspace to the person as a board: counts and the first Tasks per status, and every Task by status in full screen. Takes tasks_list's arguments and returns its result. Pass `limit: 100` so the board holds more than one page. Pass `scope: \"workspace\"` when the person asks for the team's or the workspace's board; otherwise leave the default. Use it when the person wants to see their Tasks; use tasks_list when you only need the data.",
   },
 ];
 
