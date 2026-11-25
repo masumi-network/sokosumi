@@ -81,6 +81,7 @@ describe.skipIf(!enabled)("failure review on PostgreSQL", () => {
           deadlineAt: new Date(at.getTime() + 60_000),
           createdAt: at,
           versionId: VERSION,
+          capabilityNames: [],
           ...data,
         } as Parameters<typeof prisma.sokoBotTurn.create>[0]["data"],
       });
