@@ -272,7 +272,7 @@ describe("AppSidebarFallback", () => {
 
   // As the loaded sidebar: the nav runs into the chat area under its Chats
   // heading, with no rule between them, so the swap draws none either.
-  it("heads the room list like the loaded sidebar, with no rule above it", () => {
+  it("reserves Catch up above the room list, without a rule", () => {
     const { container } = renderFallback();
     const tasks = screen.getByRole("link", {
       name: (_, element) => element.getAttribute("href") === "/tasks",
@@ -296,7 +296,7 @@ describe("AppSidebarFallback", () => {
     );
     expect(
       tokens(heading?.querySelector('[data-slot="skeleton"]')?.className ?? ""),
-    ).toContain("w-10");
+    ).toContain("w-14");
   });
 
   it("hides off-canvas, leaving no rail behind", () => {

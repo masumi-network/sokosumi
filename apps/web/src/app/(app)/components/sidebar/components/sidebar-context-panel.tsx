@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -77,13 +77,40 @@ export function SidebarContextPanel({
   chats: ReactNode;
   children: ReactNode;
 }) {
-  const showChats = useSidebarPanel().section === "chats";
+  const { section, selectSection } = useSidebarPanel();
+  const { isMobile } = useSidebar();
+  const showChats = section === "chats";
 
   return (
     <div id="app-sidebar-panel">
-      <div hidden={showChats}>{children}</div>
+      <div hidden={showChats}>
+        {children}
+        {isMobile && !showChats && selectSection ? (
+          <BackToRooms onClick={() => selectSection("chats")} />
+        ) : null}
+      </div>
       <div hidden={!showChats}>{chats}</div>
     </div>
+  );
+}
+
+function BackToRooms({ onClick }: { onClick: () => void }) {
+  const nav = useTranslations("App.Channels.MobileNav");
+  return (
+    <SidebarGroup>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton type="button" onClick={onClick}>
+            <SidebarRowSlot aria-hidden>
+              <ArrowLeft aria-hidden />
+            </SidebarRowSlot>
+            <span className={SIDEBAR_ROW_LABEL_CLASS}>
+              {nav("backToRooms")}
+            </span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
   );
 }
 

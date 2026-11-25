@@ -116,7 +116,7 @@ it("keeps the mobile drawer open across section selections", () => {
   fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
   fireEvent.click(screen.getByRole("button", { name: "groups.marketing" }));
   expect(screen.getByRole("dialog")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "rooms" }));
+  fireEvent.click(screen.getByRole("button", { name: "backToRooms" }));
   expect(screen.getByRole("dialog")).toBeVisible();
   expect(screen.getByText("Room list")).toBeVisible();
 });
@@ -138,13 +138,14 @@ it("uses one Escape to dismiss the phone drawer and restores focus", () => {
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("names the phone panel switch Rooms and the destination All chats", () => {
+it("keeps Chats out of the phone rail and provides an All chats destination", () => {
   mobile = true;
   render(<Fixture />);
   fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
   const drawer = screen.getByRole("dialog");
   expect(within(drawer).queryByRole("button", { name: "chats" })).toBeNull();
-  expect(within(drawer).getByRole("button", { name: "rooms" })).toBeVisible();
+  const rail = within(drawer).getByRole("navigation");
+  expect(within(rail).getAllByRole("button")).toHaveLength(4);
   expect(
     within(drawer).getByRole("link", { name: "allChats" }),
   ).toHaveAttribute("href", "/chat");

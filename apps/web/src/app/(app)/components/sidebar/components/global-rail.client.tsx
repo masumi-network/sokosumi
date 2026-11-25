@@ -66,7 +66,7 @@ function RailControls({ mobile }: { mobile: boolean }) {
     {
       id: "chats" as const,
       Icon: MessageCircle,
-      label: mobile ? nav("rooms") : nav("chats"),
+      label: nav("chats"),
     },
     ...NAV_GROUPS.map(({ id, Icon }) => ({
       id,
@@ -86,60 +86,62 @@ function RailControls({ mobile }: { mobile: boolean }) {
           : "relative z-20 max-lg:z-[41] hidden h-dvh w-(--app-rail-width) shrink-0 flex-col border-e pt-3 md:flex",
       )}
     >
-      {sections.map(({ id, Icon, label }) => {
-        const isActive = id === section && (mobile ? openMobile : open);
-        const isCurrent = id === currentSection;
-        const unread = id === "chats" && showUnreadDot;
+      {sections
+        .filter(({ id }) => !mobile || id !== "chats")
+        .map(({ id, Icon, label }) => {
+          const isActive = id === section && (mobile ? openMobile : open);
+          const isCurrent = id === currentSection;
+          const unread = id === "chats" && showUnreadDot;
 
-        return (
-          <Button
-            key={id}
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "relative h-12 min-w-0 flex-col gap-0.5 px-0.5 text-2xs",
-              mobile ? "w-auto min-w-11 flex-auto" : "w-16",
-              isCurrent &&
-                "after:bg-current after:absolute after:rounded-full md:after:inset-s-0 md:after:h-4 md:after:w-0.5 max-md:after:bottom-0 max-md:after:h-0.5 max-md:after:w-4",
-              isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-            )}
-            aria-label={unread ? `${label}, ${nav("chatsUnread")}` : label}
-            aria-controls="app-sidebar-panel"
-            aria-current={isCurrent ? "location" : undefined}
-            aria-pressed={isActive}
-            onClick={(event) => {
-              if (!mobile && isCompact && isActive) {
-                setOpen(false);
-                return;
-              }
-              selectSection?.(id);
-              if (!mobile && !open) setOpen(true);
-              if (event.detail === 0) {
-                requestAnimationFrame(() => {
-                  document
-                    .getElementById("app-sidebar-panel")
-                    ?.querySelector<HTMLElement>(
-                      ":scope > div:not([hidden]) :is(a[href], button:not(:disabled))",
-                    )
-                    ?.focus();
-                });
-              }
-            }}
-          >
-            <Icon aria-hidden className="size-5 shrink-0" />
-            <span aria-hidden className="max-w-full truncate">
-              {label}
-            </span>
-            {unread ? (
-              <span
-                aria-hidden
-                className="bg-foreground ring-sidebar absolute end-1 top-1 size-1.5 rounded-full ring-2"
-              />
-            ) : null}
-          </Button>
-        );
-      })}
+          return (
+            <Button
+              key={id}
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "relative h-12 min-w-0 flex-col gap-0.5 px-0.5 text-2xs",
+                mobile ? "w-auto min-w-11 flex-auto" : "w-16",
+                isCurrent &&
+                  "after:bg-current after:absolute after:rounded-full md:after:inset-s-0 md:after:h-4 md:after:w-0.5 max-md:after:bottom-0 max-md:after:h-0.5 max-md:after:w-4",
+                isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+              )}
+              aria-label={unread ? `${label}, ${nav("chatsUnread")}` : label}
+              aria-controls="app-sidebar-panel"
+              aria-current={isCurrent ? "location" : undefined}
+              aria-pressed={isActive}
+              onClick={(event) => {
+                if (!mobile && isCompact && isActive) {
+                  setOpen(false);
+                  return;
+                }
+                selectSection?.(id);
+                if (!mobile && !open) setOpen(true);
+                if (event.detail === 0) {
+                  requestAnimationFrame(() => {
+                    document
+                      .getElementById("app-sidebar-panel")
+                      ?.querySelector<HTMLElement>(
+                        ":scope > div:not([hidden]) :is(a[href], button:not(:disabled))",
+                      )
+                      ?.focus();
+                  });
+                }
+              }}
+            >
+              <Icon aria-hidden className="size-5 shrink-0" />
+              <span aria-hidden className="max-w-full truncate">
+                {label}
+              </span>
+              {unread ? (
+                <span
+                  aria-hidden
+                  className="bg-foreground ring-sidebar absolute end-1 top-1 size-1.5 rounded-full ring-2"
+                />
+              ) : null}
+            </Button>
+          );
+        })}
       {mobile ? (
         <SheetClose asChild>
           <Button

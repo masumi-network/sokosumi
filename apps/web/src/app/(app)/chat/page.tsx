@@ -6,8 +6,10 @@ import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
+import { CatchUpTabs } from "./catch-up/components/catch-up-tabs";
 import { CatchUpView } from "./catch-up/components/catch-up-view";
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
+import { DesktopChatsLanding } from "./components/desktop-chats-landing.client";
 import {
   CHAT_WELCOME_PATH,
   hasChatNoticeFromRecord,
@@ -56,12 +58,13 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   return (
     <>
-      <div className="hidden md:contents">
+      <DesktopChatsLanding>
+        <CatchUpTabs />
         <CatchUpView
           currentUserId={currentUserId}
           organizationId={activeOrganizationId}
         />
-      </div>
+      </DesktopChatsLanding>
       <Sheet open>
         {/*
           Shell class: top/side main-pad cancel only — see chat-chats-list-shell.ts.

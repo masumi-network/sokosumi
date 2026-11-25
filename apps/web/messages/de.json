@@ -9785,7 +9785,7 @@
     },
     "Channels": {
       "MobileNav": {
-        "rooms": "Räume",
+        "backToRooms": "Zurück zu den Räumen",
         "allChats": "Alle Chats",
         "tasks": "Aufgaben",
         "agents": "Agents",
