@@ -103,7 +103,28 @@ describe("runExaAgent", () => {
         { query: "x", effort: "low", outputSchema: {} },
         { fetchImpl: refused },
       ),
-    ).rejects.toThrow("could not start (402)");
+    ).rejects.toThrow("could not start (402, out of credits)");
+  });
+
+  it("sends a user identifier Exa accepts and names Exa's error code when a run is refused", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      response(400, {
+        error: { code: "INVALID_REQUEST", message: "userIdentifier" },
+      }),
+    );
+    await expect(
+      runExaAgent(
+        {
+          query: "x",
+          effort: "low",
+          outputSchema: {},
+          userIdentifier: "fundraising:03d70dc0-f302",
+        },
+        { fetchImpl },
+      ),
+    ).rejects.toThrow("could not start (400, INVALID_REQUEST: userIdentifier)");
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+    expect(body.userIdentifier).toBe("fundraising-03d70dc0-f302");
   });
 
   it("refuses without a key", async () => {
