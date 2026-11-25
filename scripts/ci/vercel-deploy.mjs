@@ -517,16 +517,6 @@ export function previewUrl(deployment) {
 }
 
 /**
- * Old Vercel project names, so a row written before a rename is replaced by
- * its project's next deploy, not kept beside it.
- * shortcut: drop once no open fork PR has a comment from before 2026-11-25.
- */
-const RENAMED_PROJECTS = {
-  "sokosumi-cmo": "cmo-app",
-  "cmo-xyz": "cmo-website",
-};
-
-/**
  * The fork preview comment: one row per Vercel project, the newest deploy
  * replacing that project's row in `previous` (the comment's current body).
  */
@@ -535,7 +525,7 @@ export function forkPreviewCommentBody(deployments, sha, previous = "") {
   for (const line of previous.split("\n")) {
     const name = line.match(/^\| `([^`|]+)` \|/)?.[1];
     if (name) {
-      rows.set(RENAMED_PROJECTS[name] ?? name, line);
+      rows.set(name, line);
     }
   }
   for (const deployment of deployments) {
