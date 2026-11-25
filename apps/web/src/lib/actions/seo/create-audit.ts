@@ -36,7 +36,7 @@ export const createSeoAuditAction = withSession<
         );
         revalidatePath("/tasks");
       } catch {
-        // The audit exists: its setup card offers the same free check when this one did not start.
+        // The audit exists: its setup card offers the workspace's check action when this one did not start.
       }
     }
     revalidatePath("/seo");
