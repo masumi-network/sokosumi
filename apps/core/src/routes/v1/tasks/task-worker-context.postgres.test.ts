@@ -24,6 +24,7 @@ import prisma from "@/lib/db/prisma";
 import { type EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import uploadRouter from "@/routes/v1/webhooks/tasks/files/uploaded";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import mountEvents from "./[id]/events/post";
 import mountFiles from "./[id]/files/post";
@@ -629,6 +630,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
           organizationId: task.organizationId,
           projectId: task.projectId,
           cents,
+          scope: testNetworkScope(),
           tx,
         });
         await tx.taskEvent.create({

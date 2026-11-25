@@ -18,7 +18,12 @@ import { beforeAll, expect, it } from "vitest";
 // Hono scopes and destructured handles without a client annotation.
 // Pick and Omit are checked where they are written with the imported
 // NetworkDb; indexed access and aliases of the operand are outside the rule.
-// Ticket 60 covers scope handles used inside its transaction callbacks.
+// Not scanned: a scope's `networkDb` or `sharedDb` used inside a callback of
+// `netTransaction`, `sharedTransaction`, `serializableTransaction`,
+// `retriedTransaction` or `$transaction`, where the callback's `tx` was meant.
+// It compiles and runs outside the transaction. The scan has no way to tell a
+// scope from another object, nor a callback that runs inside the transaction
+// from one that is only defined there.
 const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 const CORE_SRC = resolve(ROOT, "apps/core/src");
 const networkTables = JSON.parse(

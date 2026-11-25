@@ -3,6 +3,7 @@ import {
   Prisma,
 } from "../generated/prisma/client.js";
 import { memberRepository } from "../repositories/member.repository.js";
+import type { SharedDb } from "../types/shared-db.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
 
 export interface PersonalCreditBucketScopeContext {
@@ -39,7 +40,7 @@ export type CreditBucketScopeContext =
 export async function resolveCreditBucketScopeContext(
   userId: string | null,
   organizationId: string | null,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   now: Date = new Date(),
 ): Promise<CreditBucketScopeContext> {
   if (!organizationId) {

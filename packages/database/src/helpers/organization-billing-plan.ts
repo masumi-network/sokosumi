@@ -2,11 +2,9 @@ import {
   parseSelfServeSubscriptionPlanName,
   type SelfServeSubscriptionPlanName,
 } from "@sokosumi/utils";
-import {
-  EnterpriseContractStatus,
-  type Prisma,
-} from "../generated/prisma/client.js";
+import { EnterpriseContractStatus } from "../generated/prisma/client.js";
 import { subscriptionRepository } from "../repositories/subscription.repository.js";
+import type { SharedDb } from "../types/shared-db.js";
 import {
   deriveEnterpriseContractEndDate,
   isEnterpriseContractConsumable,
@@ -39,7 +37,7 @@ export type OrganizationBillingPlan =
 
 export async function resolveOrganizationBillingPlan(
   organizationId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   now: Date = new Date(),
 ): Promise<OrganizationBillingPlan> {
   const activeContract = await tx.enterpriseContract.findFirst({

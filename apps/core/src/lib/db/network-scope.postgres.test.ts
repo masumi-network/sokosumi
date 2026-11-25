@@ -6,7 +6,15 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import type { Pool } from "pg";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 import { NETWORKS, type Network } from "@/lib/network";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
@@ -84,7 +92,60 @@ describe.runIf(enabled)("Network scope on PostgreSQL", () => {
     expect(tag?.name).toBe(name("mainnet"));
   });
 
+  it("commits a Network transaction and rolls one back", async () => {
+    const { createNetworkScope } = await start();
+    const scope = createNetworkScope("mainnet");
+    const kept = randomUUID();
+    const undone = randomUUID();
+    onTestFinished(async () => {
+      await admins.mainnet?.tag.deleteMany({ where: { id: kept } });
+    });
+
+    await scope.netTransaction(
+      (tx) => tx.tag.create({ data: { id: kept, name: `n60-${kept}` } }),
+      "Tag conflict",
+    );
+    await expect(
+      scope.netTransaction(async (tx) => {
+        await tx.tag.create({ data: { id: undone, name: `n60-${undone}` } });
+        throw new Error("undo");
+      }, "Tag conflict"),
+    ).rejects.toThrow("undo");
+
+    const tags = await admins.mainnet?.tag.findMany({
+      where: { id: { in: [kept, undone] } },
+      select: { id: true },
+    });
+    expect(tags).toEqual([{ id: kept }]);
+  });
+
   describe.runIf(onSplitLayout)("on the split layout", () => {
+    it("writes in a transaction to its own Network only", async () => {
+      const { createNetworkScope } = await start("true");
+      const written = randomUUID();
+      onTestFinished(async () => {
+        for (const admin of Object.values(admins))
+          await admin.tag.deleteMany({ where: { id: written } });
+      });
+
+      for (const network of NETWORKS) {
+        await createNetworkScope(network).netTransaction(
+          (tx) =>
+            tx.tag.create({
+              data: { id: written, name: `n60-${written}:${network}` },
+            }),
+          "Tag conflict",
+        );
+      }
+
+      for (const network of NETWORKS) {
+        const own = await admins[network]?.tag.findUnique({
+          where: { id: written },
+        });
+        expect(own?.name).toBe(`n60-${written}:${network}`);
+      }
+    });
+
     it("reads one id per scope without mixing the Networks", async () => {
       const { createNetworkScope } = await start("true");
 

@@ -12,6 +12,7 @@ import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { unprocessableEntity } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { chargeTaskCreditsOrMarkOutOfCredits } from "@/helpers/task-event-charge";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { tryUseLiveLogger } from "@/lib/evlog";
 import type { createTaskEventRequestSchema } from "./schema";
 
@@ -26,6 +27,7 @@ interface SettleTaskEventChargeParams {
   masumiPayment?: z.infer<
     ReturnType<typeof createTaskEventRequestSchema>
   >["masumiPayment"];
+  scope: NetworkScope;
   tx: Prisma.TransactionClient;
 }
 
@@ -41,6 +43,7 @@ export async function settleTaskEventCharge({
   task,
   credits,
   masumiPayment,
+  scope,
   tx,
 }: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
   if (masumiPayment) {
@@ -82,7 +85,7 @@ export async function settleTaskEventCharge({
         );
       }
     }
-    const creditCosts = await getCreditCostsOrThrow(tx);
+    const creditCosts = await getCreditCostsOrThrow(scope.networkDb);
     const cents = calculateCentsFromMasumiAmountStrings(
       masumiPayment.Amounts,
       creditCosts,
@@ -104,6 +107,7 @@ export async function settleTaskEventCharge({
       projectId: task.projectId,
       cents,
       currentStatus: task.status,
+      scope,
       tx,
     });
     if (charge.eventStatus != null) {
@@ -135,6 +139,7 @@ export async function settleTaskEventCharge({
       projectId: task.projectId,
       cents,
       currentStatus: task.status,
+      scope,
       tx,
     });
     if (charge.eventStatus != null) {

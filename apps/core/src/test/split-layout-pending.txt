@@ -32,7 +32,6 @@ src/helpers/history-sort-at.postgres.test.ts 17  # unqualified raw SQL
 src/helpers/project-identifier.postgres.test.ts 19  # trigger body
 src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 17  # unqualified raw SQL
 src/helpers/soko-bot-turn-authority.postgres.test.ts 17  # unqualified raw SQL
-src/helpers/task-event-charge.postgres.test.ts 17  # its own client or SQL names public
 src/helpers/task-number.postgres.test.ts 19  # trigger body
 src/helpers/task-ref.postgres.test.ts 19  # trigger body
 src/helpers/task-reopen-instructions.postgres.test.ts 19  # trigger body

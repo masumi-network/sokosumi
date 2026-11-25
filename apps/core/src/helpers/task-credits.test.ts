@@ -6,6 +6,8 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
+
 import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
@@ -18,109 +20,96 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
     ...actual,
     creditBucketRepository: {
       prepareConsumption: vi.fn(),
+      recordSpend: vi.fn(),
     },
   };
 });
+
+const prepareConsumption = vi.mocked(creditBucketRepository.prepareConsumption);
+const recordSpend = vi.mocked(creditBucketRepository.recordSpend);
+// The charge hands both on untouched: it reads only the scope's Network.
+const scope = { network: "preprod" } as NetworkScope;
+const tx = {} as SharedDb;
 
 describe("createTaskEventTransaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
   it("consumes personal credits when organizationId is null", async () => {
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
-    );
-    prepareConsumption.mockResolvedValue([
-      { bucketId: "bucket_1", amount: 100n },
-    ]);
-
-    const tx = {
-      transaction: {
-        create: vi.fn().mockResolvedValue({ id: "trx_1" }),
-      },
-    } as const;
+    const consumptions = [{ bucketId: "bucket_1", amount: 100n }];
+    prepareConsumption.mockResolvedValue(consumptions);
+    recordSpend.mockResolvedValue("trx_1");
 
     const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: null,
       cents: 500n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransaction
-      >[0]["tx"],
+      scope,
+      tx,
     });
 
     expect(result).toBe("trx_1");
     // No Project: the charge sees only the pool.
-    expect(prepareConsumption).toHaveBeenCalledWith("user_1", null, 500n, tx, {
-      projectId: null,
-    });
-
-    const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
-    expect(createCall?.data).not.toHaveProperty("organization");
+    expect(prepareConsumption).toHaveBeenCalledWith(
+      "preprod",
+      "user_1",
+      null,
+      500n,
+      tx,
+      { projectId: null },
+    );
+    expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
+      "preprod",
+      { userId: "user_1", organizationId: null, cents: 500n, consumptions },
+      tx,
+    );
   });
 
   it("consumes organization credits when organizationId is set", async () => {
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
-    );
-    prepareConsumption.mockResolvedValue([
-      { bucketId: "bucket_1", amount: 100n },
-    ]);
-
-    const tx = {
-      transaction: {
-        create: vi.fn().mockResolvedValue({ id: "trx_2" }),
-      },
-    } as const;
+    const consumptions = [{ bucketId: "bucket_1", amount: 100n }];
+    prepareConsumption.mockResolvedValue(consumptions);
+    recordSpend.mockResolvedValue("trx_2");
 
     const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: "org_1",
       cents: 500n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransaction
-      >[0]["tx"],
+      scope,
+      tx,
     });
 
     expect(result).toBe("trx_2");
     expect(prepareConsumption).toHaveBeenCalledWith(
+      "preprod",
       "user_1",
       "org_1",
       500n,
       tx,
       { projectId: null },
     );
-
-    const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
-    expect(createCall?.data).toEqual(
-      expect.objectContaining({
-        organization: { connect: { id: "org_1" } },
-      }),
+    expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
+      "preprod",
+      { userId: "user_1", organizationId: "org_1", cents: 500n, consumptions },
+      tx,
     );
   });
 
   it("charges with the Project the work belongs to", async () => {
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
-    );
     prepareConsumption.mockResolvedValue([
       { bucketId: "bucket_1", amount: 500n },
     ]);
-    const tx = {
-      transaction: { create: vi.fn().mockResolvedValue({ id: "trx_3" }) },
-    } as const;
 
     await createTaskEventTransaction({
       userId: "user_1",
       organizationId: "org_1",
       projectId: "project_1",
       cents: 500n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransaction
-      >[0]["tx"],
+      scope,
+      tx,
     });
 
     expect(prepareConsumption).toHaveBeenCalledWith(
+      "preprod",
       "user_1",
       "org_1",
       500n,
@@ -130,52 +119,31 @@ describe("createTaskEventTransaction", () => {
   });
 
   it("returns null when cents are zero", async () => {
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
-    );
-
-    const tx = {
-      transaction: {
-        create: vi.fn(),
-      },
-    } as const;
-
     const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: null,
       cents: 0n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransaction
-      >[0]["tx"],
+      scope,
+      tx,
     });
 
     expect(result).toBeNull();
     expect(prepareConsumption).not.toHaveBeenCalled();
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpend).not.toHaveBeenCalled();
   });
 
   it("throws when credits are insufficient", async () => {
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
-    );
     prepareConsumption.mockRejectedValue(
       new InsufficientBalanceError(500n, 200n),
     );
-
-    const tx = {
-      transaction: {
-        create: vi.fn(),
-      },
-    } as const;
 
     await expect(
       createTaskEventTransaction({
         userId: "user_1",
         organizationId: null,
         cents: 500n,
-        tx: tx as unknown as Parameters<
-          typeof createTaskEventTransaction
-        >[0]["tx"],
+        scope,
+        tx,
       }),
     ).rejects.toMatchObject({
       status: 422,
@@ -184,7 +152,7 @@ describe("createTaskEventTransaction", () => {
       cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
     } satisfies Pick<HTTPException, "status" | "message" | "cause">);
 
-    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(recordSpend).not.toHaveBeenCalled();
   });
 
   it("detects insufficient-balance errors by kind", () => {

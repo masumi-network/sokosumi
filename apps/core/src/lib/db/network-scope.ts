@@ -9,6 +9,7 @@ import {
 import { type Network, requireNetworkOn } from "@/lib/network";
 
 import prisma, { networkPrisma } from "./prisma";
+import { retriedTransaction, retriedTransactionOn } from "./transaction";
 
 type NetworkModel = Uncapitalize<NetworkModelName>;
 type Tx = Prisma.TransactionClient;
@@ -42,6 +43,25 @@ export interface NetworkScope {
   readonly sharedDb: SharedDb;
   /** A table of this Network with its schema, for raw SQL. */
   networkTable(table: NetworkTableName): PrismaRaw.Sql;
+  /**
+   * A transaction on this Network's client, with the retry and conflict rules
+   * of `retriedTransaction`: the callback can run up to 8 times. Shared rows:
+   * raw SQL with `sharedTable`. Inside, use `tx`, not `networkDb`.
+   */
+  netTransaction<T>(
+    callback: (tx: NetworkDb) => Promise<T>,
+    conflictMessage: string,
+    isolationLevel?: Prisma.TransactionIsolationLevel,
+  ): Promise<T>;
+  /**
+   * The same on the shared client. Network rows: raw SQL with `networkTable`.
+   * Inside, use `tx`, not `sharedDb`.
+   */
+  sharedTransaction<T>(
+    callback: (tx: SharedDb) => Promise<T>,
+    conflictMessage: string,
+    isolationLevel?: Prisma.TransactionIsolationLevel,
+  ): Promise<T>;
 }
 
 /**
@@ -62,5 +82,18 @@ export function createNetworkScope(network: Network): NetworkScope {
       return prisma;
     },
     networkTable: (table) => netTable(known, table),
+    netTransaction: (callback, conflictMessage, isolationLevel) =>
+      retriedTransactionOn(
+        networkPrisma(known),
+        (tx) => {
+          // The transaction itself: the brand is in the types only.
+          const side: NetworkSide = tx;
+          return callback(side as NetworkDb);
+        },
+        conflictMessage,
+        isolationLevel,
+      ),
+    sharedTransaction: (callback, conflictMessage, isolationLevel) =>
+      retriedTransaction(callback, conflictMessage, isolationLevel),
   };
 }

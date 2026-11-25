@@ -589,6 +589,7 @@ export function chargeProjectCompetitorCheck(
       );
       if (balance < expectedCents) return { chargedCents: 0n, shortfall: true };
       const consumptions = await creditBucketRepository.prepareConsumption(
+        "mainnet",
         userId,
         organizationId,
         expectedCents,

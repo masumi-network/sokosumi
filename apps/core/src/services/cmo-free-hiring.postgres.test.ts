@@ -26,6 +26,7 @@ import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -266,6 +267,7 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
         projectId: cuso.projectId,
         cents: 2n * CREDIT,
         currentStatus: TaskStatus.RUNNING,
+        scope: testNetworkScope(),
         tx,
       }),
     );

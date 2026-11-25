@@ -516,6 +516,7 @@ async function chargeSokoBotUsage(
     };
   }
   const consumptions = await creditBucketRepository.prepareConsumption(
+    "mainnet",
     input.userId,
     organizationId,
     chargedCents,
