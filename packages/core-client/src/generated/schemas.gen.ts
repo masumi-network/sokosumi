@@ -36034,6 +36034,173 @@ export const MarketingStrategySchema = {
                                 'state'
                             ]
                         },
+                        applyLog: {
+                            type: 'object',
+                            properties: {
+                                baseVersionId: {
+                                    type: 'string',
+                                    maxLength: 64
+                                },
+                                baseUpdatedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                state: {
+                                    type: 'string',
+                                    enum: [
+                                        'applying',
+                                        'applied',
+                                        'undoing',
+                                        'undone',
+                                        'left'
+                                    ]
+                                },
+                                startedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                updatedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                endedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                ops: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            opId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            },
+                                            entryId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            },
+                                            kind: {
+                                                type: 'string',
+                                                enum: [
+                                                    'move',
+                                                    'update',
+                                                    'cancel',
+                                                    'create',
+                                                    'swap'
+                                                ]
+                                            },
+                                            postId: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 64
+                                            },
+                                            prior: {
+                                                type: [
+                                                    'object',
+                                                    'null'
+                                                ],
+                                                properties: {
+                                                    status: {
+                                                        type: 'string',
+                                                        maxLength: 40
+                                                    },
+                                                    scheduledAt: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 40
+                                                    },
+                                                    text: {
+                                                        type: 'string',
+                                                        maxLength: 10000
+                                                    },
+                                                    planning: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 20000
+                                                    },
+                                                    socialConnectionId: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 64
+                                                    },
+                                                    revision: {
+                                                        type: 'integer'
+                                                    }
+                                                },
+                                                required: [
+                                                    'status',
+                                                    'scheduledAt',
+                                                    'text',
+                                                    'planning',
+                                                    'socialConnectionId',
+                                                    'revision'
+                                                ]
+                                            },
+                                            state: {
+                                                type: 'string',
+                                                enum: [
+                                                    'intent',
+                                                    'done',
+                                                    'refused'
+                                                ]
+                                            },
+                                            reason: {
+                                                type: 'string',
+                                                maxLength: 400
+                                            },
+                                            after: {
+                                                type: 'object',
+                                                properties: {
+                                                    revision: {
+                                                        type: [
+                                                            'integer',
+                                                            'null'
+                                                        ]
+                                                    },
+                                                    postId: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 64
+                                                    }
+                                                },
+                                                required: [
+                                                    'revision',
+                                                    'postId'
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'opId',
+                                            'entryId',
+                                            'kind',
+                                            'postId',
+                                            'prior',
+                                            'state'
+                                        ]
+                                    },
+                                    maxItems: 2000,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'baseVersionId',
+                                'baseUpdatedAt',
+                                'state',
+                                'startedAt',
+                                'updatedAt'
+                            ]
+                        },
                         patched: {
                             type: 'array',
                             items: {
@@ -38078,6 +38245,173 @@ export const MarketingStrategyRequestSchema = {
                     },
                     required: [
                         'state'
+                    ]
+                },
+                applyLog: {
+                    type: 'object',
+                    properties: {
+                        baseVersionId: {
+                            type: 'string',
+                            maxLength: 64
+                        },
+                        baseUpdatedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        state: {
+                            type: 'string',
+                            enum: [
+                                'applying',
+                                'applied',
+                                'undoing',
+                                'undone',
+                                'left'
+                            ]
+                        },
+                        startedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        endedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        ops: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    opId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    },
+                                    entryId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    },
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'move',
+                                            'update',
+                                            'cancel',
+                                            'create',
+                                            'swap'
+                                        ]
+                                    },
+                                    postId: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 64
+                                    },
+                                    prior: {
+                                        type: [
+                                            'object',
+                                            'null'
+                                        ],
+                                        properties: {
+                                            status: {
+                                                type: 'string',
+                                                maxLength: 40
+                                            },
+                                            scheduledAt: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 40
+                                            },
+                                            text: {
+                                                type: 'string',
+                                                maxLength: 10000
+                                            },
+                                            planning: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 20000
+                                            },
+                                            socialConnectionId: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 64
+                                            },
+                                            revision: {
+                                                type: 'integer'
+                                            }
+                                        },
+                                        required: [
+                                            'status',
+                                            'scheduledAt',
+                                            'text',
+                                            'planning',
+                                            'socialConnectionId',
+                                            'revision'
+                                        ]
+                                    },
+                                    state: {
+                                        type: 'string',
+                                        enum: [
+                                            'intent',
+                                            'done',
+                                            'refused'
+                                        ]
+                                    },
+                                    reason: {
+                                        type: 'string',
+                                        maxLength: 400
+                                    },
+                                    after: {
+                                        type: 'object',
+                                        properties: {
+                                            revision: {
+                                                type: [
+                                                    'integer',
+                                                    'null'
+                                                ]
+                                            },
+                                            postId: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'revision',
+                                            'postId'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'opId',
+                                    'entryId',
+                                    'kind',
+                                    'postId',
+                                    'prior',
+                                    'state'
+                                ]
+                            },
+                            maxItems: 2000,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'baseVersionId',
+                        'baseUpdatedAt',
+                        'state',
+                        'startedAt',
+                        'updatedAt'
                     ]
                 },
                 patched: {
@@ -44708,6 +45042,12 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 400
+                },
+                applyOpId: {
+                    type: 'string'
+                },
+                applyCreateOpId: {
+                    type: 'string'
                 }
             },
             required: [
@@ -53391,6 +53731,9 @@ export const ProjectSeoRunSchema = {
                     type: 'null'
                 }
             ]
+        },
+        runDiff: {
+            $ref: '#/components/schemas/ProjectSeoRunDiff'
         }
     },
     required: [
@@ -53399,6 +53742,290 @@ export const ProjectSeoRunSchema = {
         'observedAt',
         'issues',
         'seconds'
+    ]
+} as const;
+
+export const ProjectSeoRunDiffSchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        to: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        comparable: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            enum: [
+                'market',
+                'rulebook',
+                'pages'
+            ]
+        },
+        new: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device',
+                    'severity'
+                ]
+            },
+            maxItems: 5
+        },
+        newCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        fixed: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device',
+                    'severity'
+                ]
+            },
+            maxItems: 5
+        },
+        fixedCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        stillOpen: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device',
+                    'severity'
+                ]
+            },
+            maxItems: 5
+        },
+        stillOpenCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        notCheckedAgain: {
+            type: 'integer',
+            minimum: 0
+        },
+        numbers: {
+            type: 'object',
+            properties: {
+                issues: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            anyOf: [
+                                {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                {
+                                    type: 'null'
+                                }
+                            ]
+                        },
+                        to: {
+                            anyOf: [
+                                {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                {
+                                    type: 'null'
+                                }
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to'
+                    ]
+                },
+                moves: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'number'
+                            }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to'
+                        ]
+                    },
+                    maxItems: 5
+                },
+                moveCount: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'issues',
+                'moves',
+                'moveCount'
+            ]
+        }
+    },
+    required: [
+        'from',
+        'to',
+        'comparable',
+        'new',
+        'newCount',
+        'fixed',
+        'fixedCount',
+        'stillOpen',
+        'stillOpenCount',
+        'notCheckedAgain',
+        'numbers'
     ]
 } as const;
 
@@ -63679,6 +64306,173 @@ export const CmoPlanSchema = {
             },
             required: [
                 'state'
+            ]
+        },
+        applyLog: {
+            type: 'object',
+            properties: {
+                baseVersionId: {
+                    type: 'string',
+                    maxLength: 64
+                },
+                baseUpdatedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                state: {
+                    type: 'string',
+                    enum: [
+                        'applying',
+                        'applied',
+                        'undoing',
+                        'undone',
+                        'left'
+                    ]
+                },
+                startedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                updatedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                endedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                ops: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            opId: {
+                                type: 'string',
+                                maxLength: 64
+                            },
+                            entryId: {
+                                type: 'string',
+                                maxLength: 64
+                            },
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'move',
+                                    'update',
+                                    'cancel',
+                                    'create',
+                                    'swap'
+                                ]
+                            },
+                            postId: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                maxLength: 64
+                            },
+                            prior: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    status: {
+                                        type: 'string',
+                                        maxLength: 40
+                                    },
+                                    scheduledAt: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 40
+                                    },
+                                    text: {
+                                        type: 'string',
+                                        maxLength: 10000
+                                    },
+                                    planning: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 20000
+                                    },
+                                    socialConnectionId: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 64
+                                    },
+                                    revision: {
+                                        type: 'integer'
+                                    }
+                                },
+                                required: [
+                                    'status',
+                                    'scheduledAt',
+                                    'text',
+                                    'planning',
+                                    'socialConnectionId',
+                                    'revision'
+                                ]
+                            },
+                            state: {
+                                type: 'string',
+                                enum: [
+                                    'intent',
+                                    'done',
+                                    'refused'
+                                ]
+                            },
+                            reason: {
+                                type: 'string',
+                                maxLength: 400
+                            },
+                            after: {
+                                type: 'object',
+                                properties: {
+                                    revision: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ]
+                                    },
+                                    postId: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'revision',
+                                    'postId'
+                                ]
+                            }
+                        },
+                        required: [
+                            'opId',
+                            'entryId',
+                            'kind',
+                            'postId',
+                            'prior',
+                            'state'
+                        ]
+                    },
+                    maxItems: 2000,
+                    default: []
+                }
+            },
+            required: [
+                'baseVersionId',
+                'baseUpdatedAt',
+                'state',
+                'startedAt',
+                'updatedAt'
             ]
         },
         patched: {

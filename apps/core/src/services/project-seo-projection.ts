@@ -45,6 +45,7 @@ import {
   projectSeoMetricsRow,
   type SeoMetricsProjection,
 } from "./project-seo-metrics-projection";
+import { type SeoRunDiffSource, withSeoRunDiffs } from "./project-seo-run-diff";
 import {
   projectSearchEvidence,
   type SearchEvidenceSource,
@@ -160,6 +161,7 @@ export function projectSeoProjection(
     taskStatuses.has(link.taskId),
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
+  const diffSources: SeoRunDiffSource[] = [];
   let strategy: ProjectSeoWorkspace["strategy"] = null;
   const decisions = new SeoAuditDecisions(
     selectedUrls,
@@ -217,6 +219,7 @@ export function projectSeoProjection(
       (url) => selectedUrls.has(normalizeSeoUrl(url)),
     );
     scopedPublicSources.set(row.id, row);
+    diffSources.push({ ...row, payload: data });
     if (!coverage.checked || coverage.failed || coverage.modules?.failed)
       incompleteRuns.add(row.id);
     // One rule that fails on mobile and on desktop is one issue on that page.
@@ -712,10 +715,13 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
-    runs: withIndexIssueCounts(runs, indexing.counts).map((run) =>
-      run.issues === 0 && incompleteRuns.has(run.observationId)
-        ? { ...run, issues: null }
-        : run,
+    runs: withSeoRunDiffs(
+      withIndexIssueCounts(runs, indexing.counts).map((run) =>
+        run.issues === 0 && incompleteRuns.has(run.observationId)
+          ? { ...run, issues: null }
+          : run,
+      ),
+      { sources: diffSources, selectedIds, selectedUrls },
     ),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>

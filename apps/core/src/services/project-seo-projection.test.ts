@@ -421,6 +421,26 @@ describe("stored SEO workspace projections", () => {
     ]);
   });
 
+  it("gives a check the diff against the earlier check of its kind, with the issue counts of the runs row", () => {
+    const input = fixture();
+    const audit = (at: string) =>
+      observation(input, parsePublicSeoArtifact(legacyReport()), at);
+    input.observations = [
+      audit("2026-11-02T12:00:00Z"),
+      audit("2026-11-01T12:00:00Z"),
+    ];
+    const [latest, first] = projectSeoProjection(input).runs ?? [];
+    expect(latest.runDiff).toMatchObject({
+      from: "2026-11-01T12:00:00.000Z",
+      to: "2026-11-02T12:00:00.000Z",
+      comparable: true,
+      newCount: 0,
+      stillOpenCount: 1,
+      numbers: { issues: { from: 1, to: 1 } },
+    });
+    expect(first.runDiff).toBeUndefined();
+  });
+
   it("shows the newest site audit's strategy with the keyword groups of the selected pages", () => {
     const input = fixture();
     expect(projectSeoProjection(input).strategy).toBeNull();

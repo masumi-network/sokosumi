@@ -37,7 +37,8 @@ export interface SeoMonitorRunResult {
 const identity = (pageUrl: string, ...parts: Array<string | null>) =>
   JSON.stringify([normalizeSeoUrl(pageUrl), ...parts]);
 
-function checkResults(payload: PublicSeoPayload) {
+/** The checks of a Run that gave a result, one per page, rule and device. */
+export function seoCheckResults(payload: PublicSeoPayload) {
   const results = new Map<string, PublicSeoPayload["checks"][number]>();
   for (const check of payload.checks)
     if (check.result === "pass" || check.result === "fired")
@@ -66,47 +67,24 @@ function rankedKeywords(payload: PublicSeoPayload) {
   return ranked;
 }
 
-/** What the newest monitor Run changed against the one before. Only checks read in both Runs count. */
-export function compareSeoMonitorRuns(
-  previous: SeoMonitorRunResult,
-  latest: SeoMonitorRunResult,
-): SeoMonitorChange {
-  const base = {
-    from: previous.observedAt.toISOString(),
-    to: latest.observedAt.toISOString(),
-  };
-  const before = previous.payload,
-    after = latest.payload;
+/** Why two Runs cannot be compared: they used another Market or another rulebook. Null when they can. */
+export function seoRunMismatch(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+): "market" | "rulebook" | null {
   if (
     before.countryCode !== after.countryCode ||
-    before.languageCode !== after.languageCode ||
-    before.rulebookVersion !== after.rulebookVersion
+    before.languageCode !== after.languageCode
   )
-    return {
-      ...base,
-      comparable: false,
-      newFailureCount: 0,
-      fixedCount: 0,
-      newFailures: [],
-      fixed: [],
-      moves: [],
-      moveCount: 0,
-      dropCount: 0,
-    };
-  const earlier = checkResults(before);
-  const newFailures: SeoMonitorChange["newFailures"] = [];
-  const fixed: SeoMonitorChange["fixed"] = [];
-  for (const [key, check] of checkResults(after)) {
-    const old = earlier.get(key);
-    if (!old || old.result === check.result) continue;
-    const failed = check.result === "fired";
-    (failed ? newFailures : fixed).push({
-      rowId: check.rowId,
-      title: findingTitle(failed ? after : before, key) ?? check.rowId,
-      pageUrl: check.pageUrl,
-      device: check.device,
-    });
-  }
+    return "market";
+  return before.rulebookVersion === after.rulebookVersion ? null : "rulebook";
+}
+
+/** Every position move beyond the noise band between two Runs, drops first. */
+export function seoRankMoves(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+) {
   const earlierRanks = rankedKeywords(before);
   const moves: SeoMonitorChange["moves"] = [];
   for (const [key, row] of rankedKeywords(after)) {
@@ -122,6 +100,47 @@ export function compareSeoMonitorRuns(
   }
   // Drops first: they are what the reader acts on.
   moves.sort((a, b) => b.to - b.from - (a.to - a.from));
+  return moves;
+}
+
+/** What the newest monitor Run changed against the one before. Only checks read in both Runs count. */
+export function compareSeoMonitorRuns(
+  previous: SeoMonitorRunResult,
+  latest: SeoMonitorRunResult,
+): SeoMonitorChange {
+  const base = {
+    from: previous.observedAt.toISOString(),
+    to: latest.observedAt.toISOString(),
+  };
+  const before = previous.payload,
+    after = latest.payload;
+  if (seoRunMismatch(before, after))
+    return {
+      ...base,
+      comparable: false,
+      newFailureCount: 0,
+      fixedCount: 0,
+      newFailures: [],
+      fixed: [],
+      moves: [],
+      moveCount: 0,
+      dropCount: 0,
+    };
+  const earlier = seoCheckResults(before);
+  const newFailures: SeoMonitorChange["newFailures"] = [];
+  const fixed: SeoMonitorChange["fixed"] = [];
+  for (const [key, check] of seoCheckResults(after)) {
+    const old = earlier.get(key);
+    if (!old || old.result === check.result) continue;
+    const failed = check.result === "fired";
+    (failed ? newFailures : fixed).push({
+      rowId: check.rowId,
+      title: findingTitle(failed ? after : before, key) ?? check.rowId,
+      pageUrl: check.pageUrl,
+      device: check.device,
+    });
+  }
+  const moves = seoRankMoves(before, after);
   return {
     ...base,
     comparable: true,

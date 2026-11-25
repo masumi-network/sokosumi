@@ -4937,8 +4937,17 @@ const projectSeoTimelineItemSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoRunDiffSchemaResponseTransformer = (data: any) => {
+    data.from = new Date(data.from);
+    data.to = new Date(data.to);
+    return data;
+};
+
 const projectSeoRunSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
+    if (data.runDiff) {
+        data.runDiff = projectSeoRunDiffSchemaResponseTransformer(data.runDiff);
+    }
     return data;
 };
 

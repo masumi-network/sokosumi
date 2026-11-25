@@ -9693,6 +9693,34 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             costUsd?: number;
             floorAlertAt?: string;
         };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -10044,6 +10072,34 @@ export type MarketingStrategyRequest = {
             error?: string;
             costUsd?: number;
             floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
         };
         patched?: Array<{
             id: string;
@@ -11820,6 +11876,8 @@ export type SocialPost = {
         videoOfTalking?: boolean;
         story?: string;
         claim?: string;
+        applyOpId?: string;
+        applyCreateOpId?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -13498,6 +13556,53 @@ export type ProjectSeoRun = {
     issues: number | null;
     seconds: number | null;
     monitorId?: string | null;
+    runDiff?: ProjectSeoRunDiff;
+};
+
+export type ProjectSeoRunDiff = {
+    from: Date;
+    to: Date;
+    comparable: boolean;
+    reason?: 'market' | 'rulebook' | 'pages';
+    new: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    newCount: number;
+    fixed: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    fixedCount: number;
+    stillOpen: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    stillOpenCount: number;
+    notCheckedAgain: number;
+    numbers: {
+        issues: {
+            from: number | null;
+            to: number | null;
+        };
+        moves: Array<{
+            keyword: string;
+            pageUrl: string;
+            device: 'mobile' | 'desktop' | null;
+            from: number;
+            to: number;
+        }>;
+        moveCount: number;
+    };
 };
 
 export type ProjectSeoAnalysis = {
@@ -15612,6 +15717,34 @@ export type CmoPlan = {
         error?: string;
         costUsd?: number;
         floorAlertAt?: string;
+    };
+    applyLog?: {
+        baseVersionId: string;
+        baseUpdatedAt: string;
+        state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+        startedAt: string;
+        updatedAt: string;
+        endedAt?: string;
+        ops?: Array<{
+            opId: string;
+            entryId: string;
+            kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+            postId: string | null;
+            prior: {
+                status: string;
+                scheduledAt: string | null;
+                text: string;
+                planning: string | null;
+                socialConnectionId: string | null;
+                revision: number;
+            } | null;
+            state: 'intent' | 'done' | 'refused';
+            reason?: string;
+            after?: {
+                revision: number | null;
+                postId: string | null;
+            };
+        }>;
     };
     patched?: Array<{
         id: string;
