@@ -12,6 +12,10 @@ export function t(
   );
 }
 
+export function isMessageKey(key: string): key is MessageKey {
+  return Object.hasOwn(en, key);
+}
+
 export interface HostLocale {
   locale?: string;
   timeZone?: string;
@@ -38,6 +42,26 @@ export function formatDateTime(iso: string, host: HostLocale): string {
     } catch {}
   }
   return new Intl.DateTimeFormat(undefined, options).format(date);
+}
+
+/**
+ * A calendar day (`YYYY-MM-DD`, such as a due date) in the host's locale.
+ * It has no time zone, so it is read and shown in UTC.
+ */
+export function formatDay(day: string, host: HostLocale): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(date.getTime())) {
+    return day;
+  }
+  const options: Intl.DateTimeFormatOptions = {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  };
+  try {
+    return new Intl.DateTimeFormat(host.locale, options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, options).format(date);
+  }
 }
 
 /**

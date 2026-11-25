@@ -1,7 +1,8 @@
 /**
- * Screenshots every view in the host harness: the default fixture in light
- * and dark at 320, 402 and 768px; the loading, empty and error states at
- * 402px; and the first control focused from the keyboard. Build first.
+ * Screenshots every view in the host harness: the default and fullscreen
+ * fixtures in light and dark at 320, 402 and 768px; every other fixture
+ * (loading, empty, error, ...) at 402px; and the first control focused from
+ * the keyboard. Build first.
  *
  *   node scripts/screenshots.ts [outDir]
  *
@@ -20,11 +21,13 @@ const outDir = resolve(process.argv[2] ?? join(PACKAGE_DIR, "screenshots"));
 const THEMES = ["light", "dark"] as const;
 const WIDTHS = [320, 402, 768];
 const STATE_WIDTH = 402;
+const ALL_WIDTHS = new Set(["default", "fullscreen"]);
+const STATES = new Set(["loading", "empty", "error"]);
 
 const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) =>
   Object.keys(fixtures).flatMap((fixture) =>
     THEMES.flatMap((theme) =>
-      (fixture === "default" ? WIDTHS : [STATE_WIDTH]).map((width) => ({
+      (ALL_WIDTHS.has(fixture) ? WIDTHS : [STATE_WIDTH]).map((width) => ({
         view,
         fixture,
         theme,
@@ -62,7 +65,7 @@ try {
     });
 
     await page.goto(`${origin}?view=${view}&fixture=${fixture}&theme=${theme}`);
-    const expected = fixture === "default" ? "ready" : fixture;
+    const expected = STATES.has(fixture) ? fixture : "ready";
     await page
       .frameLocator("iframe")
       .locator(`[data-state="${expected}"]`)

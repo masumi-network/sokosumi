@@ -1,8 +1,8 @@
 import type { Transport } from "@modelcontextprotocol/client";
-import type { App } from "@modelcontextprotocol/ext-apps";
+import type { App, McpUiDisplayMode } from "@modelcontextprotocol/ext-apps";
 import type { ReactNode } from "react";
 import type { z } from "zod";
-import { t } from "./text.ts";
+import { type MessageKey, t } from "./text.ts";
 import { Message, Skeleton } from "./ui.tsx";
 import {
   type ConnectionState,
@@ -16,6 +16,15 @@ export interface ViewContext {
   timeZone?: string;
   /** Core's `_meta.sokosumi.webBaseUrl`: the only links a view may open. */
   webBaseUrl?: string;
+  /** How the host shows the view now, and the modes it can switch to. */
+  displayMode?: McpUiDisplayMode;
+  availableDisplayModes?: McpUiDisplayMode[];
+  /**
+   * Re-runs `refreshTool` with the call's arguments and shows the new result;
+   * false when it fails, keeping the last one. Absent when the host cannot
+   * call server tools or has not sent the arguments.
+   */
+  refresh?: () => Promise<boolean>;
 }
 
 export interface ShellProps<T> {
@@ -24,6 +33,10 @@ export interface ShellProps<T> {
   /** Validates the tool result's `structuredContent`. */
   schema: z.ZodType<T>;
   isEmpty?: (data: T) => boolean;
+  /** The empty state's text; the shell's generic text otherwise. */
+  empty?: { title: MessageKey; body: MessageKey };
+  /** The data twin `context.refresh` re-runs. */
+  refreshTool?: string;
   children: (data: T, context: ViewContext) => ReactNode;
 }
 
@@ -66,10 +79,22 @@ export function Shell<T>({
   transport,
   schema,
   isEmpty,
+  empty = { title: "shell.empty.title", body: "shell.empty.body" },
+  refreshTool,
   children,
 }: ShellProps<T>) {
-  const connection = useViewConnection(app, transport);
+  const [connection, rerun] = useViewConnection(app, transport);
   const view = resolve(connection, schema, isEmpty);
+  const { input, host } = connection;
+  const refresh =
+    refreshTool && input && app.getHostCapabilities()?.serverTools
+      ? () =>
+          rerun(
+            refreshTool,
+            input,
+            (result) => schema.safeParse(result.structuredContent).success,
+          )
+      : undefined;
 
   return (
     <main data-state={view.kind} className="p-4">
@@ -78,14 +103,17 @@ export function Shell<T>({
         <Message title={t("shell.error.title")} body={t("shell.error.body")} />
       )}
       {view.kind === "empty" && (
-        <Message title={t("shell.empty.title")} body={t("shell.empty.body")} />
+        <Message title={t(empty.title)} body={t(empty.body)} />
       )}
       {view.kind === "ready" &&
         children(view.data, {
           app,
-          locale: connection.host.locale,
-          timeZone: connection.host.timeZone,
+          locale: host.locale,
+          timeZone: host.timeZone,
           webBaseUrl: view.webBaseUrl,
+          displayMode: host.displayMode,
+          availableDisplayModes: host.availableDisplayModes,
+          refresh,
         })}
     </main>
   );

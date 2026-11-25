@@ -7,14 +7,30 @@ import {
   type McpUiTheme,
   type McpUiToolResultNotification,
 } from "@modelcontextprotocol/ext-apps";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type ToolResult = McpUiToolResultNotification["params"];
 
-export type ConnectionState =
-  | { status: "loading"; host: McpUiHostContext }
-  | { status: "result"; host: McpUiHostContext; result: ToolResult }
-  | { status: "failed"; host: McpUiHostContext };
+export type ConnectionState = {
+  host: McpUiHostContext;
+  /** The tool call's arguments, once the host sends them. */
+  input?: Record<string, unknown>;
+} & (
+  | { status: "loading" }
+  | { status: "result"; result: ToolResult }
+  | { status: "failed" }
+);
+
+/**
+ * Calls a server tool through the host. A result `accept` takes replaces the
+ * shown one, keeping its `_meta` (such as Core's `webBaseUrl`, which only the
+ * show tool adds) under the new result's own.
+ */
+export type Rerun = (
+  name: string,
+  args: Record<string, unknown>,
+  accept: (result: ToolResult) => boolean,
+) => Promise<boolean>;
 
 export function systemTheme(): McpUiTheme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
@@ -30,44 +46,76 @@ export function applyHostTheme(host: McpUiHostContext): void {
 
 /**
  * Connects the view to its host (the `ui/initialize` handshake) and follows
- * the tool result, cancellation and host context changes. The handlers are
+ * the tool input, result, cancellation and host context changes. The handlers are
  * set before `connect`, so a result the host sends right after the handshake
  * is not missed. Omit `transport` to talk to `window.parent`.
  */
 export function useViewConnection(
   app: App,
   transport?: Transport,
-): ConnectionState {
+): [ConnectionState, Rerun] {
   const [state, setState] = useState<ConnectionState>({
     status: "loading",
     host: {},
   });
+  const open = useRef(false);
+  const update = useCallback(
+    (next: (previous: ConnectionState) => ConnectionState) => {
+      if (open.current) setState(next);
+    },
+    [],
+  );
 
   useEffect(() => {
-    let open = true;
-    const update = (next: (previous: ConnectionState) => ConnectionState) => {
-      if (open) setState(next);
-    };
+    open.current = true;
     const syncHost = () => {
       const host = app.getHostContext() ?? {};
       applyHostTheme(host);
       update((previous) => ({ ...previous, host }));
     };
 
+    app.ontoolinput = ({ arguments: input }) =>
+      update((previous) => ({ ...previous, input }));
     app.ontoolresult = (result) =>
-      update(({ host }) => ({ status: "result", host, result }));
+      update(({ host, input }) => ({ status: "result", host, input, result }));
     app.ontoolcancelled = () =>
-      update(({ host }) => ({ status: "failed", host }));
+      update(({ host, input }) => ({ status: "failed", host, input }));
     app.onhostcontextchanged = syncHost;
     app
       .connect(transport)
-      .then(syncHost, () => update(({ host }) => ({ status: "failed", host })));
+      .then(syncHost, () =>
+        update(({ host, input }) => ({ status: "failed", host, input })),
+      );
 
     return () => {
-      open = false;
+      open.current = false;
       void app.close();
     };
-  }, [app, transport]);
+  }, [app, transport, update]);
 
-  return state;
+  const rerun = useCallback<Rerun>(
+    async (name, args, accept) => {
+      try {
+        const result = await app.callServerTool({ name, arguments: args });
+        if (result.isError || !accept(result)) return false;
+        update((previous) =>
+          previous.status === "result"
+            ? {
+                ...previous,
+                result: {
+                  ...result,
+                  _meta: { ...previous.result._meta, ...result._meta },
+                },
+              }
+            : previous,
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [app, update],
+  );
+
+  return [state, rerun];
 }
