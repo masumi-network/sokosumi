@@ -89,6 +89,10 @@ Core serves MCP at `{Core origin}/mcp` (`apps/core/src/routes/mcp/index.ts`; tok
 - **A call** runs the operation through `/v1` in process as the token's user (`dispatch.ts`), so every guard applies: a route that needs an interactive session answers 403. The caller is always a plain user: never the admin role, never first-party, no OAuth client id. Admin work stays on the CLI.
 - **Results**: Core's `data` and `pagination` as `structuredContent`. A Core error is `isError` with `{status, kind, message, details}`; a 5xx gives a generic message and the request id.
 
+## MCP UI tools
+
+A UI tool is an optional rendering of an operation an MCP tool already covers ([ADR 0083](../adr/0083-mcp-ui-is-an-optional-rendering-of-a-tool-result.md)). It is one row in `MCP_UI_TOOLS` (`apps/core/src/lib/sokosumi-mcp/ui-tools.ts`) that names its data twin, runs it, and returns the twin's result with a view attached. It adds no operation, so it needs no manifest row and no CLI command.
+
 ## Production safety
 
 An MCP tool that writes acts on whatever Core issued its token. MCP writes to mainnet fall under the same gate as CLI writes: follow **Production safety** in [`apps/cli/AGENTS.md`](../../apps/cli/AGENTS.md) and get an explicit `yes` first.
