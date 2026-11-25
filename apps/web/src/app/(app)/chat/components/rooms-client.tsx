@@ -1969,19 +1969,23 @@ function RoomView({
   }
 
   // The close button leaves with the pane, so focus would drop to <body>.
-  // Hand it back to the thread's reply bar in the transcript; a thread with
-  // no replies has none, so the composer takes it.
+  // Hand it back to where the thread was opened from: the reply bar, else the
+  // row's actions trigger (Open thread on a message with no replies). The
+  // composer takes it when the row is no longer in the transcript.
   function closeThreadAndRestoreFocus() {
     const parentMessageId = threadParentMessage?.id;
     closeThreadSidePanel();
     requestAnimationFrame(() => {
-      const replyBar = parentMessageId
+      const row = parentMessageId
         ? document.querySelector<HTMLElement>(
-            `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(parentMessageId)}"] [data-slot="thread-reply-bar"]`,
+            `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(parentMessageId)}"]`,
           )
         : null;
-      if (replyBar) {
-        replyBar.focus();
+      const target =
+        row?.querySelector<HTMLElement>('[data-slot="thread-reply-bar"]') ??
+        row?.querySelector<HTMLElement>("[data-message-actions-trigger]");
+      if (target) {
+        target.focus();
         return;
       }
       roomComposerRef.current?.focus();

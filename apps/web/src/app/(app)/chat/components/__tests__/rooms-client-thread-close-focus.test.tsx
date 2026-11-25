@@ -39,8 +39,10 @@ vi.mock("../room-session-composer", () => ({
   },
 }));
 
-// The row's reply bar is the thread's way in from the transcript, so it is
-// where focus goes back to.
+// The reply bar, else the row's screen-reader-only actions trigger, is where
+// a thread is opened from, so it is where focus goes back to. A row that is
+// no longer in the transcript ("gone") renders its open button outside any
+// message row.
 vi.mock("../room-message-row", () => ({
   ChatMessageRow: ({
     message,
@@ -48,8 +50,8 @@ vi.mock("../room-message-row", () => ({
   }: {
     message: ChatRoomMessage;
     onOpenThread?: (message: ChatRoomMessage) => void;
-  }) => (
-    <article data-message-id={message.id}>
+  }) => {
+    const open = (
       <button
         type="button"
         data-testid={`open-thread-${message.id}`}
@@ -57,17 +59,28 @@ vi.mock("../room-message-row", () => ({
       >
         Open thread
       </button>
-      {message.threadReplyCount > 0 ? (
-        <button
-          type="button"
-          data-slot="thread-reply-bar"
-          onClick={() => onOpenThread?.(message)}
-        >
-          {message.threadReplyCount} replies
+    );
+    if (message.id === "gone") {
+      return open;
+    }
+    return (
+      <article data-message-id={message.id}>
+        {open}
+        {message.threadReplyCount > 0 ? (
+          <button
+            type="button"
+            data-slot="thread-reply-bar"
+            onClick={() => onOpenThread?.(message)}
+          >
+            {message.threadReplyCount} replies
+          </button>
+        ) : null}
+        <button type="button" data-message-actions-trigger>
+          Message actions {message.id}
         </button>
-      ) : null}
-    </article>
-  ),
+      </article>
+    );
+  },
 }));
 
 vi.mock("../thread-list-panel", () => ({
@@ -122,7 +135,11 @@ function message(id: string, threadReplyCount: number): ChatRoomMessage {
 }
 
 const baseProps = roomsClientBaseProps({
-  messages: [message("with-replies", 2), message("no-replies", 0)],
+  messages: [
+    message("with-replies", 2),
+    message("no-replies", 0),
+    message("gone", 0),
+  ],
 });
 
 describe("RoomsClient thread close focus", () => {
@@ -153,9 +170,24 @@ describe("RoomsClient thread close focus", () => {
     expect(composerFocus).not.toHaveBeenCalled();
   });
 
-  it("falls back to the composer when the message has no reply bar", async () => {
+  it("returns focus to the row's actions trigger when there is no reply bar", async () => {
     renderWithQueryClient(<RoomsClient {...baseProps} />);
     fireEvent.click(screen.getByTestId("open-thread-no-replies"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Close thread" }),
+    );
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Message actions no-replies" }),
+      );
+    });
+    expect(composerFocus).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the composer when the row is gone", async () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    fireEvent.click(screen.getByTestId("open-thread-gone"));
     fireEvent.click(
       await screen.findByRole("button", { name: "Close thread" }),
     );
