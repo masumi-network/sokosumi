@@ -1078,6 +1078,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "publish_social_post",
         "schedule_social_post",
         "update_social_post",
+        "update_social_posts",
         "create_social_post",
         "hire_agent",
       ],
@@ -2099,7 +2100,11 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       'The month in the lane has three LinkedIn pieces 22 to 28 days from today: "Reminders that cut no-shows", "Handing a lead to the next rep" and "Insights that show booking volume". Cuso names exactly these three with their days, read from the calendar, and nothing else from other weeks. A title he did not read, a missing one, or a change to the plan fails.',
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
-      forbiddenTools: ["save_strategy", "update_social_post"],
+      forbiddenTools: [
+        "save_strategy",
+        "update_social_post",
+        "update_social_posts",
+      ],
       answerMatches:
         "^(?=[\\s\\S]*no-shows)(?=[\\s\\S]*next rep)(?=[\\s\\S]*booking volume)",
     },

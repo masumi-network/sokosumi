@@ -33,14 +33,23 @@ function retryDelayMs(attempt: number): number {
   );
 }
 
+/** How long a transaction may wait for a connection, and run in all. */
+export interface TransactionTiming {
+  maxWait: number;
+  timeout: number;
+}
+
 export async function serializableTransaction<T>(
   callback: (tx: Prisma.TransactionClient) => Promise<T>,
   conflictMessage: string,
+  timing?: TransactionTiming,
 ): Promise<T> {
-  return retriedTransaction(
+  return retriedTransactionOn(
+    prisma,
     callback,
     conflictMessage,
     Prisma.TransactionIsolationLevel.Serializable,
+    timing,
   );
 }
 
@@ -73,12 +82,14 @@ export async function retriedTransactionOn<T>(
   callback: (tx: Prisma.TransactionClient) => Promise<T>,
   conflictMessage: string,
   isolationLevel?: Prisma.TransactionIsolationLevel,
+  timing?: TransactionTiming,
 ): Promise<T> {
+  const options = { ...(isolationLevel && { isolationLevel }), ...timing };
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await client.$transaction(
         callback,
-        isolationLevel ? { isolationLevel } : undefined,
+        Object.keys(options).length > 0 ? options : undefined,
       );
     } catch (error) {
       if (!isPrismaTransactionConflict(error)) throw error;

@@ -28,6 +28,7 @@ const CMO_STEP_LABELS: Record<string, string> = {
   get_posting_instructions: "Checking how to post",
   create_social_post: "Writing a post",
   update_social_post: "Changing a post",
+  update_social_posts: "Changing posts",
   schedule_social_post: "Scheduling a post",
   cancel_social_post: "Cancelling a post",
   publish_social_post: "Publishing a post",

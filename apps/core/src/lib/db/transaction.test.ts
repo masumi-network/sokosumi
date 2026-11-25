@@ -37,6 +37,24 @@ describe("serializableTransaction", () => {
     });
   });
 
+  it("passes a caller's wait and timeout to the transaction", async () => {
+    const callback = vi.fn().mockResolvedValue("result");
+    prismaTransactionMock.mockImplementation(
+      async (cb: () => unknown) => await cb(),
+    );
+
+    await serializableTransaction(callback, "Conflict message", {
+      maxWait: 10_000,
+      timeout: 30_000,
+    });
+
+    expect(prismaTransactionMock).toHaveBeenCalledWith(callback, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 10_000,
+      timeout: 30_000,
+    });
+  });
+
   it("retries a serialization failure before succeeding", async () => {
     prismaTransactionMock
       .mockRejectedValueOnce(

@@ -145,6 +145,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_newsletter_subscriber",
   "remove_newsletter_subscriber",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
@@ -421,6 +422,7 @@ const DIRECT_READ_CAPABILITIES = [
 const SOCIAL_WRITE_CAPABILITIES = [
   "create_social_post",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",

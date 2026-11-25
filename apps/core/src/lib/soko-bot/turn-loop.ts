@@ -65,6 +65,7 @@ const TOOL_CALL_TIMEOUT_MS = 90_000;
  */
 const LONG_TOOL_CALL_TIMEOUT_MS: Partial<Record<SokoBotCapability, number>> = {
   write_month_pieces: 115_000,
+  update_social_posts: 115_000,
 };
 
 /** How long one call of this tool may run before the model hears it timed out. */

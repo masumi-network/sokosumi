@@ -2957,9 +2957,29 @@ describe("social posts service", () => {
         expect.objectContaining({
           where: {
             marketingStrategyId: "version-1",
-            id: { not: POST_ID },
+            id: { notIn: [POST_ID] },
             status: { not: "CANCELED" },
           },
+        }),
+      );
+    });
+
+    it("leaves out a batch's posts that still wait for their new text", async () => {
+      const { ownMessageProblem, withSocialPostBatch } = await loadService();
+      const waiting = "0190e0c9-0000-7000-8000-00000000b0b0";
+
+      await withSocialPostBatch(new Set([waiting]), () =>
+        ownMessageProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Stake today." },
+          embed,
+        ),
+      );
+
+      expect(socialPostFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { notIn: [POST_ID, waiting] },
+          }),
         }),
       );
     });
