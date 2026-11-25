@@ -2236,6 +2236,26 @@ describe("a patch", () => {
     expect(after.changes).toEqual(["Piece seven is calmer."]);
   });
 
+  it("never stores a draft Cuso sends before approval, so the review never asks for what a patch cannot undo", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const drafted = {
+      ...before.calendar[6]!,
+      title: "A calmer piece seven",
+      draft: "Written before the owner approved.",
+    };
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [drafted] },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+
+    const after = planOf(strategyRows.find((row) => row.id !== first.id)!);
+    expect(after.calendar[6]!.title).toBe("A calmer piece seven");
+    expect(after.calendar.some((entry) => "draft" in entry)).toBe(false);
+  });
+
   it("keeps how an entry was across a turn's saves, even when sent again", async () => {
     const first = await written();
     const before = planOf(first);
