@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hideSeoAuditRequest,
   removeSeoTaskRequest,
   seoTaskDescription,
   seoTaskRequestPacket,
@@ -69,5 +70,18 @@ describe("removeSeoTaskRequest", () => {
     expect(removeSeoTaskRequest("SEO_job: rewrite the titles")).toBe(
       "SEO_job: rewrite the titles",
     );
+  });
+});
+
+describe("hideSeoAuditRequest", () => {
+  it("hides a full audit's price terms and keeps a focused check's line", () => {
+    expect(
+      hideSeoAuditRequest(
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}',
+      ),
+    ).toBe("Full SEO audit of 2 selected pages:");
+    const focused = 'Check titles\n\nseo_job: {"version":1}';
+    expect(hideSeoAuditRequest(focused)).toBe(focused);
+    expect(hideSeoAuditRequest('seo_audit: {"version":1}')).toBeNull();
   });
 });

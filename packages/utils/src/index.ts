@@ -578,6 +578,7 @@ export {
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
 export {
+  hideSeoAuditRequest,
   removeSeoTaskRequest,
   type SeoTaskMarker,
   seoTaskDescription,

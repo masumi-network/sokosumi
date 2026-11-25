@@ -59,3 +59,13 @@ export function removeSeoTaskRequest(
   // Text without a request line is left exactly as written (indentation, line breaks).
   return kept.length === lines.length ? markdown : kept.join("\n").trim();
 }
+
+/**
+ * Text for a person: a full audit's request line holds the owner's price
+ * terms, which only the SEO worker reads. A focused check's line stays.
+ */
+export function hideSeoAuditRequest(
+  text: string | null | undefined,
+): string | null {
+  return text ? removeSeoTaskRequest(text, ["seo_audit"]) || null : null;
+}
