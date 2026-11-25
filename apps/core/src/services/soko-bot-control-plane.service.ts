@@ -2679,7 +2679,7 @@ export class SokoBotControlPlane {
       classification: classification.classification,
       personAsked,
       capturedPreference,
-      turnMessage: input.chat?.classifyMessage ?? message,
+      turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
         previousTurn?.status === "COMPLETED" ? previousTurn.finalAnswer : null,
       audience: askedByTeammate ? "TEAMMATE" : "OWNER",
