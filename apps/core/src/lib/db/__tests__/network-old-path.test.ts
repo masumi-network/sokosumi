@@ -22,9 +22,10 @@ import { beforeAll, expect, it } from "vitest";
 // `netTransaction`, `sharedTransaction`, `serializableTransaction`,
 // `retriedTransaction` or `$transaction`, where the callback's `tx` was meant.
 // It compiles, runs outside the transaction and holds a second connection.
-// `isScope()` knows a scope only as an identifier annotated `NetworkScope` or
-// bound to a local `createNetworkScope()` call: not `c.var.networkScope`, and
-// not a scope held in an object (`params.scope`). Nothing here tells a
+// `isScope()` knows a scope only as an identifier annotated `NetworkScope`, or
+// as a `createNetworkScope(...)` call, written in place or bound to a local
+// const: not `c.var.networkScope`, and not a scope held in an object
+// (`params.scope`). Nothing here tells a
 // callback that runs inside the transaction from one only defined there.
 const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 const CORE_SRC = resolve(ROOT, "apps/core/src");
@@ -356,6 +357,9 @@ function scanSources(sources: ReadonlyMap<string, string>) {
     if (!declaration) return;
     const side = namedType(declaration.type, scopeModule);
     if (side === "NetworkDb" || side === "SharedDb") return "scope";
+    // The database package owns SharedDb; the scope module re-exports it.
+    if (namedType(declaration.type, "@sokosumi/database") === "SharedDb")
+      return "scope";
     if (isLegacyType(declaration.type)) return "legacy";
     if (
       ts.isParameter(declaration) &&
@@ -654,8 +658,10 @@ it.each([
     const nested = { task: { select: { id: true } } } satisfies Prisma.JobSelect;
     prisma.task.findMany({ where: { jobs: { some: {} }, ...(extra && { id: "1" }) } });
     const shared = (db: SharedDb) => db.task.findMany({ where: { jobs: { some: {} } } });
-    prisma.project.findMany({ where: { tasks: { some: { jobs: { some: {} } } } } });`,
-    { relations: [4, 6, 8, 9, 10, 11, 12, 13] },
+    prisma.project.findMany({ where: { tasks: { some: { jobs: { some: {} } } } } });
+    import type { SharedDb as PackageSharedDb } from "@sokosumi/database";
+    const packaged = (db: PackageSharedDb) => db.task.findMany({ where: { jobs: { some: {} } } });`,
+    { relations: [4, 6, 8, 9, 10, 11, 12, 13, 15] },
   ],
   [
     "Pick and Omit references",

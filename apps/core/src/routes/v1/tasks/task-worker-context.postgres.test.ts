@@ -1042,6 +1042,9 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
 
   it("rolls the debit back with the event when the request fails after the charge", async () => {
     const debits = { organizationId, amount: { lt: 0n } };
+    // Every event of the Task, priced or not: the setup already wrote some.
+    const events = () => prisma.taskEvent.count({ where: { taskId } });
+    const eventsBefore = await events();
     fixtureEnv.failAfterCharge = true;
 
     expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(500);
@@ -1052,9 +1055,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
         where: { bucket: { organizationId } },
       }),
     ).toBe(0);
-    expect(
-      await prisma.taskEvent.count({ where: { taskId, cents: { not: null } } }),
-    ).toBe(0);
+    expect(await events()).toBe(eventsBefore);
 
     // The same request then lands: one event, linked to its debit.
     expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(201);
@@ -1068,6 +1069,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     expect(charge.taskEvents).toMatchObject([
       { taskId, cents: convertCreditsToCents(1), status: "COMPLETED" },
     ]);
+    expect(await events()).toBe(eventsBefore + 1);
   });
 
   it.each(["owner", "workspace", "assignee", "archive"] as const)(
