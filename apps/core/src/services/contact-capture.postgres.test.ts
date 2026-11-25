@@ -70,9 +70,11 @@ vi.mock("ai", async (importOriginal) => ({
 
 import prisma from "@/lib/db/prisma";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { SokoBotIntegrationError } from "./composio-integration-tools.service";
 import {
   ContactCaptureService,
   scheduleContactCapture,
+  X_DM_ACCESS_ERROR,
 } from "./contact-capture.service";
 import {
   emptyEnrichmentStats,
@@ -1022,6 +1024,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       participants?: string[],
     ) => ({
       id: `${conversation}:${sender}:${at}`,
+      text: `message from ${sender}`,
       event_type: "MessageCreate",
       dm_conversation_id: conversation,
       sender_id: sender,
@@ -1300,7 +1303,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await prisma.workspace.create({
         data: { id: quietWorkspaceId, organizationId: quietOrganizationId },
       });
-      await addBot(quietWorkspaceId, ["twitter"]);
+      const quietBot = await addBot(quietWorkspaceId, ["twitter"]);
       const start = Date.now();
       let clock = new Date(start);
       let events = [
@@ -1348,6 +1351,27 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         [10, undefined],
         [20, ["sender_id", "participant_ids"]],
       ]);
+      expect(dmCalls[1]?.dm_event_fields).toContain("text");
+      // The owner's bot keeps the new DMs for the briefing and search_inbox.
+      const kept = await prisma.sokoBotIntegration.findFirstOrThrow({
+        where: { sokoBotId: quietBot.id },
+        select: { cursor: true },
+      });
+      const xDms = (
+        kept.cursor as {
+          xDms: { from: string; text: string; fromOwner: boolean }[];
+        }
+      ).xDms;
+      expect(
+        xDms.map(({ from, text, fromOwner }) => ({ from, text, fromOwner })),
+      ).toEqual([
+        {
+          from: "Ruth Weber (@RuthW)",
+          text: "message from 200",
+          fromOwner: false,
+        },
+        { from: "X user 100", text: "message from 100", fromOwner: true },
+      ]);
 
       dmCalls.length = 0;
       clock = new Date(start + 61 * 60 * 1000);
@@ -1376,6 +1400,68 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       clock = new Date(start + 183 * 60 * 1000);
       await capture();
       expect(dmCalls.map((call) => call.max_results)).toEqual([10, 20]);
+    });
+
+    it("shows a refused DM read on the connection, and clears it once a read works", async () => {
+      const deniedOrganizationId = randomUUID();
+      const deniedWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: deniedOrganizationId,
+          name: "Capture X denied",
+          slug: `capture-x-denied-${deniedOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: deniedWorkspaceId, organizationId: deniedOrganizationId },
+      });
+      const bot = await addBot(deniedWorkspaceId, ["twitter"]);
+      expectCoreLog("error", "Could not read a contact capture source");
+      let denied = true;
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (denied)
+            throw new SokoBotIntegrationError(
+              "X: 403 Forbidden: not permitted to access direct messages",
+            );
+          return { data: [] };
+        },
+      );
+      let clock = new Date();
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+          },
+        }).captureWorkspace(deniedWorkspaceId, () => true);
+      const connection = () =>
+        prisma.sokoBotIntegration.findFirstOrThrow({
+          where: { sokoBotId: bot.id },
+          select: { lastError: true, lastErrorAt: true },
+        });
+
+      await capture();
+      expect(await connection()).toMatchObject({
+        lastError: X_DM_ACCESS_ERROR,
+        lastErrorAt: expect.any(Date),
+      });
+
+      denied = false;
+      clock = new Date(clock.getTime() + 61 * 60 * 1000);
+      await capture();
+      expect(await connection()).toEqual({
+        lastError: null,
+        lastErrorAt: null,
+      });
     });
 
     it("reads followers a page a day, and after one full walk stops at the first page with nothing new", async () => {

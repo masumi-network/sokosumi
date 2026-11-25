@@ -609,6 +609,8 @@ export interface XDmEvent {
   senderId: string;
   participantIds: string[];
   createdAt: string;
+  /** Only when the read asked for it. */
+  text: string;
 }
 
 /** A group DM with more people than this is not a conversation. */
@@ -657,6 +659,7 @@ export function parseXDmEvent(raw: unknown): XDmEvent | null {
     senderId,
     participantIds: list(field(raw, "participant_ids")).map(text),
     createdAt,
+    text: text(field(raw, "text")),
   };
 }
 

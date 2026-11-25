@@ -88,6 +88,7 @@ import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
+  seedEvalXDms,
 } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
 import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
@@ -272,6 +273,7 @@ async function startScenario(
     : {};
   if (bot === "soko-bot" && (context.firstOfSuite || scenario.setup))
     await resetEvalLaneForSokoBot(lane);
+  if (scenario.setup?.xDms) await seedEvalXDms(lane, scenario.setup.xDms);
   for (const schedule of scenario.setup?.schedules ?? [])
     await createSokoBotSchedule({
       userId: lane.userId,

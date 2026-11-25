@@ -34,6 +34,12 @@ import {
   isIdleSokoBot,
   proactiveGate,
 } from "@/services/soko-bot-proactive.service";
+import {
+  MAX_X_DMS_PER_PACKET,
+  ownerXDms,
+  triageXDms,
+  X_DM_GUIDE,
+} from "@/services/soko-bot-x-dms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 /** New mail is checked at most this often per bot. */
@@ -150,7 +156,10 @@ export function buildIngestMessage(input: {
   events: SokoBotCalendarEvent[];
   /** Contacts lines for the people on the calendar. */
   people?: string[];
+  /** The owner's X direct messages, triaged like mail. */
+  xMessages?: readonly TriagedMail[];
 }): string {
+  const xMessages = input.xMessages ?? [];
   const lines: string[] = [];
   if (input.kind === "briefing") {
     lines.push(
@@ -158,14 +167,16 @@ export function buildIngestMessage(input: {
     );
   } else {
     lines.push(
-      "New mail arrived that Jev triaged as urgent. Tell the owner briefly what each urgent one needs and by when, as described in your inbox skill, then any notable mail one line each under Notable. Leave out any that, on reading, can wait for tomorrow's briefing; if no urgent mail is left, reply exactly `Nothing new worth flagging.`",
+      "New mail or X direct messages arrived that Jev triaged as urgent. Tell the owner briefly what each urgent one needs and by when, as described in your inbox skill, then any notable mail one line each under Notable. Leave out any that, on reading, can wait for tomorrow's briefing; if no urgent mail is left, reply exactly `Nothing new worth flagging.`",
     );
   }
   if (input.mail.some((item) => item.matchesRule))
     lines.push(
       "Some mail matches a saved rule of the owner's (listed first). For each, read it with `read_email` and do what the rule says, such as `save_email_attachment` into the folder it names, then say in one line what you filed where. Do nothing a rule does not ask for.",
     );
-  lines.push(MAIL_TRIAGE_GUIDE, "");
+  lines.push(MAIL_TRIAGE_GUIDE);
+  if (xMessages.length > 0) lines.push(X_DM_GUIDE);
+  lines.push("");
   if (input.events.length > 0) {
     lines.push(`## Calendar (${input.timeZone})`);
     for (const event of input.events) {
@@ -189,8 +200,18 @@ export function buildIngestMessage(input: {
       limit:
         input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
     }),
+    ...triagedMailLines({
+      timeZone: input.timeZone,
+      mail: xMessages,
+      limit: MAX_X_DMS_PER_PACKET,
+      title: "X direct messages",
+    }),
   );
-  if (input.mail.length === 0 && input.events.length === 0) {
+  if (
+    input.mail.length === 0 &&
+    input.events.length === 0 &&
+    xMessages.length === 0
+  ) {
     lines.push("Nothing new in mail or calendar.");
   }
   return lines.join("\n").trim();
@@ -203,7 +224,7 @@ export async function buildIngestDeltaMessageForBot(
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
-    select: { ingestTimezone: true },
+    select: { id: true, userId: true, ingestTimezone: true },
   });
   const since = new Date(Date.now() - hours * HOUR_MS);
   const mail: SokoBotInboxMessage[] = [];
@@ -225,11 +246,13 @@ export async function buildIngestDeltaMessageForBot(
     source: "lab",
   });
   triage.log.emit();
+  const xDms = await ownerXDms(bot, { briefing: true, since });
   return buildIngestMessage({
     kind: "delta",
     timeZone: bot.ingestTimezone,
     mail: triage.mail,
     events: [],
+    xMessages: await triageXDms(sokoBotId, xDms.messages, "delta"),
   });
 }
 
@@ -340,11 +363,13 @@ export class SokoBotIngestSyncService {
         briefing || !last || now.getTime() - last.getTime() >= DELTA_INTERVAL_MS
       );
     });
-    if (!briefing && dueMail.length === 0) return "skipped";
+    const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
+    const xDms = await ownerXDms(bot, { briefing, since: dayAgo });
+    if (!briefing && dueMail.length === 0 && xDms.messages.length === 0)
+      return "skipped";
 
     const mail: SokoBotInboxMessage[] = [];
     const cursors = new Map<string, MailCursor>();
-    const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
     for (const integration of dueMail) {
       const previous = cursorDate(integration.cursor, "newestSeenAt");
       // The briefing summarises the whole last day, mail the hourly checks
@@ -465,6 +490,7 @@ export class SokoBotIngestSyncService {
           },
         });
       }
+      if (consumed) await xDms.markSeen(now);
       if (briefing && consumed) {
         await prisma.sokoBot.update({
           where: { id: bot.id },
@@ -473,7 +499,7 @@ export class SokoBotIngestSyncService {
       }
     };
 
-    if (!briefing && mail.length === 0) {
+    if (!briefing && mail.length === 0 && xDms.messages.length === 0) {
       await stamp();
       return "skipped";
     }
@@ -526,9 +552,11 @@ export class SokoBotIngestSyncService {
       triage.log.set({
         mailAutoRead: await autoReadBulkMail(bot.id, triage.mail, triage.log),
       });
+    const xTriage = await triageXDms(bot.id, xDms.messages, kind);
     if (
       !briefing &&
-      !triage.mail.some((item) => item.tag === "URGENT" || item.matchesRule)
+      !triage.mail.some((item) => item.tag === "URGENT" || item.matchesRule) &&
+      !xTriage.some((item) => item.tag === "URGENT")
     ) {
       triage.log.set({ outcome: "quiet" });
       triage.log.emit();
@@ -548,6 +576,7 @@ export class SokoBotIngestSyncService {
           mail: triage.mail,
           events,
           people,
+          xMessages: xTriage,
         }),
         source: "INGEST",
         presetRoute: SYSTEM_TURN_ROUTES[`ingest:${kind}`],

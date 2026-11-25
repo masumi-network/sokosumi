@@ -2,6 +2,7 @@ import { CMO_SKILLS } from "./cmo-skills.js";
 import { cmoV4Skills } from "./cmo-v4-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
 import { MESSAGING_SOKO_BOT_SKILLS } from "./messaging-skills.js";
+import { X_DMS_SOKO_BOT_SKILLS } from "./x-dms-skills.js";
 
 /**
  * Skills are reusable instruction modules a version can include. Keep each
@@ -365,6 +366,7 @@ Prospects are people the owner finds interesting but nobody on the team has met 
   },
   ...COMPACT_SOKO_BOT_SKILLS,
   ...MESSAGING_SOKO_BOT_SKILLS,
+  ...X_DMS_SOKO_BOT_SKILLS,
   {
     id: "jev-triage",
     name: "Triage with Jev",

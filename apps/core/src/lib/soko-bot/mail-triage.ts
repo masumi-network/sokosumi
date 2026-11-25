@@ -373,6 +373,8 @@ export function triagedMailLines(input: {
   mail: readonly TriagedMail[];
   /** Shown as `N+` when the fetch stopped at this many. */
   limit: number;
+  /** The section's heading; X direct messages use their own. */
+  title?: string;
 }): string[] {
   if (input.mail.length === 0) return [];
   const of = (tag: MailTriageTag | null) =>
@@ -383,7 +385,7 @@ export function triagedMailLines(input: {
         (tag === "URGENT" || !item.matchesRule),
     );
   const lines = [
-    `## Mail (${input.mail.length}${input.mail.length >= input.limit ? "+" : ""}), triaged by Jev`,
+    `## ${input.title ?? "Mail"} (${input.mail.length}${input.mail.length >= input.limit ? "+" : ""}), triaged by Jev`,
   ];
   const section = (
     title: string,
