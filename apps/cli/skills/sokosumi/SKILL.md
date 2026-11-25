@@ -344,6 +344,17 @@ sokosumi organizations set-standup ORGANIZATION_ID --input-json '{"enabled":true
 
 Over MCP, the account tools (`users_get`, preferences, files, access and grants for the personal Workspace) are in the `users` toolset and the organization tools in `organizations`, both off by default; `workspaces_credits` and `workspaces_design_md` are on. To check the signed-in account over MCP, add `?toolsets=users` to the server URL and call `users_get` with id `me`. A person approves a Coworker's access request or grants a vendor access in Sokosumi, never an agent, on the CLI or over MCP (ADR 0077); agents may deny or revoke. Over MCP, managing invite links, changing ad-data consent and uploading files are not tools; the person does them in Sokosumi or on the CLI. Billing, account deletion, legal notices, sessions and OAuth consents stay in Sokosumi Web on both.
 
+## Image Studio generations
+
+[VERIFIED: `apps/core/src/routes/v1/projects/[id]/image-studio/`, ADR 0077] Starting an image, video, short video or talking video spends workspace credits. Confirm the Project, what to make and the price with the person first. Core refuses a start the balance cannot cover alongside the jobs still running.
+
+```bash
+sokosumi projects image-studio-generate PROJECT_ID --input-json '{"prompt":"...","idempotencyKey":"launch-hero-1"}' --json
+sokosumi projects image-studio-cancel PROJECT_ID JOB_ID --json
+```
+
+Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for each generation and reuse it on a retry: a repeat returns the first job and buys nothing. A talking video from a photo of a real person needs that person's permission before you send `consent: true`.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:

@@ -202,9 +202,8 @@
       "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-generate",
+      "mcp": "projects_image_studio_generate"
     },
     "PUT /projects/{id}/image-studio/products": {
       "cli": false,
@@ -222,19 +221,16 @@
       "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/video-jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-video",
+      "mcp": "projects_image_studio_video"
     },
     "POST /projects/{id}/image-studio/talking-video-jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-talking-video",
+      "mcp": "projects_image_studio_talking_video"
     },
     "POST /projects/{id}/image-studio/short-video-jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-short-video",
+      "mcp": "projects_image_studio_short_video"
     },
     "POST /projects/{id}/image-studio/talking-video-scripts": {
       "cli": false,
@@ -242,9 +238,8 @@
       "reason": "Human-only pending ADR 0077's follow-up tickets."
     },
     "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-cancel",
+      "mcp": "projects_image_studio_cancel"
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/events": {
       "cli": false,
