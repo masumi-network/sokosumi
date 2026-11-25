@@ -7,6 +7,7 @@ import {
   SITE_SPEED_TIERS,
   SITE_SPEED_WHY_CHARS,
   type StoredSiteSpeed,
+  siteSpeedCheck,
 } from "@/schemas/seo-site-speed.schema";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
@@ -20,10 +21,41 @@ function publicText(value: unknown, max: number) {
     : undefined;
 }
 
+/** The worker gives its reason as a sentence. Core keeps a code. */
+function gapCode(reason: unknown) {
+  const text = typeof reason === "string" ? reason : "";
+  if (/rate limit|quota/i.test(text)) return "quota" as const;
+  if (/time/i.test(text)) return "deadline" as const;
+  return "other" as const;
+}
+
+function readCheck(value: unknown) {
+  const raw = reportObject(value);
+  const check = siteSpeedCheck.safeParse({
+    ...raw,
+    notChecked: raw?.notChecked == null ? null : gapCode(raw.notChecked),
+  });
+  return check.success ? check.data : undefined;
+}
+
+function readNotChecked(value: unknown): StoredSiteSpeed["notChecked"] {
+  const raw = reportObject(value);
+  if (!raw || !Number.isSafeInteger(raw.count) || Number(raw.count) < 0)
+    return undefined;
+  const code = gapCode(raw.reason);
+  return {
+    count: Number(raw.count),
+    reason:
+      code === "other" && /limit|up to/i.test(String(raw.reason))
+        ? "limit"
+        : code,
+  };
+}
+
 /**
  * A site Report's speed table. It names pages outside the audit's frozen scope, so each one is bound to the
  * start page's host. A row Core cannot trust is dropped and counted: this never fails the import. The worker's
- * `source`, `clicks`, `n` and `note` are not read, so no Search Console fact reaches the stored audit.
+ * `source`, `clicks`, `n`, `note` and the names of pages it left out are not read, so no Search Console fact reaches the stored audit.
  */
 export function readSiteSpeed(
   raw: unknown,
@@ -59,6 +91,7 @@ export function readSiteSpeed(
     const cause = SITE_SPEED_CAUSES.find((value) => value === row.cause);
     const group = publicText(row.group, SITE_SPEED_GROUP_CHARS);
     const why = publicText(row.why, SITE_SPEED_WHY_CHARS);
+    const check = tier === "reduced" ? readCheck(row.check) : undefined;
     try {
       rows.push({
         url,
@@ -67,6 +100,7 @@ export function readSiteSpeed(
         ...(cause && { cause }),
         ...(why && { why }),
         ...(tier && { tier }),
+        ...(check && { check }),
         devices:
           audited.has(url) || tier === "none"
             ? []
@@ -79,6 +113,7 @@ export function readSiteSpeed(
   return {
     rows,
     dropped: speed.pages.length - rows.length,
+    notChecked: readNotChecked(speed.notChecked),
   };
 }
 

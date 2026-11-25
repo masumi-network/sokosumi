@@ -12694,6 +12694,13 @@ export type ProjectSeoObservation = {
                 first: Date;
                 last: Date;
             } | null;
+            history?: {
+                status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                weeks?: Array<string>;
+                lcp?: Array<number | null>;
+                inp?: Array<number | null>;
+                cls?: Array<number | null>;
+            };
         };
     }>;
     pageSpeedRecoveryFileId?: string;
@@ -13204,6 +13211,21 @@ export type ProjectSeoSiteSpeed = {
         cause?: 'action' | 'keyword' | 'template' | 'entry' | 'risk';
         why?: string;
         tier?: 'full' | 'reduced' | 'none';
+        check?: {
+            device: 'mobile' | 'desktop';
+            basis: 'crux-url' | 'crux-origin' | 'page-type' | 'default';
+            mix: {
+                level: 'url' | 'origin';
+                phone: number;
+                desktop: number;
+                tablet: number;
+                period: {
+                    first: string;
+                    last: string;
+                } | null;
+            } | null;
+            notChecked: 'deadline' | 'quota' | 'other' | null;
+        };
         devices: Array<{
             pageUrl: string;
             testedUrl: string;
@@ -13256,10 +13278,21 @@ export type ProjectSeoSiteSpeed = {
                     first: Date;
                     last: Date;
                 } | null;
+                history?: {
+                    status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                    weeks?: Array<string>;
+                    lcp?: Array<number | null>;
+                    inp?: Array<number | null>;
+                    cls?: Array<number | null>;
+                };
             };
         }>;
     }>;
     dropped: number;
+    notChecked?: {
+        count: number;
+        reason: 'limit' | 'deadline' | 'quota' | 'other';
+    };
     observationId: string;
     observedAt: Date;
 };

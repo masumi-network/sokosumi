@@ -5,7 +5,12 @@ import {
   labTimings,
   lighthouseScores,
   type PageSpeedRows,
+  SPEED_HISTORY_STATUSES,
+  SPEED_HISTORY_WEEKS,
+  type SpeedHistory,
+  speedDay,
   speedInsight,
+  speedValue,
 } from "@/schemas/seo-page-speed.schema";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
@@ -204,6 +209,65 @@ function provenAggregate(
   );
 }
 
+const weeklyPoints = z
+  .array(z.object({ last: speedDay, p75: speedValue }))
+  .min(1);
+
+/**
+ * CrUX History of a measured field. The weekly series is kept only for a comparable population whose record is
+ * a successful history read at the field's level; boundSource checked each ref's URL and device before this.
+ */
+function readHistory(
+  raw: unknown,
+  level: "url" | "origin",
+): { history?: SpeedHistory } {
+  const field = reportObject(raw),
+    history = reportObject(field?.history),
+    refs = field?.sourceRefs;
+  const status = SPEED_HISTORY_STATUSES.find(
+    (value) => value === history?.status,
+  );
+  if (!history || !status) return {};
+  if (status !== "comparable") return { history: { status } };
+  if (!Array.isArray(refs)) return { history: { status: "legacy_unverified" } };
+  const record = history.sourceRecord;
+  const bound =
+    typeof record === "string" &&
+    /^[0-9a-f]{64}$/.test(record) &&
+    refs.some((item) => {
+      const ref = reportObject(item),
+        params = reportObject(reportObject(ref?.request)?.params);
+      return (
+        ref?.record === record &&
+        successfulSource(item) &&
+        params?.kind === "history" &&
+        params.level === level
+      );
+    });
+  const series = reportObject(history.series);
+  const read: SpeedHistory = { status };
+  for (const key of ["lcp", "inp", "cls"] as const) {
+    const value = series?.[key];
+    const points = weeklyPoints.safeParse(
+      Array.isArray(value) ? value.slice(-SPEED_HISTORY_WEEKS) : null,
+    );
+    if (!bound || !points.success) continue;
+    const weeks = points.data.map((point) => point.last);
+    if (
+      weeks.some(
+        (day, i) =>
+          Number.isNaN(Date.parse(day)) || (i > 0 && day <= weeks[i - 1]!),
+      )
+    )
+      continue;
+    read.weeks ??= weeks;
+    // One list of weeks serves every metric: a metric with other weeks is left out.
+    if (weeks.join() === read.weeks.join())
+      read[key] = points.data.map((point) => point.p75);
+  }
+  return { history: read.weeks ? read : { status: "unavailable" } };
+}
+
 export function readPageSpeed(
   raw: unknown,
   pageUrl: string,
@@ -267,6 +331,7 @@ export function readPageSpeed(
               url: read.url,
               p75: read.p75,
               period: read.period,
+              ...readHistory(evidence.field, read.level),
             }
           : field.success
             ? { status: "unavailable" }
@@ -283,7 +348,25 @@ export function scopedPageSpeed(
   return rows?.filter((row) => selected.has(auditedSeoPageKey(row.pageUrl)));
 }
 
-/** An audit's page speed for the view. An audit from before Core read it names the file to recover it from. */
+/** Up to 100 audits reach one view: only the newest with page speed keeps its weekly series, the rest the status. */
+function withoutSeries(rows: PageSpeedRows): PageSpeedRows {
+  return rows.map((row) =>
+    "history" in row.field && row.field.history
+      ? {
+          ...row,
+          field: {
+            ...row.field,
+            history: { status: row.field.history.status },
+          },
+        }
+      : row,
+  );
+}
+
+/**
+ * An audit's page speed for the view. An audit from before Core read it names the file to recover it from.
+ * `newer` holds the view's audits so far: rows come newest first.
+ */
 export function observationPageSpeed(
   data: { kind: string; pageSpeed?: PageSpeedRows },
   row: {
@@ -293,10 +376,17 @@ export function observationPageSpeed(
   },
   selected: ReadonlySet<string>,
   input: { marketRecoveryTaskIds?: ReadonlySet<string> },
+  newer: ReadonlyArray<{ pageSpeed?: PageSpeedRows }>,
 ) {
   if (data.kind !== "audit_full") return {};
-  if (data.pageSpeed !== undefined)
-    return { pageSpeed: scopedPageSpeed(data.pageSpeed, selected) };
+  if (data.pageSpeed !== undefined) {
+    const pageSpeed = scopedPageSpeed(data.pageSpeed, selected) ?? [];
+    return {
+      pageSpeed: newer.some((item) => item.pageSpeed?.length)
+        ? withoutSeries(pageSpeed)
+        : pageSpeed,
+    };
+  }
   return row.source === "seo_coworker" &&
     row.sourceFileId &&
     row.sourceTaskId &&

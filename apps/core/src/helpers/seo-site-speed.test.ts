@@ -41,6 +41,19 @@ const extra = (url: string, more: object = {}) => ({
   speed: section(url),
   ...more,
 });
+const check = {
+  device: "mobile",
+  basis: "crux-url",
+  mix: {
+    level: "url",
+    phone: 0.62,
+    desktop: 0.35,
+    tablet: 0.03,
+    period: { first: "2026-10-01", last: "2026-10-28" },
+    record: "a".repeat(64),
+  },
+  notChecked: null,
+};
 const site = (pages: unknown[], more: object = {}) => ({
   kind: "site",
   rulebookVersion: "v",
@@ -119,7 +132,7 @@ describe("a site Report's speed table", () => {
 
   it("stores no Search Console fact and no worker free text of the table", () => {
     const stored = JSON.stringify(
-      read([extra(EXTRA)], {
+      read([extra(EXTRA, { tier: "reduced", check })], {
         notChecked: {
           count: 1,
           reason: "The owner's Search Console named more pages",
@@ -131,6 +144,57 @@ describe("a site Report's speed table", () => {
     for (const word of ["clicks", "source", "search-console", "Search Console"])
       expect(stored).not.toContain(word);
     expect(stored).not.toContain("https://example.test/left");
+    expect(stored).not.toContain("a".repeat(64));
+    expect(JSON.parse(stored).notChecked).toEqual({
+      count: 1,
+      reason: "other",
+    });
+  });
+
+  it("keeps how a reduced page was read, with a code for the reason", () => {
+    const row = (more: object, tier = "reduced") =>
+      read([extra(EXTRA, { tier, check: { ...check, ...more } })])?.rows[0];
+    const { record: _record, ...mix } = check.mix;
+    expect(row({})?.check).toEqual({ ...check, mix, notChecked: null });
+    expect(
+      ["time limit", "CrUX rate limit", "something new"].map(
+        (notChecked) => row({ notChecked, mix: null })?.check?.notChecked,
+      ),
+    ).toEqual(["deadline", "quota", "other"]);
+    // A share is a fraction. A check Core cannot read goes; the row stays.
+    for (const bad of [
+      row({ mix: { ...check.mix, phone: 62 } }),
+      row({ device: "tablet" }),
+      row({}, "full"),
+    ])
+      expect([bad?.url, bad && "check" in bad]).toEqual([EXTRA, false]);
+  });
+
+  it("maps the worker's sentence for pages it left out to a code", () => {
+    const reason = (text: unknown, count: unknown = 4) =>
+      read([], { notChecked: { count, reason: text, pages: [] } })?.notChecked
+        ?.reason;
+    expect(
+      [
+        "the audit tests up to 40 pages",
+        "page limit reached",
+        "time limit reached",
+        "CrUX rate limit",
+        "Google quota used up",
+        "private@example.com asked",
+        null,
+      ].map((text) => reason(text)),
+    ).toEqual([
+      "limit",
+      "limit",
+      "deadline",
+      "quota",
+      "quota",
+      "other",
+      "other",
+    ]);
+    expect(reason("time limit", -1)).toBeUndefined();
+    expect(reason("time limit", "4")).toBeUndefined();
   });
 
   it("caps the table at 40 pages and keeps a repeated page once", () => {

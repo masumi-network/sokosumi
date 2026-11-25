@@ -285,3 +285,125 @@ describe("imported full-audit PageSpeed evidence", () => {
     });
   });
 });
+
+describe("CrUX History on a measured field", () => {
+  const historyRecord = "d".repeat(64);
+  const ref = (kind: string, level = "url", record = "e".repeat(64)) => ({
+    record,
+    port: "crux",
+    request: {
+      port: "crux",
+      device: "mobile",
+      url: SEO_TEST_PAGE,
+      params: { kind, level },
+    },
+    outcome: { kind: "ok", status: 200 },
+  });
+  const weeks = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      new Date(Date.UTC(2026, 0, 4 + 7 * i)).toISOString().slice(0, 10),
+    );
+  const points = (days: string[]) =>
+    days.map((last, i) => ({ last, p75: i === 1 ? null : 1000 + i }));
+  const three = weeks(3);
+  const series = {
+    lcp: points(three),
+    inp: points(three),
+    cls: points(three),
+    fcp: points(three),
+    ttfb: points(three),
+  };
+  const historyOf = (history: object, sourceRefs: unknown[] | undefined) => {
+    const field = parsePublicSeoArtifact({
+      ...legacyReport(),
+      speed: {
+        mobile: {
+          field: {
+            level: "url",
+            url: SEO_TEST_PAGE,
+            period: null,
+            p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+            history: { sourceRecord: historyRecord, reason: null, ...history },
+            ...(sourceRefs && { sourceRefs }),
+          },
+        },
+      },
+    }).pageSpeed?.[0]?.field;
+    return field && "history" in field ? field.history : "no field history";
+  };
+  const bound = [ref("record"), ref("history", "url", historyRecord)];
+
+  it("keeps the weekly series of the three Core Web Vitals for a comparable, bound history", () => {
+    expect(historyOf({ status: "comparable", series }, bound)).toEqual({
+      status: "comparable",
+      weeks: three,
+      lcp: [1000, null, 1002],
+      inp: [1000, null, 1002],
+      cls: [1000, null, 1002],
+    });
+  });
+
+  it("shows no series for a population that is not comparable", () => {
+    for (const status of ["incompatible_population", "legacy_unverified"])
+      expect(historyOf({ status, series }, bound)).toEqual({ status });
+  });
+
+  it("shows no series when the history record is not a successful history read at the field's level", () => {
+    const refused = { status: "unavailable" };
+    for (const refs of [
+      [ref("record"), ref("history", "url", "f".repeat(64))],
+      [ref("record", "url", historyRecord)],
+      [
+        ref("record"),
+        {
+          ...ref("history", "url", historyRecord),
+          outcome: { kind: "no-data" },
+        },
+      ],
+    ])
+      expect(historyOf({ status: "comparable", series }, refs)).toEqual(
+        refused,
+      );
+    // An origin history read is no history of the URL's own field data. Its request names the origin.
+    const origin = ref("history", "origin", historyRecord);
+    origin.request.url = new URL(SEO_TEST_PAGE).origin;
+    expect(
+      historyOf({ status: "comparable", series }, [ref("record"), origin]),
+    ).toEqual(refused);
+    // A Report from before source references cannot prove the series.
+    expect(historyOf({ status: "comparable", series }, undefined)).toEqual({
+      status: "legacy_unverified",
+    });
+  });
+
+  it("keeps the newest 40 weeks and leaves out a metric with unordered, invalid or other weeks", () => {
+    const long = weeks(45);
+    const read = historyOf(
+      {
+        status: "comparable",
+        series: {
+          lcp: points(long),
+          inp: points([...long].reverse()),
+          cls: points(long.slice(0, 44)),
+        },
+      },
+      bound,
+    );
+    expect(read).toMatchObject({ status: "comparable", weeks: long.slice(5) });
+    expect(read).not.toHaveProperty("inp");
+    expect(read).not.toHaveProperty("cls");
+    expect(
+      historyOf(
+        {
+          status: "comparable",
+          series: {
+            lcp: [{ last: "2026-13-45", p75: 1 }],
+            inp: [{ last: "2026-01-04", p75: -1 }],
+            cls: "x",
+          },
+        },
+        bound,
+      ),
+    ).toEqual({ status: "unavailable" });
+  });
+});

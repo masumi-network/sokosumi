@@ -300,7 +300,7 @@ export function projectSeoProjection(
       issues,
       ...(checklistBreakdown && { checklistBreakdown }),
       ...scopedReportEvidence(data, selectedUrls),
-      ...observationPageSpeed(data, row, selectedUrls, input),
+      ...observationPageSpeed(data, row, selectedUrls, input, observations),
       coverage,
     });
     for (const check of data.checks) {

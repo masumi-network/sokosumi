@@ -49201,6 +49201,64 @@ export const ProjectSeoObservationSchema = {
                                             'first',
                                             'last'
                                         ]
+                                    },
+                                    history: {
+                                        type: 'object',
+                                        properties: {
+                                            status: {
+                                                type: 'string',
+                                                enum: [
+                                                    'comparable',
+                                                    'incompatible_population',
+                                                    'unavailable',
+                                                    'legacy_unverified'
+                                                ]
+                                            },
+                                            weeks: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                maxItems: 40
+                                            },
+                                            lcp: {
+                                                type: 'array',
+                                                items: {
+                                                    type: [
+                                                        'number',
+                                                        'null'
+                                                    ],
+                                                    minimum: 0
+                                                },
+                                                maxItems: 40
+                                            },
+                                            inp: {
+                                                type: 'array',
+                                                items: {
+                                                    type: [
+                                                        'number',
+                                                        'null'
+                                                    ],
+                                                    minimum: 0
+                                                },
+                                                maxItems: 40
+                                            },
+                                            cls: {
+                                                type: 'array',
+                                                items: {
+                                                    type: [
+                                                        'number',
+                                                        'null'
+                                                    ],
+                                                    minimum: 0
+                                                },
+                                                maxItems: 40
+                                            }
+                                        },
+                                        required: [
+                                            'status'
+                                        ]
                                     }
                                 },
                                 required: [
@@ -52081,6 +52139,110 @@ export const ProjectSeoSiteSpeedSchema = {
                             'none'
                         ]
                     },
+                    check: {
+                        type: 'object',
+                        properties: {
+                            device: {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            basis: {
+                                type: 'string',
+                                enum: [
+                                    'crux-url',
+                                    'crux-origin',
+                                    'page-type',
+                                    'default'
+                                ]
+                            },
+                            mix: {
+                                anyOf: [
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            level: {
+                                                type: 'string',
+                                                enum: [
+                                                    'url',
+                                                    'origin'
+                                                ]
+                                            },
+                                            phone: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            },
+                                            desktop: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            },
+                                            tablet: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            },
+                                            period: {
+                                                anyOf: [
+                                                    {
+                                                        type: 'object',
+                                                        properties: {
+                                                            first: {
+                                                                type: 'string',
+                                                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                            },
+                                                            last: {
+                                                                type: 'string',
+                                                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                            }
+                                                        },
+                                                        required: [
+                                                            'first',
+                                                            'last'
+                                                        ]
+                                                    },
+                                                    {
+                                                        type: 'null'
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'level',
+                                            'phone',
+                                            'desktop',
+                                            'tablet',
+                                            'period'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            notChecked: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                enum: [
+                                    'deadline',
+                                    'quota',
+                                    'other',
+                                    null
+                                ]
+                            }
+                        },
+                        required: [
+                            'device',
+                            'basis',
+                            'mix',
+                            'notChecked'
+                        ]
+                    },
                     devices: {
                         type: 'array',
                         items: {
@@ -52394,6 +52556,64 @@ export const ProjectSeoSiteSpeedSchema = {
                                                         'first',
                                                         'last'
                                                     ]
+                                                },
+                                                history: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        status: {
+                                                            type: 'string',
+                                                            enum: [
+                                                                'comparable',
+                                                                'incompatible_population',
+                                                                'unavailable',
+                                                                'legacy_unverified'
+                                                            ]
+                                                        },
+                                                        weeks: {
+                                                            type: 'array',
+                                                            items: {
+                                                                type: 'string',
+                                                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                            },
+                                                            maxItems: 40
+                                                        },
+                                                        lcp: {
+                                                            type: 'array',
+                                                            items: {
+                                                                type: [
+                                                                    'number',
+                                                                    'null'
+                                                                ],
+                                                                minimum: 0
+                                                            },
+                                                            maxItems: 40
+                                                        },
+                                                        inp: {
+                                                            type: 'array',
+                                                            items: {
+                                                                type: [
+                                                                    'number',
+                                                                    'null'
+                                                                ],
+                                                                minimum: 0
+                                                            },
+                                                            maxItems: 40
+                                                        },
+                                                        cls: {
+                                                            type: 'array',
+                                                            items: {
+                                                                type: [
+                                                                    'number',
+                                                                    'null'
+                                                                ],
+                                                                minimum: 0
+                                                            },
+                                                            maxItems: 40
+                                                        }
+                                                    },
+                                                    required: [
+                                                        'status'
+                                                    ]
                                                 }
                                             },
                                             required: [
@@ -52429,6 +52649,28 @@ export const ProjectSeoSiteSpeedSchema = {
         dropped: {
             type: 'integer',
             minimum: 0
+        },
+        notChecked: {
+            type: 'object',
+            properties: {
+                count: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                reason: {
+                    type: 'string',
+                    enum: [
+                        'limit',
+                        'deadline',
+                        'quota',
+                        'other'
+                    ]
+                }
+            },
+            required: [
+                'count',
+                'reason'
+            ]
         },
         observationId: {
             type: 'string',

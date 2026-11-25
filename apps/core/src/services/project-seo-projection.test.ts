@@ -529,6 +529,69 @@ describe("stored SEO workspace projections", () => {
     ).toBeNull();
   });
 
+  it("serves the weekly speed series on the newest audit only", () => {
+    const input = fixture();
+    const record = "d".repeat(64);
+    const ref = (kind: string) => ({
+      record: kind === "history" ? record : "e".repeat(64),
+      port: "crux",
+      request: {
+        port: "crux",
+        device: "mobile",
+        url: SEO_TEST_PAGE,
+        params: { kind, level: "url" },
+      },
+      outcome: { kind: "ok", status: 200 },
+    });
+    const audit = parsePublicSeoArtifact({
+      kind: "site",
+      rulebookVersion: "v",
+      pages: [
+        {
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                sourceRefs: [ref("record"), ref("history")],
+                history: {
+                  status: "comparable",
+                  sourceRecord: record,
+                  series: { lcp: [{ last: "2026-10-25", p75: 1300 }] },
+                },
+              },
+            },
+          },
+        },
+      ],
+      speed: {
+        pages: [{ url: SEO_TEST_PAGE, n: 1, source: "audited", speed: null }],
+        note: null,
+      },
+    });
+    input.observations = [
+      observation(input, audit, "2026-11-03T12:00:00Z"),
+      observation(input, audit, "2026-11-01T12:00:00Z"),
+    ];
+    const workspace = projectSeoProjection(input);
+    const series = { status: "comparable", weeks: ["2026-10-25"], lcp: [1300] };
+    expect(
+      workspace.observations.map((item) => item.pageSpeed?.[0]?.field),
+    ).toMatchObject([
+      { history: series },
+      { history: { status: "comparable" } },
+    ]);
+    expect(workspace.observations[1]?.pageSpeed?.[0]?.field).not.toHaveProperty(
+      "history.weeks",
+    );
+    expect(workspace.siteSpeed?.rows[0]?.devices[0]?.field).toMatchObject({
+      history: series,
+    });
+  });
+
   it("retains measured site intent and a matching purpose opportunity only in the scope they describe", () => {
     const input = fixture(),
       base = siteStrategyReport(),

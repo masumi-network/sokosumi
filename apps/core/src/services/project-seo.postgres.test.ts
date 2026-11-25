@@ -2657,6 +2657,70 @@ describe.skipIf(!enabled)(
       expect(latest.pageSpeedRecoveryFileId).toBeUndefined();
     });
 
+    it("stores a site audit's speed table and serves it on the workspace", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Site speed table" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed site audit",
+          ownerId: userId,
+          workspaceId,
+          projectId: project.id,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      const page = legacyReport();
+      const extra = new URL("/pricing", page.request.url).href;
+      const body = JSON.stringify({
+        kind: "site",
+        rulebookVersion: page.rulebookVersion,
+        pages: [page],
+        speed: {
+          pages: [
+            { url: page.request.url, n: 1, source: "audited", speed: null },
+            // No tier, cause or check: Prisma must not get their undefined values.
+            { url: extra, n: null, source: "search-console", speed: null },
+            { url: "https://foreign.test/", n: null, source: "links" },
+          ],
+          note: null,
+        },
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const observation = await importProjectSeoAudit(
+        owner,
+        { taskId: task.id, fileId: file.id },
+        { fetchImpl: async () => new Response(body) },
+      );
+      const rows = [
+        { url: page.request.url, audited: true, devices: [] },
+        { url: extra, audited: false, devices: [] },
+      ];
+      expect(reportObject(observation.payload)?.siteSpeed).toEqual({
+        rows,
+        dropped: 1,
+      });
+      expect((await getProjectSeoWorkspace(owner)).siteSpeed).toMatchObject({
+        observationId: observation.id,
+        rows,
+        dropped: 1,
+      });
+    });
+
     it.each([true, false])(
       "recovers only saved site market fields on the exact existing observation (retained %s)",
       async (retained) => {
