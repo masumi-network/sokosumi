@@ -12845,7 +12845,8 @@
         "nextStep": "Next step",
         "lastTouch": "Last touch",
         "dataRoom": "Data room",
-        "cheque": "Cheque"
+        "cheque": "Cheque",
+        "nextAction": "Next action"
       },
       "stages": {
         "TO_RESEARCH": "To research",
@@ -12982,6 +12983,42 @@
         "openDrafts": "Open Gmail drafts",
         "another": "Write another",
         "lastDraft": "Last draft “{subject}” · {when}"
+      },
+      "intro": {
+        "statusTitle": "Introduction",
+        "asked": "Asked {who} {when}",
+        "made": "Intro made by {who} {when}",
+        "declinedBy": "{who} declined; find another path",
+        "declinedBefore": "({who} declined earlier)",
+        "askDirect": "Ask {who}, they know {investor}",
+        "askFund": "Ask {who} at {company}",
+        "askPortfolio": "Ask {who}, {company} is one they backed",
+        "via": "via {who}",
+        "youKnow": "You know them; write to them directly",
+        "noPath": "No warm path yet",
+        "draftAsk": "Draft the ask",
+        "introMade": "Intro made",
+        "declined": "Declined",
+        "meetingBooked": "Meeting booked",
+        "passed": "Passed",
+        "writeDraft": "Write draft",
+        "dialogTitle": "Ask {who} for an intro to {investor}",
+        "dialogDescription": "Two drafts go into your Gmail: the ask to {who}, with a note they can forward below it, and that note on its own. Nothing is sent.",
+        "weakTie": "You barely know {who}. A strong cold mail beats a weak warm one; consider another path or a short catch-up first.",
+        "inviteRoom": "Let {investor} into “{room}” and link it in the note",
+        "noteLabel": "Anything to mention",
+        "notePlaceholder": "e.g. mention the Cardano partnership",
+        "neverSends": "Sokosumi never sends. You read both in Gmail and send them yourself.",
+        "cancel": "Cancel",
+        "write": "Write both drafts",
+        "done": "Both drafts are in your {mailbox}",
+        "failed": "The drafts could not be written",
+        "askTo": "The ask, to {to}",
+        "noteTo": "The forwardable note, to {to}",
+        "openDrafts": "Open Gmail drafts",
+        "close": "Done",
+        "noMailbox": "Drafts go into your own Gmail through your Soko Bot. Connect Gmail there first.",
+        "connect": "Open Soko Bots"
       }
     },
     "Seo": {

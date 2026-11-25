@@ -12845,7 +12845,8 @@
         "nextStep": "Nächster Schritt",
         "lastTouch": "Letzter Kontakt",
         "dataRoom": "Datenraum",
-        "cheque": "Ticket"
+        "cheque": "Ticket",
+        "nextAction": "Nächster Schritt"
       },
       "stages": {
         "TO_RESEARCH": "Zu recherchieren",
@@ -12982,6 +12983,42 @@
         "openDrafts": "Gmail-Entwürfe öffnen",
         "another": "Noch einen schreiben",
         "lastDraft": "Letzter Entwurf „{subject}“ · {when}"
+      },
+      "intro": {
+        "statusTitle": "Intro",
+        "asked": "{who} gefragt {when}",
+        "made": "Intro von {who} gemacht {when}",
+        "declinedBy": "{who} hat abgelehnt; anderen Weg suchen",
+        "declinedBefore": "({who} hat früher abgelehnt)",
+        "askDirect": "{who} fragen, kennt {investor}",
+        "askFund": "{who} bei {company} fragen",
+        "askPortfolio": "{who} fragen, {company} ist eines ihrer Portfolio-Unternehmen",
+        "via": "über {who}",
+        "youKnow": "Du kennst sie; schreib ihnen direkt",
+        "noPath": "Noch kein warmer Weg",
+        "draftAsk": "Anfrage entwerfen",
+        "introMade": "Intro gemacht",
+        "declined": "Abgelehnt",
+        "meetingBooked": "Termin steht",
+        "passed": "Abgesagt",
+        "writeDraft": "Entwurf schreiben",
+        "dialogTitle": "{who} um ein Intro zu {investor} bitten",
+        "dialogDescription": "Zwei Entwürfe landen in deinem Gmail: die Bitte an {who} mit einer weiterleitbaren Notiz darunter, und diese Notiz allein. Nichts wird gesendet.",
+        "weakTie": "Du kennst {who} kaum. Eine starke kalte Mail schlägt eine schwache warme; vielleicht erst ein anderer Weg oder ein kurzes Update.",
+        "inviteRoom": "{investor} in „{room}“ lassen und in der Notiz verlinken",
+        "noteLabel": "Was erwähnt werden soll",
+        "notePlaceholder": "z. B. die Cardano-Partnerschaft erwähnen",
+        "neverSends": "Sokosumi sendet nie. Du liest beide in Gmail und sendest sie selbst.",
+        "cancel": "Abbrechen",
+        "write": "Beide Entwürfe schreiben",
+        "done": "Beide Entwürfe sind in deinem {mailbox}",
+        "failed": "Die Entwürfe konnten nicht geschrieben werden",
+        "askTo": "Die Bitte, an {to}",
+        "noteTo": "Die weiterleitbare Notiz, an {to}",
+        "openDrafts": "Gmail-Entwürfe öffnen",
+        "close": "Fertig",
+        "noMailbox": "Entwürfe landen über deinen Soko Bot in deinem eigenen Gmail. Verbinde Gmail dort zuerst.",
+        "connect": "Soko Bots öffnen"
       }
     },
     "Seo": {

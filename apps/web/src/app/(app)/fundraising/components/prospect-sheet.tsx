@@ -21,6 +21,7 @@ import {
 import { parseUsd } from "../fundraising-view";
 import { useProspectUpdate } from "../use-fundraising";
 import { RoomSummary } from "./fundraising-board";
+import { IntroCell } from "./intro-cell";
 import { Outreach } from "./outreach";
 import { OwnerSelect, StageSelect } from "./prospect-controls";
 import { WarmPaths } from "./warm-paths";
@@ -225,7 +226,14 @@ export function ProspectSheet({
                 />
               </Field>
 
-              <WarmPaths prospect={prospect} now={now} />
+              <div className="grid gap-2">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {t("intro.statusTitle")}
+                </span>
+                <IntroCell prospect={prospect} pipeline={pipeline} now={now} />
+              </div>
+
+              <WarmPaths prospect={prospect} now={now} pipeline={pipeline} />
 
               <Outreach prospect={prospect} pipeline={pipeline} now={now} />
 

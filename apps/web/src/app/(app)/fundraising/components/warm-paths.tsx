@@ -2,6 +2,7 @@
 import type {
   FundraisingPath,
   FundraisingPaths,
+  FundraisingPipeline,
   FundraisingProspect,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,10 +21,12 @@ import { useSession } from "@/lib/auth/auth.client";
 import { fundraisingService } from "@/lib/services/fundraising.client";
 import { cn } from "@/lib/utils";
 import { useScopedQuery } from "@/queries/scoped-queries";
+import { pathConnector } from "../fundraising-view";
 import {
   useFundraisingOrganization,
   useProspectUpdate,
 } from "../use-fundraising";
+import { type AskRequest, IntroAskDialog } from "./intro-cell";
 
 const PATHS_SHOWN = 6;
 const PORTFOLIO_SHOWN = 5;
@@ -48,9 +51,11 @@ function StrengthBar({ value }: { value: number }) {
 export function WarmPaths({
   prospect,
   now,
+  pipeline,
 }: {
   prospect: FundraisingProspect;
   now: Date;
+  pipeline: FundraisingPipeline;
 }) {
   const t = useTranslations("App.Fundraising.paths");
   const me = useSession().data?.user.id ?? null;
@@ -102,7 +107,14 @@ export function WarmPaths({
     }
   }
 
+  const [ask, setAsk] = useState<AskRequest | null>(null);
+
   async function usePath(path: FundraisingPath) {
+    const connector = pathConnector(path, me);
+    if (connector) {
+      setAsk({ connector, strength: path.strength });
+      return;
+    }
     const who = whoOf(path);
     const self = selfOf(path);
     const nextStep =
@@ -336,6 +348,14 @@ export function WarmPaths({
           </p>
         ) : null}
       </div>
+      {ask ? (
+        <IntroAskDialog
+          prospect={prospect}
+          pipeline={pipeline}
+          ask={ask}
+          onClose={() => setAsk(null)}
+        />
+      ) : null}
     </div>
   );
 }
