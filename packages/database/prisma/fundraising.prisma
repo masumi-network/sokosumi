@@ -46,3 +46,29 @@ model FundraisingProspect {
   @@index([workspaceId, stage])
   @@map("fundraising_prospect")
 }
+
+/// A company an investor backed, as the research found it: name, round, date
+/// and the page it came from. Rewritten whole on each research run; the
+/// warm-path search matches the workspace's contacts against these names.
+model FundraisingPortfolioCompany {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// The investor (a contact on the raise).
+  contactId   String    @db.Uuid
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  name      String
+  website   String?
+  /// As announced: "Seed", "Series A".
+  round     String?
+  /// As announced, usually "YYYY-MM" or "YYYY".
+  date      String?
+  amountUsd Int?
+  sourceUrl String
+  fetchedAt DateTime @default(now())
+
+  @@index([contactId])
+  @@index([workspaceId, name])
+  @@map("fundraising_portfolio_company")
+}

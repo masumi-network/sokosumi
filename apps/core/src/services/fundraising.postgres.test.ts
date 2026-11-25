@@ -10,12 +10,17 @@ import {
   createContactList,
   updateContactListMembers,
 } from "./contact-lists.service";
-import { inContactTransaction, upsertContact } from "./contacts.service";
+import {
+  inContactTransaction,
+  logContactInteraction,
+  upsertContact,
+} from "./contacts.service";
 import {
   type FundraisingActor,
   listFundraisingPipeline,
   updateFundraisingProspect,
 } from "./fundraising.service";
+import { warmPaths } from "./fundraising-paths.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -204,6 +209,78 @@ describe.runIf(enabled)("fundraising on PostgreSQL", () => {
     await expect(
       updateFundraisingProspect(actor, randomUUID(), { stage: "PASSED" }),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("finds warm paths through teammates, the fund and the portfolio, strongest first", async () => {
+    const asBob: FundraisingActor = { ...actor, userId: bob };
+    const colleague = await inContactTransaction((tx) =>
+      upsertContact(tx, actor, {
+        name: "Cole League",
+        organization: "Ann Capital",
+        role: "Analyst",
+        channels: [{ type: "EMAIL", value: "cole@anncapital.com" }],
+        upsert: false,
+      }),
+    );
+    const founder = await inContactTransaction((tx) =>
+      upsertContact(tx, actor, {
+        name: "Fay Founder",
+        organization: "AgentPay",
+        role: "Co-founder & CEO",
+        channels: [{ type: "EMAIL", value: "fay@agentpay.io" }],
+        upsert: false,
+      }),
+    );
+    await inContactTransaction((tx) =>
+      logContactInteraction(tx, asBob, founder.contact.id, {
+        occurredAt: new Date(Date.now() - 5 * 864e5).toISOString(),
+        channel: "MEETING",
+        summary: "Coffee about agent payments",
+      }),
+    );
+    await inContactTransaction((tx) =>
+      logContactInteraction(tx, actor, annId, {
+        occurredAt: new Date(Date.now() - 400 * 864e5).toISOString(),
+        channel: "EMAIL",
+        summary: "Old intro mail",
+      }),
+    );
+    await prisma.fundraisingPortfolioCompany.create({
+      data: {
+        workspaceId,
+        contactId: annId,
+        name: "AgentPay",
+        round: "Seed",
+        date: "2026-03",
+        sourceUrl: "https://anncapital.com/portfolio",
+      },
+    });
+
+    const result = await warmPaths(actor, annId);
+    expect(result.portfolio.map((c) => c.name)).toEqual(["AgentPay"]);
+    expect(result.researchedAt).not.toBeNull();
+    expect(
+      result.paths.map((p) => [
+        p.kind,
+        p.via?.name ?? null,
+        p.through?.name ?? null,
+      ]),
+    ).toEqual([
+      ["portfolio", "Bob", "Fay Founder"],
+      ["direct", "Alice", null],
+      ["fund", null, "Cole League"],
+    ]);
+    expect(result.paths[0]?.company).toEqual({
+      name: "AgentPay",
+      round: "Seed",
+      date: "2026-03",
+    });
+    expect(result.paths[0]?.strength).toBeGreaterThan(
+      result.paths[1]?.strength ?? 0,
+    );
+    await expect(warmPaths(actor, colleague.contact.id)).rejects.toMatchObject({
+      status: 404,
+    });
   });
 
   it("returns an empty pipeline without an Investors list", async () => {

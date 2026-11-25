@@ -3,6 +3,7 @@ import mountAccess from "./access.js";
 import mountFind from "./find.js";
 import mountGet from "./get.js";
 import mountPatchProspect from "./prospects/patch.js";
+import mountPaths from "./prospects/paths.js";
 import mountSuggestions from "./suggestions.js";
 
 const app = new OpenAPIHonoWithAuth({
@@ -15,5 +16,6 @@ mountGet(app);
 mountPatchProspect(app);
 mountFind(app);
 mountSuggestions(app);
+mountPaths(app);
 
 export default app;

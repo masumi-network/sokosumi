@@ -133,6 +133,7 @@
     "FileResource": "file_resource",
     "FileResultWindow": "file_result_window",
     "FileVersion": "file_version",
+    "FundraisingPortfolioCompany": "fundraising_portfolio_company",
     "FundraisingProspect": "fundraising_prospect",
     "GeocodedPlace": "geocoded_place",
     "HermesMessage": "hermesMessage",
