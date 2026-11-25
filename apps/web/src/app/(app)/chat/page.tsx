@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { loadSidebarChatList } from "@/app/components/private-sidebar-cache";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav";
 import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
+import { FeedRooms } from "@/components/chat/feed-rooms";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
@@ -49,10 +50,15 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const session = await getSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const currentUserId = session?.user.id ?? "";
-  const { rooms, deferred } = await loadSidebarChatList({
-    userId: currentUserId,
-    activeOrganizationId,
-  });
+  // Feed mode: the Feed and Catch up rows stand in for the room list, so the
+  // server does not read it.
+  const feedMode = session?.user.feedMode === true;
+  const chatList = feedMode
+    ? null
+    : await loadSidebarChatList({
+        userId: currentUserId,
+        activeOrganizationId,
+      });
 
   return (
     <>
@@ -66,16 +72,24 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
           <PersonalAssistantNav />
           <SidebarSeparator className="-mt-px" />
-          <SidebarChatList
-            // Same key as the sidebar's: one viewer's list never stays on
-            // screen while the next viewer's read is pending.
-            key={`${currentUserId}:${activeOrganizationId ?? "personal"}`}
-            rooms={rooms}
-            deferred={deferred}
-            currentUserId={currentUserId}
-            organizationId={activeOrganizationId}
-            variant="page"
-          />
+          {chatList ? (
+            <SidebarChatList
+              // Same key as the sidebar's: one viewer's list never stays on
+              // screen while the next viewer's read is pending.
+              key={`${currentUserId}:${activeOrganizationId ?? "personal"}`}
+              rooms={chatList.rooms}
+              deferred={chatList.deferred}
+              currentUserId={currentUserId}
+              organizationId={activeOrganizationId}
+              variant="page"
+            />
+          ) : (
+            <FeedRooms
+              currentUserId={currentUserId}
+              organizationId={activeOrganizationId}
+              dismissSheetOnNavigate={false}
+            />
+          )}
         </div>
       </Sheet>
     </>

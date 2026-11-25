@@ -64,6 +64,8 @@ export const CHAT_CATCH_UP_PATH = `${CHAT_APP_ROUTE_PREFIX}/catch-up` as const;
 export const CHAT_SAVED_PATH = `${CHAT_CATCH_UP_PATH}/saved` as const;
 /** Catch up's Decisions tab: decisions across the reader's rooms, read or not. */
 export const CHAT_DECISIONS_PATH = `${CHAT_CATCH_UP_PATH}/decisions` as const;
+/** The Feed: messages that need the reader, across their rooms (feed mode). */
+export const CHAT_FEED_PATH = `${CHAT_APP_ROUTE_PREFIX}/feed` as const;
 
 /** Welcome home (notices land here). */
 export const CHAT_WELCOME_PATH = "/" as const;

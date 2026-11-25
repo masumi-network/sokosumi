@@ -8,6 +8,7 @@ import {
 
 import {
   CHAT_CATCH_UP_PATH,
+  CHAT_FEED_PATH,
   classifyChatChromeSurface,
 } from "@/app/chat/utils/chat-route-base";
 import { isOpenedYouRow } from "@/app/components/mobile-app-chrome";
@@ -165,10 +166,12 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "chats",
     icon: MessageCircle,
     // Catch up sits above the room list in this tab, so the tab stays lit
-    // while the reader is in it.
+    // while the reader is in it. In feed mode the Feed row replaces the room
+    // list here, so the Feed page keeps the tab lit the same way.
     isActive: (pathname, searchParams) =>
       classifyChatChromeSurface(pathname, searchParams) === "chats" ||
-      pathname.startsWith(CHAT_CATCH_UP_PATH),
+      pathname.startsWith(CHAT_CATCH_UP_PATH) ||
+      pathname.startsWith(CHAT_FEED_PATH),
   },
   {
     id: "projects",

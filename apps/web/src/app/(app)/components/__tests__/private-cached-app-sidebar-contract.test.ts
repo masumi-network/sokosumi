@@ -4,13 +4,16 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 describe("PrivateCachedAppSidebar session contract", () => {
-  const source = readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      "../private-cached-app-sidebar.tsx",
-    ),
-    "utf8",
-  );
+  // The chat block moved into its own slot (feed mode); the contract holds
+  // for the frame and the slot together.
+  const source = [
+    "../private-cached-app-sidebar.tsx",
+    "../sidebar/components/sidebar-chat-slot.tsx",
+  ]
+    .map((path) =>
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), path), "utf8"),
+    )
+    .join("\n");
 
   it("does not re-fetch session and return null empty chrome", () => {
     expect(source).not.toMatch(/\bgetSession\s*\(/);

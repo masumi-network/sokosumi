@@ -623,6 +623,7 @@ import {
   updateProjectCompetitor as coreUpdateProjectCompetitor,
   NoticeKind,
 } from "@sokosumi/core-client";
+import { createChatFeedClient } from "./core.chat-feed";
 import {
   CoreApiRequestError,
   executeCoreOperation,
@@ -7672,6 +7673,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationSubscriptionSeats,
     getOrganizationSubscriptionSeatsPreview,
     updateOrganizationSubscriptionSeats,
+    ...createChatFeedClient(getClient),
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
     ...createStudioHistoryClient(getClient),

@@ -37,6 +37,12 @@ vi.mock("@/app/components/sidebar-chat-list.client", () => ({
   },
 }));
 
+vi.mock("@/components/chat/feed-rooms", () => ({
+  FeedRooms: function FeedRooms() {
+    return null;
+  },
+}));
+
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -51,6 +57,7 @@ vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
 
 import ChatPage from "@/app/chat/page";
 import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
+import { FeedRooms } from "@/components/chat/feed-rooms";
 
 const USER_ID = "user_1";
 const ORG_ID = "org_1";
@@ -150,5 +157,25 @@ describe("ChatPage progressive rooms (mobile LCP)", () => {
     });
 
     expect(shell).not.toBeNull();
+  });
+
+  // Feed mode hides the room list. Reading it anyway would spend the rooms
+  // read on every Chats tab visit for a list the reader never sees.
+  it("shows the Feed rows and never reads the rooms in feed mode", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: USER_ID, feedMode: true },
+      session: { activeOrganizationId: ORG_ID },
+    });
+
+    const tree = await ChatPage({ searchParams: Promise.resolve({}) });
+
+    expect(loadSidebarChatListMock).not.toHaveBeenCalled();
+    expect(findElement(tree, (el) => el.type === SidebarChatList)).toBeNull();
+    const feed = findElement(tree, (el) => el.type === FeedRooms);
+    expect(feed?.props).toMatchObject({
+      currentUserId: USER_ID,
+      organizationId: ORG_ID,
+      dismissSheetOnNavigate: false,
+    });
   });
 });

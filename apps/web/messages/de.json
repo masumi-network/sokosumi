@@ -8641,7 +8641,11 @@
         "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
         "tagDirectMessagesDescription": "Wenn eingeschaltet, lesen wir deine Direktnachrichten, um Fragen und Entscheidungen für dich hervorzuheben. Wir lesen eine Direktnachricht nur, wenn alle darin das eingeschaltet haben. In Channels machen wir das immer.",
         "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
-        "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
+        "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert",
+        "feedModeTitle": "Feed verwenden",
+        "feedModeDescription": "Wenn eingeschaltet, zeigt die Seitenleiste einen Feed mit den Nachrichten, die dich brauchen, statt deiner Chat-Liste.",
+        "feedModeEnabledSuccess": "Feed eingeschaltet",
+        "feedModeDisabledSuccess": "Feed ausgeschaltet"
       },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
@@ -10579,6 +10583,19 @@
         "empty": "Lade einen Sticker hoch, um deine Sammlung zu beginnen.",
         "collection": "Gespeicherte Sticker",
         "select": "{name} auswählen"
+      },
+      "Feed": {
+        "title": "Feed",
+        "description": "Nachrichten, die dich brauchen, aus allen deinen Chats, die neuesten zuerst.",
+        "listLabel": "Feed-Nachrichten",
+        "unreadCount": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
+        "unreadCountCapped": "Mehr als {max} ungelesene Nachrichten",
+        "inThread": "In einem Thread",
+        "empty": "Gerade braucht dich nichts",
+        "emptyDescription": "Nachrichten, die dich erwähnen, dich etwas fragen oder dir antworten, erscheinen hier.",
+        "loadMore": "Mehr anzeigen",
+        "loadError": "Der Feed konnte nicht geladen werden.",
+        "retry": "Erneut versuchen"
       }
     },
     "Drive": {

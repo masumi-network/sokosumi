@@ -25,6 +25,7 @@ export default async function AccountNotificationsPage() {
         <ChatDisplayPreferences
           showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
           tagDirectMessages={session.user.tagDirectMessages === true}
+          feedMode={session.user.feedMode === true}
         />
       </NotificationPreferences>
     </div>

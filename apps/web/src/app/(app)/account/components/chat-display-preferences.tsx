@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { ChatPreferenceSwitch } from "./chat-preference-switch";
 interface ChatDisplayPreferencesProps {
   showRoomUnreadCount: boolean;
   tagDirectMessages: boolean;
+  feedMode: boolean;
 }
 
 async function updateUser(
@@ -37,8 +39,10 @@ async function updateUser(
 export function ChatDisplayPreferences({
   showRoomUnreadCount,
   tagDirectMessages,
+  feedMode,
 }: ChatDisplayPreferencesProps) {
   const t = useTranslations("App.Account.ChatDisplay");
+  const router = useRouter();
   const messages = { loading: t("loading"), error: t("error") };
 
   return (
@@ -86,6 +90,24 @@ export function ChatDisplayPreferences({
             ...messages,
             enabled: t("tagDirectMessagesEnabledSuccess"),
             disabled: t("tagDirectMessagesDisabledSuccess"),
+          }}
+        />
+        <ChatPreferenceSwitch
+          title={t("feedModeTitle")}
+          description={t("feedModeDescription")}
+          initialValue={feedMode}
+          save={async (value) => {
+            await updateUser({ feedMode: value });
+            // The sidebar picks the Feed or the room list on the server, from
+            // the session. A session change reaches every server-rendered
+            // part of the page, and no narrower path, tag or query key covers
+            // it, so the route is rendered again once the write is stored.
+            router.refresh();
+          }}
+          messages={{
+            ...messages,
+            enabled: t("feedModeEnabledSuccess"),
+            disabled: t("feedModeDisabledSuccess"),
           }}
         />
       </CardContent>

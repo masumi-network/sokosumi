@@ -5,12 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatDisplayPreferences } from "./chat-display-preferences";
 
 const updateUser = vi.fn();
+const refresh = vi.fn();
 
 /** What the toast rendered, once the write it followed had settled. */
 const toasted: string[] = [];
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh }),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -52,7 +57,11 @@ describe("ChatDisplayPreferences", () => {
 
   it("starts from the reader's stored answer", () => {
     render(
-      <ChatDisplayPreferences showRoomUnreadCount tagDirectMessages={false} />,
+      <ChatDisplayPreferences
+        showRoomUnreadCount
+        tagDirectMessages={false}
+        feedMode={false}
+      />,
     );
 
     expect(switchControl()).toBeChecked();
@@ -63,6 +72,7 @@ describe("ChatDisplayPreferences", () => {
       <ChatDisplayPreferences
         showRoomUnreadCount={false}
         tagDirectMessages={false}
+        feedMode={false}
       />,
     );
 
@@ -74,6 +84,7 @@ describe("ChatDisplayPreferences", () => {
       <ChatDisplayPreferences
         showRoomUnreadCount={false}
         tagDirectMessages={false}
+        feedMode={false}
       />,
     );
 
@@ -91,7 +102,11 @@ describe("ChatDisplayPreferences", () => {
 
   it("turns the count back off", async () => {
     render(
-      <ChatDisplayPreferences showRoomUnreadCount tagDirectMessages={false} />,
+      <ChatDisplayPreferences
+        showRoomUnreadCount
+        tagDirectMessages={false}
+        feedMode={false}
+      />,
     );
 
     await userEvent.click(switchControl());
@@ -114,6 +129,7 @@ describe("ChatDisplayPreferences", () => {
       <ChatDisplayPreferences
         showRoomUnreadCount={false}
         tagDirectMessages={false}
+        feedMode={false}
       />,
     );
 
@@ -130,7 +146,11 @@ describe("ChatDisplayPreferences", () => {
   it("puts the switch back when the write never reaches the server", async () => {
     updateUser.mockRejectedValue(new Error("offline"));
     render(
-      <ChatDisplayPreferences showRoomUnreadCount tagDirectMessages={false} />,
+      <ChatDisplayPreferences
+        showRoomUnreadCount
+        tagDirectMessages={false}
+        feedMode={false}
+      />,
     );
 
     await userEvent.click(switchControl());
@@ -154,6 +174,7 @@ describe("ChatDisplayPreferences", () => {
       <ChatDisplayPreferences
         showRoomUnreadCount={false}
         tagDirectMessages={false}
+        feedMode={false}
       />,
     );
 
@@ -166,5 +187,46 @@ describe("ChatDisplayPreferences", () => {
     await waitFor(() => {
       expect(toasted).toEqual(["roomUnreadCountEnabledSuccess"]);
     });
+  });
+
+  // The sidebar picks the Feed on the server from the session. Without a
+  // render after the write, the reader keeps the room list they just left.
+  it("renders the page again once feed mode is stored", async () => {
+    render(
+      <ChatDisplayPreferences
+        showRoomUnreadCount
+        tagDirectMessages={false}
+        feedMode={false}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("switch", { name: "feedModeTitle" }),
+    );
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(updateUser).toHaveBeenCalledWith({ feedMode: true });
+  });
+
+  it("does not render the page again when feed mode was not stored", async () => {
+    updateUser.mockResolvedValue({ data: null, error: { message: "nope" } });
+    render(
+      <ChatDisplayPreferences
+        showRoomUnreadCount
+        tagDirectMessages={false}
+        feedMode
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("switch", { name: "feedModeTitle" }),
+    );
+
+    await waitFor(() => {
+      expect(toasted).toEqual(["error"]);
+    });
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
