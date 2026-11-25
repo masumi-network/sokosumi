@@ -339,9 +339,7 @@ export function CmoApp({
   const threadLength = thread.length;
   // What Cuso is doing sits under the thread, so it scrolls into view too.
   const working =
-    overview.botStatus === "RUNNING"
-      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
-      : null;
+    overview.botStatus === "RUNNING" ? (overview.activity?.step ?? "") : null;
   useScrollIntoViewWhen(end, view === "chat" && threadLength > 0, {
     block: "end",
     resetKey: `${threadLength}:${working === null ? "idle" : `busy:${working}`}`,

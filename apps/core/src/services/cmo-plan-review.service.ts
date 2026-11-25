@@ -354,10 +354,6 @@ export function cmoPlanProblems(
   );
   if (cmoShowsExamples(strategy)) {
     problems.push(...cmoExampleProblems(strategy, options));
-    if (pieces.some((entry) => entry.draft))
-      problems.push(
-        "the strategy holds drafts; leave them out, Core makes every post after the owner approves and pays.",
-      );
     problems.push(...storyProblems(pieces, options.claims === true));
     problems.push(...repeatedTitles(pieces));
   } else if (pieces.length > 0) {
@@ -367,10 +363,6 @@ export function cmoPlanProblems(
     if (formats.size < MIN_FORMATS)
       problems.push(
         `calendar uses ${formats.size} formats; use at least ${MIN_FORMATS}.`,
-      );
-    if (pieces.some((entry) => entry.draft))
-      problems.push(
-        "the strategy holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
@@ -1821,6 +1813,71 @@ function cadenceParts(
 }
 
 /**
+ * How far the calendar's approaches and pillars would sit from the plan's
+ * shares without one piece, summed: counts kept as pieces go, so a cut of a
+ * hundred pieces stays cheap.
+ */
+function shareDrifts(
+  plan: Pick<MarketingStrategyPlan, "mix" | "pillars">,
+  calendar: readonly Pick<
+    MarketingStrategyPlan["calendar"][number],
+    "approach" | "pillar"
+  >[],
+) {
+  const shares = [
+    ...plan.mix.map((part) => ({
+      key: `a:${part.approach}`,
+      share: part.share,
+    })),
+    ...plan.pillars.map((pillar) => ({
+      key: `p:${pillar.name}`,
+      share: pillar.share,
+    })),
+  ];
+  const keys = (
+    entry: Pick<
+      MarketingStrategyPlan["calendar"][number],
+      "approach" | "pillar"
+    >,
+  ) => [`a:${entry.approach}`, `p:${entry.pillar}`];
+  const counts = new Map<string, number>();
+  for (const entry of calendar)
+    for (const key of keys(entry)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  let total = calendar.length;
+  return {
+    without(
+      entry: Pick<
+        MarketingStrategyPlan["calendar"][number],
+        "approach" | "pillar"
+      >,
+    ): number {
+      if (total <= 1) return 0;
+      const gone = keys(entry);
+      return shares.reduce(
+        (sum, { key, share }) =>
+          sum +
+          Math.abs(
+            ((counts.get(key) ?? 0) - (gone.includes(key) ? 1 : 0)) /
+              (total - 1) -
+              share / 100,
+          ),
+        0,
+      );
+    },
+    drop(
+      entry: Pick<
+        MarketingStrategyPlan["calendar"][number],
+        "approach" | "pillar"
+      >,
+    ) {
+      for (const key of keys(entry))
+        counts.set(key, (counts.get(key) ?? 0) - 1);
+      total -= 1;
+    },
+  };
+}
+
+/**
  * A changed cadence carried into the plan: the funnel's plays that said the
  * old cadence say the new one, and a calendar now over it loses its latest
  * unwritten pieces from its busiest days. A change once lowered X to two
@@ -1858,6 +1915,7 @@ export function cmoFollowCadenceChange(
     }),
   }));
   const dropped = new Set<string>();
+  const drifts = shareDrifts(plan, plan.calendar);
   for (const { key, high } of changed) {
     const count = plan.calendar.filter((entry) => goesOutOn(entry, key)).length;
     const removable = plan.calendar.filter(
@@ -1874,16 +1932,21 @@ export function cmoFollowCadenceChange(
       for (const entry of removable)
         if (!dropped.has(entry.id))
           perDay.set(entry.date, (perDay.get(entry.date) ?? 0) + 1);
-      const busiest = Math.max(0, ...perDay.values());
+      // The piece whose going keeps the mix and pillars nearest their
+      // shares, then the busiest day's latest.
       const last = removable
-        .filter(
-          (entry) =>
-            !dropped.has(entry.id) && perDay.get(entry.date) === busiest,
-        )
-        .sort((a, b) =>
-          `${b.date}${b.time ?? ""}`.localeCompare(`${a.date}${a.time ?? ""}`),
-        )[0];
+        .filter((entry) => !dropped.has(entry.id))
+        .map((entry) => ({ entry, drift: drifts.without(entry) }))
+        .sort(
+          (a, b) =>
+            a.drift - b.drift ||
+            (perDay.get(b.entry.date) ?? 0) - (perDay.get(a.entry.date) ?? 0) ||
+            `${b.entry.date}${b.entry.time ?? ""}`.localeCompare(
+              `${a.entry.date}${a.entry.time ?? ""}`,
+            ),
+        )[0]?.entry;
       if (!last) break;
+      drifts.drop(last);
       dropped.add(last.id);
     }
   }

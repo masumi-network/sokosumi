@@ -17,6 +17,7 @@ import {
 import {
   isSokoBotCmoReadCapability,
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_CMO_READ_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
 } from "../policy.js";
 import {
@@ -443,6 +444,10 @@ describe("CMO version", () => {
         ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);
+    // Only a version with an organized context reads the rest on demand.
+    expect(
+      applyVersionCapabilities(getSokoBotVersion("cmo-v23"), ["read_memory"]),
+    ).toEqual(expect.arrayContaining([...SOKO_BOT_CMO_READ_CAPABILITIES]));
     // Another bot gets them only from its route; Core then asks whether a
     // Project it works in has the weekly check on.
     expect(

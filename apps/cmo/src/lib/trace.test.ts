@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { latestThought, traceOf } from "./trace";
+import { traceOf } from "./trace";
 
 describe("traceOf", () => {
   it("splits Core's Thought into steps and reasoning", () => {
@@ -34,20 +34,5 @@ describe("traceOf", () => {
     expect(
       traceOf({ reasoning: [{ text: 4 }, null, { text: "  " }] }),
     ).toBeNull();
-  });
-});
-
-describe("latestThought", () => {
-  it("is the newest paragraph, without Markdown marks", () => {
-    expect(
-      latestThought(
-        "**Planning**\n\nFirst the posts.\n\nThen **the** picture.",
-      ),
-    ).toBe("Then the picture.");
-  });
-
-  it("is nothing without a summary", () => {
-    expect(latestThought(null)).toBeNull();
-    expect(latestThought(" \n\n ")).toBeNull();
   });
 });

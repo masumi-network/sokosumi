@@ -72,6 +72,12 @@ def page(name: str) -> str:
     home = (SITE / 'index.html').read_text()
     footer = re.search(r'  <footer\b.*?</footer>', home, re.S).group()
     footer = footer.replace('href="#', 'href="/#')
+    # The legal pages' footer carries the stacked lockup, not the homepage's.
+    footer = re.sub(
+        r'(<a class="brand brand--footer"[^>]*>\s*)<img [^>]*/>',
+        r'\1<img src="/assets/logo/cmo-xyz-lockup-stacked-text-white.svg" alt="" width="1044" height="393" />',
+        footer,
+    )
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>

@@ -236,18 +236,21 @@ export const EVAL_CASES: readonly EvalCase[] = [
               "Chat",
               scenario.id === "cmo-asks-before-planning"
                 ? "cmo-new-client"
-                : scenario.id === "cmo-change-request" ||
-                    scenario.id === "cmo-change-reply-plain" ||
-                    scenario.id === CMO_CORRECTION_CASE_ID ||
-                    scenario.id === CMO_FUNNEL_CASE_ID
-                  ? "cmo-plan"
-                  : scenario.id === CMO_ADS_CASE_ID
-                    ? "cmo-plan-ads"
-                    : scenario.id === "cmo-seo-skipped-idea"
-                      ? "cmo-seo-skipped"
-                      : isCmoSeoReportCase(scenario.id)
-                        ? "cmo-seo-report"
-                        : "cmo-brand",
+                : scenario.id === "cmo-reads-last-weeks-report"
+                  ? "cmo-report"
+                  : scenario.id === "cmo-change-request" ||
+                      scenario.id === "cmo-reads-week-four" ||
+                      scenario.id === "cmo-change-reply-plain" ||
+                      scenario.id === CMO_CORRECTION_CASE_ID ||
+                      scenario.id === CMO_FUNNEL_CASE_ID
+                    ? "cmo-plan"
+                    : scenario.id === CMO_ADS_CASE_ID
+                      ? "cmo-plan-ads"
+                      : scenario.id === "cmo-seo-skipped-idea"
+                        ? "cmo-seo-skipped"
+                        : isCmoSeoReportCase(scenario.id)
+                          ? "cmo-seo-report"
+                          : "cmo-brand",
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
