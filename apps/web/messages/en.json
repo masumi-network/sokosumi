@@ -15212,6 +15212,7 @@
         "labNote": "A lab test loads the page once on a simulated device. It shows what to fix, but real visitors can see other values.",
         "labNoInp": "A lab test cannot measure the response to taps and clicks.",
         "labVersion": "Lighthouse {version}",
+        "auditedPage": "The audit tested {url}. That address leads to this page.",
         "verdict": {
           "pass": "Within all limits",
           "over": "Over a limit: {metrics}",

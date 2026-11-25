@@ -236,6 +236,12 @@ export function SeoSpeedDetail({
               </span>
             </SeoFoldSummary>
             <div className="min-w-0 space-y-5 pb-5">
+              {/* A row of the speed table can show the measurement of a page that redirects to it. */}
+              {row.pageUrl !== pageUrl && (
+                <p className="break-all text-xs text-muted-foreground">
+                  {t("pageSpeed.auditedPage", { url: row.pageUrl })}
+                </p>
+              )}
               {testedUrl !== pageUrl && (
                 <p className="break-all text-xs text-muted-foreground">
                   {testedUrl}

@@ -199,3 +199,41 @@ it("says how many pages wait, and why, when the audit tested no page", () => {
   );
   expect(view.container).toBeEmptyDOMElement();
 });
+
+it("names the audited page whose measurement a row shows after a redirect", () => {
+  const workspace = seoTestWorkspace();
+  const url = "https://example.com/new";
+  const audited = "https://example.com/old";
+  workspace.siteSpeed = {
+    rows: [
+      {
+        url,
+        audited: true,
+        tier: "full",
+        devices: [
+          seoTestSpeedDevice({ pageUrl: audited, testedUrl: url }),
+          seoTestSpeedDevice({
+            device: "desktop",
+            pageUrl: url,
+            testedUrl: url,
+          }),
+        ],
+      },
+    ],
+    dropped: 0,
+    observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+    observedAt: new Date("2026-11-11T00:26:00Z"),
+  };
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoSiteSpeed workspace={workspace} />
+    </NextIntlClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "/new" }));
+  // Only the measurement of the other page names it.
+  expect(
+    screen.getAllByText(
+      `The audit tested ${audited}. That address leads to this page.`,
+    ),
+  ).toHaveLength(1);
+});
