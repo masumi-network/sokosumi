@@ -242,13 +242,18 @@ for (const { name, ...viewport } of PROJECTS) {
       const saved = await context.newPage();
       saved.on("pageerror", (e) => errors.push(e.message));
       await reloadUntilShown(saved, page.url(), QUESTION);
-      // Home lists that first question as the reader's own, sent to the bot.
-      await saved.goto(`${BASE_URL}/`);
-      await saved
-        .getByRole("link", {
-          name: new RegExp(`${RegExp.escape(QUESTION)}.*You to ${BOT}`),
-        })
-        .waitFor();
+      // Home lists the chat with the bot: "You to Juno" while the answer is
+      // on its way, then "Juno replied" with the answer. The bot answers on
+      // its own clock, so wait for the final row instead of racing the
+      // first one.
+      await reloadUntilShown(saved, `${BASE_URL}/`, `${BOT} replied`);
+      const row = saved
+        .getByRole("main")
+        .getByRole("link", { name: new RegExp(`${BOT} replied`) });
+      assert.ok(
+        !(await row.textContent())?.includes(QUESTION),
+        "the row shows the answer, not the question",
+      );
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });
