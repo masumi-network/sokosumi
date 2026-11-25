@@ -157,7 +157,7 @@ describe("Sokosumi MCP server", () => {
   it("warns before a tool that spends credits", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=tasks,agents,projects",
+      "?toolsets=tasks,agents,projects,seo",
     );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
@@ -176,6 +176,11 @@ describe("Sokosumi MCP server", () => {
       "projects_image_studio_talking_video",
       "projects_competitor_checks",
       "projects_check_competitors",
+      "seo_audit_ask",
+      "seo_audit_analyze",
+      "seo_audit_create_monitor",
+      "seo_project_analyze",
+      "seo_project_create_monitor",
     ]);
     // Open-world: tools that spend credits, plus the ad tools (next test).
     const openWorld = tools.filter((tool) => tool.annotations?.openWorldHint);
@@ -225,7 +230,23 @@ describe("Sokosumi MCP server", () => {
         openWorldHint: true,
       });
     }
-  });
+  }, 15_000);
+
+  it("keeps SEO off by default and lists it on request", async () => {
+    expect(DEFAULT_TOOLSETS).not.toContain("seo");
+
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=seo",
+    );
+    const { tools } = await client.listTools();
+    expect(client.instructions).toContain("Toolsets on: seo.");
+    expect(tools.map((tool) => tool.name)).toEqual(
+      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
+        name.startsWith("seo_"),
+      ),
+    );
+  }, 15_000);
 
   it("refuses an unknown toolset by name", async () => {
     await expect(

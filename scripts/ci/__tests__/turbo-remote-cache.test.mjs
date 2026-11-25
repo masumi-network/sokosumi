@@ -126,7 +126,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     assert.match(
       jobBlock(test, "web"),
-      /turbo run test:ci --filter=web --filter=cmo\n/,
+      /turbo run test:ci --filter=web --filter=cmo --filter=@sokosumi\/mcp-ui\n/,
     );
     assert.match(
       jobBlock(test, "core"),

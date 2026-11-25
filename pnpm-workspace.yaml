@@ -101,6 +101,7 @@ allowBuilds:
   "@sokosumi/core-client": true
   "@sokosumi/email": true
   "@sokosumi/masumi": true
+  "@sokosumi/mcp-ui": true
   "@sokosumi/net": true
   "@sokosumi/soko-bot": true
   "@sokosumi/utils": true
