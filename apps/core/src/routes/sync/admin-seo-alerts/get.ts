@@ -12,8 +12,8 @@ export default function mount(app: Hono) {
       c,
       ADMIN_SEO_ALERTS_SYNC_LOCK_KEY,
       async (context) => {
-        // When already aborted (sync deadline), skip the read and the writes.
-        const result = context.abortSignal.aborted
+        // After the sync deadline, skip the read and the writes.
+        const result = !context.shouldContinue()
           ? { critical: 0, read: 0, old: 0, capped: false, sent: 0 }
           : await notifyAdminSeoAlerts(context.shouldContinue);
 

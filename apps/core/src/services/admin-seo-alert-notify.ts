@@ -109,7 +109,7 @@ export async function notifyAdminSeoAlerts(
     shouldContinue,
   );
   const counts = { critical, read: alerts.length, old, capped };
-  if (!alerts.length) return { ...counts, sent: 0 };
+  if (!alerts.length || !shouldContinue()) return { ...counts, sent: 0 };
   const users = await prisma.user.findMany({
     // The role is a comma-separated list: this narrows the read, hasAdminRole and isActiveUser decide.
     where: { role: { contains: "admin", mode: "insensitive" } },

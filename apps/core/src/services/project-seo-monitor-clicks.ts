@@ -73,8 +73,10 @@ export function newestSeoClicksRow(
 
 /**
  * A fall in Search Console clicks against the equal period before, or null. Only a row that compares like with like
- * alerts: a read that returned rows, two periods of the same number of days, and a current period that Google had
- * settled when it was read (GSC_FINAL_LAG_DAYS), so a reporting delay or a shorter period never reads as a drop.
+ * alerts: a read that returned rows, and a current window of as many days as the earlier one that Google had settled
+ * when it was read (GSC_FINAL_LAG_DAYS), so a reporting delay or a shorter period never reads as a drop.
+ * A dashboard sync asks up to yesterday and compares the days up to the settled end (collectPrevious): the earlier
+ * period has that many days, so the measured window is counted from `from` with the earlier period's length.
  */
 export function seoClicksDrop(
   metrics: NativeSeoMetrics,
@@ -91,15 +93,18 @@ export function seoClicksDrop(
   const before = clicks?.previous;
   if (!clicks || clicks.value === null || !before || before.value === null)
     return null;
-  const days = daysOf(metrics);
+  const days = daysOf(before);
+  const end = new Date(dayOf(metrics.from) + (days - 1) * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
   const readAt = new Date(metrics.collectedAt ?? metrics.observedAt);
   if (
-    days !== daysOf(before) ||
+    end > metrics.to ||
     days < SEO_CLICKS_MIN_PERIOD_DAYS ||
     // The days were final when Google was read. A later import does not make an early read final.
-    searchConsoleSettledEnd(metrics.to, "", readAt) !== metrics.to ||
-    // The period ends with its last day.
-    dayOf(metrics.to) + DAY_MS <
+    searchConsoleSettledEnd(end, "", readAt) !== end ||
+    // The window ends with its last day.
+    dayOf(end) + DAY_MS <
       now.getTime() - SEO_CLICKS_MAX_PERIOD_AGE_DAYS * DAY_MS ||
     before.value < SEO_CLICKS_DROP_MIN_PREVIOUS ||
     (before.value - clicks.value) * 100 < before.value * SEO_CLICKS_DROP_PERCENT
@@ -110,7 +115,7 @@ export function seoClicksDrop(
     site,
     clicksFrom: before.value,
     clicksTo: clicks.value,
-    event: `${metrics.propertyId}:${site}:${before.from}:${before.to}:${metrics.from}:${metrics.to}`,
+    event: `${metrics.propertyId}:${site}:${before.from}:${before.to}:${metrics.from}:${end}`,
   };
 }
 

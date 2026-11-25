@@ -84,6 +84,18 @@ describe("seoClicksDrop", () => {
     ).toMatchObject({ clicksFrom: 100, clicksTo: 60 });
   });
 
+  it("reports a fall on a dashboard sync that asked up to yesterday, over the settled days", () => {
+    // Read on Nov 24: asked Oct 28 to Nov 23, settled up to Nov 21, so the earlier period has 25 days.
+    const row = metrics(60, before(100, "2026-10-03", "2026-10-27"), {
+      coverage: "partial",
+      from: "2026-10-28",
+      to: "2026-11-23",
+    });
+    expect(seoClicksDrop(row, NOW)?.event).toBe(
+      "sc-domain:shop.example:shop.example:2026-10-03:2026-10-27:2026-10-28:2026-11-21",
+    );
+  });
+
   it.each([
     ["a fall below 30 percent", metrics(71, before(100))],
     ["a rise", metrics(140, before(100))],
@@ -91,6 +103,13 @@ describe("seoClicksDrop", () => {
     [
       "7 current days against 25 earlier days",
       metrics(60, before(100), { from: "2026-11-14" }),
+    ],
+    [
+      "7 settled current days against 25 earlier days",
+      metrics(60, before(100, "2026-09-30", "2026-10-24"), {
+        from: "2026-10-25",
+        to: "2026-10-31",
+      }),
     ],
     [
       "two equal periods under 7 days",
