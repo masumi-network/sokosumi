@@ -12,7 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoFoldCount } from "./seo-list-model";
 import { SeoSpeedDetail } from "./seo-page-speed";
@@ -25,7 +28,7 @@ import {
   seoPageName,
   seoSiteUrl,
 } from "./seo-shared";
-import { seoSiteSpeedRows } from "./seo-speed-model";
+import { seoDeviceReason, seoSiteSpeedRows } from "./seo-speed-model";
 import { SeoSpeedMark, seoSpeedVerdictText } from "./seo-speed-status";
 
 const COLUMNS = ["page", "tier", "devices", "status", "source"] as const;
@@ -37,6 +40,7 @@ export function SeoSiteSpeed({
   workspace: ProjectSeoWorkspace;
 }) {
   const t = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const id = useId();
   const [open, setOpen] = useState<string | null>(null);
   const [all, setAll] = useState(false);
@@ -45,6 +49,12 @@ export function SeoSiteSpeed({
   const rows = seoSiteSpeedRows(speed);
   const fold = seoFoldCount(rows.length);
   const site = seoSiteUrl(workspace);
+  // A column of "No trend yet" on every row says nothing: it shows once Core sent earlier weeks for a row.
+  const columns = rows.some(({ history }) => history)
+    ? ([...COLUMNS, "trend"] as const)
+    : COLUMNS;
+  const percent = (share: number) =>
+    format.number(share, { style: "percent", maximumFractionDigits: 0 });
   return (
     <SeoSection
       lang="en"
@@ -60,7 +70,7 @@ export function SeoSiteSpeed({
         <Table className={SEO_STACKED_TABLE_CLASS}>
           <TableHeader>
             <TableRow>
-              {COLUMNS.map((key) => (
+              {columns.map((key) => (
                 <TableHead key={key} scope="col">
                   {t(`siteSpeed.column.${key}`)}
                 </TableHead>
@@ -69,7 +79,7 @@ export function SeoSiteSpeed({
           </TableHeader>
           <TableBody>
             {(all ? rows : rows.slice(0, fold)).map(
-              ({ row, verdict }, index) => {
+              ({ row, verdict, trend }, index) => {
                 const isOpen = open === row.url;
                 const detailId = `${id}-${index}`;
                 const added = row.audited
@@ -121,6 +131,11 @@ export function SeoSiteSpeed({
                       {verdict.source &&
                         t(`pageSpeed.source.${verdict.source}`)}
                     </TableCell>
+                    {columns.length > COLUMNS.length && (
+                      <TableCell data-label={t("siteSpeed.column.trend")}>
+                        {t(`siteSpeed.trend.${trend ?? "none"}`)}
+                      </TableCell>
+                    )}
                   </TableRow>,
                   isOpen && (
                     <TableRow
@@ -129,7 +144,7 @@ export function SeoSiteSpeed({
                       className="hover:bg-transparent"
                     >
                       <TableCell
-                        colSpan={COLUMNS.length}
+                        colSpan={columns.length}
                         className="space-y-3 whitespace-normal"
                       >
                         <SeoPageLink url={row.url} quiet />
@@ -137,6 +152,34 @@ export function SeoSiteSpeed({
                         {(row.why ?? added) && (
                           <p className="text-muted-foreground max-w-prose text-xs">
                             {row.why ?? added}
+                          </p>
+                        )}
+                        {row.check && (
+                          <p className="text-muted-foreground max-w-prose text-xs">
+                            {t(
+                              `siteSpeed.deviceReason.${seoDeviceReason(row.check).basis}`,
+                              {
+                                device: t(
+                                  `breakdown.devices.${row.check.device}`,
+                                ).toLowerCase(),
+                                share: percent(
+                                  seoDeviceReason(row.check).share ?? 0,
+                                ),
+                              },
+                            )}
+                            {row.check.mix && (
+                              <>
+                                {" "}
+                                {t("siteSpeed.mix", {
+                                  phone: percent(row.check.mix.phone),
+                                  desktop: percent(row.check.mix.desktop),
+                                  tablet: percent(row.check.mix.tablet),
+                                })}
+                              </>
+                            )}
+                            {row.check.notChecked && (
+                              <> {t(`siteSpeed.gap.${row.check.notChecked}`)}</>
+                            )}
                           </p>
                         )}
                         {row.devices.length ? (
@@ -156,6 +199,14 @@ export function SeoSiteSpeed({
           </TableBody>
         </Table>
       </div>
+      {speed.notChecked?.count ? (
+        <p className="text-muted-foreground px-2 text-sm">
+          {t("siteSpeed.notChecked", {
+            count: speed.notChecked.count,
+            reason: t(`siteSpeed.gap.${speed.notChecked.reason}`),
+          })}
+        </p>
+      ) : null}
       {rows.length > fold && (
         <SeoShowMore
           more={t("siteSpeed.showMore", { count: rows.length - fold })}

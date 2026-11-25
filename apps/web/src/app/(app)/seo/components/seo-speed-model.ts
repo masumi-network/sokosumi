@@ -170,11 +170,123 @@ export function seoPageVerdict(rows: SeoSpeedDevice[]): SeoPageVerdict {
 /** The table's rows: the slowest pages lead, then the pages without a verdict; pages of the audit before added ones. */
 export function seoSiteSpeedRows(siteSpeed: ProjectSeoSiteSpeed) {
   return siteSpeed.rows
-    .map((row) => ({ row, verdict: seoPageVerdict(row.devices) }))
+    .map((row) => ({
+      row,
+      verdict: seoPageVerdict(row.devices),
+      trend: seoPageTrend(row.devices),
+      /** Core sent earlier weeks for a device, comparable or not. */
+      history: row.devices.some(
+        ({ field }) => field.status === "measured" && field.history != null,
+      ),
+    }))
     .sort(
       (a, b) =>
         WORST_FIRST.indexOf(a.verdict.worst) -
           WORST_FIRST.indexOf(b.verdict.worst) ||
         Number(b.row.audited) - Number(a.row.audited),
     );
+}
+
+export type SeoSpeedHistory = NonNullable<
+  Extract<SeoSpeedDevice["field"], { status: "measured" }>["history"]
+>;
+export type SeoTrendDirection = "better" | "worse" | "steady";
+
+/** Weeks with a value that a trend needs: one value is a point, not a trend. */
+const SEO_TREND_MIN_POINTS = 2;
+/** A change under this share of the first value, or under the floor of its vital, is noise between two weeks. */
+const SEO_TREND_STEADY_SHARE = 0.1;
+const SEO_TREND_STEADY_FLOOR = { lcp: 200, inp: 25, cls: 0.02 } as const;
+/** Room over the highest value, so the line and the limit do not lie on the edge of the chart. */
+const SEO_TREND_HEADROOM = 1.1;
+
+export interface SeoTrendPoint {
+  week: string;
+  value: number;
+}
+
+export type SeoVitalTrend =
+  | {
+      chart: true;
+      direction: SeoTrendDirection;
+      first: SeoTrendPoint;
+      last: SeoTrendPoint;
+      /** One point per week, both axes 0 to 1 with y 0 at the top. A null y is a week without a value: the line breaks there. */
+      points: { x: number; y: number | null }[];
+      /** The y of the good limit: always inside the chart. */
+      limit: number;
+    }
+  | {
+      chart: false;
+      reason: Exclude<SeoSpeedHistory["status"], "comparable"> | "too_few";
+    };
+
+/** The weekly values of one Core Web Vital for real visitors. A lower value is the better one for each vital. */
+export function seoVitalTrend(
+  metric: SeoVital,
+  history: SeoSpeedHistory,
+): SeoVitalTrend {
+  if (history.status !== "comparable")
+    return { chart: false, reason: history.status };
+  const weeks = history.weeks ?? [];
+  const values = weeks.map((_, index) => history[metric]?.[index] ?? null);
+  const measured = weeks.flatMap((week, index) => {
+    const value = values[index];
+    return value == null ? [] : [{ week, value }];
+  });
+  const first = measured[0];
+  const last = measured.at(-1);
+  if (!first || !last || measured.length < SEO_TREND_MIN_POINTS)
+    return { chart: false, reason: "too_few" };
+  const { good } = SEO_VITAL_LIMITS[metric];
+  const top =
+    Math.max(good, ...measured.map(({ value }) => value)) * SEO_TREND_HEADROOM;
+  const change = last.value - first.value;
+  const noise = Math.max(
+    first.value * SEO_TREND_STEADY_SHARE,
+    SEO_TREND_STEADY_FLOOR[metric],
+  );
+  return {
+    chart: true,
+    direction:
+      Math.abs(change) <= noise ? "steady" : change < 0 ? "better" : "worse",
+    first,
+    last,
+    points: values.map((value, index) => ({
+      x: weeks.length > 1 ? index / (weeks.length - 1) : 0,
+      y: value == null ? null : 1 - value / top,
+    })),
+    limit: 1 - good / top,
+  };
+}
+
+/** A page's trend in one word: one vital that gets slower on one device outweighs the ones that get faster. Null: no vital has a trend. */
+export function seoPageTrend(
+  devices: SeoSpeedDevice[],
+): SeoTrendDirection | null {
+  const directions = devices.flatMap(({ field }) => {
+    const history = field.status === "measured" ? field.history : undefined;
+    if (!history) return [];
+    return SEO_VITALS.flatMap((metric) => {
+      const trend = seoVitalTrend(metric, history);
+      return trend.chart ? [trend.direction] : [];
+    });
+  });
+  return (
+    (["worse", "better", "steady"] as const).find((direction) =>
+      directions.includes(direction),
+    ) ?? null
+  );
+}
+
+/** Why a page with the short check was read on its one device. The share is that device's part of the visits, when Google gave one. */
+export function seoDeviceReason(check: NonNullable<SeoSiteSpeedRow["check"]>) {
+  const share =
+    check.mix?.[check.device === "mobile" ? "phone" : "desktop"] ?? null;
+  const counted = check.basis === "crux-url" || check.basis === "crux-origin";
+  // A reason that names a share cannot stand without one.
+  return {
+    basis: counted && share == null ? ("default" as const) : check.basis,
+    share,
+  };
 }

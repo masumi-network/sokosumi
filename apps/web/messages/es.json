@@ -15231,7 +15231,8 @@
           "tier": "Check",
           "devices": "Devices",
           "status": "Speed",
-          "source": "Measured by"
+          "source": "Measured by",
+          "trend": "Trend"
         },
         "tier": {
           "full": "Full check",
@@ -15246,7 +15247,36 @@
           "entry": "Added because visitors often arrive here",
           "risk": "Added because it is likely to be slow"
         },
-        "showMore": "Show {count} more pages"
+        "showMore": "Show {count} more pages",
+        "trend": {
+          "better": "Getting faster",
+          "worse": "Getting slower",
+          "steady": "Steady",
+          "none": "No trend yet"
+        },
+        "trendTitle": "Real visitors, week by week",
+        "trendText": "{metric}: {first} in the week to {firstDate}, {last} in the week to {lastDate}.",
+        "trendLimit": "The dashed line is the good limit: {good}.",
+        "noTrend": {
+          "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",
+          "unavailable": "Google returned no earlier weeks for this page.",
+          "legacy_unverified": "This audit was saved before earlier weeks were checked. Run a new audit to see the trend.",
+          "too_few": "Too few weeks with data to show a trend."
+        },
+        "deviceReason": {
+          "crux-url": "Checked on {device} only: {share} of this page’s visitors use it.",
+          "crux-origin": "Checked on {device} only: {share} of the site’s visitors use it.",
+          "page-type": "Checked on {device} only, the usual device for this kind of page.",
+          "default": "Checked on {device} only."
+        },
+        "mix": "Visitors: {phone} phone · {desktop} desktop · {tablet} tablet",
+        "notChecked": "Pages not checked: {count}. {reason}",
+        "gap": {
+          "limit": "The audit checks a limited number of pages for speed.",
+          "deadline": "The audit ran out of time.",
+          "quota": "Google’s test limit was reached.",
+          "other": "The speed test did not finish."
+        }
       }
     },
     "AdDataConsent": {

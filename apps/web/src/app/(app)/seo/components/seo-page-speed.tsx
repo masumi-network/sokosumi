@@ -12,6 +12,7 @@ import {
   seoVitalStatus,
 } from "./seo-speed-model";
 import { SeoSpeedMark, seoSpeedVerdictText } from "./seo-speed-status";
+import { SeoSpeedTrend } from "./seo-speed-trend";
 
 type Row = SeoSpeedDevice;
 // The Core Web Vitals lead each list: they have a status, the other values are detail.
@@ -178,6 +179,7 @@ function Field({ field }: { field: Row["field"] }) {
         </>
       )}
       <Metrics keys={fieldMetrics} values={field.p75} />
+      {field.history && <SeoSpeedTrend history={field.history} />}
     </>
   );
 }

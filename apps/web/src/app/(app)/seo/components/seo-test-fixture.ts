@@ -277,7 +277,7 @@ export function seoTestSpeedLab(
 export function seoTestSpeedField(
   p75: { lcp?: number | null; inp?: number | null; cls?: number | null } = {},
   level: "url" | "origin" | "normalized" = "url",
-): SeoTestSpeedDevice["field"] {
+): Extract<SeoTestSpeedDevice["field"], { status: "measured" }> {
   return {
     status: "measured",
     level,
