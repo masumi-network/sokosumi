@@ -104,7 +104,7 @@ function runnerVars(
     workspaceContext: { workspaceId, userId: null, organizationId },
     // CMO runs on Mainnet only.
     networkScope: createNetworkScope("mainnet"),
-  } as EnvVariables["Variables"];
+  };
 }
 
 export async function cmoSeoActor(cuso: Cuso): Promise<SeoActor | null> {

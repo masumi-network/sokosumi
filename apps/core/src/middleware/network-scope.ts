@@ -2,9 +2,9 @@ import { createMiddleware } from "hono/factory";
 
 import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
 
-export type NetworkScopeVariables = {
+export interface NetworkScopeVariables {
   networkScope: NetworkScope;
-};
+}
 
 /**
  * Creates the Network scope of a request, beside its authentication context.

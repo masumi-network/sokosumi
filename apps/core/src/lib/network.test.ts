@@ -8,6 +8,21 @@ import {
   requireNetworkOn,
 } from "./network";
 
+/** A fresh module with this environment, so the environment is read again. */
+async function freshNetworkModule(env: Record<string, string | undefined>) {
+  for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+  vi.resetModules();
+  return await import("./network");
+}
+
+/** The split layout with Preprod on. */
+const PREPROD_ON = {
+  NETWORK_PREPROD_ENABLED: "true",
+  DATABASE_SCHEMA_SHARED: "shared",
+  DATABASE_SCHEMA_MAINNET: "mainnet",
+  DATABASE_SCHEMA_PREPROD: "preprod",
+};
+
 describe("networkKey", () => {
   it("keeps today's Mainnet key, so locks and cursors written before the move still match", () => {
     expect(networkKey("mainnet", "agents-sync")).toBe("agents-sync");
@@ -52,11 +67,8 @@ describe("isPreprodOn", () => {
     vi.unstubAllEnvs();
   });
 
-  /** A fresh module, so the environment is read again. */
   async function preprodOn(env: Record<string, string | undefined>) {
-    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
-    vi.resetModules();
-    return (await import("./network")).isPreprodOn();
+    return (await freshNetworkModule(env)).isPreprodOn();
   }
 
   it("is false by default", async () => {
@@ -64,14 +76,7 @@ describe("isPreprodOn", () => {
   });
 
   it("is true when the flag is on and the three schema names are all different and none `public`", async () => {
-    expect(
-      await preprodOn({
-        NETWORK_PREPROD_ENABLED: "true",
-        DATABASE_SCHEMA_SHARED: "shared",
-        DATABASE_SCHEMA_MAINNET: "mainnet",
-        DATABASE_SCHEMA_PREPROD: "preprod",
-      }),
-    ).toBe(true);
+    expect(await preprodOn(PREPROD_ON)).toBe(true);
   });
 });
 
@@ -80,14 +85,8 @@ describe("requireNetworkOn", () => {
     vi.unstubAllEnvs();
   });
 
-  /** A fresh module with Preprod on: the environment is read again. */
   async function withPreprodOn() {
-    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
-    vi.stubEnv("DATABASE_SCHEMA_SHARED", "shared");
-    vi.stubEnv("DATABASE_SCHEMA_MAINNET", "mainnet");
-    vi.stubEnv("DATABASE_SCHEMA_PREPROD", "preprod");
-    vi.resetModules();
-    return (await import("./network")).requireNetworkOn;
+    return (await freshNetworkModule(PREPROD_ON)).requireNetworkOn;
   }
 
   it("returns Mainnet", () => {

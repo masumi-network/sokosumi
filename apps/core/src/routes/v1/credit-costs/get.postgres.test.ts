@@ -13,12 +13,23 @@ import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
 import mountGetCreditCosts from "./get";
 
+const session = vi.hoisted(() => ({ role: "admin" }));
+// Sets the context where production does, before the Network scope and the
+// other middleware run. The route's own admin guard stays real.
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
-  const { stubAuthMiddleware } = await import(
-    "@/test-fixtures/auth-middleware"
-  );
-  return { ...actual, authMiddleware: stubAuthMiddleware };
+  const authMiddleware: typeof actual.authMiddleware = async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "user",
+      userId: randomUUID(),
+      organizationId: null,
+      role: session.role,
+      authenticationMethod: "session",
+    });
+    await next();
+  };
+  return { ...actual, authMiddleware };
 });
 
 const url = process.env.DATABASE_URL;
@@ -31,18 +42,8 @@ const unit = `n58_${id}`;
 const at = new Date("2026-01-02T03:04:05.678Z");
 
 function createApp(role: "admin" | "user") {
+  session.role = role;
   const app = new OpenAPIHonoWithAuth();
-  app.use("*", async (c, next) => {
-    c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: randomUUID(),
-      organizationId: null,
-      role,
-      authenticationMethod: "session",
-    });
-    await next();
-  });
   mountGetCreditCosts(app);
   return app;
 }

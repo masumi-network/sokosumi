@@ -485,8 +485,8 @@ Admin-granted credits for testing on Preprod. Spent only on Preprod and never co
 _Avoid_: Test credits, sandbox credits, Tester credits (a CMO term)
 
 **Network scope**:
-The Network and the shared data available to one piece of work. A piece of work has exactly one, so everything it reads or writes on a Network belongs to that Network.
-_Avoid_: Network unit of work (a scope outlives a transaction), Network context, current Network
+The Network and shared data available to work on one Network.
+_Avoid_: Network unit of work, Network context, current Network
 
 ### Billing
 
