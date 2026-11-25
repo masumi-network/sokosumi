@@ -2153,28 +2153,54 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-/* Each plan's chart arrow, top right, in the card's line colour so Scale's
-   tip still shows where it breaks out over the page. */
-.ob-plan-rise {
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  width: 64px;
-  height: 40px;
-  overflow: visible;
-  pointer-events: none;
+/* The top plan stands out picked or not: the 6px shadow, and wider in a row. */
+.ob-plan-option.ob-plan-top {
+  box-shadow: var(--shadow-big);
 }
 
-.ob-plan-rise path {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: var(--line-width-small);
-  stroke-linecap: round;
-  stroke-linejoin: round;
+@media (min-width: 600px) {
+  .ob-checkout > .ob-plan-options:has(> :nth-child(3):last-child) {
+    grid-template-columns: 1fr 1fr 1.2fr;
+  }
 }
 
-.ob-plan-rise-steep path {
-  stroke-width: var(--line-width);
+/* Under the plan's name: outlined, ink on the top plan; the room is kept on
+   a card without one so every card's lines stay level. */
+.ob-plan-frame,
+.ob-plan-frame-room {
+  justify-self: start;
+  min-height: 20px;
+}
+
+.ob-plan-frame {
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+}
+
+.ob-plan-frame-top {
+  border-color: var(--strip);
+  background: var(--strip);
+  color: var(--strip-foreground);
+}
+
+/* What only the top plan adds, under a hairline, with a check. */
+.ob-plan-extra {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+}
+
+.ob-plan-extra svg {
+  flex: none;
+  margin-top: 1px;
 }
 
 .ob-plan-option .ob-value {
@@ -2182,26 +2208,8 @@ body:has(.ob) .site-header {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ob-plan-rise path {
-    stroke-dasharray: 1 2;
-    stroke-dashoffset: 1;
-    animation: ob-plan-draw 700ms ease-out var(--rise-delay, 450ms) forwards;
-  }
-
-  /* Scale's rise speeds up as it goes. */
-  .ob-plan-rise-steep path {
-    animation-duration: 900ms;
-    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
-  }
-
   .ob-plan-option .ob-swap {
     animation: ob-fade 150ms ease-out;
-  }
-}
-
-@keyframes ob-plan-draw {
-  to {
-    stroke-dashoffset: 0;
   }
 }
 

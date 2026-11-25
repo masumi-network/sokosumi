@@ -126,7 +126,6 @@ describe("CheckoutStep", () => {
     expect(cards()[0]).toContain("$200");
     expect(cards()[1]).toContain("$500");
     expect(cards()[2]).toContain("$1,000");
-    expect(text()).not.toContain("credits");
     expect(text()).not.toContain("(monthly)");
     expect(text()).not.toContain("$2,000");
   });
@@ -256,18 +255,25 @@ describe("CheckoutStep", () => {
     expect(cards()[0]).toContain("Billed monthly");
   });
 
-  it("draws a chart arrow on each plan, hidden from screen readers", async () => {
+  it("says each plan's AI credits a month, on both intervals", async () => {
     await render();
-    const arrows = [
-      ...container.querySelectorAll(".ob-plan-option svg.ob-plan-rise"),
-    ];
-    expect(arrows).toHaveLength(3);
-    expect(
-      arrows.every((svg) => svg.getAttribute("aria-hidden") === "true"),
-    ).toBe(true);
-    expect(
-      arrows.map((svg) => svg.classList.contains("ob-plan-rise-steep")),
-    ).toEqual([false, false, true]);
+    expect(cards()[0]).toContain("10,000 AI credits a month");
+    expect(cards()[1]).toContain("25,000 AI credits a month");
+    expect(cards()[2]).toContain("50,000 AI credits a month");
+    await press("Monthly");
+    expect(cards()[2]).toContain("50,000 AI credits a month");
+  });
+
+  it("frames Growth as the start and Scale as everything, Scale standing out unpicked", async () => {
+    await render();
+    await press("Starter");
+    expect(cards()[0]).not.toMatch(/Strong start|Everything included/);
+    expect(cards()[1]).toContain("Strong start");
+    expect(cards()[2]).toContain("Everything included");
+    const top = container.querySelectorAll(".ob-plan-option")[2];
+    expect(top?.classList.contains("ob-plan-top")).toBe(true);
+    expect(top?.getAttribute("aria-pressed")).toBe("false");
+    expect(text()).not.toMatch(/most popular|most picked/i);
   });
 
   it("sends the person to Polar with the interval and the plan they picked", async () => {
