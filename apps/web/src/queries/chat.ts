@@ -68,6 +68,10 @@ export const chatQueryKeys = {
   roomSummary: (roomId: string) => chatKey({}, "room-summary", roomId),
   roomCatchUp: (roomId: string) => chatKey({}, "room-catch-up", roomId),
   roomDecisions: (roomId: string) => chatKey({}, "room-decisions", roomId),
+  /** The Feed's pages. Per reader and workspace, as Core reads it. */
+  feedPages: (scope: ChatQueryScopeInput) => chatKey(scope, "feed", "pages"),
+  /** The Feed's unread count, read with one item for the sidebar row. */
+  feedUnread: (scope: ChatQueryScopeInput) => chatKey(scope, "feed", "unread"),
   stickers: (userId: string) => chatKey({ userId }, "stickers"),
   skills: (query: string) => chatKey({}, "skills", query),
   results: (

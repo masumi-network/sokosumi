@@ -8641,7 +8641,11 @@
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
         "tagDirectMessagesDescription": "Si está activado, leemos tus mensajes directos para destacar preguntas y decisiones para ti. Solo leemos un mensaje directo si todas las personas en él lo han activado. En los canales lo hacemos siempre.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
-        "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
+        "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán",
+        "feedModeTitle": "Usar el Feed",
+        "feedModeDescription": "Si está activado, la barra lateral muestra un Feed con los mensajes que te necesitan, en lugar de tu lista de chats.",
+        "feedModeEnabledSuccess": "Feed activado",
+        "feedModeDisabledSuccess": "Feed desactivado"
       },
       "BillingDetails": {
         "title": "Información de facturación",
@@ -10579,6 +10583,19 @@
         "empty": "Sube un sticker para empezar tu colección.",
         "collection": "Stickers guardados",
         "select": "Seleccionar {name}"
+      },
+      "Feed": {
+        "title": "Feed",
+        "description": "Mensajes que te necesitan, de todos tus chats, primero los más recientes.",
+        "listLabel": "Mensajes del Feed",
+        "unreadCount": "{count, plural, one {# mensaje sin leer} other {# mensajes sin leer}}",
+        "unreadCountCapped": "Más de {max} mensajes sin leer",
+        "inThread": "En un hilo",
+        "empty": "Ahora no hay nada que te necesite",
+        "emptyDescription": "Los mensajes que te mencionan, te preguntan algo o te responden aparecen aquí.",
+        "loadMore": "Mostrar más",
+        "loadError": "No se pudo cargar el Feed.",
+        "retry": "Reintentar"
       }
     },
     "Drive": {

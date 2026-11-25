@@ -8677,7 +8677,11 @@
         "tagDirectMessagesTitle": "Sort my direct messages",
         "tagDirectMessagesDescription": "When on, we read your Directs to point out questions and decisions for you. We only read a Direct when everyone in it has turned this on. We always do this in channels.",
         "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
-        "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
+        "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted",
+        "feedModeTitle": "Use the Feed",
+        "feedModeDescription": "When on, the sidebar shows one Feed with the messages that need you, instead of your list of chats.",
+        "feedModeEnabledSuccess": "Feed turned on",
+        "feedModeDisabledSuccess": "Feed turned off"
       },
       "BillingDetails": {
         "title": "Billing information",
@@ -10579,6 +10583,19 @@
         "empty": "Upload a sticker to start your collection.",
         "collection": "Saved stickers",
         "select": "Select {name}"
+      },
+      "Feed": {
+        "title": "Feed",
+        "description": "Messages that need you, from all your chats, newest first.",
+        "listLabel": "Feed messages",
+        "unreadCount": "{count, plural, one {# unread message} other {# unread messages}}",
+        "unreadCountCapped": "More than {max} unread messages",
+        "inThread": "In a thread",
+        "empty": "Nothing needs you right now",
+        "emptyDescription": "Messages that mention you, ask you something or answer you show up here.",
+        "loadMore": "Show more",
+        "loadError": "Could not load the Feed.",
+        "retry": "Try again"
       }
     },
     "Drive": {

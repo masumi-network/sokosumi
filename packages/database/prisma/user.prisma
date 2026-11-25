@@ -64,6 +64,9 @@ model User {
   // Whether the person left their week out of the stand-up's week in review.
   // Included by default; stored as "hide" so false means included (ADR-0038).
   hideWeekFromStandup Boolean @default(false)
+  // Whether the person swapped the chat room list for the Feed: one page of
+  // the chat messages that need them. Off by default.
+  feedMode            Boolean @default(false)
 
   // UTM Attribution
   utmAttribution UTMAttribution?

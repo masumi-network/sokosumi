@@ -62,6 +62,13 @@ describe("You row mobile tab selection", () => {
     ]);
   });
 
+  // The Feed replaces the room list on the Chats tab in feed mode. Without
+  // its own match the tab bar lights no tab, or Home, on the Feed page.
+  it("selects Chats on the Feed and on Catch up", () => {
+    expect(activeTabs("/chat/feed")).toEqual(["chats"]);
+    expect(activeTabs("/chat/catch-up")).toEqual(["chats"]);
+  });
+
   it("keeps Home on Home and the inbox", () => {
     expect(activeTabs("/", "from=you")).toEqual(["home"]);
     expect(activeTabs("/notifications", "from=you")).toEqual(["home"]);

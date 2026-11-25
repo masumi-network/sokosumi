@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
+import feedRouter from "./feed/index.js";
 import invitationsRouter from "./invitations/index.js";
 import peopleRouter from "./people/index.js";
 import roomsRouter from "./rooms/index.js";
@@ -12,6 +13,7 @@ import transcriptionsRouter from "./transcriptions/index.js";
 
 const app = new OpenAPIHono();
 
+app.route("/feed", feedRouter);
 app.route("/invitations", invitationsRouter);
 app.route("/people", peopleRouter);
 app.route("/rooms", roomsRouter);

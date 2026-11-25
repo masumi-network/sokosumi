@@ -3274,6 +3274,31 @@ export type AgentRatingRequest = {
     comment?: string | null;
 };
 
+export type ChatFeed = {
+    items: Array<ChatFeedItem>;
+    /**
+     * Pass as `cursor` for the next page; null on the last one.
+     */
+    nextCursor: string | null;
+    /**
+     * Feed messages the viewer has not read, across every page.
+     */
+    unreadCount: number;
+};
+
+export type ChatFeedItem = {
+    /**
+     * Where the item sits. `urgent` is reserved for a later release; today every item is `feed`.
+     */
+    lane: 'feed' | 'urgent';
+    room: {
+        id: string;
+        name: string;
+        kind: 'channel' | 'direct';
+    };
+    message: ChatRoomMessage;
+};
+
 export type ChatRoomInvitation = {
     id: string;
     roomId: string;
@@ -28397,6 +28422,109 @@ export type GetCategoriesResponses = {
 };
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
+
+export type GetChatsFeedData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * `nextCursor` from the previous page. It names a position, not a row.
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/feed';
+};
+
+export type GetChatsFeedErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Chat history read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsFeedError = GetChatsFeedErrors[keyof GetChatsFeedErrors];
+
+export type GetChatsFeedResponses = {
+    /**
+     * The viewer's Feed
+     */
+    200: {
+        data: ChatFeed;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsFeedResponse = GetChatsFeedResponses[keyof GetChatsFeedResponses];
 
 export type GetChatsInvitationsData = {
     body?: never;
@@ -73946,6 +74074,21 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
 };
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

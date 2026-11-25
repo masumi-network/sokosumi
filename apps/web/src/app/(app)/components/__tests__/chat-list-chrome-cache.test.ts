@@ -134,8 +134,9 @@ describe("chat list chrome single-source composition contract", () => {
     const { fileURLToPath } = await import("node:url");
 
     const dir = dirname(fileURLToPath(import.meta.url));
+    // The sidebar's chat block lives in its slot (feed mode picks it there).
     const sidebar = readFileSync(
-      join(dir, "../private-cached-app-sidebar.tsx"),
+      join(dir, "../sidebar/components/sidebar-chat-slot.tsx"),
       "utf8",
     );
     const chatsPage = readFileSync(join(dir, "../../chat/page.tsx"), "utf8");
