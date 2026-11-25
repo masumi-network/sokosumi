@@ -4,15 +4,25 @@ import networkTables from "../prisma/network-tables.json" with { type: "json" };
 import { PrismaRaw } from "./client.js";
 import { $Enums } from "./index.js";
 import {
+  sharedTable as aliasedSharedTable,
   configureSqlTables,
   createSqlTables,
+  type NetworkEnumName,
+  type NetworkTableName,
   netTable,
   netType,
   PUBLIC_LAYOUT,
+  type SharedEnumName,
+  type SharedTableName,
   type SqlTableLayout,
   sharedTable,
   sharedType,
 } from "./sql-tables.js";
+
+/** A name the types refuse, for the refusals that still run: scripts and JSON callers. */
+function unchecked(name: string): never {
+  return name as never;
+}
 
 const SPLIT: SqlTableLayout = {
   shared: "shared",
@@ -64,38 +74,48 @@ describe("createSqlTables", () => {
 
   it("refuses a table or type of the other side", () => {
     const tables = createSqlTables(SPLIT);
-    expect(() => tables.sharedTable("Job")).toThrow(
+    expect(() => tables.sharedTable(unchecked("Job"))).toThrow(
       "Job is a Network table: use netTable",
     );
-    expect(() => tables.netTable("mainnet", "user")).toThrow(
+    expect(() => tables.netTable("mainnet", unchecked("user"))).toThrow(
       "user is a shared table: use sharedTable",
     );
-    expect(() => tables.sharedType("AgentStatus")).toThrow(
+    expect(() => tables.sharedType(unchecked("AgentStatus"))).toThrow(
       "AgentStatus is a Network type: use netType",
     );
-    expect(() => tables.netType("mainnet", "TaskStatus")).toThrow(
+    expect(() => tables.netType("mainnet", unchecked("TaskStatus"))).toThrow(
       "TaskStatus is a shared type: use sharedType",
     );
   });
 
   it("refuses a name that is not a listed SQL table or enum", () => {
     const tables = createSqlTables(SPLIT);
-    expect(() => tables.sharedTable("nope")).toThrow("Unknown table: nope");
-    expect(() => tables.netTable("mainnet", "nope")).toThrow(
+    expect(() => tables.sharedTable(unchecked("nope"))).toThrow(
+      "Unknown table: nope",
+    );
+    expect(() => tables.netTable("mainnet", unchecked("nope"))).toThrow(
       "Unknown table: nope",
     );
     // The Prisma model name is not the SQL name.
-    expect(() => tables.netTable("mainnet", "JobEvent")).toThrow(
+    expect(() => tables.netTable("mainnet", unchecked("JobEvent"))).toThrow(
       "Unknown table: JobEvent",
     );
-    expect(() => tables.sharedTable('user" --')).toThrow("Unknown table");
-    expect(() => tables.sharedType("Nope")).toThrow("Unknown type: Nope");
-    expect(() => tables.netType("mainnet", "Nope")).toThrow(
+    expect(() => tables.sharedTable(unchecked('user" --'))).toThrow(
+      "Unknown table",
+    );
+    expect(() => tables.sharedType(unchecked("Nope"))).toThrow(
+      "Unknown type: Nope",
+    );
+    expect(() => tables.netType("mainnet", unchecked("Nope"))).toThrow(
       "Unknown type: Nope",
     );
     // A table is not a type, and the reverse.
-    expect(() => tables.sharedType("user")).toThrow("Unknown type: user");
-    expect(() => tables.sharedTable("TaskStatus")).toThrow("Unknown table");
+    expect(() => tables.sharedType(unchecked("user"))).toThrow(
+      "Unknown type: user",
+    );
+    expect(() => tables.sharedTable(unchecked("TaskStatus"))).toThrow(
+      "Unknown table",
+    );
   });
 
   it("refuses a Network other than mainnet and preprod", () => {
@@ -211,26 +231,55 @@ describe("createSqlTables", () => {
 
   it("accepts every listed table and enum", () => {
     const tables = createSqlTables(SPLIT);
-    for (const table of Object.values(networkTables.shared)) {
+    for (const table of Object.values(
+      networkTables.shared,
+    ) as SharedTableName[]) {
       expect(tables.sharedTable(table).sql).toBe(`"shared"."${table}"`);
     }
     for (const table of [
       ...Object.values(networkTables.network),
       ...networkTables.networkJoinTables,
-    ]) {
+    ] as NetworkTableName[]) {
       expect(tables.netTable("preprod", table).sql).toBe(
         `"preprod"."${table}"`,
       );
     }
-    for (const type of networkTables.networkEnums) {
+    for (const type of networkTables.networkEnums as NetworkEnumName[]) {
       expect(tables.netType("preprod", type).sql).toBe(`"preprod"."${type}"`);
     }
     const sharedTypes = Object.keys($Enums).filter(
       (type) => !networkTables.networkEnums.includes(type),
-    );
+    ) as SharedEnumName[];
     for (const type of sharedTypes) {
       expect(tables.sharedType(type).sql).toBe(`"shared"."${type}"`);
     }
+  });
+});
+
+describe("the names the types take", () => {
+  it("refuses a wrong name when the caller compiles", () => {
+    const tables = createSqlTables(PUBLIC_LAYOUT);
+    const name: string = "user";
+    const calls = () => [
+      // @ts-expect-error a typo
+      sharedTable("usr"),
+      // @ts-expect-error a shared table in netTable
+      netTable("mainnet", "user"),
+      // @ts-expect-error a Network table in sharedTable
+      tables.sharedTable("Job"),
+      // @ts-expect-error a Network enum in sharedType
+      sharedType("AgentStatus"),
+      // @ts-expect-error a shared enum in netType
+      tables.netType("mainnet", "TaskStatus"),
+      // @ts-expect-error a table where an enum goes
+      sharedType("user"),
+      // @ts-expect-error a name held in an untyped variable
+      sharedTable(name),
+      // @ts-expect-error a typo through an aliased import
+      aliasedSharedTable("usr"),
+      aliasedSharedTable("user"),
+    ];
+    expect(calls).toBeTypeOf("function");
   });
 });
 

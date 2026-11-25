@@ -59,6 +59,7 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
+    "generate:sql-table-names": "tsx scripts/generate-sql-table-names.ts",
     "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
     "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",

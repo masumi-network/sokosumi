@@ -1,6 +1,15 @@
 import { raw, type Sql } from "@prisma/client/runtime/client";
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
 import { $Enums } from "./index.js";
+import type {
+  NetworkEnumName,
+  NetworkTableName,
+  SharedTableName,
+} from "./sql-table-names.js";
+
+export type { NetworkEnumName, NetworkTableName, SharedTableName };
+/** An enum type in the shared schema: every enum not on the Network list. */
+export type SharedEnumName = Exclude<keyof typeof $Enums, NetworkEnumName>;
 
 /**
  * Table and enum type names for raw SQL, always with their schema:
@@ -24,17 +33,17 @@ export interface SqlTableLayout {
 
 export interface SqlTables {
   /** A `shared` table. Throws for a Network table or an unknown name. */
-  sharedTable(table: string): Sql;
+  sharedTable(table: SharedTableName): Sql;
   /**
    * A Network's table. Throws for a `shared` table, an unknown name, an
    * unknown Network, and for Preprod while it is off: on today's layout that
    * would name Mainnet's rows.
    */
-  netTable(network: TableNetwork, table: string): Sql;
+  netTable(network: TableNetwork, table: NetworkTableName): Sql;
   /** A `shared` enum type, for a cast: `${value}::${sharedType("TaskStatus")}`. */
-  sharedType(type: string): Sql;
+  sharedType(type: SharedEnumName): Sql;
   /** A Network's enum type. Refuses what `netTable` refuses. */
-  netType(network: TableNetwork, type: string): Sql;
+  netType(network: TableNetwork, type: NetworkEnumName): Sql;
 }
 
 interface Names {
@@ -186,6 +195,28 @@ export const PUBLIC_LAYOUT: SqlTableLayout = {
   preprodOn: false,
 };
 
+/**
+ * The layout from `DATABASE_SCHEMA_SHARED`, `DATABASE_SCHEMA_MAINNET`,
+ * `DATABASE_SCHEMA_PREPROD` and `NETWORK_PREPROD_ENABLED`, read as Core's
+ * `config/network-layout.ts` reads them: a blank or missing name is `public`,
+ * a blank or missing flag is off. For a process without Core's config, such as
+ * this package's data-migration scripts.
+ */
+export function sqlTableLayoutFromEnv(
+  env: Record<string, string | undefined>,
+): SqlTableLayout {
+  const flag = env.NETWORK_PREPROD_ENABLED || "false";
+  if (flag !== "true" && flag !== "false") {
+    throw new Error("NETWORK_PREPROD_ENABLED must be true or false");
+  }
+  return {
+    shared: env.DATABASE_SCHEMA_SHARED || "public",
+    mainnet: env.DATABASE_SCHEMA_MAINNET || "public",
+    preprod: env.DATABASE_SCHEMA_PREPROD || "public",
+    preprodOn: flag === "true",
+  };
+}
+
 // Until the process that owns the configuration passes its names.
 let configured = createSqlTables(PUBLIC_LAYOUT);
 
@@ -204,21 +235,21 @@ export function configureSqlTables(layout: SqlTableLayout): () => void {
 }
 
 /** `SqlTables.sharedTable` on the configured layout. */
-export function sharedTable(table: string): Sql {
+export function sharedTable(table: SharedTableName): Sql {
   return configured.sharedTable(table);
 }
 
 /** `SqlTables.netTable` on the configured layout. */
-export function netTable(network: TableNetwork, table: string): Sql {
+export function netTable(network: TableNetwork, table: NetworkTableName): Sql {
   return configured.netTable(network, table);
 }
 
 /** `SqlTables.sharedType` on the configured layout. */
-export function sharedType(type: string): Sql {
+export function sharedType(type: SharedEnumName): Sql {
   return configured.sharedType(type);
 }
 
 /** `SqlTables.netType` on the configured layout. */
-export function netType(network: TableNetwork, type: string): Sql {
+export function netType(network: TableNetwork, type: NetworkEnumName): Sql {
   return configured.netType(network, type);
 }

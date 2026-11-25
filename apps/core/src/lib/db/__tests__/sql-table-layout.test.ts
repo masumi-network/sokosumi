@@ -1,14 +1,16 @@
 import {
   createSqlTables,
   type SqlTableLayout,
+  sqlTableLayoutFromEnv,
 } from "@sokosumi/database/sql-tables";
 import { describe, expect, it } from "vitest";
 
 import { networkLayoutSchema } from "@/config/network-layout";
 
 // The database package cannot import Core's layout rule, so `createSqlTables`
-// repeats it. Both get the same layouts here and must agree, except where a
-// case says they differ on purpose.
+// repeats it, and `sqlTableLayoutFromEnv` repeats how Core reads the
+// variables. All get the same layouts here and must agree, except where a case
+// says the helper differs on purpose.
 type Layout = Record<keyof SqlTableLayout, unknown>;
 
 const PUBLIC: Layout = {
@@ -78,13 +80,43 @@ const CASES: [string, Layout, Partial<Layout>, boolean, boolean?][] = [
   ],
 ];
 
-function coreAccepts(layout: Layout): boolean {
-  return networkLayoutSchema.safeParse({
+function variables(layout: Layout) {
+  return {
     DATABASE_SCHEMA_SHARED: layout.shared,
     DATABASE_SCHEMA_MAINNET: layout.mainnet,
     DATABASE_SCHEMA_PREPROD: layout.preprod,
     NETWORK_PREPROD_ENABLED: String(layout.preprodOn),
-  }).success;
+  };
+}
+
+/** Core's layout, or `false` where Core refuses to start. */
+function coreLayout(layout: Layout): SqlTableLayout | false {
+  const result = networkLayoutSchema.safeParse(variables(layout));
+  return (
+    result.success && {
+      shared: result.data.DATABASE_SCHEMA_SHARED,
+      mainnet: result.data.DATABASE_SCHEMA_MAINNET,
+      preprod: result.data.DATABASE_SCHEMA_PREPROD,
+      preprodOn: result.data.NETWORK_PREPROD_ENABLED,
+    }
+  );
+}
+
+/** The helpers' layout read from the same variables, or `false` where refused. */
+function scriptLayout(layout: Layout): SqlTableLayout | false {
+  const env = Object.fromEntries(
+    Object.entries(variables(layout)).map(([key, value]) => [
+      key,
+      value === undefined ? undefined : String(value),
+    ]),
+  );
+  try {
+    const read = sqlTableLayoutFromEnv(env);
+    createSqlTables(read);
+    return read;
+  } catch {
+    return false;
+  }
 }
 
 function helperAccepts(layout: Layout): boolean {
@@ -99,7 +131,25 @@ function helperAccepts(layout: Layout): boolean {
 describe("the layout rule in Core and in the SQL table helper", () => {
   it.each(CASES)("%s", (_what, base, change, core, helper = core) => {
     const layout = { ...base, ...change };
-    expect(coreAccepts(layout)).toBe(core);
+    expect(coreLayout(layout) !== false).toBe(core);
     expect(helperAccepts(layout)).toBe(helper);
+    expect(scriptLayout(layout)).toEqual(coreLayout(layout));
+  });
+
+  it.each(["", undefined])(
+    "reads the Preprod flag %j as off, as Core does",
+    (flag) => {
+      const env = { NETWORK_PREPROD_ENABLED: flag };
+      expect(sqlTableLayoutFromEnv(env).preprodOn).toBe(false);
+      expect(networkLayoutSchema.parse(env).NETWORK_PREPROD_ENABLED).toBe(
+        false,
+      );
+    },
+  );
+
+  it("refuses a Preprod flag Core refuses", () => {
+    expect(() =>
+      sqlTableLayoutFromEnv({ NETWORK_PREPROD_ENABLED: "yes" }),
+    ).toThrow("NETWORK_PREPROD_ENABLED must be true or false");
   });
 });
