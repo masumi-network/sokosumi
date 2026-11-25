@@ -88,12 +88,14 @@ export function speedLighthouseVersion(value: unknown) {
 /** Public text without private or credential material, as written and percent-decoded. */
 function publicInsightText(text: unknown) {
   if (typeof text !== "string") return false;
-  let decoded = text;
-  try {
-    decoded = decodeURIComponent(text);
-  } catch {
-    // Text that cannot be decoded gets the checks as written.
-  }
+  // Each run of %XX groups on its own: a lone "%" elsewhere ("50% less") does not stop the decoding.
+  const decoded = text.replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
   return [text, decoded].every(
     (form) =>
       publicExplorationText(form) && !containsSokoBotSensitiveMaterial(form),

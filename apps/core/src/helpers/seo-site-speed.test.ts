@@ -712,6 +712,7 @@ describe("the guards of speed data on each path", () => {
       { ...insight, id: "leak-group", group: `Group ${SECRET}` },
       { ...insight, id: "leak-title", title: `Use the key ${encoded}` },
       { ...insight, id: "leak-detail", detail: `Key ${encoded}` },
+      { ...insight, id: "leak-percent", detail: `50% less. Key ${encoded}` },
     ];
     const speed = section(EXTRA);
     const fresh = read([
