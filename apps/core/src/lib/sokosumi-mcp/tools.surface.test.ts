@@ -177,6 +177,31 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   projects_ads_languages: { id: "p-1", accountId: "acc-1" },
   projects_ads_market: { id: "p-1" },
   projects_image_studio: { id: "p-1" },
+  projects_image_studio_generate: {
+    id: "p-1",
+    body: { prompt: "A red vase", idempotencyKey: "intent-0001" },
+  },
+  projects_image_studio_video: {
+    id: "p-1",
+    body: { prompt: "A red vase turning", idempotencyKey: "intent-0002" },
+  },
+  projects_image_studio_short_video: {
+    id: "p-1",
+    body: {
+      format: "voiceover",
+      script: "Meet the vase that finishes every shelf.",
+      idempotencyKey: "intent-0003",
+    },
+  },
+  projects_image_studio_talking_video: {
+    id: "p-1",
+    body: {
+      script: "Meet the vase that finishes every shelf.",
+      presenter: { kind: "stock", id: "ada" },
+      idempotencyKey: "intent-0004",
+    },
+  },
+  projects_image_studio_cancel: { id: "p-1", jobId: "job-1" },
   projects_image_studio_batch: { id: "p-1", batchId: "b-1" },
   projects_image_studio_compare: { id: "p-1", batchId: "b-1" },
   projects_image_studio_scoreboard: { id: "p-1" },

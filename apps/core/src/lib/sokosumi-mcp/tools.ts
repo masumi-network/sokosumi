@@ -1101,6 +1101,41 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /notifications/read-all",
     description: "Mark all your notifications as read.",
   },
+  // SOKD-385: Image Studio generations (ADR 0077: credits are the cap).
+  {
+    name: "projects_image_studio_generate",
+    operation: "POST /projects/{id}/image-studio/jobs",
+    description:
+      "Spends workspace credits. Start an Image Studio image for a Project from `body.prompt`. Send a fresh `body.idempotencyKey` (8 to 200 characters) per image and the same one on a retry: a repeat returns the first job instead of buying another. Refused when the balance cannot cover it and the jobs already running.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_image_studio_video",
+    operation: "POST /projects/{id}/image-studio/video-jobs",
+    description:
+      "Spends workspace credits. Start an Image Studio video from `body.prompt`, or animate a Studio image with `body.sourceAssetId`. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_image_studio_short_video",
+    operation: "POST /projects/{id}/image-studio/short-video-jobs",
+    description:
+      "Spends workspace credits. Start a short vertical video: a voice reads `body.script` over the Project's pictures and site, in `body.format`. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_image_studio_talking_video",
+    operation: "POST /projects/{id}/image-studio/talking-video-jobs",
+    description:
+      "Spends workspace credits. Start a talking video: a presenter speaks `body.script`. Use a stock presenter (`presenter.kind` `stock`). A photo of a real person (`file`) is person-only: an agent gets 403 `person_approval_required` with a link to send the person to. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_image_studio_cancel",
+    operation: "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
+    description:
+      "Ask to stop a queued or running Image Studio job. `accepted` means the provider took the request, not that the work stopped.",
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */

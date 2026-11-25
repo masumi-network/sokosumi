@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_TOOLSETS,
+  MCP_TOOLS,
   MCP_TOOLSETS,
   selectToolsets,
   toolsetOf,
@@ -40,5 +41,38 @@ describe("toolsetOf", () => {
 
   it("keeps a hyphenated route group whole", () => {
     expect(toolsetOf("image_studio_catalog")).toBe("image-studio");
+  });
+});
+
+describe("tools that spend credits", () => {
+  it("say so first", () => {
+    for (const tool of MCP_TOOLS.filter((tool) => tool.spendsCredits)) {
+      expect(tool.description, tool.name).toMatch(
+        /^Spends workspace credits\. /,
+      );
+    }
+  });
+
+  it("include every Image Studio start, and not its cancel (ADR 0077)", () => {
+    const spends = (operation: string) =>
+      MCP_TOOLS.find((tool) => tool.operation === operation)?.spendsCredits;
+
+    for (const kind of [
+      "jobs",
+      "video-jobs",
+      "short-video-jobs",
+      "talking-video-jobs",
+    ]) {
+      expect(spends(`POST /projects/{id}/image-studio/${kind}`), kind).toBe(
+        true,
+      );
+    }
+    const cancel = MCP_TOOLS.find(
+      (tool) =>
+        tool.operation ===
+        "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
+    );
+    expect(cancel).toBeDefined();
+    expect(cancel?.spendsCredits).toBeFalsy();
   });
 });
