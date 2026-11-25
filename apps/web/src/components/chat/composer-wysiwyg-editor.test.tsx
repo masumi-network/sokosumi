@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { useRef, useState } from "react";
+import { Profiler, useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -1708,6 +1708,88 @@ describe("ComposerWysiwygEditor", () => {
           { index: String(step), options: { block: "nearest" } },
         ]);
       }
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it("commits the measured popup position before scrollIntoView and uses 2 commits for '@a'", () => {
+    const listboxStylesAtScroll: Array<{ top: string; bottom: string }> = [];
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      const listbox = this.closest("[role='listbox']") as HTMLElement | null;
+      if (listbox) {
+        listboxStylesAtScroll.push({
+          top: listbox.style.top,
+          bottom: listbox.style.bottom,
+        });
+      }
+    };
+
+    let commitCount = 0;
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+            <Profiler
+              id="composer"
+              onRender={() => {
+                commitCount += 1;
+              }}
+            >
+              <ComposerWysiwygEditor
+                ref={editorRef}
+                value={value}
+                onChange={setValue}
+                mentions={{
+                  alice: { value: "Alice" },
+                  bob: { value: "Bob" },
+                }}
+              />
+            </Profiler>
+          </div>
+        </>
+      );
+    }
+
+    try {
+      render(<Harness />);
+
+      // Opening via toolbar @ must commit the measured bottom before scrollIntoView runs
+      // (never a transient fallback render at top: 8px, left: 8px).
+      fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+      expect(listboxStylesAtScroll).toEqual([
+        { top: "", bottom: `${window.innerHeight - 500}px` },
+      ]);
+
+      // Close and verify '@a' takes 2 commits (1 per keystroke, matching main).
+      const editor = screen.getByRole("textbox");
+      fireEvent.keyDown(editor, { key: "Escape" });
+      commitCount = 0;
+
+      const typeAtEnd = (text: string) => {
+        editor.focus();
+        editor.textContent = text;
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        fireEvent.input(editor);
+      };
+
+      typeAtEnd("@");
+      typeAtEnd("@a");
+      expect(commitCount).toBe(2);
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
