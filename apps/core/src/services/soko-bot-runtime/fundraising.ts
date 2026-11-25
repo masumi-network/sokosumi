@@ -103,6 +103,14 @@ export async function executeFundraisingTool(
             !filter.openedDataRoom ||
             (p.dataRoom !== null && p.dataRoom.firstVisitAt !== null),
         )
+        .filter(
+          (p) =>
+            !filter.introPending ||
+            (p.intro.via !== null &&
+              p.intro.askedAt !== null &&
+              p.intro.madeAt === null &&
+              p.intro.declinedAt === null),
+        )
         .filter((p) => {
           if (!filter.needsFollowUp) return true;
           const followUpAt = p.contact.followUpAt;
@@ -135,6 +143,23 @@ export async function executeFundraisingTool(
           thesis: p.thesis,
           lastDraft: p.lastDraftAt
             ? { at: p.lastDraftAt, subject: p.lastDraftSubject }
+            : null,
+          intro: p.intro.via
+            ? {
+                via: p.intro.via.name,
+                askedAt: p.intro.askedAt,
+                madeAt: p.intro.madeAt,
+                declinedAt: p.intro.declinedAt,
+              }
+            : null,
+          bestPath: p.bestPath
+            ? {
+                kind: p.bestPath.kind,
+                via: p.bestPath.via?.name ?? null,
+                through: p.bestPath.through?.name ?? null,
+                company: p.bestPath.company?.name ?? null,
+                strength: p.bestPath.strength,
+              }
             : null,
           dataRoom: p.dataRoom
             ? {
