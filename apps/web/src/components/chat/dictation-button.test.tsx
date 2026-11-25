@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { Activity, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DICTATION_MAX_MS } from "@/hooks/effects/use-dictation-recorder";
@@ -195,6 +196,55 @@ describe("DictationButton", () => {
       screen.getByRole("button", { name: "dictate" }),
     );
     expect(onRecordingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("releases the mic and re-enables Send after Activity hide and reveal", async () => {
+    const onRecorded = vi.fn();
+
+    function Composer() {
+      const [isRecording, setIsRecording] = useState(false);
+      return (
+        <div>
+          <DictationButton
+            onRecorded={onRecorded}
+            onRecordingChange={setIsRecording}
+          />
+          <button type="submit" disabled={isRecording}>
+            send
+          </button>
+        </div>
+      );
+    }
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Composer />
+      </Activity>,
+    );
+
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+    await startRecording();
+    expect(screen.getByRole("timer")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
+
+    rerender(
+      <Activity mode="hidden">
+        <Composer />
+      </Activity>,
+    );
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(onRecorded).not.toHaveBeenCalled();
+
+    rerender(
+      <Activity mode="visible">
+        <Composer />
+      </Activity>,
+    );
+
+    expect(screen.queryByRole("timer")).toBeNull();
+    expect(screen.getByRole("button", { name: "dictate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
   });
 
   it("formats elapsed time as m:ss", () => {

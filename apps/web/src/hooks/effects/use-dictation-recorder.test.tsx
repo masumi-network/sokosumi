@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react";
-import { StrictMode } from "react";
+import { Activity, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -208,7 +208,138 @@ describe("useDictationRecorder", () => {
 
     expect(stopTrack).toHaveBeenCalledOnce();
     expect(onRecorded).not.toHaveBeenCalled();
-    // Verbatim move: unmount cleanup returns before onRecordingChange(false) (ticket J).
-    expect(onRecordingChange).toHaveBeenCalledTimes(1);
+    expect(onRecordingChange).toHaveBeenCalledTimes(2);
+    expect(onRecordingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("reports onRecordingChange(false) once and resets state across Activity hide and reveal", async () => {
+    const onRecorded = vi.fn();
+    const initialOnRecordingChange = vi.fn();
+    const latestOnRecordingChange = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+
+    function Probe({
+      onRecordingChange,
+    }: {
+      onRecordingChange: (recording: boolean) => void;
+    }) {
+      api = useDictationRecorder({ onRecorded, onRecordingChange });
+      return null;
+    }
+
+    const { rerender } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe onRecordingChange={initialOnRecordingChange} />
+        </Activity>
+      </StrictMode>,
+    );
+
+    await act(async () => {
+      await api.start();
+    });
+    expect(api.elapsedMs).toBe(0);
+    expect(initialOnRecordingChange).toHaveBeenCalledTimes(1);
+    expect(initialOnRecordingChange).toHaveBeenLastCalledWith(true);
+
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe onRecordingChange={latestOnRecordingChange} />
+        </Activity>
+      </StrictMode>,
+    );
+
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Probe onRecordingChange={latestOnRecordingChange} />
+        </Activity>
+      </StrictMode>,
+    );
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(onRecorded).not.toHaveBeenCalled();
+    expect(initialOnRecordingChange).toHaveBeenCalledTimes(1);
+    expect(latestOnRecordingChange).toHaveBeenCalledTimes(1);
+    expect(latestOnRecordingChange).toHaveBeenLastCalledWith(false);
+
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe onRecordingChange={latestOnRecordingChange} />
+        </Activity>
+      </StrictMode>,
+    );
+
+    expect(api.elapsedMs).toBeNull();
+    expect(latestOnRecordingChange).toHaveBeenCalledTimes(1);
+
+    // Starting again after reveal, finishing, then hiding still reports false only once.
+    latestOnRecordingChange.mockClear();
+    await act(async () => {
+      await api.start();
+    });
+    act(() => {
+      api.finish(false);
+    });
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Probe onRecordingChange={latestOnRecordingChange} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(latestOnRecordingChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("clears starting when hidden under Activity during the permission prompt", async () => {
+    let grant: (stream: unknown) => void = () => undefined;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+
+    const onRecordingChange = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+
+    function Probe() {
+      api = useDictationRecorder({ onRecorded: vi.fn(), onRecordingChange });
+      return null;
+    }
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+
+    act(() => {
+      void api.start();
+    });
+    expect(api.starting).toBe(true);
+
+    rerender(
+      <Activity mode="hidden">
+        <Probe />
+      </Activity>,
+    );
+
+    await act(async () => {
+      grant({ getTracks: () => [{ stop: stopTrack }] });
+    });
+
+    rerender(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(api.starting).toBe(false);
+    expect(api.elapsedMs).toBeNull();
+    expect(onRecordingChange).not.toHaveBeenCalled();
   });
 });
