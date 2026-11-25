@@ -8,7 +8,14 @@ import {
   originalAvatarLook,
   parseAvatarCode,
 } from "@sokosumi/soko-bot";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
@@ -186,6 +193,76 @@ describe("AvatarStudio", () => {
     expect(
       screen.queryByRole("radiogroup", { name: "Preview state" }),
     ).toBeNull();
+  });
+
+  // More details sits at the foot of setup, beside the pinned Create, so the
+  // fold would open below the screen with nothing to show it did.
+  it("in setup brings More details to the top once its fold has opened", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          code={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    const trigger = screen.getByRole("button", { name: /More details/ });
+
+    await user.click(trigger);
+    // The fold is still growing; there is nothing below to scroll to yet.
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    fireEvent.animationEnd(
+      screen
+        .getByRole("radiogroup", { name: "Background" })
+        .closest("[data-state]") as Element,
+    );
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(trigger);
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      behavior: "smooth",
+    });
+    vi.restoreAllMocks();
+  });
+
+  it("in setup jumps to More details when motion is reduced", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+        }) as MediaQueryList,
+    );
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          code={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    const trigger = screen.getByRole("button", { name: /More details/ });
+
+    // No animation runs, so the fold has its height on the next frame.
+    await user.click(trigger);
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "start",
+        behavior: "auto",
+      }),
+    );
+    expect(scrollIntoView.mock.contexts[0]).toBe(trigger);
+    vi.restoreAllMocks();
   });
 
   it("changes the preview state without touching the look", async () => {

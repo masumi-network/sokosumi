@@ -168,7 +168,13 @@ export default function SignUpForm({
 
   const togglePassword = () => {
     form.clearErrors("password");
-    setWithPassword((current) => !current);
+    if (withPassword) {
+      setWithPassword(false);
+      return;
+    }
+    setWithPassword(true);
+    // The field appears above this button once drawn; take focus there, not past it.
+    requestAnimationFrame(() => form.setFocus("password"));
   };
 
   return (
@@ -189,6 +195,7 @@ export default function SignUpForm({
           form={form}
           formData={signUpPasswordFormData}
           namespace="Auth.Pages.SignUp.Form"
+          visibleLabels
         />
       ) : null}
       {/* The updates choice closes the profile; the code and Register below

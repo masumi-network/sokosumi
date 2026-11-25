@@ -277,24 +277,42 @@ describe("SignUpForm with a password", () => {
     expect(row).not.toHaveClass("grid-cols-2");
   });
 
-  it("keeps the name labels visible above their fields, like the code", async () => {
+  it("keeps every label visible above its field, the added password too", async () => {
     renderForm();
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "addPassword" }));
 
     // A placeholder vanishes on the first keystroke; the labels stay.
-    for (const label of ["firstNameLabel", "lastNameLabel", "codeLabel"]) {
+    for (const label of [
+      "firstNameLabel",
+      "lastNameLabel",
+      "Fields.Password.label",
+      "codeLabel",
+    ]) {
       expect(screen.getByText(label, { selector: "label" })).not.toHaveClass(
         "sr-only",
       );
     }
-    for (const label of ["firstNameLabel", "lastNameLabel"]) {
+    for (const label of [
+      "firstNameLabel",
+      "lastNameLabel",
+      "Fields.Password.label",
+    ]) {
       expect(screen.getByLabelText(label)).not.toHaveAttribute("placeholder");
     }
-    expect(screen.getByLabelText("Fields.Password.label")).toHaveAttribute(
-      "placeholder",
-      "Fields.Password.label",
+  });
+
+  it("moves focus into the password field it adds", async () => {
+    renderForm();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "addPassword" }));
+
+    // The field appears above the button; focus left on the button would
+    // leave a keyboard or screen-reader user past it.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Fields.Password.label")).toHaveFocus(),
     );
   });
 

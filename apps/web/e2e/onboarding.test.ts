@@ -116,6 +116,27 @@ for (const { name, ...viewport } of PROJECTS) {
         .waitFor();
       await page.getByRole("textbox", { name: "First name" }).fill("Ada");
       await page.getByRole("textbox", { name: "Last name" }).fill(name);
+      // An added password gets focus and a label that outlasts typing, like
+      // the names; persona A then goes on without one.
+      await page
+        .getByRole("button", { name: "Add a password for future logins" })
+        .click();
+      const password = page.getByRole("textbox", { name: "Password" });
+      assert.ok(
+        await password.evaluate((el) => el === document.activeElement),
+        "the added password field has focus",
+      );
+      const passwordLabel = await page
+        .locator("label", { hasText: /^Password$/ })
+        .boundingBox();
+      // A screen-reader-only label is 1px wide.
+      assert.ok(
+        passwordLabel && passwordLabel.width > 20,
+        "the password label shows above its field",
+      );
+      await page
+        .getByRole("button", { name: "Sign up without a password" })
+        .click();
       const codeField = page.getByRole("textbox", {
         name: "Code from the email",
       });
@@ -176,6 +197,15 @@ for (const { name, ...viewport } of PROJECTS) {
       // option clears the pinned Create.
       const more = page.getByRole("button", { name: /More details/ });
       await more.click();
+      // It sits by the pinned Create, so what it opens starts below the
+      // screen; the page brings it up once the fold has opened.
+      await page.waitForFunction(() => {
+        const background = document.querySelector(
+          "[role=radiogroup][aria-label='Background']",
+        );
+        const top = background?.getBoundingClientRect().top;
+        return top !== undefined && top >= 0 && top < window.innerHeight / 2;
+      });
       // The studio's own box; the frame around it has padding that hides overflow.
       const studio = owl.locator(
         "xpath=ancestor::div[contains(@class,'@container')]",
