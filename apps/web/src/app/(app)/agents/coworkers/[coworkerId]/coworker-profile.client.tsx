@@ -1,7 +1,6 @@
 "use client";
 
 import type { Coworker } from "@sokosumi/core-client";
-import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -28,7 +27,6 @@ export function CoworkerActions({ coworker }: { coworker: Coworker }) {
       {openNewTask ? (
         <Button type="button" variant="primary" onClick={openNewTask}>
           {t("giveTask")}
-          <ArrowRight aria-hidden className="size-4" />
         </Button>
       ) : null}
       {coworkerCanChat(coworker) ? (
