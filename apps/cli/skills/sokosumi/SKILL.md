@@ -510,6 +510,8 @@ claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 
 [VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` (everyday Task work) and `coworkers` (Coworker set-up; API keys and access are in `coworker-access`). The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them. Drive tools sit in the `drive` toolset, off by default (`?toolsets=drive`), and take `scope` like the CLI. Contact tools (`contacts_*`, contact lists included) are off by default too: add `contacts` to `?toolsets=`.
 
+[VERIFIED: ADR 0083, `apps/core/src/lib/sokosumi-mcp/ui-tools.ts`] Some tools have a view twin that renders the same result in the chat. Claude.ai, Claude Desktop and mobile, and ChatGPT show the view; other hosts, such as Claude Code, get the same data as text. Call the view tool when the person should see the result, and the data tool when you only need the data.
+
 [VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 
 ## Optional focused Skills and later work

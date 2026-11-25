@@ -1,13 +1,24 @@
 import {
   ProtocolError,
   ProtocolErrorCode,
+  ResourceNotFoundError,
   Server,
   type ToolAnnotations,
 } from "@modelcontextprotocol/server";
+import { MCP_UI, type McpUiView } from "@sokosumi/mcp-ui";
+
+import { getWebAppBaseUrl } from "@/config/env";
 
 import { callTool, type ToolCaller } from "./dispatch";
 import { type DerivedTool, getTools } from "./tool-schema";
 import { MCP_TOOLSETS, toolsetOf } from "./tools";
+import {
+  MCP_UI_TOOLS,
+  type McpUiTool,
+  UI_EXTENSION,
+  UI_MIME_TYPE,
+  viewIdOf,
+} from "./ui-tools";
 
 /** What the agent reads first: the workspace rule and the toolsets. */
 export function instructions(toolsets: readonly string[]): string {
@@ -44,8 +55,9 @@ export function instructions(toolsets: readonly string[]): string {
 
 /**
  * A fresh, stateless MCP server for one HTTP request, acting for `caller`,
- * with the tools in `toolsets` (`tools.ts`). Every tool call runs as a `/v1`
- * request (`dispatch.ts`).
+ * with the tools in `toolsets` (`tools.ts`), the UI tools whose data twin is
+ * among them (`ui-tools.ts`), and every UI tool's view as a `ui://` resource.
+ * Every tool call runs as a `/v1` request (`dispatch.ts`).
  */
 export function createSokosumiMcpServer(
   caller: ToolCaller,
@@ -53,33 +65,106 @@ export function createSokosumiMcpServer(
 ): Server {
   const server = new Server(
     { name: "sokosumi", version: "1.0.0" },
-    { capabilities: { tools: {} }, instructions: instructions(toolsets) },
+    {
+      capabilities: {
+        tools: {},
+        resources: {},
+        // MCP Apps 2026-01-26 defines extension settings (`mimeTypes`) only
+        // for the client ("Client (Host) Capabilities"); "Server Behavior"
+        // has the server read them and declare none. So: empty settings.
+        extensions: { [UI_EXTENSION]: {} },
+      },
+      instructions: instructions(toolsets),
+    },
   );
   const tools = new Map(
     [...getTools()].filter(([name]) => toolsets.includes(toolsetOf(name))),
   );
+  // A UI tool is on when its twin is: it sits in the twin's toolset.
+  const uiTools = new Map<string, UiTool>();
+  for (const row of MCP_UI_TOOLS) {
+    const twin = tools.get(row.data);
+    if (twin) {
+      uiTools.set(row.name, { ...row, twin, view: MCP_UI[row.ui] });
+    }
+  }
+  // Every registered view, whatever the toolsets: the HTML is static and holds
+  // no data, and an older conversation still renders after the toolsets
+  // change (ADR 0083).
+  const views = new Map<string, McpUiView>(
+    MCP_UI_TOOLS.map(({ ui }) => [ui, MCP_UI[ui]]),
+  );
 
   server.setRequestHandler("tools/list", () => ({
-    tools: [...tools.values()].map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.input.inputSchema,
-      annotations: annotations(tool),
-    })),
+    tools: [
+      ...[...tools.values()].map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.input.inputSchema,
+        annotations: annotations(tool),
+      })),
+      ...[...uiTools.values()].map(({ name, description, twin, view }) => ({
+        name,
+        description,
+        inputSchema: twin.input.inputSchema,
+        annotations: annotations(twin),
+        _meta: { ui: { resourceUri: view.uri } },
+      })),
+    ],
   }));
 
-  server.setRequestHandler("tools/call", ({ params }) => {
+  server.setRequestHandler("tools/call", async ({ params }) => {
+    const args = params.arguments ?? {};
     const tool = tools.get(params.name);
-    if (!tool) {
+    if (tool) return callTool(tool.input, args, caller);
+
+    const uiTool = uiTools.get(params.name);
+    if (!uiTool) {
       throw new ProtocolError(
         ProtocolErrorCode.InvalidParams,
         `Unknown tool: ${params.name}`,
       );
     }
-    return callTool(tool.input, params.arguments ?? {}, caller);
+    const result = await callTool(uiTool.twin.input, args, caller);
+    return {
+      ...result,
+      _meta: {
+        ...result._meta,
+        ui: { resourceUri: uiTool.view.uri },
+        // The view opens links only under this base (ADR 0083).
+        sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+      },
+    };
+  });
+
+  // Views, by id: an old hash reads the current HTML.
+  server.setRequestHandler("resources/list", () => ({
+    resources: [...views].map(([id, view]) => ({
+      uri: view.uri,
+      name: id,
+      mimeType: UI_MIME_TYPE,
+    })),
+  }));
+
+  server.setRequestHandler("resources/read", ({ params }) => {
+    const view = views.get(viewIdOf(params.uri) ?? "");
+    if (!view) {
+      throw new ResourceNotFoundError(
+        params.uri,
+        `Unknown view: ${params.uri}`,
+      );
+    }
+    return {
+      contents: [{ uri: params.uri, mimeType: UI_MIME_TYPE, text: view.html }],
+    };
   });
 
   return server;
+}
+
+interface UiTool extends McpUiTool {
+  twin: DerivedTool;
+  view: McpUiView;
 }
 
 function annotations({

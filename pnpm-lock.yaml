@@ -362,6 +362,9 @@ importers:
       '@sokosumi/masumi':
         specifier: workspace:*
         version: link:../../packages/masumi
+      '@sokosumi/mcp-ui':
+        specifier: workspace:*
+        version: link:../../packages/mcp-ui
       '@sokosumi/net':
         specifier: workspace:*
         version: link:../../packages/net

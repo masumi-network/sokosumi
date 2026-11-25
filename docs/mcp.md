@@ -65,10 +65,15 @@ Large groups split into feature toolsets (SOKD-410). No tool was renamed; add th
 
 `tasks` keeps everyday Task work: list, get, create, update, archive, restore, comment, events, Jobs, links, move and receipt.
 
+## Views
+
+Some tools have a view: an interactive rendering of their result inside the chat ([ADR 0083](./adr/0083-mcp-ui-is-an-optional-rendering-of-a-tool-result.md)). Claude.ai, Claude Desktop and mobile, and ChatGPT render views. Other clients, such as Claude Code, show the same result as text. A view tool returns exactly what its data tool returns and sits in that tool's toolset, so no setup is needed. Views show data and link to Sokosumi; approving, publishing and sending stay in Sokosumi.
+
 ## For developers
 
 - Route: `apps/core/src/routes/mcp/index.ts`. Tools: `MCP_TOOLS` in `apps/core/src/lib/sokosumi-mcp/tools.ts`. Adding a tool: [Agent surface](./agents/agent-surface.md#mcp-tools).
 - The whole sign-in, from the first 401 to a tool call, is tested for a native (Claude Code) and a web (Claude.ai) client in `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`.
+- Views: `MCP_UI_TOOLS` in `apps/core/src/lib/sokosumi-mcp/ui-tools.ts`, HTML from `packages/mcp-ui`. Core serves each as a `ui://sokosumi/<id>.<hash8>.html` resource (`text/html;profile=mcp-app`) and resolves it by id, so an old hash reads the current HTML.
 - Previews: `claude mcp add --transport http sokosumi <preview Core URL>/mcp`. Previews run live Turnstile, so a person signs in, not an agent.
 
-Last updated: 2026-11-24
+Last updated: 2026-11-25
