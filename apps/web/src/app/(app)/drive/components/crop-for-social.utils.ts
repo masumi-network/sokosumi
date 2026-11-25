@@ -1,3 +1,5 @@
+import { DRIVE_FILE_MAX_NAME_LENGTH } from "@sokosumi/utils";
+
 /** The shapes social networks ask for, widest last. */
 export const SOCIAL_SHAPES = [
   { id: "square", ratio: 1, label: "1x1" },
@@ -64,6 +66,11 @@ export function croppedType(type: string): "image/png" | "image/jpeg" {
   return type === "image/jpeg" ? "image/jpeg" : "image/png";
 }
 
+/**
+ * The copy's name: the original's, with the shape and the saved type's
+ * extension. The base is shortened so the whole name stays within Drive's
+ * limit, which a long original name would otherwise break on every save.
+ */
 export function croppedFileName(
   name: string,
   shape: SocialShape,
@@ -72,15 +79,13 @@ export function croppedFileName(
   const dot = name.lastIndexOf(".");
   const base = dot > 0 ? name.slice(0, dot) : name;
   const extension = croppedType(type) === "image/png" ? "png" : "jpg";
-  return `${base}-${shape.label}.${extension}`;
+  const suffix = `-${shape.label}.${extension}`;
+  return `${base.slice(0, DRIVE_FILE_MAX_NAME_LENGTH - suffix.length)}${suffix}`;
 }
 
 /**
- * The folder a Drive file sits in, as upload takes it: the path below
- * `drive/<users|orgs>/<id>/`. Undefined at the root or outside Drive.
+ * Core streams a Drive file up to this size and hands a bigger one to signed
+ * storage, whose bytes a canvas may draw but never export. Matches
+ * `STREAM_MAX_BYTES` in Core's `drive/files/content` route.
  */
-export function folderOfDrivePathname(pathname: string): string | undefined {
-  const parts = pathname.split("/");
-  if (parts[0] !== "drive" || parts.length <= 4) return undefined;
-  return parts.slice(3, -1).join("/");
-}
+export const CROP_MAX_BYTES = 25 * 1024 * 1024;

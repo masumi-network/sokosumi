@@ -11093,7 +11093,7 @@
         "frameLabel": "Crop position",
         "loading": "Loading image…",
         "loadError": "This image couldn't be loaded. Close and try again.",
-        "result": "Saves {name}, {width} × {height} px",
+        "result": "Saves {name}, {width, number} × {height, number} px",
         "save": "Save copy",
         "saved": "Saved {name} to Files",
         "duplicate": "{name} already exists. Rename or delete it, then save again.",
@@ -11115,7 +11115,8 @@
             "name": "Landscape",
             "hint": "1.91:1 · LinkedIn, X, link posts"
           }
-        }
+        },
+        "tooLarge": "Images over 25 MB can't be cropped here yet. Download it and crop it on your device."
       }
     },
     "SokoBot": {

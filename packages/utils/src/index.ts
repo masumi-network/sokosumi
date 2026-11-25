@@ -297,6 +297,7 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_FILE_MAX_NAME_LENGTH,
   DRIVE_OWNER_PREFIX_PATTERN,
   driveFolderPathFromSourceId,
   isDriveFolderMarker,

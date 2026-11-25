@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   croppedFileName,
   cropRect,
-  folderOfDrivePathname,
   isCroppableImage,
   SOCIAL_SHAPES,
 } from "@/app/drive/components/crop-for-social.utils";
@@ -69,6 +68,13 @@ describe("croppedFileName", () => {
     );
   });
 
+  it("shortens a long name so the copy stays within Drive's limit", () => {
+    const name = `${"a".repeat(251)}.jpg`;
+    const copy = croppedFileName(name, shape("portrait"), "image/jpeg");
+    expect(copy).toHaveLength(255);
+    expect(copy.endsWith("a-4x5.jpg")).toBe(true);
+  });
+
   it("handles a name without an extension", () => {
     expect(croppedFileName("banner", shape("landscape"), "image/jpeg")).toBe(
       "banner-1.91x1.jpg",
@@ -83,19 +89,5 @@ describe("isCroppableImage", () => {
     expect(isCroppableImage("image/webp")).toBe(true);
     expect(isCroppableImage("image/svg+xml")).toBe(false);
     expect(isCroppableImage("image/gif")).toBe(false);
-  });
-});
-
-describe("folderOfDrivePathname", () => {
-  it("returns the folder below the workspace root", () => {
-    expect(folderOfDrivePathname("drive/users/u1/Launch/Week 1/a.png")).toBe(
-      "Launch/Week 1",
-    );
-    expect(folderOfDrivePathname("drive/orgs/o1/Brand/a.png")).toBe("Brand");
-  });
-
-  it("returns undefined for a file at the root or outside Drive", () => {
-    expect(folderOfDrivePathname("drive/users/u1/a.png")).toBeUndefined();
-    expect(folderOfDrivePathname("tasks/t1/a.png")).toBeUndefined();
   });
 });

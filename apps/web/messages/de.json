@@ -11093,7 +11093,7 @@
         "frameLabel": "Ausschnitt",
         "loading": "Bild wird geladen…",
         "loadError": "Dieses Bild konnte nicht geladen werden. Schließe den Dialog und versuche es erneut.",
-        "result": "Speichert {name}, {width} × {height} px",
+        "result": "Speichert {name}, {width, number} × {height, number} px",
         "save": "Kopie speichern",
         "saved": "{name} in Dateien gespeichert",
         "duplicate": "{name} gibt es schon. Benenne die Datei um oder lösche sie und speichere dann erneut.",
@@ -11115,7 +11115,8 @@
             "name": "Querformat",
             "hint": "1.91:1 · LinkedIn, X, Link-Posts"
           }
-        }
+        },
+        "tooLarge": "Bilder über 25 MB lassen sich hier noch nicht zuschneiden. Lade das Bild herunter und schneide es auf deinem Gerät zu."
       }
     },
     "SokoBot": {

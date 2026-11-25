@@ -391,6 +391,7 @@ export function DriveRecentsPanel({
                             pathname={item.pathname}
                             name={item.name}
                             mimeType={null}
+                            sizeBytes={item.size}
                             store={driveStore}
                           />
                         }

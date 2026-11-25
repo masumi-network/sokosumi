@@ -125,6 +125,7 @@ export function DriveFileViewer({
               pathname={file.pathname}
               name={file.displayName}
               mimeType={file.mimeType}
+              sizeBytes={file.sizeBytes ?? null}
               store={store}
             />
           ) : null

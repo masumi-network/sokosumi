@@ -11093,7 +11093,7 @@
         "frameLabel": "Posición del recorte",
         "loading": "Cargando imagen…",
         "loadError": "No se pudo cargar esta imagen. Cierra e inténtalo de nuevo.",
-        "result": "Guarda {name}, {width} × {height} px",
+        "result": "Guarda {name}, {width, number} × {height, number} px",
         "save": "Guardar copia",
         "saved": "{name} guardado en Archivos",
         "duplicate": "{name} ya existe. Cámbiale el nombre o elimínalo y vuelve a guardar.",
@@ -11115,7 +11115,8 @@
             "name": "Horizontal",
             "hint": "1.91:1 · LinkedIn, X, enlaces"
           }
-        }
+        },
+        "tooLarge": "Las imágenes de más de 25 MB aún no se pueden recortar aquí. Descárgala y recórtala en tu dispositivo."
       }
     },
     "SokoBot": {
