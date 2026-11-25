@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useNow, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { PageSearchActions } from "@/components/page-search-actions";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
@@ -277,9 +277,15 @@ export function SeoAuditIndex({
 }
 
 /** The newest check of an audit: whether it runs, failed or when it last finished. */
+const CHECK_CLOCK_TICK_MS = 60_000;
+
 function SeoAuditCheckStatus({ check }: { check: SeoAuditLastCheck }) {
   const t = useTranslations("App.Seo");
-  const state = seoAuditCheckState(check);
+  // A running check turns unfinished after its time limit, so the hydration-safe clock ticks each minute.
+  const state = seoAuditCheckState(
+    check,
+    useNow({ updateInterval: CHECK_CLOCK_TICK_MS }),
+  );
   if (state === "running") {
     return (
       <StatusBadge tone="working" live>

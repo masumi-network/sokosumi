@@ -14,7 +14,7 @@ export type SeoAuditCheckState =
  */
 export function seoAuditCheckState(
   check: SeoAuditLastCheck,
-  now = new Date(),
+  now: Date,
 ): SeoAuditCheckState {
   if (check.status === "completed") return "finished";
   if (check.status === "failed") return "failed";
