@@ -327,6 +327,13 @@ describe("todayLine", () => {
     production: { ...hired.production, state },
   });
 
+  // cmo-v22: after payment Core plans the month before any post is made.
+  it("says Cuso is planning the month, never that nothing needs doing", () => {
+    expect(todayLine(at("planning"), 0)).toBe(
+      "I'm planning your month, topic by topic. It takes a few minutes, then I make every post.",
+    );
+  });
+
   it("never says nothing needs doing while the month stopped half made", () => {
     const line = todayLine(at("stuck"), 0);
     expect(line).not.toMatch(/Nothing needs you|on its day/);
