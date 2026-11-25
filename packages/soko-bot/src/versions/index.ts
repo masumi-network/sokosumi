@@ -6,6 +6,7 @@ import {
 import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
 import {
   isSokoBotCmoCapability,
+  isSokoBotCmoReadCapability,
   isSokoBotCompetitorCapability,
   SOKO_BOT_CMO_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
@@ -33,6 +34,7 @@ import { cmoV20 } from "./cmo-v20.js";
 import { cmoTurnSkills } from "./cmo-v20-skills.js";
 import { cmoV21 } from "./cmo-v21.js";
 import { cmoV22 } from "./cmo-v22.js";
+import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -289,8 +291,10 @@ export function applyVersionCapabilities(
         // Core's month writer belongs to the production skill that calls it.
         ...SOKO_BOT_CMO_CAPABILITIES.filter(
           (capability) =>
-            capability !== "write_month_pieces" ||
-            cmoWritesMonthAtOnce(version.skills),
+            (capability !== "write_month_pieces" ||
+              cmoWritesMonthAtOnce(version.skills)) &&
+            (!isSokoBotCmoReadCapability(capability) ||
+              cmoReadsOnDemand(version.skills)),
         ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]

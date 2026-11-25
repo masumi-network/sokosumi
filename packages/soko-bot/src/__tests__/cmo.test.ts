@@ -15,6 +15,7 @@ import {
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import {
+  isSokoBotCmoReadCapability,
   SOKO_BOT_CMO_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
 } from "../policy.js";
@@ -437,7 +438,9 @@ describe("CMO version", () => {
     ])
       expect(applyVersionCapabilities(cmo, routed)).toEqual([
         "read_memory",
-        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_CMO_CAPABILITIES.filter(
+          (capability) => !isSokoBotCmoReadCapability(capability),
+        ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);
     // Another bot gets them only from its route; Core then asks whether a

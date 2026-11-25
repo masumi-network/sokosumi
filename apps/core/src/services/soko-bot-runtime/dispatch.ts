@@ -9,6 +9,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { executeCmoRead } from "./cmo-reads";
 import { executeCmoSeoTool } from "./cmo-seo";
 import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
@@ -151,6 +152,12 @@ async function executeTool(
     case "check_competitors":
     case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
+    case "read_calendar":
+    case "read_strategy":
+    case "read_brand_brain":
+    case "read_report":
+    case "read_competitor_moves":
+      return executeCmoRead(input, authorized);
     case "read_seo":
     case "research_keywords":
     case "research_competitor_keywords":

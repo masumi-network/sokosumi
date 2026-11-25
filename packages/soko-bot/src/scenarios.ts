@@ -2069,6 +2069,26 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["create_task", "hire_agent", "save_strategy"],
     },
   },
+  {
+    id: "cmo-thanks-reads-nothing",
+    title: "Reads nothing to answer a thank-you",
+    intent:
+      "A thank-you needs no calendar, strategy, Brand Brain, report or competitor read: Cuso answers in a line.",
+    prompt: "Thanks, that's all for today!",
+    rubric:
+      "One short, friendly line. Reading the calendar, strategy, Brand Brain, reports or competitor moves, or changing anything, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "CLARIFY"],
+      forbiddenTools: [
+        "read_calendar",
+        "read_strategy",
+        "read_brand_brain",
+        "read_report",
+        "read_competitor_moves",
+        "save_strategy",
+      ],
+    },
+  },
 ];
 
 /**

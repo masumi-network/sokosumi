@@ -284,6 +284,10 @@ export {
   cmoWritesExamplesOnly,
 } from "./versions/cmo-v22-skills.js";
 export {
+  CMO_CONTEXT_ON_DEMAND_SKILL,
+  cmoReadsOnDemand,
+} from "./versions/cmo-v23-skills.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
