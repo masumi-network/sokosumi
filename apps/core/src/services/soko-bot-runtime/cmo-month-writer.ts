@@ -29,6 +29,7 @@ import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
@@ -431,6 +432,26 @@ function chunkFailed(turnId: string) {
   };
 }
 
+/**
+ * An input the writer can do without (industry, site pages, the pieces'
+ * points) that failed to load; the month is written without it.
+ */
+function writerInputFailed<T>(
+  fallback: T,
+  turnId: string,
+  input: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_month_writer", turn: { id: turnId }, writerInput: input },
+    {
+      message: "The month writer went on without one of its inputs",
+      why: "Loading or saving the input threw",
+      fix: "The pieces are written without it; read writerInput and the failure fields. If it repeats, the month misses that input every day.",
+    },
+  );
+}
+
 async function writeChunk(
   input: ExecuteSokoBotToolInput,
   request: ReturnType<typeof sokoBotModelRequest>,
@@ -564,7 +585,9 @@ export async function writeCmoMonthPieces(
   );
   // cmo-v21: the buyer's industry, which most helpful pieces rest on.
   const industry = cmoReadsIndustry(authorized.turn.versionId)
-    ? await readCmoIndustry(cuso.projectId).catch(() => null)
+    ? await readCmoIndustry(cuso.projectId).catch(
+        writerInputFailed(null, authorized.turn.id, "industry"),
+      )
     : null;
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
@@ -582,8 +605,11 @@ export async function writeCmoMonthPieces(
     ...(shorts ? { shorts: { website: Boolean(cuso.websiteUrl) } } : {}),
     sitePages: cmoReadsSitePages(authorized.turn.versionId)
       ? cmoWriterSitePages(
-          (await readCmoSitePages(cuso.projectId).catch(() => null))?.pages ??
-            [],
+          (
+            await readCmoSitePages(cuso.projectId).catch(
+              writerInputFailed(null, authorized.turn.id, "site_pages"),
+            )
+          )?.pages ?? [],
         )
       : undefined,
     industry: industry?.items.map(cmoIndustryLine),
@@ -669,7 +695,13 @@ export async function writeCmoMonthPieces(
               if (call) await chargeWriterCall(input, modelId, call);
               return claims;
             })
-            .catch(() => new Map<string, string>());
+            .catch(
+              writerInputFailed(
+                new Map<string, string>(),
+                authorized.turn.id,
+                "points",
+              ),
+            );
     const saved =
       assigned.size > 0 &&
       (await child("save_strategy", {
@@ -682,7 +714,7 @@ export async function writeCmoMonthPieces(
         },
       }).then(
         () => true,
-        () => false,
+        writerInputFailed(false, authorized.turn.id, "points_save"),
       ));
     if (saved)
       return {

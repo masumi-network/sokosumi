@@ -5,6 +5,7 @@ import {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, recordCoreWarning } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { evaluateWithJev, type JevAnswer, SOKO_BOT_JEV_MODEL } from "./jev";
@@ -319,8 +320,16 @@ async function ownerMailContext(sokoBotId: string): Promise<OwnerMailContext> {
         turn.finalAnswer ? [turn.finalAnswer.slice(0, FIELD_LENGTH * 2)] : [],
       ),
     };
-  } catch {
-    return { preferences: [], rules: [], alreadyFlaggedToday: [] };
+  } catch (error) {
+    return failOpen<OwnerMailContext>(
+      { preferences: [], rules: [], alreadyFlaggedToday: [] },
+      { operation: "soko_bot_mail_triage", sokoBot: { id: sokoBotId } },
+      {
+        message: "Mail triage ran without the owner's preferences",
+        why: "Reading the bot's memory or today's flagged mail threw",
+        fix: "This check may flag muted senders or repeat today's posts. Read the failure fields; the next triage reads them again.",
+      },
+    )(error);
   }
 }
 

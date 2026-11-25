@@ -26,6 +26,7 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
@@ -1319,6 +1320,19 @@ export function cmoSyncOrder<T>(hires: T[], now: Date): T[] {
   return [...hires.slice(start), ...hires.slice(0, start)];
 }
 
+/** A step of the production sync that failed; the sync goes on without it. */
+function syncStepFailed<T>(fallback: T, step: string): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_production_sync", cmoSyncStep: step },
+    {
+      message: "A CMO production sync step failed",
+      why: "The step threw; the sync went on without it",
+      fix: "Read the failure fields on this event; the next sync (every few minutes) runs the step again.",
+    },
+  );
+}
+
 /** The cron: every Cuso with an approved plan, so new and missing pieces get made. */
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
@@ -1328,14 +1342,21 @@ export async function syncCmoProduction(
   // A hiring strategy left short gets its next finish turn (or its fit).
   await import("@/services/cmo-strategy.service")
     .then(({ resumeCmoMonthFinishes }) => resumeCmoMonthFinishes(now))
-    .catch(() => undefined);
+    .catch(syncStepFailed(undefined, "resume_month_finishes"));
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   // In the background from the start, so it has the whole run; one browser
   // a sync, so the site's pages wait for a sync without a brand capture.
-  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(() => true);
-  if (!capturing) await scheduleCmoSitePages(hires, now).catch(() => undefined);
+  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(
+    syncStepFailed(true, "brand_index"),
+  );
+  if (!capturing)
+    await scheduleCmoSitePages(hires, now).catch(
+      syncStepFailed(undefined, "site_pages"),
+    );
   // cmo-v21: the buyer's industry again from the 25th, before the 27th's strategy.
-  await scheduleCmoIndustry(hires, now).catch(() => undefined);
+  await scheduleCmoIndustry(hires, now).catch(
+    syncStepFailed(undefined, "industry"),
+  );
   let checked = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;
