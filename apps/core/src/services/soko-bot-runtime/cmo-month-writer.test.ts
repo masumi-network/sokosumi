@@ -559,6 +559,10 @@ describe("writeCmoMonthPieces", () => {
 
     expect(m.generateText).toHaveBeenCalledTimes(8);
     expect(result).toMatchObject({ written: 24, refused: [], left: 0 });
+    // Low effort: at the default a 3-piece chunk reasoned past 75 s.
+    expect(m.generateText.mock.calls[0]![0].providerOptions.openai).toEqual({
+      reasoningEffort: "low",
+    });
   });
 
   it("writes a chunk again once when its call failed fast", async () => {
