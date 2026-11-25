@@ -18,7 +18,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
-import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
 import { useInterval } from "@/hooks/effects/use-interval";
 import { useScenarioLabMountedRef } from "@/hooks/effects/use-scenario-lab-mounted-ref";
 import { useScenarioLabVersion } from "@/hooks/effects/use-scenario-lab-version";
@@ -89,37 +88,14 @@ interface LiveRun {
   startedAt: number;
 }
 
-async function fetchTurn(
-  turnId: string,
-  signal?: AbortSignal,
-): Promise<ChatTurnDetail | null> {
-  try {
-    const response = await fetch(
-      `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
-      { credentials: "same-origin", cache: "no-store", signal },
-    );
-    if (!response.ok) return null;
-    const body = (await response.json()) as { turn?: ChatTurnDetail };
-    return body.turn ?? null;
-  } catch (error) {
-    if (signal?.aborted) return null;
-    throw error;
-  }
-}
-
-function waitForPoll(ms: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.resolve();
-  return new Promise((resolve) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
+async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
+  const response = await fetch(
+    `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
+    { credentials: "same-origin", cache: "no-store" },
+  );
+  if (!response.ok) return null;
+  const body = (await response.json()) as { turn?: ChatTurnDetail };
+  return body.turn ?? null;
 }
 
 const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
@@ -133,18 +109,16 @@ async function watchTurn(
   turnId: string,
   onProgress: (turn: ChatTurnDetail) => void,
   isMounted: () => boolean,
-  signal?: AbortSignal,
 ): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
   // A lab closed mid-run stops polling instead of until the deadline.
-  while (Date.now() < deadline && isMounted() && !signal?.aborted) {
-    const turn = await fetchTurn(turnId, signal);
-    if (!isMounted() || signal?.aborted) return null;
+  while (Date.now() < deadline && isMounted()) {
+    const turn = await fetchTurn(turnId);
     if (turn) {
       onProgress(turn);
       if (FINAL_STATUSES.has(turn.status)) return turn;
     }
-    await waitForPoll(POLL_MS, signal);
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   return null;
 }
@@ -281,7 +255,6 @@ export function ScenarioLab({
   const [live, setLive] = useState<LiveRun | null>(null);
   const mountedRef = useRef(false);
   useScenarioLabMountedRef(mountedRef);
-  const runAbort = useAbortControllers();
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
@@ -383,31 +356,24 @@ export function ScenarioLab({
           ? { ...current, phase: "queued", turnId }
           : current,
       );
-      const watchController = runAbort.create();
-      let turn: ChatTurnDetail | null;
-      try {
-        turn = await watchTurn(
-          turnId,
-          (progress) => {
-            setLive((current) =>
-              current?.scenarioId === scenario.id
-                ? {
-                    ...current,
-                    phase: FINAL_STATUSES.has(progress.status)
-                      ? "judging"
-                      : "running",
-                    turn: progress,
-                  }
-                : current,
-            );
-          },
-          () => mountedRef.current,
-          watchController.signal,
-        );
-      } finally {
-        runAbort.release(watchController);
-      }
-      if (!mountedRef.current || watchController.signal.aborted) return;
+      const turn = await watchTurn(
+        turnId,
+        (progress) => {
+          setLive((current) =>
+            current?.scenarioId === scenario.id
+              ? {
+                  ...current,
+                  phase: FINAL_STATUSES.has(progress.status)
+                    ? "judging"
+                    : "running",
+                  turn: progress,
+                }
+              : current,
+          );
+        },
+        () => mountedRef.current,
+      );
+      if (!mountedRef.current) return;
       if (!turn) {
         setFailures((current) => ({
           ...current,
@@ -560,7 +526,7 @@ export function ScenarioLab({
             size="sm"
             variant="ghost"
             disabled={anyRunning || versions.length === 0}
-            onClick={() => void runAllVersions().catch(() => {})}
+            onClick={() => void runAllVersions()}
           >
             <Play aria-hidden className="size-3.5" />
             {t("runAllVersions", { count: versions.length })}
@@ -570,7 +536,7 @@ export function ScenarioLab({
             size="sm"
             variant="outline"
             disabled={anyRunning}
-            onClick={() => void runAll().catch(() => {})}
+            onClick={() => void runAll()}
           >
             <Play aria-hidden className="size-3.5" />
             {t("runAll")}
@@ -590,7 +556,7 @@ export function ScenarioLab({
             live={live?.scenarioId === scenario.id ? live : null}
             disabled={anyRunning}
             failure={failures[scenario.id] ?? null}
-            onRun={() => void run(scenario).catch(() => {})}
+            onRun={() => void run(scenario)}
           />
         ))}
       </ol>

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
-import { Activity, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -252,86 +252,5 @@ describe("ScenarioLab live progress", () => {
     await waitFor(() =>
       expect(screen.getByText("previousRun")).toBeInTheDocument(),
     );
-  });
-
-  it.each([
-    ["network error", () => Promise.reject(new TypeError("network down"))],
-    [
-      "invalid JSON",
-      () =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.reject(new SyntaxError("bad json")),
-        }),
-    ],
-  ])(
-    "releases controls on a poll %s instead of looping until timeout",
-    async (_label, fetchImpl) => {
-      startTurnMock.mockResolvedValue({
-        ok: true,
-        value: { turnId: "turn_1" },
-      });
-      const fetchMock = vi.fn(fetchImpl);
-      vi.stubGlobal("fetch", fetchMock);
-
-      render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-        wrapper: makeWrapper(),
-      });
-
-      const [runButton] = await screen.findAllByRole("button", { name: "run" });
-      fireEvent.click(runButton);
-
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(runButton).toBeEnabled());
-      expect(screen.queryByText("timeout")).not.toBeInTheDocument();
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    },
-  );
-
-  it("does not report a timeout when an Activity hide aborts the watcher before reveal", async () => {
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
-    const pendingFetch = Promise.withResolvers<Response>();
-    let capturedSignal: AbortSignal | undefined;
-    const fetchMock = vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
-      capturedSignal = init?.signal;
-      return pendingFetch.promise;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const Wrapper = makeWrapper();
-    const { rerender } = render(
-      <Wrapper>
-        <Activity mode="visible">
-          <ScenarioLab versionId="v11" versions={VERSIONS} />
-        </Activity>
-      </Wrapper>,
-    );
-
-    const [runButton] = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButton);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-
-    rerender(
-      <Wrapper>
-        <Activity mode="hidden">
-          <ScenarioLab versionId="v11" versions={VERSIONS} />
-        </Activity>
-      </Wrapper>,
-    );
-    expect(capturedSignal?.aborted).toBe(true);
-
-    rerender(
-      <Wrapper>
-        <Activity mode="visible">
-          <ScenarioLab versionId="v11" versions={VERSIONS} />
-        </Activity>
-      </Wrapper>,
-    );
-
-    pendingFetch.reject(new DOMException("Aborted", "AbortError"));
-    await waitFor(() =>
-      expect(screen.getAllByRole("button", { name: "run" })[0]).toBeEnabled(),
-    );
-    expect(screen.queryByText("timeout")).not.toBeInTheDocument();
   });
 });
