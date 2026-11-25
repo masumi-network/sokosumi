@@ -21,9 +21,11 @@ import { beforeAll, expect, it } from "vitest";
 // Not scanned: a scope's `networkDb` or `sharedDb` used inside a callback of
 // `netTransaction`, `sharedTransaction`, `serializableTransaction`,
 // `retriedTransaction` or `$transaction`, where the callback's `tx` was meant.
-// It compiles and runs outside the transaction. The scan has no way to tell a
-// scope from another object, nor a callback that runs inside the transaction
-// from one that is only defined there.
+// It compiles, runs outside the transaction and holds a second connection.
+// `isScope()` knows a scope only as an identifier annotated `NetworkScope` or
+// bound to a local `createNetworkScope()` call: not `c.var.networkScope`, and
+// not a scope held in an object (`params.scope`). Nothing here tells a
+// callback that runs inside the transaction from one only defined there.
 const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 const CORE_SRC = resolve(ROOT, "apps/core/src");
 const networkTables = JSON.parse(

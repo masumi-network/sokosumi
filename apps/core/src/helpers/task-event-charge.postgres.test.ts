@@ -55,8 +55,11 @@ type Client = ReturnType<typeof createPrismaClient>;
  * schemas (the triggers' own ticket): `history_transaction_sync` on
  * `Transaction` reads `"Job"` and `"taskEvent"` by bare name, so no insert
  * there succeeds on Core's connections. The test gives its fixture clients and
- * its own transactions the search path those bodies need. The statements under
- * test name their schema themselves and do not lean on it.
+ * its own transactions the search path those bodies need, and nothing more:
+ * the bucket query has no trigger and is tested without it below. That the
+ * two inserts name their schema is proven by the prepare step
+ * (`scripts/prepare-raw-sql.ts`, which runs on `public` only), not by these
+ * tests, which would resolve a bare name through this path.
  */
 function triggerSearchPath(side: "shared" | Network): string | null {
   if (!onSplitLayout) return null;
@@ -99,7 +102,11 @@ async function start() {
   vi.stubEnv("NETWORK_PREPROD_ENABLED", onSplitLayout ? "true" : undefined);
   const { createNetworkScope } = await import("@/lib/db/network-scope");
   const charge = await import("./task-event-charge");
-  return { createNetworkScope, ...charge };
+  // The repository of this start: its table names follow the fresh config.
+  const { creditBucketRepository: repository } = await import(
+    "@sokosumi/database/repositories"
+  );
+  return { createNetworkScope, repository, ...charge };
 }
 
 interface SeededPool {
@@ -526,6 +533,33 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
   });
 
   describe.runIf(onSplitLayout)("on the split layout", () => {
+    it("chooses each Network's buckets on a connection with no search path", async () => {
+      const { createNetworkScope, repository } = await start();
+      const pool = await seedOrganizationPool({ mainnet: 10n, preprod: 5n });
+      // Core's own shared client, as it is: no search path, no transaction.
+      const { sharedDb } = createNetworkScope("mainnet");
+      const choose = (network: Network, credits: bigint) =>
+        repository.prepareConsumption(
+          network,
+          pool.userId,
+          pool.organizationId,
+          credits * CREDIT,
+          sharedDb,
+        );
+
+      expect(await choose("preprod", 8n)).toEqual([
+        { bucketId: pool.smallBucketId, amount: 3n * CREDIT },
+        { bucketId: pool.largeBucketId, amount: 5n * CREDIT },
+      ]);
+      await expect(choose("preprod", 9n)).rejects.toThrow(
+        "Insufficient balance",
+      );
+      expect(await choose("mainnet", 13n)).toEqual([
+        { bucketId: pool.smallBucketId, amount: 3n * CREDIT },
+        { bucketId: pool.largeBucketId, amount: 10n * CREDIT },
+      ]);
+    });
+
     it("spends only on its own Network, with the same ids on both", async () => {
       const { createNetworkScope, chargeTaskCreditsOrMarkOutOfCredits } =
         await start();

@@ -36,8 +36,24 @@ const { headMock, delMock, grantMock, fixtureEnv } = vi.hoisted(() => ({
   fixtureEnv: {
     publicKey: "",
     globalCoworkerId: null as string | null,
+    failAfterCharge: false,
   },
 }));
+
+// The last step inside the event's transaction, after the charge and the
+// event are written: a test makes it throw once.
+vi.mock("./[id]/events/map-created-event", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./[id]/events/map-created-event")>();
+  return {
+    mapCreatedTaskEventForResponse: ((...args) => {
+      if (!fixtureEnv.failAfterCharge)
+        return actual.mapCreatedTaskEventForResponse(...args);
+      fixtureEnv.failAfterCharge = false;
+      throw new Error("after the charge");
+    }) satisfies typeof actual.mapCreatedTaskEventForResponse,
+  };
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -1022,6 +1038,36 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
         where: { taskId, transactionId: charge.id },
       }),
     ).toBe(1);
+  });
+
+  it("rolls the debit back with the event when the request fails after the charge", async () => {
+    const debits = { organizationId, amount: { lt: 0n } };
+    fixtureEnv.failAfterCharge = true;
+
+    expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(500);
+
+    expect(await prisma.transaction.count({ where: debits })).toBe(0);
+    expect(
+      await prisma.creditConsumption.count({
+        where: { bucket: { organizationId } },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.taskEvent.count({ where: { taskId, cents: { not: null } } }),
+    ).toBe(0);
+
+    // The same request then lands: one event, linked to its debit.
+    expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(201);
+    const charge = await prisma.transaction.findFirstOrThrow({
+      where: debits,
+      include: { creditConsumptions: true, taskEvents: true },
+    });
+    expect(charge.creditConsumptions).toMatchObject([
+      { amount: convertCreditsToCents(1) },
+    ]);
+    expect(charge.taskEvents).toMatchObject([
+      { taskId, cents: convertCreditsToCents(1), status: "COMPLETED" },
+    ]);
   });
 
   it.each(["owner", "workspace", "assignee", "archive"] as const)(

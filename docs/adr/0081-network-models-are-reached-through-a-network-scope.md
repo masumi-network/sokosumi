@@ -29,7 +29,7 @@ Sokosumi is moving Mainnet and Preprod into one deployment: one database with a 
 ## Consequences
 
 - The narrowed types do not see a relation `include` that crosses the two sides, and they do not see raw SQL. The split-layout tests detect wrong-side access in the paths they exercise, and nowhere else.
-- Inside a transaction callback `scope.networkDb` and `scope.sharedDb` compile and run outside the transaction; use the callback's `tx`.
+- Inside a transaction callback `scope.networkDb` and `scope.sharedDb` compile, run outside the transaction and hold a second connection of the one pool; use the callback's `tx`. A read of a Network model inside a transaction of the shared side stays on that transaction until its caller moves.
 - Rows written in raw SQL get no Prisma defaults: the statement sets `id` (UUID v7) and `updatedAt` itself.
 - A unit test of code that takes a scope passes a plain object with the members it uses, cast once to the handle type. It needs no module mock.
 - The lint rule rejects a named import of the function (also renamed, type-only, or destructured from a dynamic `import()`) and a named re-export. Three forms pass it and must be caught in review: a namespace import (`import * as`), `export * from` the client module, and a dynamic `import()` whose result is kept and read by property. The tests of the client module use that last form.

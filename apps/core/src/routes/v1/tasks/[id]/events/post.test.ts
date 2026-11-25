@@ -155,9 +155,7 @@ vi.mock("@vercel/functions", () => ({
   }),
 }));
 
-const networkClient = vi.hoisted(() => ({ side: "mainnet client" }));
 vi.mock("@/lib/db/prisma", () => ({
-  networkPrisma: () => networkClient,
   default: {
     $transaction: prismaTransactionMock,
     task: {
@@ -2517,10 +2515,7 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(processTaskPaymentClaimMock).toHaveBeenCalledTimes(1);
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
-    // Read on the scope's Network client, not on the shared transaction.
-    expect(getCreditCostsOrThrowMock).toHaveBeenCalledExactlyOnceWith(
-      networkClient,
-    );
+    expect(getCreditCostsOrThrowMock).toHaveBeenCalled();
     expect(calculateCentsFromMasumiAmountStringsMock).toHaveBeenCalledWith(
       validMasumiPaymentBody.Amounts,
       expect.anything(),

@@ -75,8 +75,9 @@ export async function createTaskEventTransaction(
   return await creditBucketRepository.recordSpend(
     input.scope.network,
     {
-      userId: input.userId,
-      organizationId: input.organizationId,
+      // An empty id is no id, as the relation write treated it.
+      userId: input.userId || null,
+      organizationId: input.organizationId || null,
       cents: input.cents,
       consumptions,
     },

@@ -94,6 +94,25 @@ describe("createTaskEventTransaction", () => {
     );
   });
 
+  it("records an empty user or Organization id as none", async () => {
+    const consumptions = [{ bucketId: "bucket_1", amount: 500n }];
+    prepareConsumption.mockResolvedValue(consumptions);
+
+    await createTaskEventTransaction({
+      userId: "",
+      organizationId: "",
+      cents: 500n,
+      scope,
+      tx,
+    });
+
+    expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
+      "preprod",
+      { userId: null, organizationId: null, cents: 500n, consumptions },
+      tx,
+    );
+  });
+
   it("charges with the Project the work belongs to", async () => {
     prepareConsumption.mockResolvedValue([
       { bucketId: "bucket_1", amount: 500n },

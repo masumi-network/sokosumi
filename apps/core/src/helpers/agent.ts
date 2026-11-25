@@ -16,7 +16,6 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import type { NetworkDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 
 import { listCardanoBillableUnitSpellings } from "./agent-cost";
@@ -168,7 +167,7 @@ export function getJobDetailsAgentOverrideFields(agent: {
  * Throws when credit costs are missing because these checks depend on a configured unit table.
  */
 export const getCreditCostsOrThrow = async (
-  tx: Prisma.TransactionClient | NetworkDb = prisma,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<CreditCost[]> => {
   const creditCosts = await tx.creditCost.findMany();
   if (creditCosts.length === 0) {

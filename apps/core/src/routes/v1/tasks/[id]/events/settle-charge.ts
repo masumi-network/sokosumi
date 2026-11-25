@@ -85,7 +85,7 @@ export async function settleTaskEventCharge({
         );
       }
     }
-    const creditCosts = await getCreditCostsOrThrow(scope.networkDb);
+    const creditCosts = await getCreditCostsOrThrow(tx);
     const cents = calculateCentsFromMasumiAmountStrings(
       masumiPayment.Amounts,
       creditCosts,

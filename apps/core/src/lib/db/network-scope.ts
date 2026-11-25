@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, SharedDb } from "@sokosumi/database";
 import type { PrismaRaw } from "@sokosumi/database/client";
 import {
   type NetworkModelName,
@@ -27,10 +27,10 @@ declare const networkSide: unique symbol;
 export type NetworkDb = NetworkSide & { readonly [networkSide]: true };
 
 /**
- * The shared side, a client or an open transaction: every other model. No
- * `$transaction`, which Prisma 7 also leaves on a transaction client.
+ * The shared side, a client or an open transaction: every other model. The
+ * database package owns the definition, because its repositories take it.
  */
-export type SharedDb = Omit<Tx, NetworkModel | "$transaction">;
+export type { SharedDb };
 
 /**
  * What Core's database module hands out for work on one Network. An entry
