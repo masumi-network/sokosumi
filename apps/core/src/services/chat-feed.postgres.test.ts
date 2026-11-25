@@ -407,27 +407,71 @@ describe.runIf(enabled)("chat feed on PostgreSQL", () => {
     ).toBe(1);
   });
 
-  it("drops a room the viewer leaves after the room list was read", async () => {
+  /**
+   * Runs `change` on the Direct after `readerRooms` returned it, then checks
+   * that the Feed drops the Direct's unread message. The count is compared
+   * with a baseline from this test, so earlier tests' read states do not
+   * matter, and the Direct read state is put back afterwards.
+   */
+  async function expectDirectDroppedAfterRoomRead(
+    change: () => Promise<unknown>,
+    undo: () => Promise<unknown>,
+  ) {
     const actual = vi.mocked(readerRooms).getMockImplementation();
     if (!actual) throw new Error("readerRooms is not wrapped");
-    vi.mocked(readerRooms).mockImplementationOnce(async (...args) => {
-      const rooms = await actual(...args);
-      await prisma.chatRoomUserMember.deleteMany({
-        where: { roomId: bobDirectId, userId: alice },
-      });
-      return rooms;
+    const readState = await prisma.chatRoomReadState.findUnique({
+      where: { roomId_userId: { roomId: bobDirectId, userId: alice } },
+    });
+    await prisma.chatRoomReadState.deleteMany({
+      where: { roomId: bobDirectId, userId: alice },
     });
     try {
-      await prisma.chatRoomReadState.deleteMany({
-        where: { roomId: bobDirectId, userId: alice },
+      const baseline = await listChatFeed(alice, organizationId, { take: 50 });
+      expect(baseline.items.map((item) => item.room.id)).toContain(bobDirectId);
+      vi.mocked(readerRooms).mockImplementationOnce(async (...args) => {
+        const rooms = await actual(...args);
+        await change();
+        return rooms;
       });
-      const page = await listChatFeed(alice, organizationId, { take: 50 });
-      expect(page.items.map((item) => item.room.id)).not.toContain(bobDirectId);
-      expect(page.unreadCount).toBe(1);
+      try {
+        const page = await listChatFeed(alice, organizationId, { take: 50 });
+        expect(page.items.map((item) => item.room.id)).not.toContain(
+          bobDirectId,
+        );
+        expect(page.unreadCount).toBe(baseline.unreadCount - 1);
+      } finally {
+        await undo();
+      }
     } finally {
-      await prisma.chatRoomUserMember.create({
-        data: { roomId: bobDirectId, userId: alice },
-      });
+      if (readState) await prisma.chatRoomReadState.create({ data: readState });
     }
+  }
+
+  it("drops a room the viewer leaves after the room list was read", async () => {
+    await expectDirectDroppedAfterRoomRead(
+      () =>
+        prisma.chatRoomUserMember.deleteMany({
+          where: { roomId: bobDirectId, userId: alice },
+        }),
+      () =>
+        prisma.chatRoomUserMember.create({
+          data: { roomId: bobDirectId, userId: alice },
+        }),
+    );
+  });
+
+  it("drops a room archived after the room list was read", async () => {
+    await expectDirectDroppedAfterRoomRead(
+      () =>
+        prisma.chatRoom.update({
+          where: { id: bobDirectId },
+          data: { archivedAt: new Date() },
+        }),
+      () =>
+        prisma.chatRoom.update({
+          where: { id: bobDirectId },
+          data: { archivedAt: null },
+        }),
+    );
   });
 });

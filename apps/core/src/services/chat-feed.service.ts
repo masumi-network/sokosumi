@@ -17,12 +17,14 @@ import {
  * mentioned in. An agent answer counts once it is complete: a Thought
  * placeholder still waiting, or one that failed, is not an answer. An agent
  * answer in a room with one person is that person's own conversation with the
- * agent, so it stays out. The viewer must still be an unmuted member when
- * the query runs: the room list is read first, and a removal or a mute
- * between the two reads must not leak that room's messages.
+ * agent, so it stays out. The viewer must still be an unmuted member of a
+ * room that is not archived when the query runs: the room list is read
+ * first, and a removal, a mute or an archive between the two reads must not
+ * leak that room's messages.
  */
 function sqlFeedCandidate(userSql: string): string {
   return `m."deletedAt" IS NULL
+    AND r."archivedAt" IS NULL
     AND m."senderUserId" IS DISTINCT FROM ${userSql}
     AND EXISTS (
       SELECT 1 FROM "chat_room_user_member" viewer
