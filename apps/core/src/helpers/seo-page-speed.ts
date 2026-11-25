@@ -15,10 +15,10 @@ import {
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 import {
-  publicSpeedMeasurement,
   publicSpeedUrl,
   SPEED_DEVICES,
   type SpeedDevice,
+  speedFieldUrl,
   speedPageUrl,
 } from "./seo-speed-guards";
 
@@ -316,13 +316,15 @@ export function readPageSpeed(
     );
     const read = field.success ? field.data : null;
     const target = new URL(testedUrl);
+    // The stored URL is the form that passed the checks, not the worker's spelling of it.
+    const fieldUrl = read ? speedFieldUrl(read.url) : undefined;
     const measuredField =
       read &&
-      publicSpeedUrl(new URL(read.url).href) &&
+      fieldUrl &&
       (read.level === "origin"
-        ? new URL(read.url).origin === target.origin &&
-          new URL(read.url).pathname === "/"
-        : new URL(read.url).href === target.href ||
+        ? new URL(fieldUrl).origin === target.origin &&
+          new URL(fieldUrl).pathname === "/"
+        : fieldUrl === target.href ||
           provenAggregate(read, evidence.field, target, device));
     rows.push({
       pageUrl,
@@ -353,7 +355,7 @@ export function readPageSpeed(
                 read.identity?.pageAssessment === "not_determined"
                   ? "normalized"
                   : read.level,
-              url: read.url,
+              url: fieldUrl,
               p75: read.p75,
               period: read.period,
               ...readHistory(evidence.field, read.level),
@@ -367,22 +369,37 @@ export function readPageSpeed(
 }
 
 /**
- * Stored page speed rows before the schema reads them. A measurement with a URL that is not public goes.
- * A history Core cannot read goes, the measurement stays.
+ * One stored measurement before the schema reads it, with the guards of a fresh import. None: a URL is not
+ * public. The field URL gets the form a fresh import stores. A history Core cannot read goes, the
+ * measurement stays.
  */
+export function readableStoredMeasurement(value: unknown): unknown[] {
+  const row = reportObject(value);
+  if (
+    !row ||
+    ![row.pageUrl, row.testedUrl].map(speedPageUrl).every(publicSpeedUrl)
+  )
+    return [];
+  const read = { ...row };
+  const field = reportObject(row.field);
+  if (field) {
+    const { history, ...measured } = field;
+    if (field.url != null) {
+      const url = speedFieldUrl(field.url);
+      if (!url) return [];
+      measured.url = url;
+    }
+    read.field =
+      history === undefined || !speedHistory.safeParse(history).success
+        ? measured
+        : { ...measured, history };
+  }
+  return [read];
+}
+
+/** Stored page speed rows before the schema reads them. */
 export function readableStoredPageSpeed(rows: unknown) {
-  if (!Array.isArray(rows)) return rows;
-  return rows.filter(publicSpeedMeasurement).map((row) => {
-    const field = reportObject(reportObject(row)?.field);
-    if (
-      !field ||
-      field.history === undefined ||
-      speedHistory.safeParse(field.history).success
-    )
-      return row;
-    const { history: _history, ...measured } = field;
-    return { ...row, field: measured };
-  });
+  return Array.isArray(rows) ? rows.flatMap(readableStoredMeasurement) : rows;
 }
 
 export function scopedPageSpeed(

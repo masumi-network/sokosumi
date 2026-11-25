@@ -3,7 +3,6 @@ import {
   containsSokoBotSensitiveMaterial,
 } from "@sokosumi/soko-bot";
 import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
-import { reportObject } from "./project-seo-public-report";
 
 /**
  * The guards of speed data. Each one holds on four paths: a fresh import and a stored read, of an audit's
@@ -48,16 +47,22 @@ export function publicSpeedText(value: unknown, max: number) {
     : undefined;
 }
 
-/** A measurement whose page URL, tested URL and field URL are all public. */
-export function publicSpeedMeasurement(value: unknown) {
-  const row = reportObject(value);
-  const field = reportObject(row?.field);
-  return (
-    !!row &&
-    [row.pageUrl, row.testedUrl, ...(field?.url == null ? [] : [field.url])]
-      .map(speedPageUrl)
-      .every(publicSpeedUrl)
-  );
+/**
+ * The URL of a measured field in the one form Core stores. Host case and a missing root slash spell the
+ * same URL; another spelling is not read. The credential checks read the URL as written first: the
+ * normal form is not the text the worker sent.
+ */
+export function speedFieldUrl(value: unknown) {
+  if (typeof value !== "string" || containsSokoBotCredentialMaterial(value))
+    return undefined;
+  const href = URL.parse(value)?.href;
+  return href &&
+    publicSpeedUrl(href) &&
+    [value, value + "/"].some(
+      (written) => written.toLowerCase() === href.toLowerCase(),
+    )
+    ? href
+    : undefined;
 }
 
 /**

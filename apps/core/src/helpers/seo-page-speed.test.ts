@@ -4,7 +4,7 @@ import {
   parsePublicSeoArtifact,
   publicSeoPayloadSchema,
 } from "./project-seo-report";
-import { scopedPageSpeed } from "./seo-page-speed";
+import { readPageSpeed, scopedPageSpeed } from "./seo-page-speed";
 
 const median = { lcp: 7400, fcp: 1200, cls: 0, si: 3600, tbt: 180 };
 const insight = {
@@ -277,12 +277,51 @@ describe("imported full-audit PageSpeed evidence", () => {
       field: {
         status: "measured",
         level: "origin",
-        url: origin,
+        // The stored form has the root slash.
+        url: origin + "/",
         p75,
         period: null,
       },
       lab: { status: "measured", ...lab },
     });
+  });
+
+  it("stores the checked form of a field URL and reads a stored spelling with another host case", () => {
+    const books = "https://example.test/books";
+    const spelled = "https://EXAMPLE.test/books";
+    const p75 = { lcp: 2000, inp: 111, cls: 0.1, ttfb: null, fcp: 1200 };
+    const speed = {
+      ...readings(books),
+      mobile: {
+        ...readings(books).mobile,
+        field: { level: "url", url: spelled, p75, period: null },
+      },
+    };
+    const result = parsePublicSeoArtifact({
+      ...legacyReport(),
+      request: { url: books },
+      speed,
+    });
+    const measured = { status: "measured", url: books, p75 };
+    expect(readPageSpeed(speed, books)[0]?.field).toMatchObject(measured);
+    expect(result.pageSpeed?.[0]).toMatchObject({
+      field: measured,
+      lab: { status: "measured" },
+    });
+    const stored = JSON.parse(JSON.stringify(result));
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed).toEqual(
+      result.pageSpeed,
+    );
+    // An audit Core stored with the worker's spelling keeps its field and its lab result.
+    stored.pageSpeed[0].field.url = spelled;
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed).toEqual(
+      result.pageSpeed,
+    );
+    // Another path is another URL: the measurement goes, as before.
+    stored.pageSpeed[0].field.url = "https://example.test/x/../books";
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.map((row) => row.device),
+    ).toEqual(["desktop"]);
   });
 });
 
