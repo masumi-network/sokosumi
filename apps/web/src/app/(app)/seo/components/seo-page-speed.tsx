@@ -1,4 +1,5 @@
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import { seoPageKey } from "./seo-serp-features-model";
 import { SeoDate, SeoFoldSummary, SeoPeriod } from "./seo-shared";
 import {
   isSeoVital,
@@ -236,8 +237,8 @@ export function SeoSpeedDetail({
               </span>
             </SeoFoldSummary>
             <div className="min-w-0 space-y-5 pb-5">
-              {/* A row of the speed table can show the measurement of a page that redirects to it. */}
-              {row.pageUrl !== pageUrl && (
+              {/* A row of the speed table can show the measurement of a page that redirects to it. One page key per page: a home page with and without its root slash is one page. */}
+              {seoPageKey(row.pageUrl) !== seoPageKey(pageUrl) && (
                 <p className="break-all text-xs text-muted-foreground">
                   {t("pageSpeed.auditedPage", { url: row.pageUrl })}
                 </p>

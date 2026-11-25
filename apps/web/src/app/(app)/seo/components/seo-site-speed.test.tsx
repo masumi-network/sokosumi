@@ -237,3 +237,30 @@ it("names the audited page whose measurement a row shows after a redirect", () =
     ),
   ).toHaveLength(1);
 });
+
+it("names no audited page when it is the row's page without its root slash", () => {
+  const workspace = seoTestWorkspace();
+  const url = "https://example.test/";
+  const bare = "https://example.test";
+  workspace.siteSpeed = {
+    rows: [
+      {
+        url,
+        audited: true,
+        tier: "full",
+        devices: [seoTestSpeedDevice({ pageUrl: bare, testedUrl: url })],
+      },
+    ],
+    dropped: 0,
+    observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+    observedAt: new Date("2026-11-11T00:26:00Z"),
+  };
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoSiteSpeed workspace={workspace} />
+    </NextIntlClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /example\.test/ }));
+  expect(screen.getByRole("button", { expanded: true })).toBeTruthy();
+  expect(screen.queryByText(/That address leads to this page/)).toBeNull();
+});
