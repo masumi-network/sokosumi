@@ -46,36 +46,33 @@ const gap = z.object({
     "unavailable",
   ]),
 });
-export const seoPageSpeed = z
-  .array(
+export const seoPageSpeedRow = z.object({
+  pageUrl: seoUrlSchema,
+  testedUrl: seoUrlSchema,
+  device: z.enum(["mobile", "desktop"]),
+  lab: z.union([
+    gap,
     z.object({
-      pageUrl: seoUrlSchema,
-      testedUrl: seoUrlSchema,
-      device: z.enum(["mobile", "desktop"]),
-      lab: z.union([
-        gap,
-        z.object({
-          status: z.literal("measured"),
-          median: labTimings,
-          runs: z.number().int().positive(),
-          ok: z.number().int().positive(),
-          lighthouse: z.string().max(32).nullable(),
-          pageSpeed: lighthouseDetails.optional(),
-        }),
-      ]),
-      field: z.union([
-        gap,
-        z.object({
-          status: z.literal("measured"),
-          level: z.enum(["url", "origin", "normalized"]),
-          url: seoUrlSchema,
-          p75: fieldTimings,
-          period: z
-            .object({ first: z.string().date(), last: z.string().date() })
-            .nullable(),
-        }),
-      ]),
+      status: z.literal("measured"),
+      median: labTimings,
+      runs: z.number().int().positive(),
+      ok: z.number().int().positive(),
+      lighthouse: z.string().max(32).nullable(),
+      pageSpeed: lighthouseDetails.optional(),
     }),
-  )
-  .max(20);
+  ]),
+  field: z.union([
+    gap,
+    z.object({
+      status: z.literal("measured"),
+      level: z.enum(["url", "origin", "normalized"]),
+      url: seoUrlSchema,
+      p75: fieldTimings,
+      period: z
+        .object({ first: z.string().date(), last: z.string().date() })
+        .nullable(),
+    }),
+  ]),
+});
+export const seoPageSpeed = z.array(seoPageSpeedRow).max(20);
 export type PageSpeedRows = z.infer<typeof seoPageSpeed>;

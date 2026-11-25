@@ -12232,6 +12232,7 @@ export type ProjectSeoWorkspace = {
     siteEvidence?: ProjectSeoSiteEvidence | null;
     auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
+    siteSpeed?: ProjectSeoSiteSpeed | null;
     landingEngagementChange?: {
         propertyId: string;
         timeZone: string;
@@ -13193,6 +13194,74 @@ export type ProjectSeoStrategy = {
     observedAt: Date;
     countryCode: string | null;
     languageCode: string | null;
+};
+
+export type ProjectSeoSiteSpeed = {
+    rows: Array<{
+        url: string;
+        audited: boolean;
+        group?: string;
+        cause?: 'action' | 'keyword' | 'template' | 'entry' | 'risk';
+        why?: string;
+        tier?: 'full' | 'reduced' | 'none';
+        devices: Array<{
+            pageUrl: string;
+            testedUrl: string;
+            device: 'mobile' | 'desktop';
+            lab: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                median: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    tbt: number | null;
+                    si: number | null;
+                };
+                runs: number;
+                ok: number;
+                lighthouse: string | null;
+                pageSpeed?: {
+                    scores: {
+                        performance?: number;
+                        accessibility?: number;
+                        bestPractices?: number;
+                        seo?: number;
+                        agenticBrowsing?: number;
+                    };
+                    insights: Array<{
+                        id: string;
+                        title: string;
+                        detail: string;
+                        action: string;
+                    }>;
+                    measuredAt?: Date;
+                };
+            };
+            field: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                level: 'url' | 'origin' | 'normalized';
+                url: string;
+                p75: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    inp: number | null;
+                    ttfb: number | null;
+                };
+                period: {
+                    first: Date;
+                    last: Date;
+                } | null;
+            };
+        }>;
+    }>;
+    dropped: number;
+    observationId: string;
+    observedAt: Date;
 };
 
 export type ProjectSeoSerpSeries = {

@@ -234,9 +234,13 @@ it.each([null, { observedAt: meta.timestamp, rows: [] }])(
       monitors: [],
     };
     const result = await getSeoAuditWorkspaceResponseTransformer({
-      data: { ...empty, searchQueries },
+      // The speed table is a nullable object with a date as well.
+      data: { ...empty, searchQueries, siteSpeed: searchQueries },
       meta: { ...meta },
     });
+    expect(result.data.siteSpeed?.observedAt ?? null).toEqual(
+      searchQueries && new Date(meta.timestamp),
+    );
     if (searchQueries)
       expect(result.data.searchQueries?.observedAt).toEqual(
         new Date(meta.timestamp),

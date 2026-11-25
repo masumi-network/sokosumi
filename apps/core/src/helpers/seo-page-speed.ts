@@ -127,7 +127,7 @@ function details(raw: unknown) {
   };
 }
 
-function publicLanding(start: URL, address: string) {
+export function publicLanding(start: URL, address: string) {
   if (!publicExplorationUrl(address)) return false;
   const url = new URL(address);
   return (
@@ -281,4 +281,26 @@ export function scopedPageSpeed(
   selected: ReadonlySet<string>,
 ) {
   return rows?.filter((row) => selected.has(auditedSeoPageKey(row.pageUrl)));
+}
+
+/** An audit's page speed for the view. An audit from before Core read it names the file to recover it from. */
+export function observationPageSpeed(
+  data: { kind: string; pageSpeed?: PageSpeedRows },
+  row: {
+    source: string;
+    sourceFileId: string | null;
+    sourceTaskId: string | null;
+  },
+  selected: ReadonlySet<string>,
+  input: { marketRecoveryTaskIds?: ReadonlySet<string> },
+) {
+  if (data.kind !== "audit_full") return {};
+  if (data.pageSpeed !== undefined)
+    return { pageSpeed: scopedPageSpeed(data.pageSpeed, selected) };
+  return row.source === "seo_coworker" &&
+    row.sourceFileId &&
+    row.sourceTaskId &&
+    input.marketRecoveryTaskIds?.has(row.sourceTaskId)
+    ? { pageSpeedRecoveryFileId: row.sourceFileId }
+    : {};
 }

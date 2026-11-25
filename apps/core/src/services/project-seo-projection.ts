@@ -11,8 +11,9 @@ import { seoIssueKey } from "@sokosumi/utils";
 import { internalServerError } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
-import { scopedPageSpeed } from "@/helpers/seo-page-speed";
+import { observationPageSpeed } from "@/helpers/seo-page-speed";
 import { scopedReportEvidence } from "@/helpers/seo-report-plan";
+import { scopedSiteSpeed } from "@/helpers/seo-site-speed";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -160,6 +161,7 @@ export function projectSeoProjection(
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   let strategy: ProjectSeoWorkspace["strategy"] = null;
+  let siteSpeed: ProjectSeoWorkspace["siteSpeed"];
   const decisions = new SeoAuditDecisions(
     selectedUrls,
     actionTasks,
@@ -268,6 +270,8 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
+    if (data.siteSpeed && siteSpeed === undefined)
+      siteSpeed = scopedSiteSpeed(data, row, selectedUrls);
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
       const recover =
@@ -296,15 +300,7 @@ export function projectSeoProjection(
       issues,
       ...(checklistBreakdown && { checklistBreakdown }),
       ...scopedReportEvidence(data, selectedUrls),
-      ...(data.kind === "audit_full" &&
-        (data.pageSpeed !== undefined
-          ? { pageSpeed: scopedPageSpeed(data.pageSpeed, selectedUrls) }
-          : row.source === "seo_coworker" &&
-              row.sourceFileId &&
-              row.sourceTaskId &&
-              input.marketRecoveryTaskIds?.has(row.sourceTaskId)
-            ? { pageSpeedRecoveryFileId: row.sourceFileId }
-            : {})),
+      ...observationPageSpeed(data, row, selectedUrls, input),
       coverage,
     });
     for (const check of data.checks) {
@@ -710,6 +706,7 @@ export function projectSeoProjection(
       ? projectSiteEvidence(input.observations, selectedUrls, query)
       : { siteEvidence: null, auditSiteEvidence: [] }),
     strategy,
+    siteSpeed: siteSpeed ?? null,
     ...decisions.workspaceEvidence,
     metricsStatus: !metrics.length
       ? "unavailable"

@@ -18,6 +18,7 @@ import { projectSeoProjection } from "./project-seo-projection";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
 const now = new Date("2026-11-01T12:00:00Z");
+const EXTRA_PAGE = "https://example.test/extra";
 function fixture(): Input {
   const projectId = randomUUID(),
     pageId = randomUUID();
@@ -472,6 +473,59 @@ describe("stored SEO workspace projections", () => {
     expect(
       projectSeoProjection({ ...input, query: { from: "2026-11-04" } })
         .strategy,
+    ).toBeNull();
+  });
+
+  it("shows the newest site audit's speed table, and none to a view that lacks one of its pages", () => {
+    const input = fixture();
+    expect(projectSeoProjection(input).siteSpeed).toBeNull();
+    const table = (url: string) =>
+      parsePublicSeoArtifact({
+        kind: "site",
+        rulebookVersion: "v",
+        pages: [legacyReport()],
+        speed: {
+          pages: [
+            { url: SEO_TEST_PAGE, n: 1, source: "audited", speed: null },
+            { url, n: null, source: "links", group: "/", speed: null },
+          ],
+          note: null,
+        },
+      });
+    const newest = observation(
+      input,
+      table("https://example.test/new"),
+      "2026-11-03T12:00:00Z",
+    );
+    input.observations = [
+      observation(
+        input,
+        parsePublicSeoArtifact(focusedReport()),
+        "2026-11-04T12:00:00Z",
+      ),
+      newest,
+      observation(
+        input,
+        table("https://example.test/old"),
+        "2026-11-01T12:00:00Z",
+      ),
+    ];
+    const shown = projectSeoProjection(input).siteSpeed;
+    expect(shown).toMatchObject({
+      observationId: newest.id,
+      observedAt: "2026-11-03T12:00:00.000Z",
+    });
+    expect(shown?.rows.map((row) => [row.url, row.audited])).toEqual([
+      [SEO_TEST_PAGE, true],
+      ["https://example.test/new", false],
+    ]);
+    const second = { ...input.pages[0]!, id: randomUUID(), url: EXTRA_PAGE };
+    expect(
+      projectSeoProjection({
+        ...input,
+        pages: [second],
+        scope: { ...input.scope, pageIds: [second.id], pages: [second] },
+      }).siteSpeed,
     ).toBeNull();
   });
 

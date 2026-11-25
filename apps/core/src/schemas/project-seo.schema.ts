@@ -62,6 +62,7 @@ import {
   seoUrlSchema,
 } from "./seo-page.schema";
 import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
+import { workspaceSiteSpeedFields } from "./seo-site-speed.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -694,6 +695,7 @@ export const projectSeoWorkspaceSchema = z
     ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    ...workspaceSiteSpeedFields,
     landingEngagementChange: seoLandingEngagementChange.optional(),
     articleDates: z.array(seoArticleDates).optional(),
     topicLaunches: z.array(seoTopicLaunch).optional(),
