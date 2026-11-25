@@ -6,9 +6,11 @@ import {
   type PatchFundraisingProspectsByContactIdData,
   type PostFundraisingFindData,
   type PostFundraisingProspectsByContactIdDraftData,
+  type PostFundraisingProspectsByContactIdIntroAskData,
   patchFundraisingProspectsByContactId,
   postFundraisingFind,
   postFundraisingProspectsByContactIdDraft,
+  postFundraisingProspectsByContactIdIntroAsk,
   postFundraisingProspectsByContactIdResearch,
   postFundraisingSuggestionsAdd,
   postFundraisingSuggestionsDismiss,
@@ -21,6 +23,9 @@ export type FundraisingProspectPatch = NonNullable<
 export type FundraisingFindInput = NonNullable<PostFundraisingFindData["body"]>;
 export type FundraisingDraftInput = NonNullable<
   PostFundraisingProspectsByContactIdDraftData["body"]
+>;
+export type FundraisingIntroAskInput = NonNullable<
+  PostFundraisingProspectsByContactIdIntroAskData["body"]
 >;
 
 function options() {
@@ -73,6 +78,16 @@ export const fundraisingService = {
   async draft(contactId: string, body: FundraisingDraftInput) {
     return (
       await postFundraisingProspectsByContactIdDraft({
+        ...options(),
+        path: { contactId },
+        body,
+      })
+    ).data.data;
+  },
+  /** Two drafts in the caller's mailbox: the ask to the connector and the forwardable note; never sends. */
+  async introAsk(contactId: string, body: FundraisingIntroAskInput) {
+    return (
+      await postFundraisingProspectsByContactIdIntroAsk({
         ...options(),
         path: { contactId },
         body,

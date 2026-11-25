@@ -12852,7 +12852,8 @@
         "nextStep": "Siguiente paso",
         "lastTouch": "Último contacto",
         "dataRoom": "Data room",
-        "cheque": "Ticket"
+        "cheque": "Ticket",
+        "nextAction": "Siguiente paso"
       },
       "stages": {
         "TO_RESEARCH": "Por investigar",
@@ -12989,6 +12990,42 @@
         "openDrafts": "Abrir borradores de Gmail",
         "another": "Escribir otro",
         "lastDraft": "Último borrador “{subject}” · {when}"
+      },
+      "intro": {
+        "statusTitle": "Presentación",
+        "asked": "Pedido a {who} {when}",
+        "made": "Presentación hecha por {who} {when}",
+        "declinedBy": "{who} declinó; busca otra vía",
+        "declinedBefore": "({who} declinó antes)",
+        "askDirect": "Pide a {who}, conoce a {investor}",
+        "askFund": "Pide a {who} en {company}",
+        "askPortfolio": "Pide a {who}, {company} es una empresa que financiaron",
+        "via": "vía {who}",
+        "youKnow": "Los conoces; escríbeles directamente",
+        "noPath": "Aún no hay vía cálida",
+        "draftAsk": "Redactar la petición",
+        "introMade": "Presentación hecha",
+        "declined": "Declinó",
+        "meetingBooked": "Reunión fijada",
+        "passed": "Descartado",
+        "writeDraft": "Escribir borrador",
+        "dialogTitle": "Pedir a {who} una presentación a {investor}",
+        "dialogDescription": "Dos borradores van a tu Gmail: la petición a {who}, con una nota reenviable debajo, y esa nota por separado. No se envía nada.",
+        "weakTie": "Apenas conoces a {who}. Un buen correo en frío vale más que una presentación débil; considera otra vía o ponte al día antes.",
+        "inviteRoom": "Dar acceso a {investor} a «{room}» y enlazarlo en la nota",
+        "noteLabel": "Algo que mencionar",
+        "notePlaceholder": "p. ej. mencionar la alianza con Cardano",
+        "neverSends": "Sokosumi nunca envía. Lees ambos en Gmail y los envías tú.",
+        "cancel": "Cancelar",
+        "write": "Escribir ambos borradores",
+        "done": "Ambos borradores están en tu {mailbox}",
+        "failed": "No se pudieron escribir los borradores",
+        "askTo": "La petición, para {to}",
+        "noteTo": "La nota reenviable, para {to}",
+        "openDrafts": "Abrir borradores de Gmail",
+        "close": "Listo",
+        "noMailbox": "Los borradores van a tu propio Gmail a través de tu Soko Bot. Conecta Gmail allí primero.",
+        "connect": "Abrir Soko Bots"
       }
     },
     "Seo": {
