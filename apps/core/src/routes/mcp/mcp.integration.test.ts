@@ -193,6 +193,35 @@ describe("Sokosumi MCP server", () => {
     }
   });
 
+  it("marks the ad campaign tools open-world and destructive", async () => {
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=projects",
+    );
+    const { tools } = await client.listTools();
+    const outside = MCP_TOOLS.filter((tool) => tool.openWorld).map(
+      (tool) => tool.name,
+    );
+
+    expect(outside).toEqual([
+      "projects_ads_campaign_create",
+      "projects_ads_campaign_update",
+      "projects_ads_campaign_edit",
+    ]);
+    const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
+    expect(warned.map((tool) => tool.name)).toEqual(outside);
+    for (const tool of warned) {
+      expect(tool.description).toMatch(
+        /^Can lead to ad spend once a person resumes the campaign\./,
+      );
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      });
+    }
+  });
+
   it("refuses an unknown toolset by name", async () => {
     await expect(
       connect({ Authorization: "Bearer mcp-token" }, "?toolsets=tasks,nope"),

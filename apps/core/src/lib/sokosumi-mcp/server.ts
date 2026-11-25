@@ -75,6 +75,7 @@ function annotations({
   input,
   destructive,
   spendsCredits = false,
+  openWorld = false,
 }: DerivedTool): ToolAnnotations {
   if (input.method === "GET") {
     return { readOnlyHint: true, openWorldHint: false };
@@ -84,7 +85,7 @@ function annotations({
     destructiveHint:
       spendsCredits || (destructive ?? input.method === "DELETE"),
     idempotentHint: input.method === "PUT" || input.method === "DELETE",
-    // Credits pay an outside agent.
-    openWorldHint: spendsCredits,
+    // Credits pay an outside agent; ad tools act on Google or Meta.
+    openWorldHint: spendsCredits || openWorld,
   };
 }
