@@ -100,6 +100,7 @@ src/services/evals/eval-a2a.postgres.test.ts 19  # trigger body
 src/services/evals/eval-infrastructure.postgres.test.ts 19  # trigger body
 src/services/evals/eval-lanes.postgres.test.ts 19  # trigger body
 src/services/evals/eval-seo-fixtures.postgres.test.ts 19  # trigger body
+src/services/failure-review.service.postgres.test.ts 19  # trigger body
 src/services/file-backfill.postgres.test.ts 19  # trigger body
 src/services/file-curated-vocabulary.postgres.test.ts 19  # trigger body
 src/services/file-metadata-labels.postgres.test.ts 19  # trigger body
