@@ -1,4 +1,10 @@
 import prisma from "@/lib/db/prisma";
+import {
+  type AuthenticationContext,
+  isPersonSession,
+  requirePersonApproval,
+  type UserAuthenticationContext,
+} from "@/middleware/auth";
 
 /**
  * Where a person approves Coworker access and vendor grants for their
@@ -6,19 +12,36 @@ import prisma from "@/lib/db/prisma";
  */
 export const ACCOUNT_WEB_PATH = "/account";
 
+/** The person a credential acts for, if it names one. */
+function personBehind(authContext: AuthenticationContext): string | null {
+  if (authContext.actor === "coworker")
+    return authContext.context?.userId ?? null;
+  return authContext.userId;
+}
+
 /**
- * Where a person approves Coworker access and vendor grants for an
- * organization workspace: its settings in Sokosumi (ADR 0077). Falls back to
- * the active organization's settings when the id names none.
+ * {@link requirePersonApproval} for an organization workspace. An agent is
+ * sent to the organization's settings when its person is a member, else to
+ * the active organization's settings, so the 403 never names an organization
+ * the caller does not belong to. A browser session costs no lookup.
  */
-export async function organizationSettingsWebPath(
+export async function requireOrganizationPersonApproval(
+  authContext: AuthenticationContext,
   organizationId: string,
-): Promise<string> {
-  const organization = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { slug: true },
-  });
-  return organization
-    ? `/organizations/${encodeURIComponent(organization.slug)}`
-    : "/organization";
+): Promise<UserAuthenticationContext> {
+  if (isPersonSession(authContext)) return authContext;
+
+  const userId = personBehind(authContext);
+  const organization = userId
+    ? await prisma.organization.findFirst({
+        where: { id: organizationId, members: { some: { userId } } },
+        select: { slug: true },
+      })
+    : null;
+  return requirePersonApproval(
+    authContext,
+    organization
+      ? `/organizations/${encodeURIComponent(organization.slug)}`
+      : "/organization",
+  );
 }

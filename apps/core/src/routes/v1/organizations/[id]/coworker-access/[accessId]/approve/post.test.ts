@@ -41,7 +41,7 @@ vi.mock("@/helpers/organization", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     organization: {
-      findUnique: vi.fn().mockResolvedValue({ slug: "acme-org" }),
+      findFirst: vi.fn().mockResolvedValue({ slug: "acme-org" }),
     },
     workspace: { findUnique: workspaceFindUniqueMock },
     $transaction: prismaTransactionMock,

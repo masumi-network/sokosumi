@@ -482,9 +482,9 @@ describe("Marketing strategy routes", () => {
     expect(m.memberFindFirst).not.toHaveBeenCalled();
   });
 
-  // ADR 0077: Cuso and other agents write a strategy; a person approves it in CMO.
+  // ADR 0077: agents write a strategy; a person approves it.
   it.each(agentCredentials(AUTH))(
-    "sends %s to the strategy in CMO",
+    "sends %s to the Project in Sokosumi",
     async (_, authContext) => {
       const response = await createApp(WORKSPACE, authContext).request(
         `${BASE}/${NEW_ID}/approve`,
@@ -493,7 +493,7 @@ describe("Marketing strategy routes", () => {
 
       await expectPersonApprovalRequired(
         response,
-        `https://app.cmo.xyz/strategy?project=${PROJECT_ID}`,
+        `https://example.com/projects/${PROJECT_ID}`,
       );
       expect(m.projectFindFirst).not.toHaveBeenCalled();
       expect(m.strategyUpdate).not.toHaveBeenCalled();

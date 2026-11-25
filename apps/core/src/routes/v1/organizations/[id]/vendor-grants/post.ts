@@ -9,10 +9,9 @@ import {
   grantWorkspaceAccess,
   toVendorGrantApiShape,
 } from "@/helpers/vendor-grants";
-import { organizationSettingsWebPath } from "@/helpers/workspace-approval-web-path";
+import { requireOrganizationPersonApproval } from "@/helpers/workspace-approval-web-path";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requirePersonApproval } from "@/middleware/auth";
 import {
   createVendorGrantRequestSchema,
   vendorGrantSchema,
@@ -55,9 +54,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     // A person approves in Sokosumi; agents may only ask, deny or revoke (ADR 0077).
-    const userContext = requirePersonApproval(
+    const userContext = await requireOrganizationPersonApproval(
       c.var.authContext,
-      await organizationSettingsWebPath(id),
+      id,
     );
     const body = c.req.valid("json");
 

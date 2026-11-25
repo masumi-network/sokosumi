@@ -46,7 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 // usersPathUserContextMiddleware binds coworker→user via grant/baseline;
-// incomplete prisma mocks 500 before requireOwnerUserContext can return 403.
+// stub it so incomplete prisma mocks never 500 a request.
 vi.mock("@/helpers/coworker-user-context-binding", () => ({
   assertCoworkerUserContextBinding: vi.fn().mockResolvedValue(undefined),
   requireAuthorizedUserContext: vi.fn(),

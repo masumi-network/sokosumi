@@ -420,6 +420,16 @@ export function requireInteractiveUserAuthContext(
   return userAuthContext;
 }
 
+/** A person at the keyboard: a browser session, never an agent's credential. */
+export function isPersonSession(
+  authContext: AuthenticationContext,
+): authContext is UserAuthenticationContext {
+  return (
+    isUserAuthContext(authContext) &&
+    authContext.authenticationMethod === "session"
+  );
+}
+
 /**
  * A person approves, publishes and sends (ADR 0077), so only a browser
  * session passes. Every agent (API key, OAuth or MCP token, Coworker, Soko
@@ -430,10 +440,7 @@ export function requirePersonApproval(
   authContext: AuthenticationContext,
   webPath: string,
 ): UserAuthenticationContext {
-  if (
-    isUserAuthContext(authContext) &&
-    authContext.authenticationMethod === "session"
-  ) {
+  if (isPersonSession(authContext)) {
     return authContext;
   }
   throw forbidden("A person approves this in Sokosumi", {

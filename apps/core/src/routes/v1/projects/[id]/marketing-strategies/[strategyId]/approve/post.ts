@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { getEnv } from "@/config/env";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -35,19 +34,15 @@ const route = createRoute({
   },
 });
 
-/** The strategy in CMO, where a person approves it. */
-function cmoStrategyUrl(projectId: string): string {
-  const base = getEnv().CMO_APP_BASE_URL.replace(/\/+$/, "");
-  return `${base}/strategy?${new URLSearchParams({ project: projectId })}`;
-}
-
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const { id, strategyId } = c.req.valid("param");
-    // A person approves, in CMO; agents only write versions (ADR 0077).
+    // Agents write versions; a person approves one (ADR 0077). A CMO
+    // Project never gets here: cmoProjectLock answers 409 first, and CMO
+    // approves through /v1/cmo.
     const { userId } = requirePersonApproval(
       c.var.authContext,
-      cmoStrategyUrl(id),
+      `/projects/${encodeURIComponent(id)}`,
     );
     const access = await requireWorkspaceProject(c, id, userId);
     const version = await approveMarketingStrategy({ ...access, strategyId });

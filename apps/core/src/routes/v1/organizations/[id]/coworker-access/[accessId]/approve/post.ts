@@ -9,10 +9,9 @@ import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { organizationSettingsWebPath } from "@/helpers/workspace-approval-web-path";
+import { requireOrganizationPersonApproval } from "@/helpers/workspace-approval-web-path";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requirePersonApproval } from "@/middleware/auth";
 import { coworkerWorkspaceAccessSchema } from "@/schemas/coworker-workspace-access.schema";
 
 const params = z.object({
@@ -52,9 +51,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id, accessId } = c.req.valid("param");
     // A person approves in Sokosumi; agents may only ask, deny or revoke (ADR 0077).
-    const userContext = requirePersonApproval(
+    const userContext = await requireOrganizationPersonApproval(
       c.var.authContext,
-      await organizationSettingsWebPath(id),
+      id,
     );
 
     await resolveMemberOrganizationById({
