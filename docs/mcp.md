@@ -73,7 +73,7 @@ Some tools have a view: an interactive rendering of their result inside the chat
 
 - Route: `apps/core/src/routes/mcp/index.ts`. Tools: `MCP_TOOLS` in `apps/core/src/lib/sokosumi-mcp/tools.ts`. Adding a tool: [Agent surface](./agents/agent-surface.md#mcp-tools).
 - The whole sign-in, from the first 401 to a tool call, is tested for a native (Claude Code) and a web (Claude.ai) client in `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`.
-- Views: `MCP_UI_TOOLS` in `apps/core/src/lib/sokosumi-mcp/ui-tools.ts`, HTML from `packages/mcp-ui`. Core serves each as a `ui://sokosumi/<id>.<hash8>.html` resource (`text/html;profile=mcp-app`) and resolves it by id, so an old hash reads the current HTML. No view ships yet; the Task board (SOKD-417) is first.
+- Views: `MCP_UI_TOOLS` in `apps/core/src/lib/sokosumi-mcp/ui-tools.ts`, HTML from `packages/mcp-ui`. Core serves each as a `ui://sokosumi/<id>.<hash8>.html` resource (`text/html;profile=mcp-app`) and resolves it by id, so an old hash reads the current HTML.
 - Previews: `claude mcp add --transport http sokosumi <preview Core URL>/mcp`. Previews run live Turnstile, so a person signs in, not an agent.
 
 Last updated: 2026-11-25

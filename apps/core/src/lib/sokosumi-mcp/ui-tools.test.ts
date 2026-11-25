@@ -1,3 +1,4 @@
+import { MCP_UI } from "@sokosumi/mcp-ui";
 import { describe, expect, it } from "vitest";
 
 import { MCP_TOOLS } from "./tools";
@@ -15,17 +16,37 @@ describe("MCP_UI_TOOLS", () => {
     }
   });
 
+  it("warns before a UI tool whose twin spends credits", () => {
+    const spending = new Set(
+      MCP_TOOLS.filter((tool) => tool.spendsCredits).map((tool) => tool.name),
+    );
+    for (const tool of MCP_UI_TOOLS.filter(({ data }) => spending.has(data))) {
+      expect(tool.description, tool.name).toMatch(
+        /^Spends workspace credits\./,
+      );
+    }
+  });
+
   it("ships no tool for the placeholder view", () => {
     expect(MCP_UI_TOOLS.map((tool) => tool.ui)).not.toContain("hello");
   });
 });
 
 describe("viewIdOf", () => {
+  it("reads every view's id from its URI", () => {
+    for (const [id, view] of Object.entries(MCP_UI)) {
+      expect(viewIdOf(view.uri)).toBe(id);
+    }
+  });
+
   it("reads the id whatever the hash", () => {
     expect(viewIdOf("ui://sokosumi/task-board.b3332f14.html")).toBe(
       "task-board",
     );
     expect(viewIdOf("ui://sokosumi/hello.00000000.html")).toBe("hello");
+    expect(viewIdOf("ui://sokosumi/task_board.00000000.html")).toBe(
+      "task_board",
+    );
   });
 
   it("refuses anything else", () => {

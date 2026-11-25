@@ -23,7 +23,7 @@ export const UI_MIME_TYPE = "text/html;profile=mcp-app";
 /** The MCP Apps extension a server advertises in its capabilities. */
 export const UI_EXTENSION = "io.modelcontextprotocol/ui";
 
-const VIEW_URI = /^ui:\/\/sokosumi\/([a-z0-9-]+)\.[0-9a-f]{8}\.html$/;
+const VIEW_URI = /^ui:\/\/sokosumi\/([^/.]+)\.[0-9a-f]{8}\.html$/;
 
 /**
  * The view id in `ui://sokosumi/<id>.<hash8>.html`, whatever the hash: a
