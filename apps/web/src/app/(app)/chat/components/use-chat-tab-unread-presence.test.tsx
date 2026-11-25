@@ -306,7 +306,7 @@ describe("Elsewhere rooms in the unread signals", () => {
       // The rail itself is up, so its dot had the chance to show.
       expect(screen.getByRole("button", { name: "chats" })).toBeTruthy();
       expect(
-        screen.queryByRole("link", { name: "chats, chatsUnread" }),
+        screen.queryByRole("button", { name: "chats, chatsUnread" }),
       ).toBeNull();
     });
   });

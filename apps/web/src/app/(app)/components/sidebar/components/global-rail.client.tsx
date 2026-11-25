@@ -76,7 +76,8 @@ function RailControls({ mobile }: { mobile: boolean }) {
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "relative size-11 border border-transparent",
+                  "relative h-12 min-w-0 flex-col gap-0.5 border border-transparent px-0.5 text-2xs",
+                  mobile ? "flex-1" : "w-14",
                   isActive &&
                     "bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border after:bg-current after:absolute after:inset-s-0 after:h-4 after:w-0.5 after:rounded-full",
                 )}
@@ -88,7 +89,10 @@ function RailControls({ mobile }: { mobile: boolean }) {
                   if (!mobile && !open) setOpen(true);
                 }}
               >
-                <Icon aria-hidden className="size-5" />
+                <Icon aria-hidden className="size-5 shrink-0" />
+                <span aria-hidden className="max-w-full truncate">
+                  {label}
+                </span>
                 {unread ? (
                   <span
                     aria-hidden
