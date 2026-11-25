@@ -6,6 +6,7 @@ import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { getSession } from "@/lib/auth/auth.server";
 import { readFundraisingPipeline } from "@/lib/services/fundraising.server";
 import { FundraisingBoard } from "./components/fundraising-board";
+import { MeProvider } from "./me-context";
 
 // Workspace-scoped, authenticated and gated to a few organizations.
 export const instant = false;
@@ -28,7 +29,9 @@ export default async function FundraisingPage() {
   const t = await getTranslations("App.Fundraising");
   return (
     <WorkspacePageShell title={t("title")}>
-      <FundraisingBoard initialData={pipeline} />
+      <MeProvider meId={session.user.id}>
+        <FundraisingBoard initialData={pipeline} />
+      </MeProvider>
     </WorkspacePageShell>
   );
 }
