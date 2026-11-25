@@ -23,7 +23,10 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
+import {
+  requireSeoTaskExecutionUnchanged,
+  seoAuditTextUnchanged,
+} from "@/helpers/seo-task-execution";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   type AssignedTask,
@@ -575,6 +578,10 @@ export async function updateTaskForActor(
   }
 
   const task = await requireMutableTask(input, tx);
+  // Readers see a full audit's description without its request line; a write of that text keeps it.
+  const description = seoAuditTextUnchanged(task.description, input.description)
+    ? undefined
+    : input.description;
   if (
     input.expectedUpdatedAt &&
     task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
@@ -638,7 +645,7 @@ export async function updateTaskForActor(
       ? sokoBotEditableStatuses(input.intent)
       : [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY];
   await requireSeoTaskExecutionUnchanged(tx, task, {
-    description: input.description,
+    description,
     projectId: input.projectId,
     ...(assigneeWrite ?? {}),
   });
@@ -658,9 +665,7 @@ export async function updateTaskForActor(
     },
     data: {
       ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
+      ...(description !== undefined ? { description } : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(assigneeWrite ?? {}),
       ...(status !== undefined ? { status } : {}),
