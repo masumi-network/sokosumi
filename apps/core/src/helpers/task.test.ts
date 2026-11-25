@@ -466,6 +466,62 @@ describe("mapTask", () => {
     expect(result.share).toEqual(share);
   });
 
+  it("shows a full audit's request line only to the assigned Coworker", () => {
+    const description =
+      'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}';
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Full SEO audit",
+      description,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH).description).toBe(
+      "Full SEO audit of 2 selected pages:",
+    );
+    expect(
+      mapTask(task, {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: "vendor_123",
+      } as AuthenticationContext).description,
+    ).toBe(description);
+    expect(
+      mapTask(task, {
+        actor: "coworker",
+        coworkerId: "cow_other",
+        vendorId: "vendor_other",
+      } as AuthenticationContext).description,
+    ).toBe("Full SEO audit of 2 selected pages:");
+  });
+
   it("returns the Owner of a Task a Coworker made for them", () => {
     const task = {
       id: "tsk_made_for",
@@ -506,10 +562,13 @@ describe("mapTask", () => {
       creator: { type: "coworker", id: "cow_123" },
     });
     expect(
-      mapTaskListItem({
-        ...task,
-        _count: { jobs: 0, events: 0 },
-      } as unknown as TaskListItemWithIncludes),
+      mapTaskListItem(
+        {
+          ...task,
+          _count: { jobs: 0, events: 0 },
+        } as unknown as TaskListItemWithIncludes,
+        TEST_USER_AUTH,
+      ),
     ).toMatchObject({
       ownerId: "user_123",
       creator: { type: "coworker", id: "cow_123" },

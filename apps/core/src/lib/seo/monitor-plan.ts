@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
@@ -205,7 +206,8 @@ export function seoMonitorSummary(
 export function seoMonitorDescriptionForUser(
   description: string | null,
 ): string | null {
-  if (!isSeoMonitorDescription(description)) return description;
+  if (!isSeoMonitorDescription(description))
+    return hideSeoAuditRequest(description);
   try {
     const plan = parseSeoMonitorPlan(description)!;
     const checks = {
