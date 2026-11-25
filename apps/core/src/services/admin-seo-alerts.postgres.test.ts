@@ -31,6 +31,19 @@ it.skipIf(!enabled)(
       await tx.$executeRawUnsafe(`CREATE SCHEMA "${mainnetSchema}"`);
       // The transaction-local path keeps the fixture setup and its bare table names inside the scratch schema.
       await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${sharedSchema}"`);
+      const alerts = async (
+        query: Parameters<typeof listAdminSeoAlerts>[0],
+      ) => {
+        await tx.$executeRaw`SAVEPOINT seo_alerts_read`;
+        try {
+          await tx.$executeRaw`SET LOCAL search_path TO pg_catalog`;
+          return await listAdminSeoAlerts(query, tx);
+        } finally {
+          // The savepoint restores the fixture path even if PostgreSQL aborted the read.
+          await tx.$executeRaw`ROLLBACK TO SAVEPOINT seo_alerts_read`;
+          await tx.$executeRaw`RELEASE SAVEPOINT seo_alerts_read`;
+        }
+      };
       await tx.$executeRaw`CREATE TABLE ${sharedTable("taskEvent")} ("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint)`;
       await tx.$executeRaw`CREATE TABLE ${netTable("mainnet", "Transaction")} (id text, amount bigint)`;
       for (const ddl of [
@@ -111,12 +124,9 @@ it.skipIf(!enabled)(
       await tx.$executeRaw`ANALYZE project_seo_analysis, seo_audit, workspace,
         organization, project, task, ${sharedTable("taskEvent")}, ${netTable("mainnet", "Transaction")},
         seo_connection, project_seo_observation`;
-      const beforeDisconnect = await listAdminSeoAlerts(
-        { period: "all", page: 1 },
-        tx,
-      );
+      const beforeDisconnect = await alerts({ period: "all", page: 1 });
       await tx.$executeRaw`INSERT INTO seo_connection ("workspaceId","userId",provider,status) VALUES (${workspace}::uuid,'owner2','search_console','NEEDS_RECONNECT'),(${workspace}::uuid,'owner4','search_console','NEEDS_RECONNECT'),(${workspace}::uuid,'owner4','ga4','DISCONNECTED'),(${workspace}::uuid,'owner6','ga4','NEEDS_RECONNECT'),(${workspace}::uuid,'unrelated','ga4','NEEDS_RECONNECT')`;
-      const report = await listAdminSeoAlerts({ period: "all", page: 1 }, tx);
+      const report = await alerts({ period: "all", page: 1 });
       expect(report).toMatchObject({
         total: 8,
         critical: 2,
@@ -127,10 +137,11 @@ it.skipIf(!enabled)(
         "reportRejected",
       ]);
       expect(report.items).toEqual(beforeDisconnect.items);
-      const connections = await listAdminSeoAlerts(
-        { period: "all", page: 1, view: "connections" },
-        tx,
-      );
+      const connections = await alerts({
+        period: "all",
+        page: 1,
+        view: "connections",
+      });
       expect(connections).toMatchObject({
         connectionTotal: 4,
         reconnect: 3,
@@ -209,13 +220,13 @@ it.skipIf(!enabled)(
         await tx.$executeRaw`INSERT INTO task VALUES (${"active" + n},'worker',${status},timezone('UTC',now()))`;
         await tx.$executeRaw`INSERT INTO "taskEvent" VALUES (${"active" + n},'RUNNING',${who},timezone('UTC',now())-make_interval(mins=>${minutes}::int),'running')`;
       }
-      const overdue = (
-        await listAdminSeoAlerts({ period: "30", page: 1 }, tx)
-      ).items.filter((r) => r.reasons.includes("workerOverdue"));
+      const overdue = (await alerts({ period: "30", page: 1 })).items.filter(
+        (r) => r.reasons.includes("workerOverdue"),
+      );
       expect(overdue.map((r) => r.id)).toEqual([id(20)]);
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(87)}::uuid,${id(20)}::uuid,NULL,'active20','seo_coworker','audit_full',NULL,'{}',ARRAY[${id(81)}::uuid],timezone('UTC',now()))`;
       expect(
-        (await listAdminSeoAlerts({ period: "all", page: 1 }, tx)).items.some(
+        (await alerts({ period: "all", page: 1 })).items.some(
           (r) => r.id === id(20),
         ),
       ).toBe(false);
@@ -251,14 +262,12 @@ it.skipIf(!enabled)(
         await tx.$executeRaw`INSERT INTO "taskEvent" ("taskId","coworkerId","userId",comment,"createdAt",id) VALUES (${"metered" + n},${coworker},${user},${text},timezone('UTC',now()),'comment')`;
       }
       await tx.$executeRaw`UPDATE task SET "assigneeId"='different' WHERE id='metered33'`;
-      const pricing = (
-        await listAdminSeoAlerts({ period: "30", page: 1 }, tx)
-      ).items.filter((r) =>
-        r.reasons.some((reason) => reason === "priceReceiptPending"),
+      const pricing = (await alerts({ period: "30", page: 1 })).items.filter(
+        (r) => r.reasons.some((reason) => reason === "priceReceiptPending"),
       );
       expect(pricing.map((r) => r.taskId)).toEqual(["metered31"]);
       const billing = async () =>
-        listAdminSeoAlerts({ period: "30", page: 1, view: "billing" }, tx);
+        alerts({ period: "30", page: 1, view: "billing" });
       const first = await billing();
       expect(first).toMatchObject({ billingTotal: 4, pricingAttention: 1 });
       expect(
@@ -281,7 +290,7 @@ it.skipIf(!enabled)(
       };
       await tx.$executeRaw`UPDATE project_seo_analysis SET request=request || jsonb_build_object('pendingFullAuditCost',${JSON.stringify(cost)}::jsonb,'limits','{"usd":2.299986}'::jsonb) WHERE "taskId"='metered31'`;
       const incident = async (taskId: string) =>
-        (await listAdminSeoAlerts({ period: "30", page: 1 }, tx)).items.find(
+        (await alerts({ period: "30", page: 1 })).items.find(
           (row) => row.taskId === taskId,
         );
       await tx.$executeRaw`UPDATE task SET status='OUT_OF_CREDITS' WHERE id='metered31'`;
@@ -398,14 +407,14 @@ it.skipIf(!enabled)(
         await tx.$executeRaw`INSERT INTO task VALUES (${"late" + n},'worker','COMPLETED',timezone('UTC',now()))`;
         await tx.$executeRaw`INSERT INTO "taskEvent" VALUES (${"late" + n},'COMPLETED','worker',timezone('UTC',now())-make_interval(mins=>${minutes}::int),'complete')`;
       }
-      const late = await listAdminSeoAlerts({ period: "all", page: 1 }, tx);
+      const late = await alerts({ period: "all", page: 1 });
       expect(late.items.find((row) => row.id === id(11))?.reasons).toEqual([
         "reportMissing",
       ]);
       expect(late.items.some((row) => row.id === id(12))).toBe(false);
       await tx.$executeRaw`UPDATE seo_audit SET "archivedAt"=timezone('UTC',now()) WHERE id=${id(11)}::uuid`;
       expect(
-        (await listAdminSeoAlerts({ period: "all", page: 1 }, tx)).items.some(
+        (await alerts({ period: "all", page: 1 })).items.some(
           (row) => row.id === id(11),
         ),
       ).toBe(false);
@@ -413,18 +422,13 @@ it.skipIf(!enabled)(
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(80)}::uuid,${id(11)}::uuid,NULL,'late11','seo_coworker','audit_full',NULL,'{}',ARRAY[${id(81)}::uuid],timezone('UTC',now()))`;
       await tx.$executeRaw`UPDATE project_seo_analysis SET status='completed' WHERE "taskId"='late11'`;
       expect(
-        (await listAdminSeoAlerts({ period: "all", page: 1 }, tx)).items.some(
+        (await alerts({ period: "all", page: 1 })).items.some(
           (row) => row.id === id(11),
         ),
       ).toBe(false);
+      expect((await alerts({ period: "all", page: 2 })).items).toEqual([]);
       expect(
-        (await listAdminSeoAlerts({ period: "all", page: 2 }, tx)).items,
-      ).toEqual([]);
-      expect(
-        await listAdminSeoAlerts(
-          { period: "all", page: 1, view: "counts" },
-          tx,
-        ),
+        await alerts({ period: "all", page: 1, view: "counts" }),
       ).toMatchObject({ total: 8, critical: 2, warning: 5, items: [] });
       await tx.$executeRawUnsafe(
         `DROP SCHEMA "${sharedSchema}", "${mainnetSchema}" CASCADE`,

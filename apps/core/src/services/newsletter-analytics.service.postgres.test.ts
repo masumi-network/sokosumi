@@ -4,6 +4,7 @@ import { configureSqlTables, sharedTable } from "@sokosumi/database/sql-tables";
 import { Client } from "pg";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -83,14 +84,15 @@ describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
       await client?.end();
     });
     beforeEach(async () => {
-      await client.query(
-        `TRUNCATE ${sharedTable("newsletter_subscriber").sql},
-          ${sharedTable("newsletter_event").sql}, ${sharedTable("newsletter_issue").sql},
-          ${sharedTable("newsletter_send").sql}`,
-      );
+      await client.query("SAVEPOINT newsletter_analytics_case");
       m.raw.mockImplementation(
         async (query: Prisma.Sql) =>
           (await client.query(query.text, query.values)).rows,
+      );
+    });
+    afterEach(async () => {
+      await client.query(
+        "ROLLBACK TO SAVEPOINT newsletter_analytics_case; RELEASE SAVEPOINT newsletter_analytics_case",
       );
     });
 
