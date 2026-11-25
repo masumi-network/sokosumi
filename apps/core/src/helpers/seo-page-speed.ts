@@ -381,10 +381,16 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
       if (!url) return [];
       measured.url = url;
     }
+    // A comparable history with a series that is no object reads as a fresh import reads it: unavailable.
+    const series = reportObject(history)?.series;
     read.field =
       history === undefined || !speedHistory.safeParse(history).success
         ? measured
-        : { ...measured, history };
+        : reportObject(history)?.status === "comparable" &&
+            series != null &&
+            !reportObject(series)
+          ? { ...measured, history: { status: "unavailable" } }
+          : { ...measured, history };
   }
   const lab = reportObject(row.lab);
   const details = reportObject(lab?.pageSpeed);

@@ -543,6 +543,50 @@ describe("CrUX History on a measured field", () => {
       ).toEqual({ status: "legacy_unverified" });
   });
 
+  it("reads a stored series that is no object as an unavailable history and keeps the measurement", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                history: {
+                  status: "comparable",
+                  sourceRecord: historyRecord,
+                  series,
+                },
+                sourceRefs: bound,
+              },
+            },
+          },
+        }),
+      ),
+    );
+    for (const broken of [false, "broken", 42, []]) {
+      stored.pageSpeed[0].field.history = {
+        status: "comparable",
+        series: broken,
+      };
+      expect(
+        publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
+      ).toMatchObject({
+        status: "measured",
+        p75: { lcp: 1300 },
+        history: { status: "unavailable" },
+      });
+    }
+    // No series is the answer of a read that gave none.
+    stored.pageSpeed[0].field.history = { status: "comparable", series: null };
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
+    ).toMatchObject({ history: { status: "comparable" } });
+  });
+
   it("drops a stored history it cannot read and keeps the measurement and the audit", () => {
     const stored = JSON.parse(
       JSON.stringify(
