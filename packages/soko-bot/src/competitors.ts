@@ -14,7 +14,6 @@ export const competitorFactSchema = z.object({
   /** strong: the sources say all of it; weak: they back it only in part. */
   support: z.enum(COMPETITOR_SUPPORT),
 });
-export type CompetitorFact = z.infer<typeof competitorFactSchema>;
 
 /** One competitor move of the week, as a bot writes it for the owner. */
 export const competitorFeedItemInputSchema = z.object({

@@ -345,6 +345,49 @@ describe("WelcomePage", () => {
     );
   });
 
+  it("lists the bot's reply to that chat once it answers", async () => {
+    listImportantMessages.mockResolvedValueOnce([]);
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    listMessages.mockResolvedValueOnce({
+      messages: [
+        {
+          id: "msg-1",
+          content: "Plan my week",
+          createdAt: new Date(),
+          deletedAt: null,
+          parentMessageId: null,
+          sender: { type: "user", user: { id: "user-1" } },
+        },
+        {
+          id: "msg-2",
+          content: "Here is your week.",
+          createdAt: new Date(),
+          deletedAt: null,
+          parentMessageId: null,
+          sender: { type: "sokoBot", sokoBot: { id: "bot-1" } },
+          metadata: { in_reply_to_message_id: "msg-1" },
+        },
+      ],
+    });
+    await renderPage();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chats: [
+          expect.objectContaining({
+            messageId: "msg-2",
+            title: "Here is your week.",
+            from: "App.Chat.Landing.SokoBotHome.replied",
+          }),
+        ],
+      }),
+    );
+  });
+
   // The summary read returns null when Core fails it; Home still renders
   // and only the day's section says so.
   it("renders Home without the day's numbers when their read fails", async () => {

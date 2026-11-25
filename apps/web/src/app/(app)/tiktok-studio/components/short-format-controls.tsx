@@ -54,7 +54,9 @@ export function VideoKindPicker({
   return (
     <RadioGroup.Root
       aria-label={t("kind")}
-      className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5"
+      // One row whenever the form has the width; lg keeps 3 because the
+      // preview column sits beside the form there.
+      className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5"
       disabled={readOnly}
       onValueChange={(next) => onChange(next as VideoKind)}
       value={value}
@@ -73,12 +75,12 @@ export function VideoKindPicker({
             key={kind}
             value={kind}
           >
-            <span className="bg-muted relative aspect-9/16 w-full overflow-hidden rounded-md">
+            <span className="bg-muted relative aspect-square w-full overflow-hidden rounded-md sm:aspect-9/16">
               {kind === "presenter" ? (
                 presenterImage ? (
                   <img
                     alt=""
-                    className="size-full object-cover"
+                    className="size-full object-cover max-sm:object-top"
                     loading="lazy"
                     src={presenterImage}
                   />
@@ -87,7 +89,7 @@ export function VideoKindPicker({
                 <video
                   aria-hidden
                   autoPlay={selected && !reducedMotion}
-                  className="size-full object-cover"
+                  className="size-full object-cover max-sm:object-top"
                   // Only the chosen kind plays; the rest show their poster.
                   key={selected && !reducedMotion ? "playing" : "still"}
                   loop

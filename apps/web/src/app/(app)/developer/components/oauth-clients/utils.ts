@@ -14,15 +14,6 @@ export const DEFAULT_CREATE_FORM_VALUES = {
   isPublic: false,
 };
 
-export const DEFAULT_EDIT_FORM_VALUES = {
-  name: "",
-  redirectUris: "",
-  clientUri: "",
-  logoUri: "",
-  includeCoreApi: false,
-  includeOfflineAccess: false,
-};
-
 export type OAuthApplicationType = "web" | "native";
 
 /** Schemes Better Auth rejects for any redirect URI. */

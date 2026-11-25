@@ -11,6 +11,7 @@ import {
   creditBucketSpendOrderSql,
   resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
+import { netTable, sharedTable } from "../sql-tables.js";
 
 export interface Consumption {
   bucketId: string;
@@ -53,9 +54,9 @@ async function queryBucketBalances(
         cb."createdAt",
         cb."projectId",
         p.name AS "projectName"
-      FROM credit_bucket cb
-      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
-      LEFT JOIN project p ON p.id = cb."projectId"
+      FROM ${netTable("mainnet", "credit_bucket")} cb
+      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+      LEFT JOIN ${sharedTable("project")} p ON p.id = cb."projectId"
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}
@@ -189,8 +190,8 @@ export const creditBucketRepository = {
         SELECT
           cb.amount,
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-        FROM credit_bucket cb
-        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        FROM ${netTable("mainnet", "credit_bucket")} cb
+        LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
         WHERE cb."organizationId" = ${organizationId}
           AND cb."referenceType" IN (
             ${CreditBucketReferenceType.ENTERPRISE_PERIOD},
@@ -221,8 +222,8 @@ export const creditBucketRepository = {
         SELECT
           cb.amount,
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-        FROM credit_bucket cb
-        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        FROM ${netTable("mainnet", "credit_bucket")} cb
+        LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
         WHERE cb."organizationId" = ${organizationId}
           AND cb."userId" IS NULL
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
@@ -276,8 +277,8 @@ export const creditBucketRepository = {
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
           cb."expiresAt",
           cb."createdAt"
-        FROM credit_bucket cb
-        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        FROM ${netTable("mainnet", "credit_bucket")} cb
+        LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
         WHERE ${where}
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
           AND ${creditBucketActivatesAtOrBeforeSql(now)}
@@ -357,8 +358,8 @@ async function sumAvailableCents(
     WITH bucket_avail AS (
       SELECT
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-      FROM credit_bucket cb
-      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      FROM ${netTable("mainnet", "credit_bucket")} cb
+      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}
@@ -397,8 +398,8 @@ async function getFifoBucketsToCoverSpend(
         cb."expiresAt",
         cb."createdAt",
         cb."projectId"
-      FROM credit_bucket cb
-      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      FROM ${netTable("mainnet", "credit_bucket")} cb
+      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
         AND ${creditBucketActivatesAtOrBeforeSql(now)}

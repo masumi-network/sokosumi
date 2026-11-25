@@ -336,7 +336,7 @@ describe("AuthFlow signIn", () => {
 
     await waitFor(() => expect(detour()).toHaveAttribute("data-state", "open"));
     expect(screen.getByRole("status")).toHaveTextContent(
-      "NoAccount.title. NoAccount.description",
+      "NoAccount.title. new@example.com. NoAccount.description",
     );
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
     expect(signInFormMock).not.toHaveBeenCalled();

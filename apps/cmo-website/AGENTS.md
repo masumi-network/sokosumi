@@ -1,0 +1,11 @@
+# CMO.XYZ website
+
+The public landing page and legal pages for CMO.XYZ at https://www.cmo.xyz (`cmo.xyz` redirects there). Plain static files in `public/`, plus one Vercel function (`api/geo.js`): no framework, no build, no dependencies. The signed-in product is [`apps/cmo`](../cmo/AGENTS.md) at app.cmo.xyz. Moved here from the archived [masumi-network/cmo-website](https://github.com/masumi-network/cmo-website) repository; [`README.md`](README.md) and [`PROJECT.md`](PROJECT.md) describe the files, the look and the copy decisions.
+
+- **Preview.** `python3 -m http.server 8000 --directory public` in this folder, then open http://localhost:8000. `/api/geo` (the cookie banner's country check) only answers on Vercel; locally the banner treats the country as unknown and asks.
+- **Deploy.** Vercel project `cmo-xyz` (team masumi), Root Directory `apps/cmo-website`, output `public/`, no install and no build. `vercel.json` deploys `main` only, and `ignoreCommand` skips the build unless this package changed. A merge to `main` that touches this folder goes live on www.cmo.xyz.
+- **Legal pages.** The Markdown in `legal/` is the source for `/terms`, `/privacy`, `/imprint` and `/dpa`; company facts come from `legal/company.json`. Edit those, then run `python3 scripts/render-legal.py` and commit the regenerated `public/*/index.html`. Terms changes happen in `legal/terms.md`, rendered to `public/terms/index.html`. The generator's footer logo is older than the committed pages, so check the footer after re-rendering.
+- **Never shows Sokosumi.** Like the app, the landing page never links into or names Sokosumi or its features. The only exception is the legal pages, which must name the platform that runs the service.
+- **Company.** CMO.XYZ belongs to Sumico, Inc.; see [`apps/cmo/AGENTS.md`](../cmo/AGENTS.md).
+- **Not checked by Biome.** The folder is excluded in the root `biome.jsonc` so the served files stay as written. Run `pnpm --filter cmo-website test` (cookie consent) after changing `cookie-consent.js`.
+- **Only `public/` is served.** Keep repo files (docs, sources, scripts) outside it. Do not add a `.vercelignore` here: on Git deployments Vercel applies it to the whole monorepo clone, which deleted every `vercel.json` and `package.json` (2026-11-25).

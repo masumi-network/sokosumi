@@ -215,18 +215,32 @@ export function toImportantChats(
 }
 
 /**
- * Adds the reader's latest question to their Soko Bot as one row, read or
- * not, so a first chat shows on Home. `messages` is the bot's Direct, oldest
- * first. The row shows and is dated by the question itself, so a bot post
- * today does not make an older question look new. Nothing when the question
- * is over a day old, when the reader never asked, or when an unread row from
- * that room is already listed: that one points at what is new. The reader
- * wrote the question, so `reader.from` names them and the bot ("You to Juno").
+ * Adds the reader's latest chat with their Soko Bot as one row, read or not,
+ * so a first chat shows on Home. `messages` is the bot's Direct, oldest
+ * first. While the reader's latest question waits, the row shows it ("You to
+ * Juno"); once the bot has answered it, the row shows the bot's newest
+ * answer ("Juno replied"), so Home says the answer is there. An answer is the
+ * bot's message Core links to that question (`in_reply_to_message_id`, set on
+ * every Soko Bot answer) that is neither still streaming nor a failed shell;
+ * a post that answers no question, or a late answer to an earlier one, never
+ * counts. The row is
+ * dated by the message it shows. Nothing when the question is over a day old,
+ * so a bot post today does not revive an old chat, when the reader never
+ * asked, or when an unread row from that room is already listed: that one
+ * points at what is new.
  */
 export function withSokoBotChat(
   chats: SokoBotHomeChat[],
   botRoom: { roomId: string; messages: readonly ChatRoomMessage[] } | null,
-  reader: { userId: string; from: string; untitled: string },
+  reader: {
+    userId: string;
+    /** Names a question: the reader to the bot. */
+    from: string;
+    botId: string;
+    /** Names a reply: the bot replied. */
+    replied: string;
+    untitled: string;
+  },
   now: Date,
 ): SokoBotHomeChat[] {
   if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
@@ -241,14 +255,26 @@ export function withSokoBotChat(
   if (!question || now.getTime() - question.createdAt.getTime() > DAY_MS) {
     return chats;
   }
+  const reply = botRoom.messages.findLast((message) => {
+    const metadata = message.metadata as Record<string, unknown> | null;
+    return (
+      !message.deletedAt &&
+      message.sender.type === "sokoBot" &&
+      message.sender.sokoBot.id === reader.botId &&
+      metadata?.in_reply_to_message_id === question.id &&
+      metadata.streaming !== true &&
+      metadata.mention_failed !== true
+    );
+  });
+  const shown = reply ?? question;
   return [
     ...chats,
     {
       roomId: botRoom.roomId,
-      messageId: question.id,
-      title: buildChatMessagePreview(question.content) || reader.untitled,
-      from: reader.from,
-      at: question.createdAt,
+      messageId: shown.id,
+      title: buildChatMessagePreview(shown.content) || reader.untitled,
+      from: reply ? reader.replied : reader.from,
+      at: shown.createdAt,
     },
   ];
 }

@@ -432,6 +432,15 @@ vi.mock("@/lib/actions/task/subtask-action", () => ({
   setTaskParent: setTaskParentMock,
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: null },
+    },
+  }),
+}));
+
 vi.mock("@/lib/clients/core.browser.client", () => {
   class TestCoreApiRequestError extends Error {
     status?: number;
