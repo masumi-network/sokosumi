@@ -131,11 +131,12 @@ function withPositionHistory(
   points: SeoRankPointRow[],
 ): ProjectSeoWorkspace["keywords"] {
   const history = new Map<string, PositionPoint[]>();
-  // Two reads of one time keep one order on every load.
+  // Two reads of one time keep one order on every load: by code unit, as the database orders the IDs.
   const oldestFirst = points.toSorted(
     (a, b) =>
       a.observedAt.getTime() - b.observedAt.getTime() ||
-      a.observationId.localeCompare(b.observationId),
+      Number(a.observationId > b.observationId) -
+        Number(a.observationId < b.observationId),
   );
   for (const point of oldestFirst) {
     const series = history.get(point.key) ?? [];

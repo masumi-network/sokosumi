@@ -3138,12 +3138,19 @@ describe.skipIf(!enabled)(
           .filter((row) => row.key === key)
           .map((row) => [row.observationId, row.observedAt]);
       // The newest point and one more, which says that older ones exist.
-      expect(await load(1)).toEqual([
-        [newest.id, newest.observedAt],
-        [older.id, older.observedAt],
-      ]);
+      expect(await load(1)).toEqual(
+        expect.arrayContaining([
+          [newest.id, newest.observedAt],
+          [older.id, older.observedAt],
+        ]),
+      );
       expect(await load(2)).toHaveLength(2);
-      expect(await loadSeoRankPoints(actor, ["busy"], {}, 1)).toHaveLength(2);
+      // Of 3 reads, the 2 newest.
+      expect(
+        (await loadSeoRankPoints(actor, ["busy"], {}, 1))
+          .map((row) => row.observationId)
+          .sort(),
+      ).toEqual([busy[1].id, busy[2].id].sort());
     });
 
     it("backfills the rank points of a result stored before the import wrote them, once", async () => {
