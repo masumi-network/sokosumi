@@ -69,6 +69,13 @@ const changedCheck = z.object({
   device,
 });
 
+const rankMove = z.object({
+  keyword: z.string(),
+  pageUrl: z.string(),
+  device: z.union([device, z.null()]),
+  from: z.number(),
+});
+
 /** What the newest monitor Run changed against the Run before it. */
 export const seoMonitorChangeSchema = z
   .object({
@@ -80,20 +87,23 @@ export const seoMonitorChangeSchema = z
     fixedCount: z.number().int().nonnegative(),
     newFailures: z.array(changedCheck).max(SEO_MONITOR_CHANGE_ITEMS),
     fixed: z.array(changedCheck).max(SEO_MONITOR_CHANGE_ITEMS),
-    /** Position moves beyond the noise band (ranks 1-3 ±2, 4-10 ±5, 11-20 ±7). */
+    /**
+     * Position moves beyond the noise band (ranks 1-3 ±2, 4-10 ±5, 11-20 ±7). `to` is null when the page left the
+     * latest read's top `checkedResults`.
+     */
     moves: z
       .array(
-        z.object({
-          keyword: z.string(),
-          pageUrl: z.string(),
-          device: z.union([device, z.null()]),
-          from: z.number(),
-          to: z.number(),
-        }),
+        z.union([
+          rankMove.extend({ to: z.number() }),
+          rankMove.extend({
+            to: z.null(),
+            checkedResults: z.number().int().positive(),
+          }),
+        ]),
       )
       .max(SEO_MONITOR_CHANGE_ITEMS),
     moveCount: z.number().int().nonnegative(),
-    /** Moves to a worse place. Drops come first in `moves`. */
+    /** Moves to a worse place, lost keywords included. Drops come first in `moves`. */
     dropCount: z.number().int().nonnegative(),
   })
   .openapi("ProjectSeoMonitorChange");

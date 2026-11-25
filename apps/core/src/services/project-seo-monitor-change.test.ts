@@ -59,6 +59,11 @@ const ranked = (keyword: string, position: number | null) => ({
   sourceRef: "ref",
   observedAt: AT,
 });
+const outside = (
+  keyword: string,
+  positionStatus: "not_in_range" | "unavailable",
+  checkedResults: number | null,
+) => ({ ...ranked(keyword, null), positionStatus, checkedResults });
 function compare(before: PublicSeoPayload, after: PublicSeoPayload) {
   return compareSeoMonitorRuns(
     { observedAt: new Date("2026-11-01T09:00:00Z"), payload: before },
@@ -120,7 +125,7 @@ describe("compareSeoMonitorRuns", () => {
     expect(isSeoMonitorChangeWorse(change)).toBe(false);
   });
 
-  it("counts a ranked keyword that fell beyond the band, and never an unranked one as a drop", () => {
+  it("counts a ranked keyword that fell beyond the band, and never an unread one as a drop", () => {
     const change = compare(
       payload({
         keywords: [
@@ -135,7 +140,7 @@ describe("compareSeoMonitorRuns", () => {
           ranked("Agent Payments", 6),
           ranked("x402", 4),
           ranked("stablecoin api", 9),
-          ranked("gone", null),
+          outside("gone", "unavailable", null),
         ],
       }),
     );
@@ -145,6 +150,43 @@ describe("compareSeoMonitorRuns", () => {
     ]);
     expect(change).toMatchObject({ moveCount: 2, dropCount: 1 });
     expect(isSeoMonitorChangeWorse(change)).toBe(true);
+  });
+
+  it("names a keyword that left a deep enough read, first, and counts it as a drop", () => {
+    const change = compare(
+      payload({ keywords: [ranked("x402", 15), ranked("agent payments", 5)] }),
+      payload({
+        keywords: [
+          ranked("x402", 3),
+          outside("agent payments", "not_in_range", 20),
+        ],
+      }),
+    );
+    expect(change.moves).toEqual([
+      expect.objectContaining({
+        keyword: "agent payments",
+        from: 5,
+        to: null,
+        checkedResults: 20,
+      }),
+      expect.objectContaining({ keyword: "x402", from: 15, to: 3 }),
+    ]);
+    expect(change).toMatchObject({ moveCount: 2, dropCount: 1 });
+    expect(isSeoMonitorChangeWorse(change)).toBe(true);
+  });
+
+  it.each([
+    ["a failed or suspect read", 5, outside("kw", "unavailable", null)],
+    ["a read with no result count", 5, outside("kw", "not_in_range", null)],
+    ["a read no deeper than the band", 5, outside("kw", "not_in_range", 10)],
+    ["a start rank past the top 10", 15, outside("kw", "not_in_range", 100)],
+  ])("does not count a keyword missing from %s as a drop", (_, from, row) => {
+    const change = compare(
+      payload({ keywords: [ranked("kw", from)] }),
+      payload({ keywords: [row] }),
+    );
+    expect(change).toMatchObject({ moves: [], dropCount: 0 });
+    expect(isSeoMonitorChangeWorse(change)).toBe(false);
   });
 
   it("is not worse when ranks only rose", () => {

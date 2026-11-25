@@ -53232,41 +53232,88 @@ export const ProjectSeoMonitorChangeSchema = {
         moves: {
             type: 'array',
             items: {
-                type: 'object',
-                properties: {
-                    keyword: {
-                        type: 'string'
-                    },
-                    pageUrl: {
-                        type: 'string'
-                    },
-                    device: {
-                        anyOf: [
-                            {
-                                type: 'string',
-                                enum: [
-                                    'mobile',
-                                    'desktop'
+                anyOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
                                 ]
                             },
-                            {
-                                type: 'null'
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'number'
                             }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to'
                         ]
                     },
-                    from: {
-                        type: 'number'
-                    },
-                    to: {
-                        type: 'number'
+                    {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'null'
+                            },
+                            checkedResults: {
+                                type: 'integer',
+                                exclusiveMinimum: 0
+                            }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to',
+                            'checkedResults'
+                        ]
                     }
-                },
-                required: [
-                    'keyword',
-                    'pageUrl',
-                    'device',
-                    'from',
-                    'to'
                 ]
             },
             maxItems: 10

@@ -290,7 +290,12 @@ describe("notification emails", () => {
   });
 
   it("has a sentence for every update reason, including the fallback", async () => {
-    const reasons = ["canceled", "failed", "updated"] as const;
+    const reasons = [
+      "canceled",
+      "failed",
+      "seoMonitorWorse",
+      "updated",
+    ] as const;
 
     for (const reason of reasons) {
       const rendered = await renderTaskUpdateEmail({
@@ -325,6 +330,26 @@ describe("notification emails", () => {
     expect(rendered.html).toContain(TASK_URL);
   });
 
+  it("names the site and what got worse in an SEO monitor email", async () => {
+    const rendered = await renderTaskUpdateEmail({
+      actionUrl: TASK_URL,
+      drops: 2,
+      locale: "en",
+      newFailures: 3,
+      reason: "seoMonitorWorse",
+      recipientName: "Sandro",
+      site: "shop.example",
+      taskName: "Weekly SEO check",
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - SEO results for shop.example got worse",
+    );
+    expect(rendered.html).toContain("New failing checks: 3.");
+    expect(rendered.html).toContain("Ranking drops: 2.");
+    expect(rendered.html).toContain("shop.example (Weekly SEO check)");
+  });
+
   it("writes the new emails in the locale they are given", async () => {
     const germanRoom = await renderChatRoomMessageEmail({
       actionUrl: ROOM_URL,
@@ -352,7 +377,13 @@ describe("calendar email templates", () => {
   it.each(["en", "de", "es"])(
     "renders every update template in %s",
     async (locale) => {
-      const reasons = ["failed", "canceled", "updated"] as const;
+      const reasons = [
+        "failed",
+        "canceled",
+        "seoMonitorWorse",
+        "updated",
+      ] as const;
+
       for (const reason of reasons) {
         const email = await renderTaskUpdateEmail({
           actionUrl: TASK_URL,

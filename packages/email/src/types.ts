@@ -119,11 +119,19 @@ export interface TaskAttentionEmailProps extends TaskEmailProps {
 }
 
 /** Catalog keys for task updates, plus `updated` as the fallback for unknown keys. */
-export type TaskUpdateReason = "failed" | "canceled" | "updated";
+export type TaskUpdateReason =
+  | "failed"
+  | "canceled"
+  | "seoMonitorWorse"
+  | "updated";
 
 /** A task changed without asking anything of the reader (SOK-1090, SOK-1142). */
 export interface TaskUpdateEmailProps extends TaskEmailProps {
   reason: TaskUpdateReason;
+  /** `seoMonitorWorse`: the host the monitor checks, and what got worse since the Run before. */
+  site?: null | string;
+  newFailures?: null | number;
+  drops?: null | number;
 }
 
 export interface ProjectUpdateEmailProps extends NotificationEmailProps {

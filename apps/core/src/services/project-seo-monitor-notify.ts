@@ -102,6 +102,7 @@ export async function notifySeoMonitorWorse(
     messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY,
     messageParams: {
       taskName: task.name,
+      site: new URL(payload.data.pageUrls[0]).hostname,
       newFailures: change.newFailureCount,
       drops: change.dropCount,
     },

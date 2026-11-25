@@ -14121,6 +14121,7 @@
           "fixedTitle": "Behoben",
           "movesTitle": "Ranking-Bewegungen",
           "move": "{keyword}: Position {from} → {to}",
+          "lost": "{keyword}: war Position {from}, jetzt nicht in den Top {checked}",
           "band": "Eine Ranking-Bewegung zählt nur, wenn sie größer als das normale Suchrauschen ist: 2 Plätze in den Top 3, 5 in den Top 10, 7 in den Top 20."
         },
         "plan": {

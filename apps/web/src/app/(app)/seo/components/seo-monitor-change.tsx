@@ -102,13 +102,22 @@ export function SeoMonitorChange({
             {change.moves.map((move) => (
               <li
                 key={`${move.pageUrl}|${move.keyword}|${move.device ?? ""}`}
-                className={cn(move.to > move.from && "text-status-destructive")}
+                className={cn(
+                  (move.to === null || move.to > move.from) &&
+                    "text-status-destructive",
+                )}
               >
-                {t("move", {
-                  keyword: move.keyword,
-                  from: move.from,
-                  to: move.to,
-                })}
+                {move.to === null
+                  ? t("lost", {
+                      keyword: move.keyword,
+                      from: move.from,
+                      checked: move.checkedResults,
+                    })
+                  : t("move", {
+                      keyword: move.keyword,
+                      from: move.from,
+                      to: move.to,
+                    })}
               </li>
             ))}
           </ChangeList>

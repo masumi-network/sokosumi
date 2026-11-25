@@ -23,10 +23,30 @@ export function seoRankNoiseBand(rank: number): number | null {
   );
 }
 
-/** A move beyond the band. A page absent or unranked in either read is not determined, never a drop. */
+/** A move beyond the band between two ranked reads. A page left out of the latest read is isSeoRankLost. */
 export function isSeoRankMove(from: number, to: number): boolean {
   const band = seoRankNoiseBand(from);
   return band !== null && to >= 1 && Math.abs(to - from) > band;
+}
+
+/** The worst start rank whose loss counts: below it a read seldom reaches past the band. */
+export const SEO_LOST_RANK_MAX_START = 10;
+
+/**
+ * A page at `from` that the latest read did not list in its top `checkedResults`. It counts only when that read
+ * reached past the band, so a short read never turns into a drop. A failed or suspect read is unavailable, not here.
+ */
+export function isSeoRankLost(
+  from: number,
+  checkedResults: number | null,
+): boolean {
+  const band = seoRankNoiseBand(from);
+  return (
+    band !== null &&
+    from <= SEO_LOST_RANK_MAX_START &&
+    checkedResults !== null &&
+    checkedResults > from + band
+  );
 }
 
 export interface SeoMonitorRunResult {
@@ -52,10 +72,17 @@ function findingTitle(payload: PublicSeoPayload, key: string) {
   )?.title;
 }
 
-function rankedKeywords(payload: PublicSeoPayload) {
+function keywordsWith(
+  payload: PublicSeoPayload,
+  status: "ranked" | "not_in_range",
+) {
   const ranked = new Map<string, PublicSeoPayload["keywords"][number]>();
   for (const row of payload.keywords) {
-    if (row.positionStatus !== "ranked" || row.position === null) continue;
+    if (
+      row.positionStatus !== status ||
+      (status === "ranked" && row.position === null)
+    )
+      continue;
     const key = identity(
       row.pageUrl,
       row.keyword.normalize("NFKC").toLowerCase(),
@@ -107,9 +134,9 @@ export function compareSeoMonitorRuns(
       device: check.device,
     });
   }
-  const earlierRanks = rankedKeywords(before);
+  const earlierRanks = keywordsWith(before, "ranked");
   const moves: SeoMonitorChange["moves"] = [];
-  for (const [key, row] of rankedKeywords(after)) {
+  for (const [key, row] of keywordsWith(after, "ranked")) {
     const from = earlierRanks.get(key)?.position;
     if (from == null || !isSeoRankMove(from, row.position!)) continue;
     moves.push({
@@ -120,8 +147,22 @@ export function compareSeoMonitorRuns(
       to: row.position!,
     });
   }
-  // Drops first: they are what the reader acts on.
-  moves.sort((a, b) => b.to - b.from - (a.to - a.from));
+  for (const [key, row] of keywordsWith(after, "not_in_range")) {
+    const from = earlierRanks.get(key)?.position;
+    if (from == null || !isSeoRankLost(from, row.checkedResults)) continue;
+    moves.push({
+      keyword: row.keyword,
+      pageUrl: row.pageUrl,
+      device: row.device,
+      from,
+      to: null,
+      checkedResults: row.checkedResults!,
+    });
+  }
+  // Drops first, lost keywords before them: they are what the reader acts on.
+  const fall = (move: SeoMonitorChange["moves"][number]) =>
+    move.to === null ? Number.MAX_SAFE_INTEGER : move.to - move.from;
+  moves.sort((a, b) => fall(b) - fall(a));
   return {
     ...base,
     comparable: true,
@@ -131,11 +172,12 @@ export function compareSeoMonitorRuns(
     fixed: fixed.slice(0, SEO_MONITOR_CHANGE_ITEMS),
     moves: moves.slice(0, SEO_MONITOR_CHANGE_ITEMS),
     moveCount: moves.length,
-    dropCount: moves.filter((move) => move.to > move.from).length,
+    dropCount: moves.filter((move) => move.to === null || move.to > move.from)
+      .length,
   };
 }
 
-/** Worse: a check that passed now fails, or a ranked keyword fell beyond the band. */
+/** Worse: a check that passed now fails, or a ranked keyword fell beyond the band or left the results. */
 export function isSeoMonitorChangeWorse(change: SeoMonitorChange): boolean {
   return (
     change.comparable && (change.newFailureCount > 0 || change.dropCount > 0)

@@ -14121,6 +14121,7 @@
           "fixedTitle": "Fixed",
           "movesTitle": "Ranking moves",
           "move": "{keyword}: position {from} → {to}",
+          "lost": "{keyword}: was position {from}, now not in the top {checked}",
           "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
         },
         "plan": {

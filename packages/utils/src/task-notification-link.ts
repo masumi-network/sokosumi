@@ -7,11 +7,15 @@ export function taskNotificationHref(input: {
 }): string {
   const task = `/tasks/${encodeURIComponent(input.referenceId)}`;
   // Rows created before result hints existed resolve against the current Task.
-  return input.messageKey === "Notifications.Task.completed" &&
-    input.metadata?.seoResult !== false
-    ? `${task}/result`
-    : task;
+  const opensResult =
+    (input.messageKey === "Notifications.Task.completed" &&
+      input.metadata?.seoResult !== false) ||
+    input.messageKey === SEO_MONITOR_WORSE_KEY;
+  return opensResult ? `${task}/result` : task;
 }
+
+/** A scheduled SEO check got worse: the change is shown on the result page. */
+const SEO_MONITOR_WORSE_KEY = "Notifications.Task.seoMonitorWorse";
 
 export function isSeoTaskCompletion(
   key: string | undefined,

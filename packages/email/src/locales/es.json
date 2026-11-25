@@ -152,6 +152,10 @@
               "subject": "Sokosumi - Se canceló {taskName}",
               "body": "Se canceló {taskName}."
             },
+            "seoMonitorWorse": {
+              "subject": "Sokosumi - Los resultados SEO de {site} empeoraron",
+              "body": "La última revisión programada de {site} ({taskName}) es peor que la anterior. Revisiones con fallos nuevos: {newFailures}. Caídas de posición: {drops}."
+            },
             "updated": {
               "subject": "Sokosumi - {taskName} cambió",
               "body": "{taskName} cambió."

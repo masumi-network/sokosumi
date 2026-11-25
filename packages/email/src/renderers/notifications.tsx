@@ -282,16 +282,26 @@ export function renderTaskCompletedEmail({
  */
 export function renderTaskUpdateEmail({
   actionUrl,
+  drops,
   locale,
+  newFailures,
   projectName,
   reason,
   recipientName,
   settingsUrl,
+  site,
   taskName,
 }: TaskUpdateEmailProps): Promise<RenderedEmail> {
   const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.task.update`;
-  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
+  const name = nameOr(t, taskName, "fallbackTaskName");
+  const values = {
+    taskName: name,
+    // Rows written before the site was stored name the task instead.
+    site: site?.trim() || name,
+    newFailures: newFailures ?? 0,
+    drops: drops ?? 0,
+  };
 
   return renderEventEmail({
     lang,
