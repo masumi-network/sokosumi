@@ -279,7 +279,8 @@ Chats:
   stickers, voice transcription and the live reply stream stay in Sokosumi Web.
 
 Soko Bots:
-  sokosumi soko-bots me and soko-bots my-* act on your personal Soko Bot; soko-bots team lists the bots you reach by id.
+  sokosumi soko-bots me and soko-bots my-* act on your personal Soko Bot; soko-bots team lists each member's bot.
+  Other commands take SOKO_BOT_ID: a member's bot from soko-bots team, or a shared bot's id from soko-bots create.
   sokosumi soko-bots ask-mine --input-json '{"clientTurnId":"ID","message":"TEXT"}' starts a turn; read it with soko-bots my-turn TURN_ID.
   ask, ask-mine, schedules, the Lab and turning on proactive work, board-following or stand-up spend credits.
   delete and delete-mine erase a bot for good. Integrations, decisions, API keys, secrets, sandbox and MCP servers stay in Sokosumi Web.

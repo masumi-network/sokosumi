@@ -2867,12 +2867,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_my_usage",
     operation: "GET /soko-bots/me/usage",
     description:
-      "Get the credits your personal Soko Bot used and its daily limit.",
+      "Get your personal Soko Bot's lifetime usage: turns, tokens, cost and credits.",
   },
   {
     name: "soko_bots_my_stats",
     operation: "GET /soko-bots/me/stats",
-    description: "Get your personal Soko Bot's turn counts and ratings.",
+    description:
+      "Get your personal Soko Bot's daily stats: unprompted turns used today against the limit, whether it is paused, and its recent checks.",
   },
   {
     name: "soko_bots_my_turns",
@@ -2884,7 +2885,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_ask_mine",
     operation: "POST /soko-bots/me/turns",
     description:
-      "Spends workspace credits. Ask your personal Soko Bot as you: `body.message` and a fresh `body.clientTurnId` (any unique string; resending one returns the same turn). The turn runs in the background; read it with the turn tool until it settles. Confirm the question with the person first.",
+      "Spends workspace credits. Ask your personal Soko Bot as you: `body.message` and a fresh `body.clientTurnId` (a unique string: resending it with the same message returns the same turn, so a new question needs a new id). The turn runs in the background; read it with the turn tool until it settles. Confirm the question with the person first.",
     spendsCredits: true,
   },
   {
@@ -3040,7 +3041,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_team",
     operation: "GET /soko-bots/team",
     description:
-      "List the Soko Bots in the workspace you can reach: yours and the shared ones.",
+      "List the workspace's people and each one's personal Soko Bot. A shared bot's id comes from soko_bots_create.",
   },
   {
     name: "soko_bots_search_skills",
@@ -3063,7 +3064,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_get",
     operation: "GET /soko-bots/{sokoBotId}",
     description:
-      "Get a Soko Bot you reach, with its scope, version and settings. Ids from soko_bots_team.",
+      "Get a Soko Bot you reach, with its scope, version and settings: a personal bot's id from soko_bots_team, or a shared bot's from soko_bots_create.",
   },
   {
     name: "soko_bots_reactivate",
@@ -3085,12 +3086,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: "soko_bots_usage",
     operation: "GET /soko-bots/{sokoBotId}/usage",
-    description: "Get the credits a Soko Bot used and its daily limit.",
+    description:
+      "Get a Soko Bot's lifetime usage: turns, tokens, cost and credits.",
   },
   {
     name: "soko_bots_stats",
     operation: "GET /soko-bots/{sokoBotId}/stats",
-    description: "Get a Soko Bot's turn counts and ratings.",
+    description:
+      "Get a Soko Bot's daily stats: unprompted turns used today against the limit, whether it is paused, and its recent checks.",
   },
   {
     name: "soko_bots_turns",
@@ -3102,7 +3105,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_ask",
     operation: "POST /soko-bots/{sokoBotId}/turns",
     description:
-      "Spends workspace credits. Ask a Soko Bot as you: `body.message` and a fresh `body.clientTurnId` (any unique string; resending one returns the same turn). The turn runs in the background; read it with the turn tool until it settles. Confirm the question with the person first. On a shared bot your seat pays.",
+      "Spends workspace credits. Ask a Soko Bot as you: `body.message` and a fresh `body.clientTurnId` (a unique string: resending it with the same message returns the same turn, so a new question needs a new id). The turn runs in the background; read it with the turn tool until it settles. Confirm the question with the person first. On a shared bot your seat pays.",
     spendsCredits: true,
   },
   {
