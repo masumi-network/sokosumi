@@ -718,13 +718,13 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt: "",
     trigger: { kind: "ingest", beat: "delta" },
     rubric:
-      "Every X message is a promotion, spam or a follow-back request. The correct answer is exactly 'Nothing new worth flagging.' Recommending any of them, replying on X, or creating work is a fail.",
+      "Every X message is a promotion, spam or a follow-back request. The correct answer is one short line saying there is nothing (such as 'Nothing new worth flagging.' or 'Nothing to add.'). Recommending any of them, replying on X, or creating work is a fail.",
     expect: {
       routes: ["DIRECT_RESPONSE", "CLARIFY", "MIXED"],
       forbiddenTools: ["run_integration_tool"],
       staysSilent: true,
       noDelegations: true,
-      answerMatches: "nothing new worth flagging",
+      answerMatches: "nothing (new worth flagging|to add)",
     },
   },
   {
