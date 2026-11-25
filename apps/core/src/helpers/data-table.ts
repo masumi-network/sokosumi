@@ -735,7 +735,7 @@ async function predecessorOf(
   rowId: string,
 ): Promise<string | null> {
   const [row] = await tx.$queryRaw<Array<{ id: string }>>(PrismaRaw.sql`
-    SELECT p."id"::text FROM ${sharedTable("table_row")} AS p, "table_row" AS r
+    SELECT p."id"::text FROM ${sharedTable("table_row")} AS p, ${sharedTable("table_row")} AS r
     WHERE r."id" = ${rowId}::uuid AND p."tableId" = r."tableId"
       AND p."tableId" = ${tableId}::uuid
       AND (p."position", p."id") < (r."position", r."id")

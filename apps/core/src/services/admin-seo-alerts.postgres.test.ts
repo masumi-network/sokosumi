@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   configureSqlTables,
   netTable,
@@ -14,19 +15,22 @@ const enabled =
 it.skipIf(!enabled)(
   "deduplicates runs, counts only real page exceptions and distinguishes consent, evidence, and unknowns",
   async () => {
+    const schemaPrefix = `seo_alerts_${randomUUID().replaceAll("-", "")}`;
+    const sharedSchema = `${schemaPrefix}_shared`;
+    const mainnetSchema = `${schemaPrefix}_mainnet`;
     onTestFinished(
       configureSqlTables({
-        shared: "seo_alerts_shared",
-        mainnet: "seo_alerts_mainnet",
-        preprod: "seo_alerts_preprod",
+        shared: sharedSchema,
+        mainnet: mainnetSchema,
+        preprod: `${schemaPrefix}_preprod`,
         preprodOn: false,
       }),
     );
     await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`CREATE SCHEMA seo_alerts_shared`;
-      await tx.$executeRaw`CREATE SCHEMA seo_alerts_mainnet`;
+      await tx.$executeRawUnsafe(`CREATE SCHEMA "${sharedSchema}"`);
+      await tx.$executeRawUnsafe(`CREATE SCHEMA "${mainnetSchema}"`);
       // The alerts query still reads taskEvent by its bare name outside the billing CTEs.
-      await tx.$executeRaw`SET LOCAL search_path TO seo_alerts_shared`;
+      await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${sharedSchema}"`);
       await tx.$executeRaw`CREATE TABLE ${sharedTable("taskEvent")} ("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint)`;
       await tx.$executeRaw`CREATE TABLE ${netTable("mainnet", "Transaction")} (id text, amount bigint)`;
       for (const ddl of [
@@ -422,7 +426,9 @@ it.skipIf(!enabled)(
           tx,
         ),
       ).toMatchObject({ total: 8, critical: 2, warning: 5, items: [] });
-      await tx.$executeRaw`DROP SCHEMA seo_alerts_shared, seo_alerts_mainnet CASCADE`;
+      await tx.$executeRawUnsafe(
+        `DROP SCHEMA "${sharedSchema}", "${mainnetSchema}" CASCADE`,
+      );
     });
   },
 );
