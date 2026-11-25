@@ -18300,6 +18300,80 @@ export type AblyTokenRequest = {
     mac: string;
 };
 
+export type RegistryAgent = {
+    /**
+     * Registry entry id. Use it as the pagination cursor.
+     */
+    id: string;
+    agentIdentifier: string;
+    name: string;
+    description: string | null;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    statusUpdatedAt: Date;
+    type: 'Standard' | 'OpenApi' | 'X402';
+    paymentType: 'Web3CardanoV1' | 'Web3CardanoV2' | 'None';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
+    image: string | null;
+    tags: Array<string>;
+    capability: {
+        name: string | null;
+        version: string | null;
+    } | null;
+    author: {
+        name: string | null;
+        organization: string | null;
+        contactEmail: string | null;
+        contactOther: string | null;
+    };
+    legal: {
+        privacyPolicy: string | null;
+        terms: string | null;
+        other: string | null;
+    };
+    pricing: RegistryAgentPricing;
+    uptime: {
+        count: number;
+        checkCount: number;
+        lastCheckedAt: Date;
+    };
+    policyId: string | null;
+    supersedesAgentIdentifier: string | null;
+    supersededByAgentIdentifier: string | null;
+    createdAt: Date;
+};
+
+/**
+ * Null when the registry sends a pricing shape Core does not know.
+ */
+export type RegistryAgentPricing = {
+    pricingType: 'Fixed';
+    amounts: Array<{
+        amount: string;
+        unit: string;
+    }>;
+} | {
+    pricingType: 'Free';
+} | {
+    pricingType: 'Dynamic';
+} | null;
+
+export type RegistryAgentsPaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
 export type VendorList = Array<Vendor>;
 
 export type VendorMembership = Vendor & {
@@ -114458,6 +114532,107 @@ export type PostRealtimeAblyTokenResponses = {
 };
 
 export type PostRealtimeAblyTokenResponse = PostRealtimeAblyTokenResponses[keyof PostRealtimeAblyTokenResponses];
+
+export type ListRegistryAgentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * `nextCursor` from the previous page.
+         */
+        cursor?: string;
+        /**
+         * Number of agents to return (max 48).
+         */
+        limit?: number;
+        /**
+         * Filter by registry status. Supports repeated values and comma-separated lists. Omit to return every status.
+         */
+        status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
+    };
+    url: '/registry/agents';
+};
+
+export type ListRegistryAgentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * API key required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Masumi registry unavailable
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListRegistryAgentsError = ListRegistryAgentsErrors[keyof ListRegistryAgentsErrors];
+
+export type ListRegistryAgentsResponses = {
+    /**
+     * One page of registry agents, newest first
+     */
+    200: {
+        data: Array<RegistryAgent>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: RegistryAgentsPaginationMetadata;
+        };
+    };
+};
+
+export type ListRegistryAgentsResponse = ListRegistryAgentsResponses[keyof ListRegistryAgentsResponses];
 
 export type ListVendorsData = {
     body?: never;
