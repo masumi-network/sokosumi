@@ -1,11 +1,13 @@
 import {
   getFundraising,
   getFundraisingAccess,
+  getFundraisingProspectsByContactIdPaths,
   getFundraisingSuggestions,
   type PatchFundraisingProspectsByContactIdData,
   type PostFundraisingFindData,
   patchFundraisingProspectsByContactId,
   postFundraisingFind,
+  postFundraisingProspectsByContactIdResearch,
   postFundraisingSuggestionsAdd,
   postFundraisingSuggestionsDismiss,
 } from "@sokosumi/core-client";
@@ -43,6 +45,23 @@ export const fundraisingService = {
   async dismissSuggestions(ids: string[]) {
     return (
       await postFundraisingSuggestionsDismiss({ ...options(), body: { ids } })
+    ).data.data;
+  },
+  async paths(contactId: string) {
+    return (
+      await getFundraisingProspectsByContactIdPaths({
+        ...options(),
+        path: { contactId },
+      })
+    ).data.data;
+  },
+  /** One Exa run for the investor's portfolio; answers with the new paths. */
+  async researchPortfolio(contactId: string) {
+    return (
+      await postFundraisingProspectsByContactIdResearch({
+        ...options(),
+        path: { contactId },
+      })
     ).data.data;
   },
   async updateProspect(contactId: string, body: FundraisingProspectPatch) {

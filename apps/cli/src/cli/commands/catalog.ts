@@ -905,6 +905,34 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PATCH /notifications/read-all",
     noBody: true,
   },
+  // SOKD-385: Image Studio generations spend credits; the body's
+  // idempotencyKey makes a retry return the first job.
+  {
+    command: "projects image-studio-generate",
+    usage: `PROJECT_ID --input-json '{"prompt":"...","idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/jobs",
+  },
+  {
+    command: "projects image-studio-video",
+    usage: `PROJECT_ID --input-json '{"prompt":"...","idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/video-jobs",
+  },
+  {
+    command: "projects image-studio-short-video",
+    usage: `PROJECT_ID --input-json '{"format":"voiceover","script":"...","idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/short-video-jobs",
+  },
+  {
+    command: "projects image-studio-talking-video",
+    usage: `PROJECT_ID --input-json '{"script":"...","presenter":{...},"idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/talking-video-jobs",
+  },
+  {
+    command: "projects image-studio-cancel",
+    usage: "PROJECT_ID JOB_ID",
+    operation: "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
+    noBody: true,
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

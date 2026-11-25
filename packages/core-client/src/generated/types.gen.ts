@@ -6420,6 +6420,54 @@ export type FundraisingSuggestionIds = {
     ids: Array<string>;
 };
 
+export type FundraisingPaths = {
+    portfolio: Array<FundraisingPortfolioCompany>;
+    researchedAt: Date | null;
+    researchUsd: number;
+    paths: Array<FundraisingPath>;
+    research: FundraisingResearch;
+};
+
+export type FundraisingPortfolioCompany = {
+    id: string;
+    name: string;
+    website: string | null;
+    round: string | null;
+    date: string | null;
+    amountUsd: number | null;
+    sourceUrl: string;
+    fetchedAt: Date;
+};
+
+export type FundraisingPath = {
+    kind: FundraisingPathKind;
+    via: ContactPerson | null;
+    through: {
+        id: string;
+        name: string;
+        role: string | null;
+        organization: string | null;
+        avatarUrl: string | null;
+        email: string | null;
+    } | null;
+    company: {
+        name: string;
+        round: string | null;
+        date: string | null;
+    } | null;
+    strength: number;
+    touches: number;
+    lastTouchAt: Date | null;
+};
+
+export const FundraisingPathKind = {
+    DIRECT: 'direct',
+    FUND: 'fund',
+    PORTFOLIO: 'portfolio'
+} as const;
+
+export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
+
 export type HistoryList = Array<HistoryItem>;
 
 export type HistoryItem = ({
@@ -52488,6 +52536,244 @@ export type PostFundraisingSuggestionsDismissResponses = {
 };
 
 export type PostFundraisingSuggestionsDismissResponse = PostFundraisingSuggestionsDismissResponses[keyof PostFundraisingSuggestionsDismissResponses];
+
+export type GetFundraisingProspectsByContactIdPathsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/paths';
+};
+
+export type GetFundraisingProspectsByContactIdPathsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on the Investors list
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingProspectsByContactIdPathsError = GetFundraisingProspectsByContactIdPathsErrors[keyof GetFundraisingProspectsByContactIdPathsErrors];
+
+export type GetFundraisingProspectsByContactIdPathsResponses = {
+    /**
+     * Paths
+     */
+    200: {
+        data: FundraisingPaths;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingProspectsByContactIdPathsResponse = GetFundraisingProspectsByContactIdPathsResponses[keyof GetFundraisingProspectsByContactIdPathsResponses];
+
+export type PostFundraisingProspectsByContactIdResearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/research';
+};
+
+export type PostFundraisingProspectsByContactIdResearchErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on the Investors list
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No fund on the contact, Exa missing, or the cap is reached
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Exa did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdResearchError = PostFundraisingProspectsByContactIdResearchErrors[keyof PostFundraisingProspectsByContactIdResearchErrors];
+
+export type PostFundraisingProspectsByContactIdResearchResponses = {
+    /**
+     * Paths
+     */
+    200: {
+        data: FundraisingPaths;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdResearchResponse = PostFundraisingProspectsByContactIdResearchResponses[keyof PostFundraisingProspectsByContactIdResearchResponses];
 
 export type GetHistoryData = {
     body?: never;

@@ -82,6 +82,7 @@ export type SharedTableName =
   | "file_resource"
   | "file_result_window"
   | "file_version"
+  | "fundraising_portfolio_company"
   | "fundraising_prospect"
   | "geocoded_place"
   | "hermesMessage"

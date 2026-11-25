@@ -126,6 +126,19 @@ const TASK_ARGS = (command: string, ...rest: string[]) => [
   ...rest,
   "--json",
 ];
+/** A Studio start always carries the caller's idempotencyKey. */
+const studioStart = (command: string, body: Record<string, unknown>) => ({
+  argv: [
+    ...API,
+    "projects",
+    command,
+    "project-1",
+    "--organization-slug",
+    "acme",
+    "--input-json",
+    JSON.stringify({ ...body, idempotencyKey: "intent-0001" }),
+  ],
+});
 const AGENTS_HIRE = {
   argv: [...API, "agents", "hire", "agent-1", "--input-json", "{}", "--json"],
 };
@@ -1091,5 +1104,27 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "PATCH /notifications/read-all": {
     argv: [...API, "notifications", "read-all"],
+  },
+  // SOKD-385: Image Studio generations and cancel.
+  "POST /projects/{id}/image-studio/jobs": studioStart(
+    "image-studio-generate",
+    {
+      prompt: "A red vase",
+    },
+  ),
+  "POST /projects/{id}/image-studio/video-jobs": studioStart(
+    "image-studio-video",
+    { prompt: "A red vase turning" },
+  ),
+  "POST /projects/{id}/image-studio/short-video-jobs": studioStart(
+    "image-studio-short-video",
+    { format: "voiceover", script: "Meet the vase." },
+  ),
+  "POST /projects/{id}/image-studio/talking-video-jobs": studioStart(
+    "image-studio-talking-video",
+    { script: "Meet the vase.", presenter: { kind: "stock", id: "ada" } },
+  ),
+  "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
+    argv: [...API, "projects", "image-studio-cancel", "project-1", "job-1"],
   },
 };

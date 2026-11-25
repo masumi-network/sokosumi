@@ -138,6 +138,7 @@ model Contact {
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
   fundraising           FundraisingProspect?
+  portfolioOf           FundraisingPortfolioCompany[]
 
   notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
   notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
