@@ -589,10 +589,12 @@ async function TaskDetailActionsSlot({
               name: task.name,
               tags: task.tags,
               workspaceTags: task.workspaceTags,
-              // The SEO request line holds the approved price terms: a repeat starts from the reader's text only.
+              // A full audit's request line holds its approved price terms, which no reader sees. A focused
+              // check's line carries no price and lets the repeated Task start, so it stays.
               description: task.description
                 ? removeSeoTaskRequest(
                     removeTaskContextAttachmentLinks(task.description),
+                    ["seo_audit"],
                   )
                 : null,
               projectId: task.projectId,

@@ -313,6 +313,14 @@ describe("TaskDetailView (rights follow the Owner)", () => {
     expect(actions.taskBlueprint.description).toBe("Full audit of example.com");
   });
 
+  it("keeps a focused check's request line in its repeat, so the repeated Task can start", async () => {
+    const description =
+      'Page check of example.com\n\nseo_job: {"kind":"page_check"}';
+    const { actions } = await renderFor(createTask([], { description }));
+
+    expect(actions.taskBlueprint.description).toBe(description);
+  });
+
   it("gives another member of the organization workspace no 'mine' controls but still lets them comment and cancel", async () => {
     const { actions, activity } = await renderFor(createTask([]));
 

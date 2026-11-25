@@ -34,8 +34,9 @@ export function seoTaskRequestPacket(
   return JSON.parse(lines[0].replace(prefix, ""));
 }
 
-const isRequestLine = (line: string) => {
-  if (!REQUEST_LINE.test(line)) return false;
+const isRequestLine = (line: string, markers: readonly SeoTaskMarker[]) => {
+  const marker = /^\s*(seo_(?:audit|job))\s*:/i.exec(line)?.[1].toLowerCase();
+  if (!markers.some((wanted) => wanted === marker)) return false;
   try {
     const value: unknown = JSON.parse(line.replace(REQUEST_LINE, ""));
     return typeof value === "object" && value !== null;
@@ -49,10 +50,13 @@ const isRequestLine = (line: string) => {
  * marker with a JSON object counts: prose such as "SEO_job: fix titles" in
  * an ordinary Task stays visible.
  */
-export function removeSeoTaskRequest(markdown: string): string {
+export function removeSeoTaskRequest(
+  markdown: string,
+  markers: readonly SeoTaskMarker[] = ["seo_audit", "seo_job"],
+): string {
   return markdown
     .split(LINE_BREAK)
-    .filter((line) => !isRequestLine(line))
+    .filter((line) => !isRequestLine(line, markers))
     .join("\n")
     .trim();
 }
