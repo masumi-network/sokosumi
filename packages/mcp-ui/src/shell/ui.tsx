@@ -9,7 +9,7 @@ export function PrimaryButton({
   return (
     <button
       type="button"
-      className={`bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:outline-ring inline-flex min-h-11 w-full items-center justify-center rounded-md px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed sm:w-auto ${className}`}
+      className={`bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:outline-ring inline-flex min-h-11 w-full items-center justify-center rounded-md px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${className}`}
       {...props}
     />
   );

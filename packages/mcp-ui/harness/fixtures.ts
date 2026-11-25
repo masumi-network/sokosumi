@@ -3,13 +3,27 @@ import type {
   McpUiToolResultNotification,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
 
+type ToolResult = McpUiToolResultNotification["params"];
+
 export interface Fixture {
   /** Merged into the harness's host context, such as `displayMode`. */
   host?: McpUiHostContext;
   input?: Record<string, unknown>;
   /** Left out, the view stays in its loading state. */
-  result?: McpUiToolResultNotification["params"];
+  result?: ToolResult;
   cancelled?: boolean;
+  /**
+   * What the host answers a view's `tools/call`, by tool name: a result,
+   * `"pending"` (never answers) or `"fail"` (rejects). A tool not named
+   * gets `result`. `false` hides `serverTools` from the view.
+   */
+  calls?: Record<string, ToolResult | "pending" | "fail"> | false;
+  /** Steps the screenshot script plays in the view before the shot. */
+  play?: ({ fill: string; value: string } | { click: string })[];
+  /** The view's `data-step` once `play` is done; the shot waits for it. */
+  step?: string;
+  /** Shot at 320, 402 and 768px, like `default`. */
+  allWidths?: boolean;
 }
 
 const sokosumi = { sokosumi: { webBaseUrl: "https://app.sokosumi.com" } };
@@ -134,6 +148,84 @@ export const BOARD = {
   empty: boardResult([], 0),
 };
 
+const data = (value: unknown, extra: Partial<ToolResult> = {}) => ({
+  content: [{ type: "text" as const, text: JSON.stringify({ data: value }) }],
+  structuredContent: { data: value },
+  ...extra,
+});
+
+/**
+ * `agents_show_hire` results (`agents_input_schema`'s, with Core's `_meta`)
+ * and what the view's calls return: the agent and its price, the balance,
+ * and the hired Job.
+ */
+export const HIRE = {
+  input: { id: "cm_agent_analyst", workspace: "acme" },
+  schema: {
+    input_data: [
+      {
+        id: "topic",
+        type: "string",
+        name: "Topic",
+        data: {
+          placeholder: "Pricing in the DACH market",
+          description: "What the analyst researches.",
+        },
+        validations: [{ validation: "min", value: 3 }],
+      },
+      {
+        id: "depth",
+        type: "radio",
+        name: "Depth",
+        data: { values: ["Overview", "Deep dive"], default: "Overview" },
+      },
+      {
+        id: "competitors",
+        type: "number",
+        name: "Competitors to compare",
+        data: { default: 3 },
+        validations: [
+          { validation: "min", value: 1 },
+          { validation: "max", value: 10 },
+          { validation: "format", value: "integer" },
+        ],
+      },
+      {
+        id: "notes",
+        type: "textarea",
+        name: "Notes",
+        validations: [{ validation: "optional", value: "true" }],
+      },
+      {
+        id: "brief",
+        type: "file",
+        name: "Brief",
+        data: { outputFormat: "url" },
+        validations: [{ validation: "optional", value: "true" }],
+      },
+    ],
+  },
+  agent: {
+    id: "cm_agent_analyst",
+    name: "Market Analyst",
+    credits: 12.5,
+  },
+  balance: { scope: "organization", spendable: 70 },
+  job: {
+    id: "cm_job_7f3k2",
+    agentId: "cm_agent_analyst",
+    status: "processing",
+  },
+};
+
+const hireSchema = data(HIRE.schema, { _meta: sokosumi });
+const hireCalls = {
+  agents_get: data(HIRE.agent),
+  workspaces_credits: data(HIRE.balance),
+  agents_hire: data(HIRE.job),
+};
+const fillTopic = { fill: "Topic", value: "Pricing in the DACH market" };
+
 /** Tool results the harness feeds each view, by view id, then by fixture name. */
 export const FIXTURES: Record<string, Record<string, Fixture>> = {
   hello: {
@@ -178,6 +270,67 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       input: BOARD.input,
       result: {
         content: [{ type: "text", text: "Workspace not found" }],
+        isError: true,
+      },
+    },
+  },
+  "agents-hire": {
+    default: { input: HIRE.input, result: hireSchema, calls: hireCalls },
+    invalid: {
+      step: "form",
+      input: HIRE.input,
+      result: hireSchema,
+      calls: hireCalls,
+      play: [{ click: "Review" }],
+      allWidths: true,
+    },
+    confirm: {
+      step: "confirm",
+      input: HIRE.input,
+      result: hireSchema,
+      calls: hireCalls,
+      play: [fillTopic, { click: "Review" }],
+      allWidths: true,
+    },
+    submitting: {
+      step: "hiring",
+      input: HIRE.input,
+      result: hireSchema,
+      calls: { ...hireCalls, agents_hire: "pending" },
+      play: [fillTopic, { click: "Review" }, { click: "Hire" }],
+      allWidths: true,
+    },
+    success: {
+      step: "hired",
+      input: HIRE.input,
+      result: hireSchema,
+      calls: hireCalls,
+      play: [fillTopic, { click: "Review" }, { click: "Hire" }],
+      allWidths: true,
+    },
+    failed: {
+      step: "refused",
+      input: HIRE.input,
+      result: hireSchema,
+      calls: {
+        ...hireCalls,
+        agents_hire: data(null, {
+          structuredContent: {
+            status: 400,
+            message: "Credit cost exceeds maximum accepted credits",
+          },
+          isError: true,
+        }),
+      },
+      play: [fillTopic, { click: "Review" }, { click: "Hire" }],
+      allWidths: true,
+    },
+    fallback: { input: HIRE.input, result: hireSchema, calls: false },
+    loading: { input: HIRE.input },
+    error: {
+      input: HIRE.input,
+      result: {
+        content: [{ type: "text", text: "Agent not found" }],
         isError: true,
       },
     },
