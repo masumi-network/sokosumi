@@ -212,6 +212,30 @@ describe("ImageViewer", () => {
     await waitFor(() => expect(printSpy).toHaveBeenCalled());
   });
 
+  it("removes the print iframe and cancels its cleanup timer on unmount", async () => {
+    const printSpy = vi.fn();
+    const { unmount } = render(
+      <ImageViewer
+        images={[PHOTO]}
+        activeSrc={PHOTO.src}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+
+    const iframe = document.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+    Object.defineProperty(iframe!.contentWindow, "print", {
+      value: printSpy,
+      writable: true,
+    });
+    await waitFor(() => expect(printSpy).toHaveBeenCalled());
+
+    unmount();
+    expect(document.querySelector("iframe")).toBeNull();
+  });
+
   describe("gallery", () => {
     it("shows the active image of the list and its position", () => {
       render(

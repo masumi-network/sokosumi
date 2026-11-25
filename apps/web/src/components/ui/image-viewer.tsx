@@ -34,6 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import { cn } from "@/lib/utils";
 
 export interface ImageViewerImage {
@@ -78,7 +79,7 @@ function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
 }
 
-function printImage(src: string, alt: string): void {
+function printImage(src: string, alt: string, signal?: AbortSignal): void {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
@@ -111,16 +112,38 @@ function printImage(src: string, alt: string): void {
   image.alt = alt;
   doc.body.appendChild(image);
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cleaned = false;
+
   function cleanup(): void {
+    if (cleaned) return;
+    cleaned = true;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    signal?.removeEventListener("abort", cleanup);
+    iframe.onload = null;
     iframe.remove();
   }
 
+  if (signal?.aborted) {
+    cleanup();
+    return;
+  }
+  signal?.addEventListener("abort", cleanup, { once: true });
+
   iframe.onload = () => {
+    if (cleaned) return;
+    const contentWindow = iframe.contentWindow;
+    contentWindow?.addEventListener("afterprint", cleanup, { once: true });
     try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+      contentWindow?.focus();
+      contentWindow?.print();
     } finally {
-      window.setTimeout(cleanup, 500);
+      if (!cleaned) {
+        timer = setTimeout(cleanup, 500);
+      }
     }
   };
 }
@@ -165,6 +188,7 @@ function ImageViewerChrome({
   const t = useTranslations("Components.ImageViewer");
   const [{ zoom }, setUiState] = useState<ViewerUiState>({ zoom: 1 });
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const printAbort = useAbortController();
   const displayName = downloadFilename ?? alt;
 
   function setZoom(nextZoom: number): void {
@@ -218,7 +242,7 @@ function ImageViewerChrome({
   }
 
   function handlePrint(): void {
-    printImage(src, alt);
+    printImage(src, alt, printAbort.start().signal);
   }
 
   function handleOpenInNewTab(): void {

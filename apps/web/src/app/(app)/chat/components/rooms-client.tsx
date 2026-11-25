@@ -1802,7 +1802,7 @@ function RoomView({
     });
 
   const refreshFocusedRoomMessages = useCallback(
-    async (isCurrent: () => boolean) => {
+    async (isCurrent: () => boolean, signal?: AbortSignal) => {
       const roomId = selectedRoomIdRef.current;
       if (!roomId) {
         return;
@@ -1821,9 +1821,9 @@ function RoomView({
       const [result, threadResult] = await Promise.all([
         retained
           ? retained.refresh(isCurrent, noteUnreadDivider).then(() => null)
-          : fetchRoomMessages(roomId),
+          : fetchRoomMessages(roomId, null, { signal }),
         threadParentId
-          ? fetchRoomMessages(roomId, threadParentId)
+          ? fetchRoomMessages(roomId, threadParentId, { signal })
           : Promise.resolve(null),
       ]);
       if (!isCurrent() || selectedRoomIdRef.current !== roomId) {

@@ -2,7 +2,10 @@ import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { raceWithTimeout } from "@/lib/utils/race-with-timeout";
 
 const CLASSIC_OUTBOUND_SEND_TIMEOUT_MS = 30_000;
-const activeRuns = new WeakMap<ClassicOutboundQueueRefs, symbol>();
+const activeRuns = new WeakMap<
+  ClassicOutboundQueueRefs,
+  { run: symbol; controller: AbortController }
+>();
 
 /** Framework-neutral mutable box (React refs satisfy this shape). */
 export interface MutableContainer<T> {
@@ -49,7 +52,8 @@ export async function drainClassicOutboundQueue(params: {
   }
   refs.runningRef.current = true;
   const run = Symbol();
-  activeRuns.set(refs, run);
+  const controller = new AbortController();
+  activeRuns.set(refs, { run, controller });
   try {
     while (refs.queueRef.current.length > 0) {
       const clientMessageId = refs.queueRef.current[0];
@@ -69,8 +73,9 @@ export async function drainClassicOutboundQueue(params: {
         const result = await raceWithTimeout(
           send(job),
           CLASSIC_OUTBOUND_SEND_TIMEOUT_MS,
+          controller.signal,
         );
-        if (activeRuns.get(refs) !== run) return;
+        if (activeRuns.get(refs)?.run !== run) return;
         if (!result.ok) {
           onFailure(job, result.error.message);
           continue;
@@ -78,13 +83,13 @@ export async function drainClassicOutboundQueue(params: {
         refs.jobsRef.current.delete(clientMessageId);
         onSuccess(job, result.value);
       } catch {
-        if (activeRuns.get(refs) !== run) return;
+        if (activeRuns.get(refs)?.run !== run) return;
         onFailure(job, unknownFailureMessage);
       }
     }
   } finally {
     // A room change can start another run before this old request settles.
-    if (activeRuns.get(refs) === run) {
+    if (activeRuns.get(refs)?.run === run) {
       activeRuns.delete(refs);
       refs.runningRef.current = false;
       if (refs.queueRef.current.length > 0) {
@@ -109,6 +114,7 @@ export function enqueueClassicOutboundJob(
 export function clearClassicOutboundQueue(
   refs: ClassicOutboundQueueRefs,
 ): void {
+  activeRuns.get(refs)?.controller.abort();
   activeRuns.delete(refs);
   refs.runningRef.current = false;
   refs.queueRef.current = [];

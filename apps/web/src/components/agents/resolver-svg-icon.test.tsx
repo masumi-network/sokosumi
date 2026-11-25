@@ -177,23 +177,31 @@ describe("ResolverSVGIcon", () => {
   });
 
   it("should handle fetch timeout gracefully", async () => {
-    mockFetch.mockImplementationOnce(() => {
-      return new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("AbortError")), 100);
-      });
-    });
+    vi.useFakeTimers();
+    try {
+      mockFetch.mockImplementationOnce(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise((_, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Aborted", "AbortError")),
+              { once: true },
+            );
+          }),
+      );
 
-    const { container } = render(
-      <ResolverSVGIcon svgUrl="https://example.com/icon.svg" />,
-    );
+      const { container } = render(
+        <ResolverSVGIcon svgUrl="https://example.com/icon.svg" />,
+      );
 
-    await waitFor(
-      () => {
-        const image = container.querySelector('[data-testid="fallback-image"]');
-        expect(image).toBeInTheDocument();
-      },
-      { timeout: 6000 },
-    );
+      await vi.advanceTimersByTimeAsync(5000);
+
+      const image = container.querySelector('[data-testid="fallback-image"]');
+      expect(image).toBeInTheDocument();
+      expect(container.querySelector("svg")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // Test case 7: Fallback behavior - should fallback to Image component

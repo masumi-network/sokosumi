@@ -243,4 +243,28 @@ describe("drainClassicOutboundQueue", () => {
     expect(refs.jobsRef.current.has("a")).toBe(true);
     expect(refs.queueRef.current).toEqual([]);
   });
+
+  it("cancels the in-flight send timeout when the queue is cleared", async () => {
+    vi.useFakeTimers();
+    const refs = makeRefs();
+    const stalled = Promise.withResolvers<{
+      ok: true;
+      value: ChatRoomMessage;
+    }>();
+    enqueueClassicOutboundJob(refs, job("a"), () => undefined);
+    const drain = drainClassicOutboundQueue({
+      refs,
+      send: () => stalled.promise,
+      onFailure: vi.fn(),
+      onSuccess: vi.fn(),
+      unknownFailureMessage: "Failed",
+    });
+
+    expect(vi.getTimerCount()).toBe(1);
+    clearClassicOutboundQueue(refs);
+    expect(vi.getTimerCount()).toBe(0);
+
+    stalled.resolve({ ok: true, value: message("late") });
+    await drain;
+  });
 });

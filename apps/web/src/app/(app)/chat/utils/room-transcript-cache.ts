@@ -96,11 +96,15 @@ function normalizeTopLevelTranscript(
 export class RoomTranscriptCache {
   readonly prefix: ReturnType<typeof chatQueryKeys.transcripts>;
   private valid = true;
+  private controller = new AbortController();
   private readonly revoked = new Set<string>();
   /** Whether the cache was cleared before, so what read it needs a repaint. */
   activate() {
     const cleared = !this.valid;
     this.valid = true;
+    if (this.controller.signal.aborted) {
+      this.controller = new AbortController();
+    }
     return cleared;
   }
   available(roomId: string) {
@@ -407,6 +411,7 @@ export class RoomTranscriptCache {
   }
   clear() {
     this.valid = false;
+    this.controller.abort();
     this.reads.clear();
     this.prefetched.clear();
     this.prefetchedUnread.clear();
@@ -450,14 +455,19 @@ export class RoomTranscriptCache {
   ) {
     if (chatReadThrottleResumeInMs() > 0) return Promise.resolve(null);
     const lifetime = this.get(roomId)?.lifetime;
-    return fetchRoomMessages(roomId, null, options, (status) => {
-      if (!lifetime || !this.current(roomId, lifetime)) return;
-      if (status === 401) {
-        window.dispatchEvent(new Event("chat-session-ended"));
-      } else {
-        notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
-      }
-    });
+    return fetchRoomMessages(
+      roomId,
+      null,
+      { ...options, signal: this.controller.signal },
+      (status) => {
+        if (!lifetime || !this.current(roomId, lifetime)) return;
+        if (status === 401) {
+          window.dispatchEvent(new Event("chat-session-ended"));
+        } else {
+          notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
+        }
+      },
+    );
   }
 
   /**
