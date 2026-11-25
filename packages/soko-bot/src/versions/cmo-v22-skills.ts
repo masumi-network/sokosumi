@@ -47,7 +47,7 @@ const PILLAR_TO =
 const VIDEO_FROM =
   "a play promises video only where a video in the calendar goes out (its channel or alsoOn), and the strategy review compares them.";
 const VIDEO_TO =
-  "the month Core writes always holds the short videos (TikToks, Reels and YouTube Shorts, every day) and talking videos (one short video in four, one a week also on LinkedIn and Facebook), so a play may promise them on those networks.";
+  "the month Core writes always holds the short videos (TikToks, Reels and YouTube Shorts, every day) and talking videos (one short video in four, each also a Facebook Reel in place of a Facebook post, one a week also on LinkedIn), so a play may promise them on those networks.";
 
 const STAGE_FROM =
   "Give each calendar entry the funnel step it serves in stage: awareness, interest, desire or action. Spread each network's pieces across the steps; the share of the month at each step is what the owner sees in the funnel, so plan it on purpose (most pieces help people find out and look, fewer ask for the offer). The strategy review refuses an entry without a stage and a network whose pieces all serve one step.";

@@ -88,7 +88,7 @@ const asEntries = (slots: CmoMonthSlot[]): CmoCalendarEntry[] =>
 
 describe("cmoPlanMonthSlots", () => {
   it.each(CMO_VOLUME_LEVELS)(
-    "plans at least the %s plan's floor on every network, LinkedIn and Facebook one talking video a week on top",
+    "plans at least the %s plan's floor on every network, LinkedIn one talking video a week on top, Facebook at its pace",
     (level) => {
       const slots = slotsAt(level);
       const floor = cmoMonthFloor(EVERY_NETWORK, level);
@@ -97,8 +97,8 @@ describe("cmoPlanMonthSlots", () => {
           cmoSlotNetworks(slot).includes(network),
         ).length;
         expect(reach, network).toBeGreaterThanOrEqual(posts);
-        if (network === "linkedin" || network === "facebook")
-          expect(reach, network).toBe(posts + 4);
+        if (network === "linkedin") expect(reach, network).toBe(posts + 4);
+        if (network === "facebook") expect(reach, network).toBe(posts);
       }
     },
   );
@@ -226,24 +226,59 @@ describe("cmoPlanMonthSlots", () => {
     }
   });
 
-  it("sends one talking video a week out on every network that takes one, the rest on the short-video networks", () => {
+  it("sends one talking video a week out on LinkedIn, every one on Facebook, the rest on the short-video networks", () => {
     const talking = slotsAt("all_in").filter((slot) =>
       isCmoTalkingFormat(slot.channel, slot.format),
     );
     const week = (slot: CmoMonthSlot) =>
       Math.floor((Date.parse(slot.date) - Date.parse(START)) / 86_400_000 / 7);
-    const everywhere = talking.filter((slot) =>
+    const onLinkedIn = talking.filter((slot) =>
       slot.alsoOn?.includes("linkedin"),
     );
-    expect(everywhere.map(week).toSorted()).toEqual([0, 1, 2, 3]);
-    for (const slot of everywhere)
+    expect(onLinkedIn.map(week).toSorted()).toEqual([0, 1, 2, 3]);
+    for (const slot of talking)
       expect(new Set(cmoSlotNetworks(slot))).toEqual(
-        new Set(["linkedin", "instagram", "facebook", "tiktok", "youtube"]),
+        new Set([
+          ...(onLinkedIn.includes(slot) ? ["linkedin"] : []),
+          "instagram",
+          "facebook",
+          "tiktok",
+          "youtube",
+        ]),
       );
-    for (const slot of talking.filter((slot) => !everywhere.includes(slot)))
-      expect(new Set(cmoSlotNetworks(slot))).toEqual(
-        new Set(["instagram", "tiktok", "youtube"]),
+  });
+
+  it("gives up Facebook's link posts and Reels before its pictures for talking videos", () => {
+    for (const level of CMO_VOLUME_LEVELS) {
+      const before = cmoPlanMonthSlots({
+        plan: plan({
+          channels: EVERY_NETWORK.filter(
+            (channel) =>
+              !["tiktok", "youtube", "instagram", "linkedin"].includes(
+                channel.channel,
+              ),
+          ),
+        }),
+        level,
+        start: START,
+      }).filter((slot) => slot.channel === "facebook");
+      const after = slotsAt(level).filter(
+        (slot) => slot.channel === "facebook",
       );
+      const gone = (format: string) =>
+        before.filter((slot) => slot.format === format).length -
+        after.filter((slot) => slot.format === format).length;
+      if (gone("image") > 0) {
+        expect(
+          after.filter((slot) => slot.format === "link"),
+          level,
+        ).toEqual([]);
+        expect(
+          after.filter((slot) => slot.format === "reel"),
+          level,
+        ).toEqual([]);
+      }
+    }
   });
 
   it("turns one LinkedIn post in three into a talking video when the month has no short videos", () => {
@@ -336,13 +371,20 @@ describe("cmoPlanMonthSlots", () => {
       level: "active",
       start: START,
     });
-    expect(rest).toHaveLength(written.length - short.length);
-    expect(
-      new Set([
-        ...short.map((entry) => entry.id),
-        ...rest.map((slot) => slot.id),
-      ]).size,
-    ).toBe(written.length);
+    // A talking video's Facebook Reel that went missing comes back as a
+    // Facebook post of its own: every network reaches what it did.
+    const reach = (
+      entries: Pick<CmoMonthSlot, "channel" | "format" | "alsoOn">[],
+    ) => {
+      const counts = new Map<string, number>();
+      for (const entry of entries)
+        for (const network of cmoSlotNetworks(entry))
+          counts.set(network, (counts.get(network) ?? 0) + 1);
+      return counts;
+    };
+    expect(reach([...short, ...rest])).toEqual(reach(first));
+    const ids = [...short, ...rest].map((entry) => entry.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("adds the bigger plan's posts on an upgrade, keeping the month", () => {

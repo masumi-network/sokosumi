@@ -243,9 +243,13 @@ export function cmoMonthPositions(input: {
   const held = (network: string, from: number, days: number) =>
     live.filter((entry) => {
       const day = dayIndex(start, entry.date);
-      return (
-        bucketNetwork(entry) === network && day >= from && day < from + days
-      );
+      // A talking video's Reel on Facebook stands in for a Facebook post.
+      const counts =
+        bucketNetwork(entry) === network ||
+        (network === "facebook" &&
+          isCmoTalkingFormat(entry.channel.toLowerCase(), entry.format) &&
+          Boolean(entry.alsoOn?.includes("facebook")));
+      return counts && day >= from && day < from + days;
     }).length;
   const positions: Position[] = [];
   const turn = new Map<string, number>();
@@ -348,9 +352,9 @@ export function cmoTalkingVideoCount(input: {
 /**
  * Turns short videos (or, without them, lead-network posts) into talking
  * videos, spread evenly over the month, each on its slot's own network so
- * it counts where the slot did. One a week also goes out on every other
- * network that takes one; the rest stay on the short-video networks, so
- * LinkedIn and Facebook keep their pace.
+ * it counts where the slot did. One a week also goes out on LinkedIn,
+ * which stays slow; every one goes out on Facebook in place of one of its
+ * own posts; the rest stay on the short-video networks.
  */
 function withTalkingVideos(
   positions: Position[],
@@ -413,7 +417,7 @@ function withTalkingVideos(
     if (everywhere) widelyShared.add(week);
     const channel = position.channel.toLowerCase();
     const networks = everywhere
-      ? takes
+      ? takes.filter((key) => key !== "facebook")
       : cmoSlotNetworks(position).filter((key) => takes.includes(key));
     const alsoOn = networks.filter((key) => key !== channel);
     const { alsoOn: _, ...rest } = position;
@@ -424,7 +428,58 @@ function withTalkingVideos(
       ...(alsoOn.length > 0 ? { alsoOn } : {}),
     };
   }
-  return positions;
+  return takes.includes("facebook")
+    ? onFacebookToo(positions, input.start)
+    : positions;
+}
+
+/** Facebook's own formats, the first given up for a talking video's Reel. */
+const FACEBOOK_GIVES_UP = ["link", "reel", "post"];
+
+/**
+ * Sends every talking video out on Facebook as a Reel too, in place of one
+ * of Facebook's own posts that week, so Facebook keeps its pace: a link
+ * post or its weekly Reel first, a picture post only when none is left. A
+ * week with no Facebook post left keeps its talking videos off Facebook.
+ */
+function onFacebookToo(positions: Position[], start: string): Position[] {
+  const weekOf = (date: string) => Math.floor(dayIndex(start, date) / 7);
+  const given = new Set<number>();
+  const order = (format: string) => {
+    const rank = FACEBOOK_GIVES_UP.indexOf(format);
+    return rank < 0 ? FACEBOOK_GIVES_UP.length : rank;
+  };
+  for (const [index, position] of positions.entries()) {
+    if (
+      position.format !== "talking_video" ||
+      position.channel === "facebook" ||
+      position.alsoOn?.includes("facebook")
+    )
+      continue;
+    const week = weekOf(position.date);
+    const own = positions
+      .map((other, at) => ({ other, at }))
+      .filter(
+        ({ other, at }) =>
+          !given.has(at) &&
+          other.channel === "facebook" &&
+          other.format !== "talking_video" &&
+          weekOf(other.date) === week,
+      )
+      .sort(
+        (a, b) =>
+          order(a.other.format) - order(b.other.format) ||
+          Math.abs(dayIndex(position.date, a.other.date)) -
+            Math.abs(dayIndex(position.date, b.other.date)),
+      )[0];
+    if (!own) continue;
+    given.add(own.at);
+    positions[index] = {
+      ...position,
+      alsoOn: [...(position.alsoOn ?? []), "facebook"],
+    };
+  }
+  return positions.filter((_, at) => !given.has(at));
 }
 
 /** A Core-written entry's id: its network, day and place in the day. */
