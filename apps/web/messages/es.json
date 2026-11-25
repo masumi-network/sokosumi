@@ -7851,7 +7851,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Conexiones que requieren reconexión: {count}",
-        "summary": "Últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
+        "summary": "Abiertas o de los últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
         "unavailable": "Los recuentos de alertas no están disponibles.",
         "title": "Alertas de auditorías SEO",
         "description": "Última ejecución finalizada o atrasada de cada auditoría. La alerta se activa cuando falla al menos el {percent}% de las páginas que se intentaron analizar.",

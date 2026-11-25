@@ -7887,7 +7887,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Connections to reconnect: {count}",
-        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "summary": "Open or from the last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
         "unavailable": "Alert counts are unavailable.",
         "title": "SEO audit alerts",
         "description": "The latest finished or overdue run for each audit. Page failure warnings start at {percent}% of attempted pages.",
