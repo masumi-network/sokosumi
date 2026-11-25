@@ -34,6 +34,10 @@ import {
   sendRoomMessageToSelfAction,
   setMessageReactionAction,
 } from "@/app/chat/actions";
+import {
+  CHAT_MESSAGE_LIST_ATTRIBUTE,
+  CHAT_MESSAGE_LIST_ROOM,
+} from "@/app/chat/chat-message-list";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
@@ -248,6 +252,7 @@ import {
 import {
   ROOM_SHELL_COLUMN_CLASSNAME,
   ROOM_SHELL_ROOT_CLASSNAME,
+  ROOM_SIDE_PANEL_ATTRIBUTE,
   RoomShellLayout,
 } from "./room-shell-layout";
 import { RoomStatusRow } from "./room-status-row";
@@ -1973,12 +1978,103 @@ function RoomView({
     clearClassicOutboundQueue(classicThreadRefs);
   }
 
+  // The close button leaves with the pane, so focus would drop to <body>.
+  // Hand it back to where the thread was opened from: the reply bar, else the
+  // row's actions trigger (Open thread on a message with no replies). The
+  // composer takes it when the row is no longer in the transcript.
+  function closeThreadAndRestoreFocus() {
+    const parentMessageId = threadParentMessage?.id;
+    closeThreadSidePanel();
+    requestAnimationFrame(() => {
+      const row = parentMessageId
+        ? document.querySelector<HTMLElement>(
+            `[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${CHAT_MESSAGE_LIST_ROOM}"] [data-message-id="${CSS.escape(parentMessageId)}"]`,
+          )
+        : null;
+      const target =
+        row?.querySelector<HTMLElement>('[data-slot="thread-reply-bar"]') ??
+        row?.querySelector<HTMLElement>("[data-message-actions-trigger]");
+      target?.focus();
+      if (!target || document.activeElement !== target) {
+        roomComposerRef.current?.focus();
+      }
+    });
+  }
+
+  // Threads, Members and Pinned are opened from header buttons, or from the
+  // header menu below md. A menu item leaves with its menu, so the menu's
+  // trigger stands in for it.
+  const paneOpenerRef = useRef<HTMLElement | null>(null);
+  function rememberPaneOpener() {
+    const active = document.activeElement;
+    // Opened from the URL, or by a click that focuses nothing (Safari).
+    if (!(active instanceof HTMLElement) || active === document.body) {
+      paneOpenerRef.current = null;
+      return;
+    }
+    const menuTriggerId = active
+      .closest('[role="menu"]')
+      ?.getAttribute("aria-labelledby");
+    paneOpenerRef.current =
+      (menuTriggerId && document.getElementById(menuTriggerId)) || active;
+  }
+
+  /**
+   * `restoreFocus` is for focus that leaves with the pane. Focus outside it
+   * (the opener, the room's composer) stays where it is.
+   */
+  function closePaneAndRestoreFocus(restoreFocus = true) {
+    if (threadParentMessage) {
+      if (restoreFocus) closeThreadAndRestoreFocus();
+      else closeThreadSidePanel();
+      return;
+    }
+    setThreadListOpen(false);
+    setPinnedOpen(false);
+    setRosterOpen(false);
+    const opener = paneOpenerRef.current;
+    paneOpenerRef.current = null;
+    if (!restoreFocus) return;
+    requestAnimationFrame(() => {
+      // A desktop button hidden below md is still connected but takes no focus.
+      opener?.focus();
+      if (!opener || document.activeElement !== opener) {
+        roomComposerRef.current?.focus();
+      }
+    });
+  }
+
+  const sidePaneOpen =
+    threadParentMessage != null ||
+    threadListOpen ||
+    (pinnedOpen && selectedRoom?.kind === "channel") ||
+    (showRoomRosterControl && rosterOpen);
+
+  // Escape anywhere in the room, its portaled mobile header included, closes
+  // the open pane, so it works straight from the button that opened it. A
+  // menu, popover or dialog handles the key first (Radix prevents its
+  // default), and so does the composer when it uses it (closing a mention
+  // list, cancelling an edit). A form field keeps its own Escape.
+  function handleRoomKeyDown(event: React.KeyboardEvent) {
+    if (!sidePaneOpen || event.key !== "Escape" || event.defaultPrevented) {
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (target.closest("input, textarea, select")) return;
+    event.preventDefault();
+    closePaneAndRestoreFocus(
+      target === document.body ||
+        target.closest(`[${ROOM_SIDE_PANEL_ATTRIBUTE}]`) != null,
+    );
+  }
+
   function backToThreadList() {
     closeThreadSidePanel();
     setThreadListOpen(true);
   }
 
   function openRoster() {
+    rememberPaneOpener();
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
@@ -1996,6 +2092,7 @@ function RoomView({
   }
 
   function openPinnedPanel() {
+    rememberPaneOpener();
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
@@ -2079,6 +2176,7 @@ function RoomView({
    * which closes a list that is already showing.
    */
   function showThreadList(options: { toggle?: boolean } = {}) {
+    rememberPaneOpener();
     setRosterOpen(false);
     setPinnedOpen(false);
     if (threadParentMessage) {
@@ -3171,7 +3269,15 @@ function RoomView({
     return (
       <>
         {mobileHeaderPortaled && headerRoomSlotHost && roomHeaderChrome
-          ? createPortal(roomHeaderChrome, headerRoomSlotHost)
+          ? createPortal(
+              // Portaled out of the room shell, so it carries the room's
+              // Escape itself: the header menu hands focus back to its
+              // trigger here.
+              <div className="contents" onKeyDown={handleRoomKeyDown}>
+                {roomHeaderChrome}
+              </div>,
+              headerRoomSlotHost,
+            )
           : null}
         <RoomShellLayout
           // ROOM_SHELL_ROOT already includes no-tab-bar height (matches Instant).
@@ -3288,6 +3394,7 @@ function RoomView({
               )}
             </RoomTypingProvider>
           }
+          onKeyDown={handleRoomKeyDown}
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
@@ -3342,7 +3449,7 @@ function RoomView({
                 }
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
-                onClose={closeThreadSidePanel}
+                onClose={closeThreadAndRestoreFocus}
                 onToggleReaction={
                   selectedRoom.isReadOnly
                     ? undefined
@@ -3382,9 +3489,7 @@ function RoomView({
                 userId={currentUserId}
                 mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
-                onClose={() => {
-                  setThreadListOpen(false);
-                }}
+                onClose={() => closePaneAndRestoreFocus()}
                 onAllThreadsLooked={(stillUnreadParentIds) => {
                   bumpThreadUnread();
                   // Mark all skips muted threads, so a mention still unread
@@ -3432,9 +3537,7 @@ function RoomView({
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
-                onClose={() => {
-                  setPinnedOpen(false);
-                }}
+                onClose={() => closePaneAndRestoreFocus()}
                 onJump={handleJumpToMessage}
                 onUnpin={(messageId) =>
                   handleUnpinFromPanel(selectedRoom.id, messageId)
@@ -3466,9 +3569,7 @@ function RoomView({
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
-                onClose={() => {
-                  setRosterOpen(false);
-                }}
+                onClose={() => closePaneAndRestoreFocus()}
               />
             ) : null
           }
