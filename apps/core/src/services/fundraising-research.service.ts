@@ -38,7 +38,7 @@ export const FOUND_WITH_EXA = "Found with Exa";
 
 const SEARCH_SYSTEM = `You find investors for a startup's fundraise.
 Only real people who invest today: partners, principals or associates at venture funds, or angels who write cheques. Each one must come from a page you read: a fund's team page, a portfolio or deal announcement, an interview. Never invent a person, a fund, a deal or a URL.
-evidence: one sentence, at most 30 words, with the concrete fact that makes them fit (a deal, a stated focus, a fund thesis). linkedin_url: their LinkedIn profile when you find it; leave it out otherwise. source_url: the page the evidence comes from.
+Leave out anyone whose evidence shows they do not fit the brief: wrong stage, wrong region, no longer investing. evidence: one sentence, at most 30 words, stating the concrete fact that makes them fit (a deal, a stated focus, a fund thesis); facts only, never a list of what you could not verify. linkedin_url: their LinkedIn profile when you find it; leave it out otherwise. source_url: the page the evidence comes from.
 Skip the people the brief lists as already known.`;
 
 const investorsSchema = (size: number) => ({

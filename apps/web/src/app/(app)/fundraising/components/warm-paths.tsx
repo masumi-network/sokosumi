@@ -54,8 +54,9 @@ export function WarmPaths({
 }) {
   const t = useTranslations("App.Fundraising.paths");
   const me = useSession().data?.user.id ?? null;
-  const whoOf = (path: FundraisingPath) =>
-    path.via && path.via.id !== me ? path.via.name : t("you");
+  const selfOf = (path: FundraisingPath) =>
+    path.via && path.via.id !== me ? "no" : "yes";
+  const whoOf = (path: FundraisingPath) => path.via?.name ?? "";
   const throughOf = (path: FundraisingPath) =>
     path.through
       ? path.through.role
@@ -103,10 +104,12 @@ export function WarmPaths({
 
   async function usePath(path: FundraisingPath) {
     const who = whoOf(path);
+    const self = selfOf(path);
     const nextStep =
       path.kind === "direct"
-        ? t("nextStepDirect", { who })
+        ? t("nextStepDirect", { self, who })
         : t("nextStepIntro", {
+            self,
             who,
             through: path.through?.name ?? "",
             investor: prospect.contact.name,
@@ -165,9 +168,12 @@ export function WarmPaths({
                   <div className="min-w-0 flex-1">
                     <p className="text-pretty">
                       {path.kind === "direct"
-                        ? t("direct", { who: whoOf(path) })
+                        ? t("direct", { self: selfOf(path), who: whoOf(path) })
                         : path.kind === "linkedin"
-                          ? t("linkedinDirect", { who: whoOf(path) })
+                          ? t("linkedinDirect", {
+                              self: selfOf(path),
+                              who: whoOf(path),
+                            })
                           : path.via
                             ? t(
                                 path.touches
@@ -178,6 +184,7 @@ export function WarmPaths({
                                     ? "linkedinFund"
                                     : "linkedinPortfolio",
                                 {
+                                  self: selfOf(path),
                                   who: whoOf(path),
                                   through: throughOf(path),
                                   company: path.company?.name ?? "",
@@ -242,7 +249,7 @@ export function WarmPaths({
         )}
       </div>
 
-      <div className="grid gap-1.5">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs font-medium">
             {fundName
@@ -324,7 +331,9 @@ export function WarmPaths({
             ) : null}
           </ul>
         ) : data ? (
-          <p className="text-muted-foreground text-sm">{t("noPortfolio")}</p>
+          <p className="text-muted-foreground text-sm">
+            {researching ? t("researching") : t("noPortfolio")}
+          </p>
         ) : null}
       </div>
     </div>

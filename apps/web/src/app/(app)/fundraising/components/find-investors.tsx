@@ -319,6 +319,11 @@ function FindInvestorsDialog({
           {overCap ? (
             <p className="text-destructive text-sm">{t("capReached")}</p>
           ) : null}
+          {running ? (
+            <p className="text-muted-foreground text-sm" aria-live="polite">
+              {t("running")}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"
