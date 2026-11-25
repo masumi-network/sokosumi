@@ -1,6 +1,7 @@
 import type { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
@@ -102,7 +103,7 @@ export async function listSeoAudits(
         FROM unnest(${page.map(({ id }) => id)}::uuid[]) AS ids(id)
         CROSS JOIN LATERAL (
           SELECT a.kind, a.status, a."taskId", a."createdAt", a."updatedAt"
-          FROM project_seo_analysis a
+          FROM ${sharedTable("project_seo_analysis")} a
           WHERE a."auditId" = ids.id
           ORDER BY a."createdAt" DESC, a.id DESC
           LIMIT 1
