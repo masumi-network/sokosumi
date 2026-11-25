@@ -588,6 +588,8 @@ export type CmoChatSetup =
   | "cmo-brand"
   | "cmo-new-client"
   | "cmo-comments"
+  /** cal.com's approved month, three posts out last week, drafts for next month. */
+  | "cmo-weekly-review"
   /** An article idea on "calendly alternative" the owner skipped earlier. */
   | "cmo-seo-skipped"
   /** cal.com's Search Console connected, with this and the last 28 days (cmo-v12's SEO cases). */

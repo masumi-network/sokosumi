@@ -248,9 +248,11 @@ export const EVAL_CASES: readonly EvalCase[] = [
                       ? "cmo-plan-ads"
                       : scenario.id === "cmo-seo-skipped-idea"
                         ? "cmo-seo-skipped"
-                        : isCmoSeoReportCase(scenario.id)
-                          ? "cmo-seo-report"
-                          : "cmo-brand",
+                        : scenario.id === "cmo-weekly-review-last-week"
+                          ? "cmo-weekly-review"
+                          : isCmoSeoReportCase(scenario.id)
+                            ? "cmo-seo-report"
+                            : "cmo-brand",
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
