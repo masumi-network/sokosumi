@@ -9,9 +9,10 @@ import type { CaseOutcome, CasePoll, CaseStart } from "./eval-case-runner";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 
 /**
- * The daily agent stand-up in an eval lane, run for real (the host model
- * included) on a world Core sets up: Robin's bot and Juno joined, Mira on a
- * running Task and one waiting for Robin, Robin's unassigned DACH study.
+ * The daily stand-up in an eval lane, run for real (the host model
+ * included) on a world Core sets up: Robin's bot and Juno in it (on by
+ * default), Mira on a running Task of Robin's and one waiting for him,
+ * Robin's unassigned DACH study. Only bots post; Robin's bot tells Mira's work.
  * `quiet` has nothing new, so nothing may be posted; `no-match` has a need
  * nobody's work touches (the offsite venue), so no hand-off may open.
  * `week` runs the week in review: Robin finished a public Task and a private
@@ -46,7 +47,7 @@ async function prepare(lane: EvalLaneRecord, setup: StandupEvalSetup) {
   });
   await prisma.sokoBot.updateMany({
     where: { id: { in: [lane.sokoBotId, world.junoId] } },
-    data: { joinsTeamStandup: true },
+    data: { leftTeamStandupAt: null },
   });
   await prisma.teamStandupRun.deleteMany({
     where: { standup: { organizationId: lane.organizationId } },
@@ -275,7 +276,8 @@ export async function pollStandupCase(
   const botMessage = messages.find(
     (message) => message.senderSokoBotId === lane.sokoBotId,
   );
-  const miraMessage = messages.find((message) => message.senderCoworkerId);
+  const coworkerMessage = messages.find((message) => message.senderCoworkerId);
+  const botText = botMessage?.content ?? "";
   const content = [opener, ...messages.map((message) => message.content)].join(
     "\n\n",
   );
@@ -337,16 +339,19 @@ export async function pollStandupCase(
   const checks = [
     ...own,
     check(
-      "Mira's message under her name says what she is working on",
-      !!miraMessage && /working on:[^\n]*pricing/i.test(miraMessage.content),
-      miraMessage?.content.slice(0, 240) ?? "no Mira message",
+      "No Coworker posts a message of its own",
+      !coworkerMessage,
+      coworkerMessage ? coworkerMessage.content.slice(0, 160) : "none",
     ),
     check(
-      "Mira's Task waiting for Robin mentions him",
-      !!miraMessage?.content.includes(`@${lane.userId}`),
-      miraMessage?.content.includes(`@${lane.userId}`)
-        ? "mentioned"
-        : "not mentioned",
+      "Robin's bot tells Mira's pricing work for Robin",
+      /Mira/.test(botText) && /pricing/i.test(botText),
+      botText.slice(0, 240) || "no message",
+    ),
+    check(
+      "Mira's Task waiting for Robin mentions him in the bot's message",
+      botText.includes(`@${lane.userId}`),
+      botText.includes(`@${lane.userId}`) ? "mentioned" : "not mentioned",
     ),
     check(
       "No raw quoted Task titles",

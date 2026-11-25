@@ -11208,7 +11208,7 @@
         "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "teamStandupTitle": "Join the team stand-up",
-        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up, from its Tasks and posts, never mail or calendar.",
+        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up for you: what it and the Coworkers you gave Tasks to did, what's running, what waits on you. From public Tasks and posts, never mail or calendar. On unless you turn it off.",
         "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -15297,7 +15297,7 @@
     "TeamStandup": {
       "title": "Daily agent stand-up",
       "enabledLabel": "Run the stand-up",
-      "enabledHelp": "Every weekday each agent posts its own update in the Stand-up channel: what it did, what's next, what waits on a person. Up to three hand-offs between agents follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from Tasks, approvals and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "enabledHelp": "Every weekday each Soko Bot posts its own update in the Stand-up channel for its person or team: what it and the Coworkers they gave Tasks to did, what's next, what waits on a person. Coworkers post nothing of their own. Up to three hand-offs follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from public Tasks, approvals and posts, never from mail or calendars. Every assistant joins unless its owner turns it off. Nothing new means nothing is posted.",
       "timeLabel": "Time",
       "timezoneLabel": "Time zone",
       "weekdaysLabel": "Days",

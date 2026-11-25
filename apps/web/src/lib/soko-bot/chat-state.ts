@@ -318,7 +318,7 @@ function toChatBot(bot: SokoBot): ChatBot {
     avatarCode: bot.avatarCode ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
-    joinsTeamStandup: bot.joinsTeamStandup ?? false,
+    joinsTeamStandup: bot.joinsTeamStandup ?? true,
     mailAutoRead: bot.mailAutoRead ?? false,
     ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
     proactivePaused: bot.proactivePaused ?? false,
