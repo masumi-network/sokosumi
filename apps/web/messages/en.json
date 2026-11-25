@@ -11084,6 +11084,40 @@
           "saved": "Settings saved",
           "saveFailed": "Could not save the settings"
         }
+      },
+      "Crop": {
+        "open": "Crop for social",
+        "title": "Crop for social",
+        "description": "Pick a shape, then drag the frame or move the slider to place the crop. A copy is saved next to the original; the original stays as it is.",
+        "shapeLabel": "Shape",
+        "loading": "Loading image…",
+        "loadError": "Failed to load image. Close and try again.",
+        "result": "Saves {name}, {width, number} × {height, number} px",
+        "save": "Save copy",
+        "saved": "Saved {name} to Files",
+        "duplicate": "{name} already exists. Rename or delete it, then save again.",
+        "saveError": "Failed to save copy. Try again.",
+        "shapes": {
+          "square": {
+            "name": "Square",
+            "hint": "1:1 · Instagram, Facebook"
+          },
+          "portrait": {
+            "name": "Portrait",
+            "hint": "4:5 · Instagram feed"
+          },
+          "story": {
+            "name": "Story",
+            "hint": "9:16 · stories, reels, TikTok"
+          },
+          "landscape": {
+            "name": "Landscape",
+            "hint": "1.91:1 · LinkedIn, X, link posts"
+          }
+        },
+        "tooLarge": "Images over 25 MB can't be cropped here yet. Download it and crop it on your device.",
+        "positionX": "Crop position, left to right",
+        "positionY": "Crop position, top to bottom"
       }
     },
     "SokoBot": {
