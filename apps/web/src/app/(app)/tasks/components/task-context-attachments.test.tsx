@@ -139,6 +139,9 @@ describe("TaskContextAttachmentsField", () => {
     expect(brandButton).toHaveAttribute("aria-pressed", "true");
     expect(within(brandButton).getByText("brand")).toBeInTheDocument();
     expect(brandButton.parentElement).toHaveClass("h-7", "text-xs");
+    const brandMenu = screen.getByRole("button", { name: "brandMenuAria" });
+    expect(brandMenu).toHaveClass("border-border");
+    expect(brandMenu).not.toHaveClass("border-current");
     expect(briefingButton).toHaveAttribute("aria-pressed", "true");
     expect(briefingButton).toHaveClass("h-7", "text-xs");
     expect(screen.getByRole("button", { name: /memory/ })).toHaveTextContent(
