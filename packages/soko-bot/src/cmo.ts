@@ -260,7 +260,9 @@ function normalizeStrategyChannels(value: unknown): unknown {
  * A long plan goes in short calls (the strategy, then its calendar), each
  * well inside one model answer.
  */
-const cmoStrategySaveSchema = marketingStrategyPlanSchema.partial();
+const cmoStrategySaveSchema = marketingStrategyPlanSchema
+  .omit({ monthWriter: true })
+  .partial();
 export type CmoStrategySave = z.input<typeof cmoStrategySaveSchema>;
 
 /**
