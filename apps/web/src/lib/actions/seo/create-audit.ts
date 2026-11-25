@@ -34,10 +34,11 @@ export const createSeoAuditAction = withSession<
           { kind: "audit", id: audit.auditId },
           check,
         );
-        revalidatePath("/tasks");
       } catch {
         // The audit exists: its setup card offers the workspace's check action when this one did not start.
       }
+      // Core can save the check's Task and still fail the response: refresh Tasks after every attempt.
+      revalidatePath("/tasks");
     }
     revalidatePath("/seo");
     return toActionResult(ok(audit));

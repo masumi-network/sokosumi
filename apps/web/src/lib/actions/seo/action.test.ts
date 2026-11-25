@@ -361,4 +361,6 @@ it("starts the free page check of a new audit, and keeps the audit when that che
     expect.objectContaining({ kind: "page_check", maxProviderCalls: 0 }),
   );
   expect(revalidatePathMock).toHaveBeenCalledWith("/seo");
+  // A failed response can still follow a saved Task.
+  expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
 });
