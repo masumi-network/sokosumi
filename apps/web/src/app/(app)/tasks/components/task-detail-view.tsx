@@ -572,6 +572,7 @@ async function TaskDetailActionsSlot({
         tTasks("personalAssistant"),
       )}
       initialDesignMdAttachment={initialDesignMdAttachment}
+      workspaceId={task.workspace.id}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}

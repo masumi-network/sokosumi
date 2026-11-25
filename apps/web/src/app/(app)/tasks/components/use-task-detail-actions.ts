@@ -82,6 +82,7 @@ export interface TaskDetailActionsProps {
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
+  workspaceId?: string;
   currentOrganizationId?: string | null;
   organizations?: MemberWithOrganization[];
   hasPersonalWorkspace?: boolean;
@@ -126,6 +127,7 @@ export function useTaskDetailActions({
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
+  workspaceId,
   currentOrganizationId,
   organizations,
   hasPersonalWorkspace = false,
@@ -519,6 +521,7 @@ export function useTaskDetailActions({
     coworkerOptions,
     actionsMenuLabel,
     labels,
+    workspaceId,
     currentOrganizationId,
     organizations,
     hasPersonalWorkspace,

@@ -56,7 +56,12 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {},
-  useSession: () => ({ data: null }),
+  useSession: () => ({
+    data: {
+      user: { id: "user_1" },
+      session: { activeOrganizationId: null },
+    },
+  }),
 }));
 
 vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => ({
@@ -686,12 +691,14 @@ describe("TaskScheduleDialog", () => {
     });
     const user = userEvent.setup();
     render(
-      <TaskScheduleActions
-        schedule={SCHEDULE}
-        coworkerOptions={[COWORKER]}
-        projectOptions={[{ id: "p_near", name: "Near Project" }]}
-        canCreatePrivate={false}
-      />,
+      <TestQueryProvider>
+        <TaskScheduleActions
+          schedule={SCHEDULE}
+          coworkerOptions={[COWORKER]}
+          projectOptions={[{ id: "p_near", name: "Near Project" }]}
+          canCreatePrivate={false}
+        />
+      </TestQueryProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: "more" }));
