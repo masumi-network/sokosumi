@@ -300,12 +300,12 @@ describe("SEO report file versions", () => {
     expect(evidence.getByText("https://example.com/blog")).toBeVisible();
     expect(
       evidence.getByText(
-        "Measured Google canonical URL: https://www.example.com/shop",
+        "Main URL that Google uses: https://www.example.com/shop",
       ),
     ).toBeVisible();
     expect(
       evidence.getByText(
-        "The audit measured the submitted URL. Its canonical URL is unverified.",
+        "The audit checked the URL you entered. It could not confirm which URL Google uses as the main one.",
       ),
     ).toBeVisible();
     expect(evidence.getByText("Partial data")).toBeVisible();
@@ -603,10 +603,10 @@ describe("SEO report file versions", () => {
       await dialog.findByRole("link", { name: "Open PDF" }),
     ).toHaveAttribute("href", pdf.fileUrl);
     expect(
-      dialog.getByRole("link", { name: "Report data (JSON)" }),
+      dialog.getByRole("link", { name: "Raw report data (JSON)" }),
     ).toHaveAttribute("href", json.fileUrl);
     expect(
-      dialog.queryByRole("button", { name: "Import report into SEO" }),
+      dialog.queryByRole("button", { name: "Add findings to SEO" }),
     ).toBeNull();
     await user.click(dialog.getByRole("combobox", { name: "Check" }));
     await user.click(await screen.findByRole("option", { name: /Full audit/ }));
@@ -614,11 +614,11 @@ describe("SEO report file versions", () => {
       await dialog.findByRole("link", { name: "Open Markdown" }),
     ).toHaveAttribute("href", md.fileUrl);
     expect(
-      dialog.getByRole("link", { name: "Report data (JSON)" }),
+      dialog.getByRole("link", { name: "Raw report data (JSON)" }),
     ).toHaveAttribute("href", old.fileUrl);
     expect(dialog.queryByRole("link", { name: "Open PDF" })).toBeNull();
     await user.click(
-      dialog.getByRole("button", { name: "Import report into SEO" }),
+      dialog.getByRole("button", { name: "Add findings to SEO" }),
     );
     expect(execute).toHaveBeenCalledWith(
       { kind: "import_audit", body: { taskId: "older", fileId: old.id } },
