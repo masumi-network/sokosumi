@@ -416,66 +416,70 @@ export function RoomHeaderChrome({
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4 lg:overflow-visible">
       <div className="flex min-w-0 flex-1 flex-col items-start justify-center overflow-hidden">
-        {isDirectRoom && room.isGroupDirect ? (
-          <NameGroupDialog
-            room={room}
-            open={editOpen}
-            onOpenChange={onEditOpenChange}
-          >
-            <button
-              type="button"
-              className={ROOM_TITLE_BUTTON_CLASS}
-              title={t("GroupName.rename")}
-              data-testid="room-open-title"
+        {/* The room's name is the page's heading, so a screen reader's
+            heading list and the route announcer have something to name. */}
+        <h1 className="flex min-w-0 max-w-full">
+          {isDirectRoom && room.isGroupDirect ? (
+            <NameGroupDialog
+              room={room}
+              open={editOpen}
+              onOpenChange={onEditOpenChange}
             >
-              {DIRECT_ICON}
-              <span className="min-w-0 truncate">{displayName}</span>
-            </button>
-          </NameGroupDialog>
-        ) : isDirectRoom ? (
-          <div className={ROOM_TITLE_STATIC_CLASS}>
-            {room.isSelfDirect ? (
-              <span className={CHAT_TITLE_MARK_CLASS}>
-                <DirectRoomAvatarStack
-                  room={room}
-                  currentUserId={currentUserId}
-                />
-              </span>
-            ) : (
-              DIRECT_ICON
-            )}
-            <p className="min-w-0 truncate" data-testid="room-open-title">
-              {displayName}
-            </p>
-          </div>
-        ) : canManageSettings ? (
-          <EditChannelDialog
-            channel={room}
-            open={editOpen}
-            onOpenChange={onEditOpenChange}
-          >
+              <button
+                type="button"
+                className={ROOM_TITLE_BUTTON_CLASS}
+                title={t("GroupName.rename")}
+                data-testid="room-open-title"
+              >
+                {DIRECT_ICON}
+                <span className="min-w-0 truncate">{displayName}</span>
+              </button>
+            </NameGroupDialog>
+          ) : isDirectRoom ? (
+            <div className={ROOM_TITLE_STATIC_CLASS}>
+              {room.isSelfDirect ? (
+                <span className={CHAT_TITLE_MARK_CLASS}>
+                  <DirectRoomAvatarStack
+                    room={room}
+                    currentUserId={currentUserId}
+                  />
+                </span>
+              ) : (
+                DIRECT_ICON
+              )}
+              <p className="min-w-0 truncate" data-testid="room-open-title">
+                {displayName}
+              </p>
+            </div>
+          ) : canManageSettings ? (
+            <EditChannelDialog
+              channel={room}
+              open={editOpen}
+              onOpenChange={onEditOpenChange}
+            >
+              <button
+                type="button"
+                className={ROOM_TITLE_BUTTON_CLASS}
+                title={t("editChannel")}
+                data-testid="room-open-title"
+              >
+                {channelTitle}
+              </button>
+            </EditChannelDialog>
+          ) : (
             <button
               type="button"
               className={ROOM_TITLE_BUTTON_CLASS}
-              title={t("editChannel")}
+              title={t("RoomRoster.open")}
+              aria-expanded={rosterOpen}
+              aria-controls={ROOM_ROSTER_PANEL_ID}
               data-testid="room-open-title"
+              onClick={onOpenRoster}
             >
               {channelTitle}
             </button>
-          </EditChannelDialog>
-        ) : (
-          <button
-            type="button"
-            className={ROOM_TITLE_BUTTON_CLASS}
-            title={t("RoomRoster.open")}
-            aria-expanded={rosterOpen}
-            aria-controls={ROOM_ROSTER_PANEL_ID}
-            data-testid="room-open-title"
-            onClick={onOpenRoster}
-          >
-            {channelTitle}
-          </button>
-        )}
+          )}
+        </h1>
         <p
           // Starts under the title text: the title's px-1.5, its mark's box
           // and the gap after it.
