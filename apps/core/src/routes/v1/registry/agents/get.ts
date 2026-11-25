@@ -70,7 +70,7 @@ const querySchema = z.object({
       param: { name: "status", in: "query" },
       description:
         "Filter by registry status. Supports repeated values and comma-separated lists. Omit to return every status.",
-      example: "Online,Offline",
+      example: ["Online", "Offline"],
     }),
 });
 

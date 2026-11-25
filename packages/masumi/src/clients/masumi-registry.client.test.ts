@@ -168,7 +168,7 @@ describe("createRegistryClient.listEntries", () => {
     });
   });
 
-  it("sends no status filter when none is given, so every status comes back", async () => {
+  it("omits the filter when no status is given; the registry then returns only Online entries", async () => {
     const registry = createRegistryClient(
       "Mainnet",
       "https://registry.example.com",
