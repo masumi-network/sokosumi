@@ -25,7 +25,6 @@ vi.mock("@/services/project-test-copy", () => ({
 
 import {
   archiveBot,
-  cancelSocialPost,
   chatRoomDelete,
   chatRoomUpdate,
   createBot,
@@ -41,7 +40,6 @@ import {
   memberFindUnique,
   organizationFindFirst,
   organizationUpdate,
-  postFindMany,
   projectCreate,
   projectDelete,
   resetCmoServiceMocks,
@@ -471,23 +469,13 @@ describe("starting over", () => {
     expect(archiveBot).not.toHaveBeenCalled();
   });
 
-  it("archives the Cuso and cancels his unsent posts", async () => {
+  it("archives the Cuso, which cancels his unsent posts", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
-    postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
-    cancelSocialPost.mockResolvedValue({});
     await startCmoOver({ projectId: "project-1", userId: "user-1" });
     expect(archiveBot).toHaveBeenCalledWith("user-1", "ws-1", {
       kind: "id",
       sokoBotId: "bot-1",
     });
-    expect(postFindMany.mock.calls[0]?.[0].where.status.in).toEqual([
-      "DRAFT",
-      "NEEDS_APPROVAL",
-      "SCHEDULED",
-    ]);
-    expect(cancelSocialPost).toHaveBeenCalledWith(
-      expect.objectContaining({ postId: "post-1", revision: 3 }),
-    );
   });
 
   it("names the archived Cuso's room after his website", async () => {
@@ -497,7 +485,6 @@ describe("starting over", () => {
       businessName: "acme.io",
     });
     sokoBotFindUnique.mockResolvedValue({ sharedRoomId: "room-1" });
-    postFindMany.mockResolvedValue([]);
     await startCmoOver({ projectId: "project-1", userId: "user-1" });
     expect(chatRoomUpdate).toHaveBeenCalledWith({
       where: { id: "room-1" },
@@ -505,42 +492,13 @@ describe("starting over", () => {
     });
   });
 
-  it("names every post it could not cancel on one warning, without their text", async () => {
-    const warnings = expectCoreLogWhys(
-      "warn",
-      "Starting over left Social posts unsent but not cancelled",
-      ["Cancelling the posts failed"],
-    );
-    cusoFind.mockResolvedValue({
-      sokoBotId: "bot-1",
-      workspaceId: "ws-1",
-      projectId: "project-1",
-    });
-    postFindMany.mockResolvedValue([
-      { id: "post-1", revision: 3 },
-      { id: "post-2", revision: 4 },
-    ]);
-    cancelSocialPost.mockRejectedValue(
-      new Error("Could not cancel SENTINEL-POST launch day words"),
-    );
-    await startCmoOver({ projectId: "project-1", userId: "user-1" });
-    expect(warnings[0]?.event).toMatchObject({
-      operation: "cmo_start_over",
-      socialPosts: [
-        { id: "post-1", failure: { errorName: "Error" } },
-        { id: "post-2", failure: { errorName: "Error" } },
-      ],
-    });
-    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
-  });
-
-  it("leaves posts alone when the person may not archive him", async () => {
+  it("refuses when the person may not archive him", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     archiveBot.mockRejectedValueOnce(new Error("Only an organization owner"));
     await expect(
       startCmoOver({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("owner");
-    expect(cancelSocialPost).not.toHaveBeenCalled();
+    expect(chatRoomUpdate).not.toHaveBeenCalled();
   });
 });
 
