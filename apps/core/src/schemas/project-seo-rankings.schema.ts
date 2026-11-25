@@ -47,7 +47,7 @@ export const seoSerpPointSchema = z
          */
         pageCited: z.boolean().nullable(),
         /**
-         * The AI Overview cites a page on the checked page's site. Null: a source names neither URL nor domain (not determined).
+         * The AI Overview cites at least one checked site (one value for all pages of the check). Null: a source names neither URL nor domain (not determined).
          * Missing on reads stored before the SEO bot sent it.
          */
         siteCited: z.boolean().nullable().optional(),

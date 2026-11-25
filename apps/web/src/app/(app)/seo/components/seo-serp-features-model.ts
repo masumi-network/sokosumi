@@ -78,21 +78,20 @@ function pageKey(url: string) {
 }
 
 // A host name with a dot and a letter-first last label: "Reddit", "2026" and "editor@a.test" name no site.
-const SOURCE_HOST = /^(?:[\p{L}\p{N}_-]+\.)+\p{L}[\p{L}\p{N}-]*\.?$/u;
+const SOURCE_HOST = /^(?:[\p{L}\p{M}\p{N}_-]+\.)+\p{L}[\p{L}\p{M}\p{N}-]*\.?$/u;
+/** A host as the citation marks compare it: a trailing dot names the same site. */
+const noDot = (host: string) => host.replace(/\.$/, "");
 /** A stored cited source as a site, or none when the value names no host. No URL.canParse: Safari 16.4 lacks it. */
 const sourceHost = (source: string) => {
-  let host = source;
-  if (/^https?:\/\//i.test(source)) {
-    try {
-      host = new URL(source).hostname;
-    } catch {
-      return [];
-    }
+  const web = /^https?:\/\//i.test(source);
+  if (!web && !SOURCE_HOST.test(source)) return [];
+  try {
+    // The parsed host has the form the checked pages have (lower case, punycode).
+    const host = new URL(web ? source : `https://${source}`).hostname;
+    return SOURCE_HOST.test(host) ? [noDot(host.replace(/^www\./, ""))] : [];
+  } catch {
+    return [];
   }
-  // seoHost gives the form the checked pages have (lower case, punycode, no "www.").
-  return SOURCE_HOST.test(host)
-    ? [seoHost(`https://${host}`).replace(/\.$/, "")]
-    : [];
 };
 
 /**
@@ -111,7 +110,7 @@ export function seoSerpMarkers(
   if (!lead || !serpHistory) return [];
   const key = normalizeQuery(lead.keyword);
   const page = lead.pageUrl === null ? null : pageKey(lead.pageUrl);
-  const pageHost = page === null ? null : seoHost(page);
+  const pageHost = page === null ? null : noDot(seoHost(page));
   return serpHistory
     .filter(
       (series) =>
@@ -133,7 +132,7 @@ export function seoSerpMarkers(
           const url = series.pageUrls[index];
           return url === undefined ? [] : [pageKey(url)];
         });
-        const checkedHosts = new Set(checked.map(seoHost));
+        const checkedHosts = new Set(checked.map((url) => noDot(seoHost(url))));
         const featuredHost = point.featured?.domain
           ? seoHost(`https://${point.featured.domain}`)
           : null;

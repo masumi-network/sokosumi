@@ -108,10 +108,15 @@ describe("seoSerpMarkers", () => {
   });
 
   it("does not name the row's site when a check of two sites cites only the other", () => {
-    const mark = (pageUrl: string | null, citedDomains: string[]) =>
+    const mark = (
+      pageUrl: string | null,
+      citedDomains: string[],
+      first = "https://a.test/page",
+      second = "https://b.test/page",
+    ) =>
       seoSerpMarkers(
         [
-          series({ pageUrls: ["https://a.test/page", "https://b.test/page"] }, [
+          series({ pageUrls: [first, second] }, [
             point("01", {
               pages: [0, 1],
               aiOverview: { ...ai(true, false), siteCited: true, citedDomains },
@@ -126,6 +131,13 @@ describe("seoSerpMarkers", () => {
     expect(mark("https://a.test/page", ["www.a.test"])).toEqual(["site_cited"]);
     // A row without a page has no site of its own.
     expect(mark(null, ["b.test"])).toEqual(["site_cited_checked"]);
+    // A trailing dot on the checked host names the same site.
+    const dotted = "https://a.test./page";
+    expect(mark(dotted, ["a.test"], dotted)).toEqual(["site_cited"]);
+    // Two checked pages of one site, one written with the dot: one site.
+    expect(mark(dotted, [], dotted, "https://a.test/other")).toEqual([
+      "site_cited",
+    ]);
   });
 
   it("lists no source for a stored value that names no host", () => {
@@ -143,6 +155,9 @@ describe("seoSerpMarkers", () => {
                 "editor@example.com",
                 "Rival.test.",
                 "bücher.test",
+                "aא.test",
+                "https://192.0.2.1/x",
+                "उदाहरण.भारत",
               ],
             },
           }),
@@ -154,6 +169,7 @@ describe("seoSerpMarkers", () => {
       aiSources: [
         { domain: "rival.test", own: false },
         { domain: "xn--bcher-kva.test", own: false },
+        { domain: "xn--p1b6ci4b4b3a.xn--h2brj9c", own: false },
       ],
     });
   });
