@@ -14,16 +14,10 @@ import { config as loadEnv } from "dotenv";
 import { createPrismaClient } from "../src/client.js";
 import { reconcileCreditBucketOwnerXor } from "../src/helpers/credit-bucket-owner-xor.js";
 import { parseCreditBucketOwnerXorArgs } from "../src/helpers/credit-bucket-owner-xor-cli.js";
-import {
-  configureSqlTables,
-  sqlTableLayoutFromEnv,
-} from "../src/sql-tables.js";
 
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"),
 });
-// Raw SQL names the schemas the environment names, as Core does.
-configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
 async function main(): Promise<void> {
   const databaseUrl =

@@ -136,6 +136,17 @@ describe("the layout rule in Core and in the SQL table helper", () => {
     expect(scriptLayout(layout)).toEqual(coreLayout(layout));
   });
 
+  it.each(["", undefined])(
+    "reads the Preprod flag %j as off, as Core does",
+    (flag) => {
+      const env = { NETWORK_PREPROD_ENABLED: flag };
+      expect(sqlTableLayoutFromEnv(env).preprodOn).toBe(false);
+      expect(networkLayoutSchema.parse(env).NETWORK_PREPROD_ENABLED).toBe(
+        false,
+      );
+    },
+  );
+
   it("refuses a Preprod flag Core refuses", () => {
     expect(() =>
       sqlTableLayoutFromEnv({ NETWORK_PREPROD_ENABLED: "yes" }),

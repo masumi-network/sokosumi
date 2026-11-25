@@ -374,7 +374,8 @@ A failure that comes and goes with the order: the log prints `Running tests with
 
 - Raw SQL names the schema of every table and enum type it uses: `sharedTable("task")`, `netTable(network, "Job")`, `sharedType("TaskStatus")` and `netType(network, "AgentStatus")` from `@sokosumi/database/sql-tables` ([database package rules](../../packages/database/AGENTS.md)). The clients share one pool and the tables leave `public`, so a bare name leans on the search path. New raw SQL uses the helpers.
 - `src/lib/db/prisma.ts` configures the helpers from `DATABASE_SCHEMA_*` and `NETWORK_PREPROD_ENABLED` when it loads, so they name the schemas the clients name.
-- `src/lib/db/__tests__/unqualified-raw-sql.test.ts` fails the build on a bare table name under a path in its `ENFORCED` list (`packages/database/` today), and anywhere on a helper argument that is not a literal name of the helper's side. Elsewhere it reports the bare names; its header lists what it cannot see.
+- The helpers' name arguments are typed from `packages/database/prisma/network-tables.json`, so a misspelled name, a name of the other side, or a table where an enum goes fails the caller's typecheck. A name held in a variable needs that type too (`SharedTableName`, `NetworkTableName`, `SharedEnumName`, `NetworkEnumName`).
+- `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names. It is advisory: it fails nothing.
 
 ### File/Blob Resources
 

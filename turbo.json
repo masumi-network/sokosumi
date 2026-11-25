@@ -60,14 +60,6 @@
     "test:ci": {
       "dependsOn": ["^build", "prisma:generate"]
     },
-    "@sokosumi/core#test": {
-      "dependsOn": ["^build", "prisma:generate"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/**"]
-    },
-    "@sokosumi/core#test:ci": {
-      "dependsOn": ["^build", "prisma:generate"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/**"]
-    },
     "@masumi_network/sokosumi#test": {
       "dependsOn": ["^build", "prisma:generate"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/core/agent-surface/**"]

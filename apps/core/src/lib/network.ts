@@ -15,6 +15,13 @@ export const NETWORKS = [
   "mainnet",
   "preprod",
 ] as const satisfies readonly Network[];
+// And the reverse: a Network the package adds and this list misses fails here.
+const _everyNetworkListed: Exclude<
+  Network,
+  (typeof NETWORKS)[number]
+> extends never
+  ? true
+  : never = true;
 
 /**
  * Returns `value` as a Network, or throws. A missing or unknown Network is an

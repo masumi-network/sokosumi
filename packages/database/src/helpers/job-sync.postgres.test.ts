@@ -6,7 +6,7 @@ import {
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/client.js";
-import { netTable, netType } from "../sql-tables.js";
+import { type NetworkEnumName, netTable, netType } from "../sql-tables.js";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseTransactionSyncWhere,
@@ -156,7 +156,7 @@ describe.skipIf(!databaseUrl)("job sync PostgreSQL null semantics", () => {
             OnChainJobStatus,
           })) {
             await tx.$executeRawUnsafe(
-              `CREATE TYPE ${netType("mainnet", name).sql} AS ENUM (${Object.values(
+              `CREATE TYPE ${netType("mainnet", name as NetworkEnumName).sql} AS ENUM (${Object.values(
                 values,
               )
                 .map((value) => `'${value}'`)

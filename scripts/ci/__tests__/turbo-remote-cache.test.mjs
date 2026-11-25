@@ -86,19 +86,6 @@ describe("turbo.json env contract", () => {
       false,
     );
   });
-
-  it("reruns Core's tests when a root script changes", async () => {
-    // Core's raw SQL check reads the root scripts/; without the input, Turbo
-    // replays a cached pass of Core's tests.
-    const turbo = JSON.parse(await readRepoFile("turbo.json"));
-    for (const task of ["@sokosumi/core#test", "@sokosumi/core#test:ci"]) {
-      assert.deepEqual(turbo.tasks[task]?.inputs, [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/scripts/**",
-      ]);
-      assert.deepEqual(turbo.tasks[task].dependsOn, turbo.tasks.test.dependsOn);
-    }
-  });
 });
 
 describe("GitHub OIDC remote cache wiring", () => {
