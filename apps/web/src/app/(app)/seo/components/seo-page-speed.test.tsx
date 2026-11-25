@@ -4,7 +4,11 @@ import { expect, it } from "vitest";
 import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditResearch } from "./seo-audit-research";
-import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  seoTestObservation,
+  seoTestSpeedDevice,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 
 it("displays lab timings and checks beside a separate real-user gap on the Actions tab", () => {
   const workspace = seoTestWorkspace(),
@@ -56,7 +60,7 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
     </NextIntlClientProvider>,
   );
   expect(
-    screen.getByText("Mobile · largest item appeared in 7.4 s", {
+    screen.getByText("Over a limit: loading (LCP) · Lab test", {
       selector: "summary span > span",
     }),
   ).toBeVisible();
@@ -64,18 +68,19 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
     screen.getByText("Page speed", { selector: "summary span > span" }),
   );
   const panel = within(screen.getByRole("region", { name: "Page speed" }));
-  expect(
-    panel.getByText("Mobile · largest item appeared in 7.4 s"),
-  ).toBeVisible();
-  expect(panel.getByText("Over the 2.5 s lab target")).toBeVisible();
+  const device = "Mobile · Lab test · Over a limit: loading (LCP)";
+  expect(panel.getByText(device)).toBeVisible();
   // The check to make leads on the closed device line, and its finding does not repeat it.
   expect(panel.getByText("Check the bundle.")).toBeVisible();
-  fireEvent.click(panel.getByText("Mobile · largest item appeared in 7.4 s"));
+  fireEvent.click(panel.getByText(device));
   fireEvent.click(panel.getByText("Unused JavaScript"));
   fireEvent.click(panel.getByText(messages.App.Seo.pageSpeed.scores));
   expect(panel.getByText("108 KiB could be saved.")).toBeVisible();
   expect(panel.getAllByText("Check the bundle.")).toHaveLength(1);
   expect(panel.getByText("7.4 s")).toBeVisible();
+  // The status is in words, and the lab version is a message, not a hard-coded word.
+  expect(panel.getByText("Poor")).toBeVisible();
+  expect(panel.getByText(/Lighthouse 13\.6\.0/)).toBeVisible();
   expect(panel.getByText("72")).toBeVisible();
   expect(
     panel.getByText("Google reported no real-user data for this URL."),
@@ -111,4 +116,28 @@ it("counts pages without calling an unmeasured URL tested", () => {
   expect(
     screen.getByText("1 page", { selector: "summary span" }),
   ).toBeVisible();
+});
+
+it("leaves the page speed row out when the site speed table shows the pages", () => {
+  const workspace = seoTestWorkspace();
+  const pageUrl = workspace.pages[0].url;
+  const device = seoTestSpeedDevice({ pageUrl, testedUrl: pageUrl });
+  const observation = {
+    ...seoTestObservation(workspace),
+    kind: "audit_full" as const,
+    pageSpeed: [device],
+  };
+  workspace.observations = [observation];
+  workspace.siteSpeed = {
+    rows: [{ url: pageUrl, audited: true, devices: [device] }],
+    dropped: 0,
+    observationId: observation.id,
+    observedAt: observation.observedAt,
+  };
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoAuditResearch workspace={workspace} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.queryByText("Page speed")).toBeNull();
 });

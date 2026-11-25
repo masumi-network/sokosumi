@@ -64,7 +64,8 @@ export function SeoAuditResearch({
   const audit = lastAuditResearch(workspace);
   const research = audit?.checklistBreakdown?.research;
   const full = workspace.observations.find((row) => row.kind === "audit_full");
-  const speed = full?.pageSpeed;
+  // The site speed table on Overview shows the same pages; the row stays for an audit without the table.
+  const speed = workspace.siteSpeed?.rows.length ? undefined : full?.pageSpeed;
   const site = workspace.siteEvidence;
   const consoleItems = discovery
     ? discovery.actions.length + discovery.changes.length

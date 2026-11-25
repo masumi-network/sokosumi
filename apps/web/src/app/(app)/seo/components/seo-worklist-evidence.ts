@@ -8,6 +8,7 @@ import type { currentDiscoveryResult } from "./seo-audit-discovery";
 import type { SeoActionBucket } from "./seo-overview-model";
 import { type SeoPlace, seoPlaces } from "./seo-places-model";
 import type { SeoPropertyPageFactsProps } from "./seo-property-page-discovery";
+import { SEO_VITAL_LIMITS } from "./seo-speed-model";
 
 type StrategyAction = ProjectSeoStrategy["actions"][number];
 export interface SeoEvidenceAction {
@@ -22,8 +23,6 @@ export interface SeoEvidenceAction {
   property?: SeoPropertyPageFactsProps;
 }
 
-export const GOOD_LAB_LCP_MS = 2500;
-const POOR_LCP_MS = 4000;
 // A generic not_checked status also covers captures with no field record. Only replay
 // a public lab recommendation when the audit explicitly recorded the CrUX skip.
 const PUBLIC_FIELD_SKIP =
@@ -65,7 +64,7 @@ export function seoWorklistEvidence(
       measurement.field.status !== "not_checked" ||
       lab.status !== "measured" ||
       lab.median.lcp == null ||
-      lab.median.lcp <= GOOD_LAB_LCP_MS
+      lab.median.lcp <= SEO_VITAL_LIMITS.lcp.good
     )
       continue;
     const skipped = speed?.checklistBreakdown?.gaps.some(
@@ -115,7 +114,7 @@ export function seoWorklistEvidence(
       pageUrl,
       !confirmed
         ? "suggestions"
-        : lab.median.lcp > POOR_LCP_MS
+        : lab.median.lcp > SEO_VITAL_LIMITS.lcp.poor
           ? "high"
           : "low",
       [

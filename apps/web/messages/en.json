@@ -15038,7 +15038,7 @@
           },
           "38": {
             "title": "Export and date presets",
-            "missing": "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, and “What changed in organic visits”. The CSV separator follows the app language, not the computer's region."
+            "missing": "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, “What changed in organic visits”, and “Site speed”. The CSV separator follows the app language, not the computer's region."
           },
           "39": {
             "title": "AI Overview citation history",
@@ -15158,16 +15158,9 @@
         }
       },
       "pageSpeed": {
-        "overTarget": "Over the 2.5 s lab target",
-        "withinTarget": "Within the 2.5 s lab target",
         "title": "Page speed",
-        "lab": "Lighthouse test",
+        "lab": "Lab test (Lighthouse)",
         "field": "Speed for real visitors",
-        "scope": {
-          "url": "This URL",
-          "origin": "Entire origin",
-          "normalized": "Normalized URL group"
-        },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
         "not_checked": "Not checked in this audit.",
@@ -15186,18 +15179,74 @@
         "metricsTitle": {
           "lcp": "Largest item appears (LCP)",
           "fcp": "First content appears (FCP)",
-          "tbt": "Total blocking time",
-          "si": "Speed index",
+          "tbt": "Time the page is too busy to respond (TBT)",
+          "si": "How fast the page fills in (speed index)",
           "cls": "Unexpected layout shifts (CLS)",
-          "inp": "Interaction to next paint",
-          "ttfb": "Time to first byte"
+          "inp": "Response to a tap or click (INP)",
+          "ttfb": "Server starts to answer (TTFB)"
         },
         "insights": "What to investigate",
-        "p75": "75th percentile",
+        "p75": "3 of 4 visits were at least this fast (75th percentile)",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
         "unsafe": "The audit could not verify a public landing page.",
-        "paintTime": "{device} · largest item appeared in {time}"
+        "status": {
+          "good": "Good",
+          "needs_improvement": "Needs improvement",
+          "poor": "Poor",
+          "too_little_data": "Too little data"
+        },
+        "limit": "Good: up to {good} · poor: over {poor}",
+        "vitals": "Each status compares the value with Google’s limits (Core Web Vitals).",
+        "source": {
+          "field": "Real visitors",
+          "fieldOrigin": "Real visitors, whole site",
+          "fieldGroup": "Real visitors, group of similar pages",
+          "lab": "Lab test",
+          "mixed": "Differs by device"
+        },
+        "caveat": {
+          "origin": "Google has too few visits to this page alone. These values are for the whole site, so they do not describe this page.",
+          "normalized": "Google has too few visits to this exact address. These values are for a group of similar addresses, so they can differ for this page."
+        },
+        "labNote": "A lab test loads the page once on a simulated device. It shows what to fix, but real visitors can see other values.",
+        "labNoInp": "A lab test cannot measure the response to taps and clicks.",
+        "labVersion": "Lighthouse {version}",
+        "verdict": {
+          "pass": "Within all limits",
+          "over": "Over a limit: {metrics}",
+          "unknown": "Not known"
+        },
+        "metricShort": {
+          "lcp": "loading (LCP)",
+          "inp": "response (INP)",
+          "cls": "layout shifts (CLS)"
+        }
+      },
+      "siteSpeed": {
+        "title": "Site speed",
+        "description": "How fast the main pages load, measured against Google’s limits.",
+        "column": {
+          "page": "Page",
+          "tier": "Check",
+          "devices": "Devices",
+          "status": "Speed",
+          "source": "Measured by"
+        },
+        "tier": {
+          "full": "Full check",
+          "reduced": "Short check, one device",
+          "none": "Not checked"
+        },
+        "audited": "Page of this audit",
+        "cause": {
+          "action": "Added because an action is open for it",
+          "keyword": "Added because it ranks for a tracked keyword",
+          "template": "Added as an example of a page type",
+          "entry": "Added because visitors often arrive here",
+          "risk": "Added because it is likely to be slow"
+        },
+        "showMore": "Show {count} more pages"
       }
     },
     "AdDataConsent": {

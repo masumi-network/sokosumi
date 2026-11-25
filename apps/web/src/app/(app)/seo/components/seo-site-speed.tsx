@@ -1,0 +1,168 @@
+"use client";
+
+import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { ChevronDown } from "lucide-react";
+import { useId, useState } from "react";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import { cn } from "@/lib/utils";
+import { seoFoldCount } from "./seo-list-model";
+import { SeoSpeedDetail } from "./seo-page-speed";
+import {
+  SEO_STACKED_TABLE_CLASS,
+  SeoDate,
+  SeoPageLink,
+  SeoSection,
+  SeoShowMore,
+  seoPageName,
+  seoSiteUrl,
+} from "./seo-shared";
+import { seoSiteSpeedRows } from "./seo-speed-model";
+import { SeoSpeedMark, seoSpeedVerdictText } from "./seo-speed-status";
+
+const COLUMNS = ["page", "tier", "devices", "status", "source"] as const;
+
+/** The speed of the site's main pages: one row per page, the slowest first. A row opens its measurements. */
+export function SeoSiteSpeed({
+  workspace,
+}: {
+  workspace: ProjectSeoWorkspace;
+}) {
+  const t = useSeoResultTranslations("App.Seo");
+  const id = useId();
+  const [open, setOpen] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
+  const speed = workspace.siteSpeed;
+  if (!speed?.rows.length) return null;
+  const rows = seoSiteSpeedRows(speed);
+  const fold = seoFoldCount(rows.length);
+  const site = seoSiteUrl(workspace);
+  return (
+    <SeoSection
+      lang="en"
+      title={t("siteSpeed.title")}
+      description={t("siteSpeed.description")}
+      actions={
+        <span className="text-muted-foreground text-xs">
+          {t("pageSpeed.date")} <SeoDate report day value={speed.observedAt} />
+        </span>
+      }
+    >
+      <div className={HOLDER_ITEM_CLASS}>
+        <Table className={SEO_STACKED_TABLE_CLASS}>
+          <TableHeader>
+            <TableRow>
+              {COLUMNS.map((key) => (
+                <TableHead key={key} scope="col">
+                  {t(`siteSpeed.column.${key}`)}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(all ? rows : rows.slice(0, fold)).map(
+              ({ row, verdict }, index) => {
+                const isOpen = open === row.url;
+                const detailId = `${id}-${index}`;
+                const added = row.audited
+                  ? t("siteSpeed.audited")
+                  : row.cause
+                    ? t(`siteSpeed.cause.${row.cause}`)
+                    : null;
+                return [
+                  <TableRow key={row.url}>
+                    <TableCell className="whitespace-normal">
+                      <button
+                        type="button"
+                        aria-expanded={isOpen}
+                        // The detail row exists only while open.
+                        aria-controls={isOpen ? detailId : undefined}
+                        onClick={() => setOpen(isOpen ? null : row.url)}
+                        className="focus-visible:ring-ring inline-flex min-h-10 items-center gap-1.5 rounded-sm text-left font-medium break-all focus-visible:ring-2 focus-visible:outline-none sm:min-h-8"
+                      >
+                        {seoPageName(row.url, site, t("pages.home"))}
+                        <ChevronDown
+                          className={cn(
+                            "size-4 shrink-0 transition-transform motion-reduce:transition-none",
+                            isOpen && "rotate-180",
+                          )}
+                          aria-hidden
+                        />
+                      </button>
+                    </TableCell>
+                    <TableCell data-label={t("siteSpeed.column.tier")}>
+                      {row.tier && t(`siteSpeed.tier.${row.tier}`)}
+                    </TableCell>
+                    <TableCell data-label={t("siteSpeed.column.devices")}>
+                      {row.devices
+                        .map(({ device }) => t(`breakdown.devices.${device}`))
+                        .join(", ")}
+                    </TableCell>
+                    <TableCell
+                      data-label={t("siteSpeed.column.status")}
+                      className="whitespace-normal"
+                    >
+                      <SeoSpeedMark status={verdict.worst}>
+                        {seoSpeedVerdictText(t, verdict)}
+                      </SeoSpeedMark>
+                    </TableCell>
+                    <TableCell
+                      data-label={t("siteSpeed.column.source")}
+                      className="whitespace-normal"
+                    >
+                      {verdict.source &&
+                        t(`pageSpeed.source.${verdict.source}`)}
+                    </TableCell>
+                  </TableRow>,
+                  isOpen && (
+                    <TableRow
+                      key={`${row.url} detail`}
+                      id={detailId}
+                      className="hover:bg-transparent"
+                    >
+                      <TableCell
+                        colSpan={COLUMNS.length}
+                        className="space-y-3 whitespace-normal"
+                      >
+                        <SeoPageLink url={row.url} quiet />
+                        {/* Core's sentence says why the page is in the table; the label is for a row without one. */}
+                        {(row.why ?? added) && (
+                          <p className="text-muted-foreground max-w-prose text-xs">
+                            {row.why ?? added}
+                          </p>
+                        )}
+                        {row.devices.length ? (
+                          <SeoSpeedDetail
+                            pageUrl={row.url}
+                            devices={row.devices}
+                          />
+                        ) : (
+                          <p>{t("pageSpeed.not_checked")}</p>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ),
+                ];
+              },
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {rows.length > fold && (
+        <SeoShowMore
+          more={t("siteSpeed.showMore", { count: rows.length - fold })}
+          expanded={all}
+          onToggle={() => setAll(!all)}
+        />
+      )}
+    </SeoSection>
+  );
+}

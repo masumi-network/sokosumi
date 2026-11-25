@@ -241,3 +241,48 @@ export function seoTestKeyword(
     ...patch,
   };
 }
+
+type SeoTestSpeedDevice = NonNullable<
+  ProjectSeoWorkspace["siteSpeed"]
+>["rows"][number]["devices"][number];
+
+/** One device of a speed row: mobile, nothing measured. A test gives the lab or field values it is about. */
+export function seoTestSpeedDevice(
+  patch: Partial<SeoTestSpeedDevice> = {},
+): SeoTestSpeedDevice {
+  return {
+    pageUrl: "https://example.com/",
+    testedUrl: "https://example.com/",
+    device: "mobile",
+    field: { status: "no_data" },
+    lab: { status: "not_checked" },
+    ...patch,
+  };
+}
+
+/** Lab values of a device; the values a test leaves out are not measured. */
+export function seoTestSpeedLab(
+  median: { lcp?: number; cls?: number } = {},
+): SeoTestSpeedDevice["lab"] {
+  return {
+    status: "measured",
+    median: { lcp: null, cls: null, fcp: null, tbt: null, si: null, ...median },
+    runs: 1,
+    ok: 1,
+    lighthouse: null,
+  };
+}
+
+/** Real-visitor values of a device, for the page itself unless the test names another level. */
+export function seoTestSpeedField(
+  p75: { lcp?: number | null; inp?: number | null; cls?: number | null } = {},
+  level: "url" | "origin" | "normalized" = "url",
+): SeoTestSpeedDevice["field"] {
+  return {
+    status: "measured",
+    level,
+    url: "https://example.com/",
+    p75: { lcp: null, inp: null, cls: null, fcp: null, ttfb: null, ...p75 },
+    period: null,
+  };
+}
