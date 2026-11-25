@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -135,10 +136,12 @@ function renderBrandDashboard({
     url: "https://blob.example/DESIGN.md",
   },
   websiteUrl = "https://example.com",
+  headerAction,
 }: {
   autoStart?: boolean;
   designMd?: { extractionId: string | null; url: string } | null;
   websiteUrl?: string | null;
+  headerAction?: ReactNode;
 } = {}) {
   const tree = (url: string | null | undefined) => (
     <ProjectBrandProvider
@@ -147,7 +150,11 @@ function renderBrandDashboard({
       initialDesignMd={designMd}
       websiteUrl={url}
     >
-      <ProjectBrandCard projectId="project-1" websiteUrl={url} />
+      <ProjectBrandCard
+        projectId="project-1"
+        websiteUrl={url}
+        headerAction={headerAction}
+      />
     </ProjectBrandProvider>
   );
   const view = render(tree(websiteUrl));
@@ -214,6 +221,32 @@ describe("ProjectBrandCard", () => {
       force: true,
       url: "https://example.com",
     });
+  });
+
+  it("puts the page's brand action in the Brand row, beside the menu", () => {
+    renderBrandDashboard({
+      headerAction: <button type="button">Download brand kit</button>,
+    });
+
+    const row = screen.getByRole("heading", { name: "Brand" }).parentElement;
+    const download = screen.getByRole("button", { name: "Download brand kit" });
+    expect(row).toContainElement(download);
+    expect(
+      download.compareDocumentPosition(
+        screen.getByRole("button", { name: "Brand actions" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("hides the brand action while there is no DESIGN.md", () => {
+    renderBrandDashboard({
+      designMd: null,
+      headerAction: <button type="button">Download brand kit</button>,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Download brand kit" }),
+    ).toBeNull();
   });
 
   it("updates from upload and removes through the project action", async () => {

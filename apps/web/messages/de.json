@@ -3791,7 +3791,14 @@
           "document": "DESIGN.md",
           "colors": "Farben",
           "typography": "Typografie",
-          "frontMatter": "Front Matter"
+          "frontMatter": "Front Matter",
+          "downloadBrandKit": "Marken-Kit herunterladen",
+          "brandKitFileName": "{name} Marken-Kit",
+          "brandKitArchive": {
+            "failed": "Das Marken-Kit konnte nicht heruntergeladen werden. Versuche es erneut.",
+            "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Versuche es erneut, um sie hinzuzufügen.",
+            "empty": "Es gibt noch nichts herunterzuladen."
+          }
         },
         "bots": {
           "title": "Bots für dieses Projekt"

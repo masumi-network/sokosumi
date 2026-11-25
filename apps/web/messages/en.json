@@ -3791,7 +3791,14 @@
           "document": "DESIGN.md",
           "colors": "Colors",
           "typography": "Typography",
-          "frontMatter": "Front matter"
+          "frontMatter": "Front matter",
+          "downloadBrandKit": "Download brand kit",
+          "brandKitFileName": "{name} brand kit",
+          "brandKitArchive": {
+            "failed": "Couldn't download the brand kit. Try again.",
+            "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Try again to add it.",
+            "empty": "There is nothing to download yet."
+          }
         },
         "bots": {
           "title": "Bots for this project"
