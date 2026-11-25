@@ -1569,6 +1569,96 @@ it("keeps the toolbar mounted while remounting the board when the server filter 
   }
 });
 
+it("keeps the toolbar mounted while resetting loaded pages and cursors when the server view mode changes", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-loaded-before-view-switch",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [loaded],
+    nextCursor: null,
+  });
+  vi.mocked(loadMoreTasksList).mockResolvedValueOnce({
+    tasks: [],
+    nextCursor: null,
+  });
+
+  const { rerender } = render(boardView([TASK], undefined, "done-cursor-1", 2));
+  const filtersButton = screen.getByRole("button", { name: "Filters" });
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${loaded.id}`),
+  ).toBeInTheDocument();
+
+  rerender(
+    cloneElement(boardView([TASK]), {
+      defaultViewMode: "list" as const,
+      listNextCursor: "list-cursor-1",
+    }),
+  );
+
+  expect(screen.getByRole("button", { name: "Filters" })).toBe(filtersButton);
+  expect(screen.queryByTestId(`list-row-${loaded.id}`)).not.toBeInTheDocument();
+  expect(screen.getByTestId(`list-row-${TASK.id}`)).toBeInTheDocument();
+
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(loadMoreTasksList).toHaveBeenLastCalledWith(
+    expect.objectContaining({ cursor: "list-cursor-1" }),
+  );
+
+  rerender(boardView([TASK], undefined, "done-cursor-1", 2));
+  expect(screen.getByRole("button", { name: "Filters" })).toBe(filtersButton);
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("2");
+});
+
+it("ignores a rejected drag and a failed column Load more after the server view mode changes", async () => {
+  vi.mocked(toast.error).mockClear();
+  const dragResult =
+    Promise.withResolvers<Awaited<ReturnType<typeof setTaskStatusFromDrag>>>();
+  const page =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksColumn>>>();
+  vi.mocked(setTaskStatusFromDrag).mockReturnValueOnce(dragResult.promise);
+  vi.mocked(loadMoreTasksColumn).mockReturnValueOnce(page.promise);
+
+  const { rerender } = render(boardView([TASK], undefined, "done-cursor-1", 1));
+  await dropOnTodo(TASK.id, "backlog");
+  expect(boardCard(TASK.id)).toHaveAttribute("data-column", "todo");
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(loadMoreTasksColumn).toHaveBeenCalledTimes(1);
+
+  rerender(
+    cloneElement(boardView([TASK]), {
+      defaultViewMode: "list" as const,
+      listNextCursor: "list-cursor-1",
+    }),
+  );
+
+  await act(async () => {
+    dragResult.resolve({
+      ok: false,
+      error: { kind: "status_not_selectable" },
+    });
+    page.reject(new Error("network"));
+    await dragResult.promise;
+    await page.promise.catch(() => undefined);
+  });
+
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(screen.getByTestId(`list-row-${TASK.id}`)).toHaveAttribute(
+    "data-status",
+    TaskStatus.DRAFT,
+  );
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+});
+
 it("keeps column Load more tasks that settle while hidden under Activity on the same filter", async () => {
   const loaded: TaskWithCoworker = {
     ...CANCELED_TASK,

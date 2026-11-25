@@ -359,42 +359,6 @@ export function useTasksBoardModel({
   const loadingColumnIdsRef = useRef(loadingColumnIds);
   loadingColumnIdsRef.current = loadingColumnIds;
 
-  const previousDefaultViewModeRef = useRef(defaultViewMode);
-
-  useLayoutEffect(() => {
-    if (previousDefaultViewModeRef.current === defaultViewMode) {
-      return;
-    }
-
-    previousDefaultViewModeRef.current = defaultViewMode;
-    pendingMoveVersionByTaskIdRef.current.clear();
-
-    itemsRef.current = tasks;
-    setBoardData({
-      snapshot: tasks,
-      items: tasks,
-      columnCursorById: buildInitialColumnCursorById(
-        columns,
-        initialColumnNextCursorById,
-      ),
-      columnHiddenById: initialColumnHiddenCountById,
-      loadedBoardColumnByTaskId: new Map(),
-      pendingArchiveIdsByColumn: new Map(),
-    });
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    defaultViewMode,
-    initialColumnHiddenCountById,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    tasks,
-  ]);
-
   // Before paint: the commit that brings new rows also drops a pending row,
   // and the board must not show a frame without either.
   useLayoutEffect(() => {

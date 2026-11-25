@@ -525,7 +525,7 @@ export function TasksView(props: TasksViewProps) {
       </div>
 
       <TasksBoard
-        key={serverTasksFiltersResetKey}
+        key={`${defaultViewMode ?? "board"}:${serverTasksFiltersResetKey}`}
         tasks={tasks}
         listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
