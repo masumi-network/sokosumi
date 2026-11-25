@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -290,5 +291,16 @@ describe("project brand generation across surfaces", () => {
     session.current = { data: { user: { id: "viewer-1" } } };
     page.rerender(overview());
     expect(await screen.findByText("brandCard.generating")).toBeInTheDocument();
+  });
+
+  it("starts icon lookup and DESIGN.md generation only once under StrictMode", async () => {
+    vi.mocked(startDesignMdGeneration).mockReturnValue(new Promise(() => {}));
+
+    render(<StrictMode>{wizard()}</StrictMode>);
+
+    await waitFor(() => {
+      expect(resolveProjectSiteIcon).toHaveBeenCalledOnce();
+      expect(startDesignMdGeneration).toHaveBeenCalledOnce();
+    });
   });
 });
