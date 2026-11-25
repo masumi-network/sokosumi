@@ -41,6 +41,7 @@ export type SeoAiOverviewMark =
   | "cited_checked"
   | "other_page"
   | "site_cited"
+  | "site_cited_checked"
   | "shown"
   | "undetermined"
   | "absent"
@@ -75,6 +76,13 @@ function pageKey(url: string) {
   parsed.hash = "";
   return parsed.href;
 }
+
+/** A stored cited source as a site, or none when the value names no host ("Reddit"). */
+const sourceHost = (source: string) => {
+  const url = /^https?:\/\//i.test(source) ? source : `https://${source}`;
+  const host = URL.canParse(url) ? seoHost(url) : "";
+  return host.includes(".") ? [host] : [];
+};
 
 /**
  * What the SERP showed for a keyword row group on each check, newest first, one entry per device read. A suspect
@@ -118,6 +126,17 @@ export function seoSerpMarkers(
         const featuredHost = point.featured?.domain
           ? seoHost(`https://${point.featured.domain}`)
           : null;
+        // Older reads can hold "www." twins of a domain.
+        const aiSources = [
+          ...new Set((ai?.citedDomains ?? []).flatMap(sourceHost)),
+        ]
+          .map((domain) => ({ domain, own: checkedHosts.has(domain) }))
+          .sort((a, b) => Number(b.own) - Number(a.own));
+        // siteCited covers every checked page's site: it names the row's site only when no other site can be meant.
+        const rowSiteCited =
+          pageHost !== null &&
+          (checkedHosts.size === 1 ||
+            aiSources.some((source) => source.domain === pageHost));
         return {
           date,
           device: series.device,
@@ -130,7 +149,9 @@ export function seoSerpMarkers(
               : page !== null && !checked.includes(page)
                 ? "other_page"
                 : ai.pageCited !== true && ai.siteCited === true
-                  ? "site_cited"
+                  ? rowSiteCited
+                    ? "site_cited"
+                    : "site_cited_checked"
                   : ai.pageCited === null
                     ? "undetermined"
                     : !ai.pageCited
@@ -138,16 +159,7 @@ export function seoSerpMarkers(
                       : page !== null && checked.length === 1
                         ? "cited"
                         : "cited_checked",
-          // Older reads can hold "www." twins of a domain.
-          aiSources: [
-            ...new Set(
-              (ai?.citedDomains ?? []).map((domain) =>
-                seoHost(`https://${domain}`),
-              ),
-            ),
-          ]
-            .map((domain) => ({ domain, own: checkedHosts.has(domain) }))
-            .sort((a, b) => Number(b.own) - Number(a.own)),
+          aiSources,
           featured: !point.featured
             ? "none"
             : pageHost !== null && featuredHost !== null

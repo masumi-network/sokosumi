@@ -107,6 +107,46 @@ describe("seoSerpMarkers", () => {
     expect(mark(null)).toEqual(["undetermined"]);
   });
 
+  it("does not name the row's site when a check of two sites cites only the other", () => {
+    const mark = (pageUrl: string | null, citedDomains: string[]) =>
+      seoSerpMarkers(
+        [
+          series({ pageUrls: ["https://a.test/page", "https://b.test/page"] }, [
+            point("01", {
+              pages: [0, 1],
+              aiOverview: { ...ai(true, false), siteCited: true, citedDomains },
+            }),
+          ]),
+        ],
+        [seoTestKeyword({ pageUrl })],
+      ).map((item) => (item.suspect ? "suspect" : item.aiOverview));
+    expect(mark("https://a.test/page", ["b.test"])).toEqual([
+      "site_cited_checked",
+    ]);
+    expect(mark("https://a.test/page", ["www.a.test"])).toEqual(["site_cited"]);
+    // A row without a page has no site of its own.
+    expect(mark(null, ["b.test"])).toEqual(["site_cited_checked"]);
+  });
+
+  it("lists no source for a stored value that names no host", () => {
+    const [mark] = seoSerpMarkers(
+      [
+        series({}, [
+          point("01", {
+            aiOverview: {
+              ...ai(true),
+              citedDomains: ["https://www.rival.test/x", "Reddit", ""],
+            },
+          }),
+        ]),
+      ],
+      [seoTestKeyword()],
+    );
+    expect(mark).toMatchObject({
+      aiSources: [{ domain: "rival.test", own: false }],
+    });
+  });
+
   it("lists each cited site once, a checked page's site first", () => {
     const [mark] = seoSerpMarkers(
       [

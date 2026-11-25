@@ -13486,7 +13486,8 @@
             "undetermined": "Zitierung nicht ermittelt",
             "cited_checked": "Zitiert eine geprüfte Seite",
             "other_page": "Für eine andere Seite geprüft",
-            "site_cited": "Zitiert die Website der Seite"
+            "site_cited": "Zitiert die Website der Seite",
+            "site_cited_checked": "Zitiert eine geprüfte Website"
           },
           "aiSources": "Quellen",
           "ownSource": "{domain} (deine Website)",
