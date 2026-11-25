@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   type BrandBrain,
   CMO_PICKED_PIECE_WRITING_GUIDE,
@@ -116,12 +117,18 @@ import { type RuntimeOperations } from "./operations";
  * time to answer; what it did not save stays pending for the next call.
  */
 /**
- * Sixty a call, six chunks at once under the same deadline: cmo-v14's top
- * month (504 pieces) takes nine calls instead of thirteen.
+ * Three pieces a chunk, ten chunks at once. A piece takes about 1,700 output
+ * tokens, and the gateway answered 3-piece chunks in 10 to 63 s. A 10-piece
+ * chunk (about 17,000 tokens) ran past its 75 s limit every time: on
+ * 2026-11-25 a 24-piece month wrote nothing, and NMKR's wrote 3 of 20 a call.
  */
-const PIECES_PER_CALL = 60;
-const PIECES_PER_CHUNK = 10;
+const PIECES_PER_CALL = 30;
+const PIECES_PER_CHUNK = 3;
 const MODEL_TIMEOUT_MS = 75_000;
+/** A chunk that failed fast is retried once after this pause... */
+const RETRY_BACKOFF_MS = 2_000;
+/** ...when the deadline still leaves its model call this long. */
+const RETRY_MIN_MS = 30_000;
 /** What the writer leaves of its tool timeout to answer and log. */
 const ANSWER_MARGIN_MS = 15_000;
 export function cmoMonthWriterBudgetMs(): number {
@@ -452,6 +459,32 @@ async function writeChunk(
   }).catch(rethrowAiGatewayFailure);
   await chargeWriterCall(input, modelId, result);
   return cmoWrittenChunkSchema.parse(result.output).pieces;
+}
+
+function timedOut(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
+/**
+ * A chunk whose call failed fast (a gateway error, an answer that did not
+ * parse) is written once more. A call that ran out its time is not: no time
+ * is left, and its pieces stay pending for the next call.
+ */
+async function writeChunkWithRetry(
+  ...args: Parameters<typeof writeChunk>
+): Promise<WrittenPiece[]> {
+  try {
+    return await writeChunk(...args);
+  } catch (error) {
+    if (timedOut(error)) throw error;
+    await sleep(RETRY_BACKOFF_MS);
+    if (cmoWriterModelTimeoutMs(args[5], Date.now()) < RETRY_MIN_MS)
+      throw error;
+    return writeChunk(...args);
+  }
 }
 
 /** Charged to the turn like its own steps, with its tokens. */
@@ -872,7 +905,7 @@ export async function writeCmoMonthPieces(
     }));
   await Promise.all(
     chunks.map((chunk, index) =>
-      writeChunk(
+      writeChunkWithRetry(
         input,
         request,
         modelId,
