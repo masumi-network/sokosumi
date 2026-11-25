@@ -70,6 +70,8 @@
   "jobStatus.missingToolset.title": "Turn on the jobs toolset to follow this Job",
   "jobStatus.missingToolset.body": "This view checks the Job with jobs_get, which is off. Add jobs to the toolsets list in your Sokosumi connector's URL, then ask again. If the URL lists no toolsets yet, end it with:",
   "jobStatus.missingToolset.example": "?toolsets=workspaces,tasks,coworkers,jobs",
+  "jobStatus.gone.title": "This Job isn't available anymore",
+  "jobStatus.gone.body": "It may have moved to another workspace, or you may no longer have access. This is the last result.",
   "jobStatus.started": "Started",
   "jobStatus.finished": "Finished",
   "jobStatus.result": "Result",
@@ -78,5 +80,6 @@
   "jobStatus.files": "Files",
   "jobStatus.unnamedFile": "Unnamed file",
   "jobStatus.links": "Links",
+  "jobStatus.openOutputs": "Open the Job in Sokosumi to open its files and links.",
   "jobStatus.open": "Open in Sokosumi"
 }

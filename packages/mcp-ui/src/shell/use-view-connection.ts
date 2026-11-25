@@ -17,6 +17,8 @@ export type ConnectionState = {
   input?: Record<string, unknown>;
   /** A tool the last rerun named that the server does not offer. */
   missingTool?: string;
+  /** The HTTP status in the last rerun's error result, until one succeeds. */
+  refreshStatus?: number;
 } & (
   | { status: "loading" }
   | { status: "result"; result: ToolResult }
@@ -27,7 +29,9 @@ export type ConnectionState = {
  * Calls a server tool through the host. A result `accept` takes replaces the
  * shown one, keeping its `_meta` (such as Core's `webBaseUrl`, which only the
  * show tool adds) under the new result's own. When the server does not offer
- * the tool (its toolset is off), the state names it in `missingTool`.
+ * the tool (its toolset is off), the state names it in `missingTool`; an
+ * error result's HTTP status (Core's `structuredContent.status`) is in
+ * `refreshStatus`.
  */
 export type Rerun = (
   name: string,
@@ -121,13 +125,22 @@ export function useViewConnection(
       };
       try {
         const result = await app.callServerTool({ name, arguments: args });
-        if (result.isError) return missing(result);
+        if (result.isError) {
+          const { status } = (result.structuredContent ?? {}) as {
+            status?: unknown;
+          };
+          if (typeof status === "number") {
+            update((previous) => ({ ...previous, refreshStatus: status }));
+          }
+          return missing(result);
+        }
         if (!accept(result)) return false;
         update((previous) =>
           previous.status === "result"
             ? {
                 ...previous,
                 missingTool: undefined,
+                refreshStatus: undefined,
                 result: {
                   ...result,
                   _meta: { ...previous.result._meta, ...result._meta },

@@ -159,26 +159,26 @@ describe("JobStatus", () => {
     expect(screen.getByText("Nov 25, 2026, 10:12 AM")).toBeTruthy();
   });
 
-  it("opens https files and links through the host, and nothing else", async () => {
+  it("names files and links as text and opens none of them (ADR 0083)", async () => {
     const { sent } = await openJob(JOB.completed);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /dach-pricing-report\.pdf/ }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: /Competitor A pricing/ }),
-    );
-    await advance(0);
-    expect(sent.links.mock.calls).toEqual([
-      ["https://blob.sokosumi.com/jobs/report.pdf"],
-      ["https://competitor.example.com/pricing"],
-    ]);
+    const files = screen.getByRole("region", { name: "Files" });
+    expect(within(files).getByText("dach-pricing-report.pdf")).toBeTruthy();
+    expect(within(files).getByText("prices.csv")).toBeTruthy();
+    const links = screen.getByRole("region", { name: "Links" });
+    expect(within(links).getByText("Competitor A pricing")).toBeTruthy();
+    expect(within(links).getByText("javascript:alert(1)")).toBeTruthy();
+    expect(
+      screen.getByText("Open the Job in Sokosumi to open its files and links."),
+    ).toBeTruthy();
 
-    // A file without an https URL and a non-https link show as text only.
-    expect(screen.getByText("prices.csv")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /prices\.csv/ })).toBeNull();
-    expect(screen.getByText("javascript:alert(1)")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /javascript/ })).toBeNull();
+    // The only control that leaves the view is Open in Sokosumi.
+    expect(
+      screen.getAllByRole("button").map((button) => button.textContent),
+    ).toEqual(["Open in Sokosumi"]);
+    expect(document.querySelector("a[href]")).toBeNull();
+    await advance(0);
+    expect(sent.links).not.toHaveBeenCalled();
   });
 
   it("opens the Job in Sokosumi under Core's webBaseUrl", async () => {
@@ -225,6 +225,49 @@ describe("JobStatus", () => {
 
     await advance(60_000);
     expect(sent.calls).toHaveBeenCalledTimes(1);
+  });
+
+  const coreError = (status: number, message: string): CallToolResult => ({
+    content: [{ type: "text", text: JSON.stringify({ status, message }) }],
+    structuredContent: { status, message },
+    isError: true,
+  });
+
+  it.each([
+    [404, "Job not found"],
+    [403, "Forbidden"],
+  ])(
+    "says the Job is not available anymore on a %i, and stops polling",
+    async (code, message) => {
+      const { sent } = await openJob(JOB.running, async () =>
+        coreError(code, message),
+      );
+
+      await advance(3000);
+      expect(screen.getByText("This Job isn't available anymore")).toBeTruthy();
+      expect(screen.queryByText(/Trying again/)).toBeNull();
+      expect(screen.queryByText(/This view updates/)).toBeNull();
+
+      await advance(60_000);
+      expect(sent.calls).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    [429, "Too many requests"],
+    [500, "Something went wrong"],
+  ])("keeps retrying after a %i", async (code, message) => {
+    const { sent } = await openJob(JOB.running, async () =>
+      coreError(code, message),
+    );
+
+    await advance(3000);
+    expect(
+      screen.getByText("Could not check for updates. Trying again."),
+    ).toBeTruthy();
+    expect(screen.queryByText("This Job isn't available anymore")).toBeNull();
+    await advance(5000);
+    expect(sent.calls).toHaveBeenCalledTimes(2);
   });
 
   it("says when a check failed and keeps the last result", async () => {

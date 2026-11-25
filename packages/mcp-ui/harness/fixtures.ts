@@ -14,6 +14,8 @@ export interface Fixture {
   allWidths?: boolean;
   /** The harness answers the view's `tools/call` with this error. */
   callError?: string;
+  /** The harness answers the view's `tools/call` with this, not `result`. */
+  callResult?: McpUiToolResultNotification["params"];
   /** What the screenshot waits for in the view, when not its `data-state`. */
   waitFor?: string;
 }
@@ -358,6 +360,18 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       result: JOB.running,
       callError: "MCP error -32602: Unknown tool: jobs_get",
       waitFor: '[data-poll="missing-tool"]',
+    },
+    gone: {
+      input: JOB.input,
+      result: JOB.running,
+      callResult: {
+        content: [
+          { type: "text", text: '{"status":404,"message":"Job not found"}' },
+        ],
+        structuredContent: { status: 404, message: "Job not found" },
+        isError: true,
+      },
+      waitFor: '[data-poll="gone"]',
     },
     loading: { input: JOB.input },
     error: {

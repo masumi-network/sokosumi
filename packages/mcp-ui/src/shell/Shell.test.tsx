@@ -25,6 +25,7 @@ interface OpenViewOptions {
 
 let refresh: ViewContext["refresh"];
 let missingTool: ViewContext["missingTool"];
+let refreshStatus: ViewContext["refreshStatus"];
 
 /** A fake host: an AppBridge on one end of an in-memory pipe, the view on the other. */
 async function openView(
@@ -60,6 +61,7 @@ async function openView(
       {(data, context) => {
         refresh = context.refresh;
         missingTool = context.missingTool;
+        refreshStatus = context.refreshStatus;
         return (
           <p>
             {data.name} in {context.locale}, {context.timeZone},{" "}
@@ -85,6 +87,7 @@ afterEach(() => {
   cleanup();
   refresh = undefined;
   missingTool = undefined;
+  refreshStatus = undefined;
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("style");
 });
@@ -279,6 +282,39 @@ describe("Shell", () => {
 
     expect(refreshed).toBe(false);
     expect(missingTool).toBeUndefined();
+  });
+
+  it("keeps the status of a refresh's error result until a refresh succeeds", async () => {
+    const answers = [
+      {
+        content: [{ type: "text" as const, text: "{}" }],
+        structuredContent: { status: 404, message: "Not found" },
+        isError: true,
+      },
+      greeting("Grace"),
+    ];
+    const bridge = await openView(
+      {},
+      {
+        refreshTool: "users_get",
+        callTool: async () => answers.shift() ?? greeting("Grace"),
+      },
+    );
+    await act(() => bridge.sendToolInput({ arguments: {} }));
+    await act(() => bridge.sendToolResult(greeting("Ada")));
+    expect(refreshStatus).toBeUndefined();
+
+    await act(async () => {
+      await refresh?.();
+    });
+    expect(refreshStatus).toBe(404);
+    expect(screen.getByText(/^Ada in/)).toBeTruthy();
+
+    await act(async () => {
+      await refresh?.();
+    });
+    expect(refreshStatus).toBeUndefined();
+    expect(screen.getByText(/^Grace in/)).toBeTruthy();
   });
 
   it("does not take record text in an error result for a missing tool", async () => {

@@ -103,8 +103,9 @@ async function main() {
   bridge.oncalltool = async ({ name, arguments: args }) => {
     record(`tools/call ${name} ${JSON.stringify(args)}`);
     if (fixture.callError) throw new Error(fixture.callError);
-    if (!fixture.result) throw new Error("The fixture has no result");
-    return fixture.result;
+    const answer = fixture.callResult ?? fixture.result;
+    if (!answer) throw new Error("The fixture has no result");
+    return answer;
   };
   bridge.oninitialized = async () => {
     record(`ui/initialize ${viewId} / ${fixtureName} / ${theme}`);

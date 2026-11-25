@@ -11,11 +11,7 @@ import {
 import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
 import { usePolling } from "./polling.ts";
 
-const JobFile = z.object({
-  id: z.string(),
-  name: z.string().nullish(),
-  fileUrl: z.string().nullish(),
-});
+const JobFile = z.object({ id: z.string(), name: z.string().nullish() });
 const JobLink = z.object({
   id: z.string(),
   url: z.string(),
@@ -68,15 +64,12 @@ function describeStatus(status: string): { word: string; hint?: string } {
   };
 }
 
-/** Only https URLs leave the view, and only through the host. */
-function httpsUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  try {
-    return new URL(url).protocol === "https:" ? url : undefined;
-  } catch {
-    return undefined;
-  }
-}
+/**
+ * Core's answer when the Job can no longer be read here: moved, deleted or
+ * access lost. A 429 is a pause, not an answer.
+ */
+const isGone = (status?: number) =>
+  status !== undefined && status >= 400 && status < 500 && status !== 429;
 
 /** Files and links from every event, newest event first, each once. */
 function outputsOf(job: Job) {
@@ -102,7 +95,8 @@ export function JobStatus({
   const job = data.data;
   const { app, missingTool } = context;
   const finished = FINISHED.has(job.status);
-  const following = !finished && !missingTool;
+  const gone = isGone(context.refreshStatus);
+  const following = !finished && !missingTool && !gone;
   const { failed } = usePolling(context.refresh, following);
   // Say it updates only while it can: a host without server tools gives no refresh.
   const live = following && context.refresh !== undefined;
@@ -110,18 +104,20 @@ export function JobStatus({
   const agentName = job.agent?.overrideName || job.agent?.name;
   const { files, links } = outputsOf(job);
 
-  const open = (url: string) =>
+  // The only link the view opens (ADR 0083): the Job in Web, where the
+  // person opens its files and links.
+  const base = context.webBaseUrl;
+  const jobUrl =
+    base &&
+    `${base.replace(/\/$/, "")}/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`;
+  const webUrl = jobUrl && isUnderBase(jobUrl, base) ? jobUrl : undefined;
+  const openJob = (url: string) =>
     app.openLink({ url }).catch((error: unknown) =>
       app.sendLog({
         level: "warning",
         data: `ui/open-link failed: ${String(error)}`,
       }),
     );
-
-  const base = context.webBaseUrl;
-  const webUrl =
-    base &&
-    `${base.replace(/\/$/, "")}/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`;
 
   return (
     <article className="flex flex-col gap-5">
@@ -151,7 +147,7 @@ export function JobStatus({
               .join(" ")}
           </p>
         )}
-        {failed && !missingTool && (
+        {failed && following && (
           <p className="text-muted-foreground text-sm">
             {t("jobStatus.checkFailed")}
           </p>
@@ -172,6 +168,15 @@ export function JobStatus({
         </section>
       )}
 
+      {gone && (
+        <section data-poll="gone" className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold">{t("jobStatus.gone.title")}</h2>
+          <p className="text-muted-foreground text-sm">
+            {t("jobStatus.gone.body")}
+          </p>
+        </section>
+      )}
+
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted-foreground">{t("jobStatus.started")}</dt>
         <dd>{formatDateTime(job.createdAt, context)}</dd>
@@ -186,34 +191,26 @@ export function JobStatus({
       {job.result && <ResultText text={job.result} />}
 
       {files.length > 0 && (
-        <Outputs title="jobStatus.files">
-          {files.map((file) => (
-            <Output
-              key={file.id}
-              label={file.name || t("jobStatus.unnamedFile")}
-              url={httpsUrl(file.fileUrl)}
-              onOpen={open}
-            />
-          ))}
-        </Outputs>
+        <Outputs
+          title="jobStatus.files"
+          names={files.map(({ name }) => name || t("jobStatus.unnamedFile"))}
+        />
       )}
-
       {links.length > 0 && (
-        <Outputs title="jobStatus.links">
-          {links.map((link) => (
-            <Output
-              key={link.id}
-              label={link.title || link.url}
-              url={httpsUrl(link.url)}
-              onOpen={open}
-            />
-          ))}
-        </Outputs>
+        <Outputs
+          title="jobStatus.links"
+          names={links.map(({ title, url }) => title || url)}
+        />
+      )}
+      {webUrl && (files.length > 0 || links.length > 0) && (
+        <p className="text-muted-foreground -mt-3 text-sm">
+          {t("jobStatus.openOutputs")}
+        </p>
       )}
 
-      {webUrl && isUnderBase(webUrl, base) && (
+      {webUrl && (
         <div>
-          <PrimaryButton onClick={() => open(webUrl)}>
+          <PrimaryButton onClick={() => openJob(webUrl)}>
             {t("jobStatus.open")}
           </PrimaryButton>
         </div>
@@ -253,54 +250,22 @@ function ResultText({ text }: { text: string }) {
   );
 }
 
-function Outputs({
-  title,
-  children,
-}: {
-  title: MessageKey;
-  children: React.ReactNode;
-}) {
+/** A Job's files or links, by name only: they open in Sokosumi (ADR 0083). */
+function Outputs({ title, names }: { title: MessageKey; names: string[] }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-1">
       <h2 id={headingId} className="text-muted-foreground text-xs font-medium">
         {t(title)}
       </h2>
-      <ul className="-mx-3 flex flex-col">{children}</ul>
+      <ul className="flex flex-col gap-1 text-sm">
+        {names.map((name, index) => (
+          // Names may repeat, and the list never reorders: the index keys it.
+          <li key={index} className="truncate">
+            {name}
+          </li>
+        ))}
+      </ul>
     </section>
-  );
-}
-
-/** A file or link: a button that opens it through the host when its URL is https, plain text otherwise. */
-function Output({
-  label,
-  url,
-  onOpen,
-}: {
-  label: string;
-  url?: string;
-  onOpen: (url: string) => void;
-}) {
-  if (!url) {
-    return (
-      <li className="text-muted-foreground truncate px-3 py-1.5 text-sm">
-        {label}
-      </li>
-    );
-  }
-  const host = new URL(url).host;
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onOpen(url)}
-        className="hover:bg-accent focus-visible:outline-ring flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left focus-visible:outline-2 focus-visible:-outline-offset-2"
-      >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {label}
-        </span>
-        <span className="text-muted-foreground shrink-0 text-xs">{host}</span>
-      </button>
-    </li>
   );
 }
