@@ -12916,6 +12916,32 @@
         "linkedinDirect": "{who} está conectado con ellos en LinkedIn",
         "onLinkedIn": "conectados en LinkedIn",
         "importHint": "Importa tus contactos de LinkedIn en Contactos para encontrar más vías."
+      },
+      "outreach": {
+        "title": "Contacto",
+        "noMailbox": "Los borradores van a tu propio Gmail a través de tu Soko Bot. Conecta Gmail allí primero.",
+        "connect": "Abrir Soko Bots",
+        "kind": "Qué escribir",
+        "kinds": {
+          "intro": "Primer correo",
+          "follow_up": "Seguimiento"
+        },
+        "via": "A través de quién",
+        "direct": "Escribirles directamente",
+        "viaName": "Pedir a {name} una presentación",
+        "inviteRoom": "Darles acceso a “{room}” y enlazarlo",
+        "linkRoom": "Enlazar “{room}” (ya tienen acceso)",
+        "noteLabel": "Algo que mencionar",
+        "notePlaceholder": "p. ej. nos vimos en la cena de Draper; menciona la alianza con Cardano",
+        "noEmail": "No hay correo registrado; añade uno en Contactos o pide una presentación a un contacto común.",
+        "draft": "Escribir borrador en {mailbox}",
+        "neverSends": "Sokosumi nunca envía. Lo lees en tu buzón y lo envías tú.",
+        "drafted": "El borrador está en tu {mailbox}",
+        "failed": "No se pudo escribir el borrador",
+        "inMailbox": "En tus borradores de {mailbox}, para {to}",
+        "openDrafts": "Abrir borradores de Gmail",
+        "another": "Escribir otro",
+        "lastDraft": "Último borrador “{subject}” · {when}"
       }
     },
     "Seo": {

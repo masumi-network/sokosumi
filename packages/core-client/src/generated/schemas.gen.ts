@@ -22515,13 +22515,37 @@ export const FundraisingPipelineSchema = {
         },
         research: {
             $ref: '#/components/schemas/FundraisingResearch'
+        },
+        mailbox: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        provider: {
+                            type: 'string'
+                        },
+                        botId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'provider',
+                        'botId'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
         'list',
         'rooms',
         'prospects',
-        'research'
+        'research',
+        'mailbox'
     ]
 } as const;
 
@@ -22582,6 +22606,20 @@ export const FundraisingProspectSchema = {
                 'null'
             ]
         },
+        lastDraftAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastDraftSubject: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         dataRoom: {
             anyOf: [
                 {
@@ -22603,6 +22641,8 @@ export const FundraisingProspectSchema = {
         'committedUsd',
         'notes',
         'source',
+        'lastDraftAt',
+        'lastDraftSubject',
         'dataRoom'
     ]
 } as const;
@@ -23064,6 +23104,73 @@ export const FundraisingPathKindSchema = {
         'linkedin',
         'fund',
         'portfolio'
+    ]
+} as const;
+
+export const FundraisingDraftResultSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        draftId: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        roomLink: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prospect: {
+            $ref: '#/components/schemas/FundraisingProspect'
+        }
+    },
+    required: [
+        'to',
+        'subject',
+        'body',
+        'draftId',
+        'provider',
+        'roomLink',
+        'prospect'
+    ]
+} as const;
+
+export const FundraisingDraftInputSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'intro',
+                'follow_up'
+            ]
+        },
+        viaContactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        inviteToRoomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    },
+    required: [
+        'kind'
     ]
 } as const;
 

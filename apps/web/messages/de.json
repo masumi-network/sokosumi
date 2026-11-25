@@ -12916,6 +12916,32 @@
         "linkedinDirect": "{who} ist auf LinkedIn mit ihnen verbunden",
         "onLinkedIn": "auf LinkedIn verbunden",
         "importHint": "Importiere deine LinkedIn-Kontakte in Kontakte, um mehr Wege zu finden."
+      },
+      "outreach": {
+        "title": "Ansprache",
+        "noMailbox": "Entwürfe landen über deinen Soko Bot in deinem eigenen Gmail. Verbinde dort zuerst Gmail.",
+        "connect": "Soko Bots öffnen",
+        "kind": "Was schreiben",
+        "kinds": {
+          "intro": "Erste Mail",
+          "follow_up": "Nachfassen"
+        },
+        "via": "Über wen",
+        "direct": "Direkt anschreiben",
+        "viaName": "{name} um eine Vorstellung bitten",
+        "inviteRoom": "In „{room}“ lassen und verlinken",
+        "linkRoom": "„{room}“ verlinken (schon drin)",
+        "noteLabel": "Erwähnenswertes",
+        "notePlaceholder": "z. B. beim Draper-Dinner getroffen; Cardano-Partnerschaft erwähnen",
+        "noEmail": "Keine E-Mail-Adresse hinterlegt; in Kontakte ergänzen oder einen gemeinsamen Kontakt um eine Vorstellung bitten.",
+        "draft": "Entwurf in {mailbox} schreiben",
+        "neverSends": "Sokosumi sendet nie. Du liest ihn in deinem Postfach und sendest selbst.",
+        "drafted": "Der Entwurf liegt in deinem {mailbox}",
+        "failed": "Der Entwurf konnte nicht geschrieben werden",
+        "inMailbox": "In deinen {mailbox}-Entwürfen, an {to}",
+        "openDrafts": "Gmail-Entwürfe öffnen",
+        "another": "Noch einen schreiben",
+        "lastDraft": "Letzter Entwurf „{subject}“ · {when}"
       }
     },
     "Seo": {
