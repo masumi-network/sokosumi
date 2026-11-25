@@ -406,7 +406,7 @@ export async function reviewCmoPlan(
     ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
     : null;
   if (rules.everyNetwork && brain)
-    problems.push(...cmoNewNetworkProblems(strategy, brain));
+    problems.push(...cmoNewNetworkProblems(strategy, brain, connectedNetworks));
   // cmo-v21: every pillar is an industry topic resting on the research.
   const topics =
     rules.industryTopics && plan.planSent && bot?.projectId

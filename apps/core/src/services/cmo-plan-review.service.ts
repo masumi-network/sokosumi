@@ -612,12 +612,14 @@ function askedForNothingProblems(strategy: MarketingStrategyPlan): string[] {
 }
 
 /**
- * The planned networks the Brand Brain shows no profile on, without the
- * "New:" that tells the owner to open the account first.
+ * The planned networks the Brand Brain shows no profile on and the business
+ * has not connected, without the "New:" that tells the owner to open the
+ * account first. A connected network is never "New:" (cmo-v14's skill).
  */
 export function cmoNewNetworkProblems(
   strategy: MarketingStrategyPlan,
   brain: BrandBrain,
+  connected: readonly string[] = [],
 ): string[] {
   const found = [
     ...(brain.channels ?? []),
@@ -627,7 +629,8 @@ export function cmoNewNetworkProblems(
   const unmarked = strategy.channels
     .filter((channel) => {
       const key = channel.channel.toLowerCase();
-      if (!CMO_LIVE_NETWORKS.includes(key)) return false;
+      if (!CMO_LIVE_NETWORKS.includes(key) || connected.includes(key))
+        return false;
       const known = [key, names[key]?.name.toLowerCase() ?? key];
       if (key === "x") known.push("twitter", "x (twitter)");
       return (
