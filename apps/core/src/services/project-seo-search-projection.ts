@@ -2,6 +2,7 @@ import type {
   ProjectSeoActionTask,
   ProjectSeoObservation,
 } from "@sokosumi/database";
+import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
@@ -25,6 +26,66 @@ function splitOf(data: NativeSeoMetrics) {
   const countries = data.countries ?? data.feedCountries;
   const devices = data.devices ?? data.feedDevices;
   return countries || devices ? { countries, devices } : null;
+}
+
+const DAY_MS = 86_400_000;
+function shiftDay(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * The daily positions of one sync, with older days from earlier syncs of the
+ * same property. Per keyword and country, an earlier sync adds days only while
+ * its period touches the days already read, so no day from `from` on is unread.
+ * The sync itself supplies each of its days. An older day comes from the sync
+ * with the latest last day. At most 366 days are kept.
+ */
+export function mergedKeywordSeries(
+  current: SearchEvidenceSource,
+  sources: SearchEvidenceSource[],
+): NativeSeoMetrics["keywordSeries"] {
+  const series = current.data.keywordSeries;
+  if (!series) return undefined;
+  const floor = shiftDay(current.data.to, 1 - SEO_STATS_MAX_DAYS);
+  const older = sources
+    .filter(
+      (source) =>
+        source !== current &&
+        source.data.keywordSeries &&
+        source.data.propertyId === current.data.propertyId,
+    )
+    .sort((a, b) => b.data.to.localeCompare(a.data.to));
+  let truncated = series.truncated;
+  const keywords = series.keywords.map((entry) => {
+    let from = current.data.from;
+    const points = [...entry.points];
+    for (const source of older) {
+      // Sources come latest last day first: once one ends before the read days, all later ones do.
+      if (from <= floor || source.data.to < shiftDay(from, -1)) break;
+      const match = source.data.keywordSeries?.keywords.find(
+        (item) =>
+          item.keyword === entry.keyword &&
+          item.countryCode === entry.countryCode,
+      );
+      if (!match || source.data.from >= from) continue;
+      const first = source.data.from < floor ? floor : source.data.from;
+      points.push(
+        ...match.points.filter(
+          (point) => point.date >= first && point.date < from,
+        ),
+      );
+      from = first;
+      truncated ||= source.data.keywordSeries?.truncated === true;
+    }
+    return {
+      ...entry,
+      ...(from < current.data.from && { from }),
+      points: points.sort((a, b) => a.date.localeCompare(b.date)),
+    };
+  });
+  return { ...series, truncated, keywords };
 }
 
 /**
@@ -118,7 +179,7 @@ export function projectSearchEvidence(
         ...row,
         id: `${current.row.id}:query:${index}`,
       })),
-      keywordSeries: current.data.keywordSeries,
+      keywordSeries: mergedKeywordSeries(current, sources),
       ...(current.data.searchType && { searchType: current.data.searchType }),
     },
     searchBreakdown,
