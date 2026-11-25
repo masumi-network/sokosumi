@@ -6,6 +6,7 @@ import {
   TaskVisibility,
 } from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
@@ -252,9 +253,9 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
 
   const rows = await prismaClient.$queryRaw<Array<{ entityId: string }>>`
     SELECT h."entityId"
-    FROM "history" h
+    FROM ${sharedTable("history")} h
     WHERE h."archivedAt" IS NULL
-      AND h."kind" = 'JOB'::"HistoryKind"
+      AND h."kind" = 'JOB'::${sharedType("HistoryKind")}
       AND h."workspaceId" = ${workspaceContext.workspaceId}::uuid
       AND (${owned} = false OR h."userId" = ${userContext.userId})
       AND (

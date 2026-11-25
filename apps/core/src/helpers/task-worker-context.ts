@@ -1,4 +1,5 @@
 import type { Prisma, VendorGrantStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { lockTaskRows } from "@/helpers/calendar-locks";
@@ -59,7 +60,7 @@ export async function requireNativeSeoWorkerAccess(
   // A write, rather than a row lock alone, makes a stale Serializable caller retry.
   // The existing grant stays locked through billing or linking the signed upload.
   const [grant] = await tx.$queryRaw<Array<{ status: VendorGrantStatus }>>`
-    UPDATE "vendor_grant" SET "updatedAt" = "updatedAt"
+    UPDATE ${sharedTable("vendor_grant")} SET "updatedAt" = "updatedAt"
     WHERE "vendorId" = ${authContext.vendorId}::uuid
       AND "workspaceId" = ${task.workspaceId}::uuid
     RETURNING "status"

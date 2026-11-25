@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -52,7 +53,7 @@ export async function joinExternalChannelAsGuest(
   }
 
   await tx.$queryRaw`
-    SELECT "id" FROM "chat_room"
+    SELECT "id" FROM ${sharedTable("chat_room")}
     WHERE "id" = ${args.roomId}::uuid
     FOR UPDATE
   `;

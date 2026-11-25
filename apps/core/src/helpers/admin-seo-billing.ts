@@ -1,4 +1,5 @@
 import { PrismaRaw } from "@sokosumi/database/client";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import {
   convertCreditsToCents,
   SEO_FULL_AUDIT_CREDITS,
@@ -13,7 +14,8 @@ const MICRO_USD_PER_USD = 1_000_000;
 const CREDIT_UNITS = convertCreditsToCents(1);
 
 /** Compute payment status once so pagination, counts, alerts and the billing breakdown agree. */
-export const seoBillingCtes = PrismaRaw.sql`
+export function seoBillingCtes() {
+  return PrismaRaw.sql`
   billing_evidence AS (
     SELECT r.run, r.task_status, r.needs_credits, r.retrying, r.price_pending,
       r.request #> '{price,maxCredits}' AS cap, paid.debit, paid.charges, paid.matched,
@@ -24,14 +26,14 @@ export const seoBillingCtes = PrismaRaw.sql`
     FROM progress r
     LEFT JOIN LATERAL (
       SELECT sum(-d.amount::numeric) AS debit, count(*) AS charges,
-        bool_and(EXISTS (SELECT 1 FROM "taskEvent" e WHERE e."taskId"=r."taskId"
+        bool_and(EXISTS (SELECT 1 FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId"
           AND e."transactionId"=d.id AND e.cents=-d.amount::numeric AND e.status='COMPLETED'
           AND e."coworkerId"=r.approved_worker AND e."userId" IS NULL AND e."sokoBotId" IS NULL)) AS matched
-      FROM "Transaction" d WHERE d.amount < 0 AND EXISTS (
-        SELECT 1 FROM "taskEvent" e WHERE e."taskId"=r."taskId" AND e."transactionId"=d.id)
+      FROM ${netTable("mainnet", "Transaction")} d WHERE d.amount < 0 AND EXISTS (
+        SELECT 1 FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId" AND e."transactionId"=d.id)
     ) paid ON true
     LEFT JOIN LATERAL (
-      SELECT e.cents FROM "taskEvent" e WHERE e."taskId"=r."taskId" AND e."coworkerId"=r.approved_worker
+      SELECT e.cents FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId" AND e."coworkerId"=r.approved_worker
         AND e."userId" IS NULL AND e."sokoBotId" IS NULL AND e.cents > 0
         AND e.status IN ('COMPLETED','OUT_OF_CREDITS')
       ORDER BY e."createdAt" DESC, e.id DESC LIMIT 1
@@ -69,3 +71,4 @@ export const seoBillingCtes = PrismaRaw.sql`
       CASE WHEN billing_status <> 'unverified' AND receipt_units IS NOT NULL THEN receipt END AS cost
     FROM billing_state
   )`;
+}

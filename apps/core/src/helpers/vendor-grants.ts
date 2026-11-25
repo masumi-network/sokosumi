@@ -10,6 +10,7 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import {
   badRequest,
@@ -43,7 +44,7 @@ async function lockVendorGrantById(
   tx: Prisma.TransactionClient,
 ): Promise<void> {
   await tx.$queryRaw`
-    SELECT 1 FROM "vendor_grant" WHERE "id" = ${grantId}::uuid FOR UPDATE
+    SELECT 1 FROM ${sharedTable("vendor_grant")} WHERE "id" = ${grantId}::uuid FOR UPDATE
   `;
 }
 
@@ -52,7 +53,7 @@ async function lockWorkspaceGrantRow(
   tx: Prisma.TransactionClient,
 ): Promise<{ id: string } | null> {
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "vendor_grant"
+    SELECT "id" FROM ${sharedTable("vendor_grant")}
     WHERE "vendorId" = ${params.vendorId}::uuid
       AND "workspaceId" = ${params.workspaceId}::uuid
     FOR UPDATE

@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   CORE_API_ERROR_KINDS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
@@ -192,7 +193,7 @@ async function lockCoworkerWorkspaceAccessById(
   tx: Prisma.TransactionClient,
 ): Promise<void> {
   await tx.$queryRaw`
-    SELECT 1 FROM "coworker_workspace_access" WHERE "id" = ${accessId}::uuid FOR UPDATE
+    SELECT 1 FROM ${sharedTable("coworker_workspace_access")} WHERE "id" = ${accessId}::uuid FOR UPDATE
   `;
 }
 

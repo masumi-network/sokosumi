@@ -4,6 +4,7 @@ import {
   TaskVisibility,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CalendarErasureBlockedError } from "./calendar-erasure";
@@ -179,40 +180,30 @@ describe("prepareTasksForUserDeletion", () => {
     } as never);
 
     expect(queryRawMock).toHaveBeenCalledTimes(5);
-    const [userLockStrings, ...userLockValues] = queryRawMock.mock.calls[0] as [
-      TemplateStringsArray,
-      ...unknown[],
-    ];
-    const [workspaceLockStrings, ...workspaceLockValues] = queryRawMock.mock
-      .calls[1] as [TemplateStringsArray, ...unknown[]];
-    const [projectLockStrings, ...projectLockValues] = queryRawMock.mock
-      .calls[2] as [TemplateStringsArray, ...unknown[]];
-    const [taskLockStrings, ...taskLockValues] = queryRawMock.mock.calls[3] as [
-      TemplateStringsArray,
-      ...unknown[],
-    ];
-    const [paymentLockStrings, ...paymentLockValues] = queryRawMock.mock
-      .calls[4] as [TemplateStringsArray, ...unknown[]];
-    expect(userLockStrings.join("?")).toMatch(
-      /FROM "user"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
+    const [userLock, workspaceLock, projectLock, taskLock, paymentLock] =
+      queryRawMock.mock.calls.map(([strings, ...values]) =>
+        PrismaRaw.sql(strings as TemplateStringsArray, ...values),
+      );
+    expect(userLock.sql).toMatch(
+      /FROM "public"."user"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
     );
-    expect(userLockValues).toEqual(["user_delete"]);
-    expect(workspaceLockStrings.join("?")).toMatch(
-      /FROM "workspace"[\s\S]*FOR UPDATE OF workspace/,
+    expect(userLock.values).toEqual(["user_delete"]);
+    expect(workspaceLock.sql).toMatch(
+      /FROM "public"."workspace"[\s\S]*FOR UPDATE OF workspace/,
     );
-    expect(workspaceLockValues).toEqual(["user_delete", "user_delete"]);
-    expect(projectLockStrings.join("?")).toMatch(
-      /FROM "project"[\s\S]*FOR UPDATE OF project/,
+    expect(workspaceLock.values).toEqual(["user_delete", "user_delete"]);
+    expect(projectLock.sql).toMatch(
+      /FROM "public"."project"[\s\S]*FOR UPDATE OF project/,
     );
-    expect(projectLockValues).toEqual(["user_delete", "user_delete"]);
-    expect(taskLockStrings.join("?")).toMatch(
-      /FROM "task"[\s\S]*WHERE "ownerId" = \?[\s\S]*FOR UPDATE/,
+    expect(projectLock.values).toEqual(["user_delete", "user_delete"]);
+    expect(taskLock.sql).toMatch(
+      /FROM "public"."task"[\s\S]*WHERE "ownerId" = \?[\s\S]*FOR UPDATE/,
     );
-    expect(taskLockValues).toEqual(["user_delete"]);
-    expect(paymentLockStrings.join("?")).toMatch(
-      /FROM "task_x402_payment" AS payment[\s\S]*FOR UPDATE OF payment/,
+    expect(taskLock.values).toEqual(["user_delete"]);
+    expect(paymentLock.sql).toMatch(
+      /FROM "public"."task_x402_payment" AS payment[\s\S]*FOR UPDATE OF payment/,
     );
-    expect(paymentLockValues).toEqual([
+    expect(paymentLock.values).toEqual([
       "user_delete",
       "user_delete",
       "user_delete",
@@ -943,13 +934,15 @@ describe("prepareTasksForUserDeletion", () => {
     lockWorkspaceCalendarForErasureMock.mockImplementation(
       actual.lockWorkspaceCalendarForErasure,
     );
-    queryRawMock.mockImplementation(async (strings: TemplateStringsArray) => {
-      const query = strings.join("?");
-      if (query.includes('FROM "workspace"')) {
-        return [{ id: "workspace_personal", userId: "user_delete" }];
-      }
-      return [];
-    });
+    queryRawMock.mockImplementation(
+      async (strings: TemplateStringsArray, ...values: unknown[]) => {
+        const query = PrismaRaw.sql(strings, ...values);
+        if (query.sql.includes('FROM "public"."workspace"')) {
+          return [{ id: "workspace_personal", userId: "user_delete" }];
+        }
+        return [];
+      },
+    );
     const runTransaction = transactionMock.getMockImplementation();
     transactionMock.mockImplementation(async (callback) =>
       runTransaction?.(async (tx: Record<string, unknown>) => {

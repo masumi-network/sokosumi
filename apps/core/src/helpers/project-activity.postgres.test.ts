@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { configureSqlTables, netTable } from "@sokosumi/database/sql-tables";
+import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { resolveProjectReaderAccess } from "@/types/project";
 import {
   encodeProjectActivityCursor,
@@ -34,7 +35,7 @@ function id(n: number) {
   return `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 }
 
-// Opt-in real Postgres proof. An isolated, transactional schema models only
+// Opt-in real Postgres proof. A pair of isolated, transactional schemas models only
 // columns consumed by the query; this is not an authenticated application test.
 describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
   it("orders globally across pages, with stable ties, creation fallback and reader-visible activity only", async () => {
@@ -42,7 +43,17 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
     await db.$transaction(
       async (tx) => {
         const schema = `activity_test_${randomUUID().replaceAll("-", "")}`;
+        const mainnetSchema = `${schema}_mainnet`;
+        onTestFinished(
+          configureSqlTables({
+            shared: schema,
+            mainnet: mainnetSchema,
+            preprod: "activity_test_preprod",
+            preprodOn: false,
+          }),
+        );
         await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+        await tx.$executeRawUnsafe(`CREATE SCHEMA "${mainnetSchema}"`);
         await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
         const statements = [
           "CREATE TYPE \"TaskVisibility\" AS ENUM ('PUBLIC', 'PRIVATE')",
@@ -50,8 +61,8 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
           'CREATE TABLE project (id uuid PRIMARY KEY, "workspaceId" uuid, "createdAt" timestamp, "updatedAt" timestamp, "closedAt" timestamp)',
           'CREATE TABLE task (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "archivedAt" timestamp, visibility "TaskVisibility", status "TaskStatus", "ownerId" text, "assigneeId" text)',
           'CREATE TABLE "taskEvent" ("taskId" text, "createdAt" timestamp)',
-          'CREATE TABLE "Job" (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "taskId" text)',
-          'CREATE TABLE "jobEvent" ("jobId" text, "createdAt" timestamp)',
+          `CREATE TABLE ${netTable("mainnet", "Job").sql} (id text PRIMARY KEY, "projectId" uuid, "workspaceId" uuid, "createdAt" timestamp, "taskId" text)`,
+          `CREATE TABLE ${netTable("mainnet", "jobEvent").sql} ("jobId" text, "createdAt" timestamp)`,
           'CREATE TABLE task_file ("taskId" text, "updatedAt" timestamp, status text, origin text, "fileUrl" text)',
           'CREATE TABLE project_event ("projectId" uuid, "createdAt" timestamp)',
           'CREATE TABLE coworker (id text, "vendorId" uuid)',
@@ -84,10 +95,10 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         }
         await tx.$executeRaw`INSERT INTO "taskEvent" VALUES ('public','2026-02-01'),('mine','2026-02-01'),('secret','2031-01-01'),('archived','2031-01-01'),('draft','2026-01-15')`;
         await tx.$executeRaw`INSERT INTO task_file VALUES ('output','2026-03-01','READY','TASK_OUTPUT','https://example.com/file'),('public','2031-01-01','PENDING','TASK_OUTPUT',NULL),('public','2031-01-01','READY','TASK_INPUT','https://example.com/input')`;
-        await tx.$executeRaw`INSERT INTO "Job" VALUES ('job',${id(7)}::uuid,${workspaceId}::uuid,'2026-01-01',NULL), ('secret-job',${id(3)}::uuid,${workspaceId}::uuid,'2031-01-01','secret')`;
-        await tx.$executeRaw`INSERT INTO "Job" VALUES ('archived-created', ${id(4)}::uuid, ${workspaceId}::uuid, '2033-01-01', 'archived'), ('archived-event', ${id(4)}::uuid, ${workspaceId}::uuid, '2026-01-01', 'archived')`;
-        await tx.$executeRaw`INSERT INTO "jobEvent" VALUES ('archived-event', '2034-01-01')`;
-        await tx.$executeRaw`INSERT INTO "jobEvent" VALUES ('job','2026-04-01')`;
+        await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Job")} VALUES ('job',${id(7)}::uuid,${workspaceId}::uuid,'2026-01-01',NULL), ('secret-job',${id(3)}::uuid,${workspaceId}::uuid,'2031-01-01','secret')`;
+        await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Job")} VALUES ('archived-created', ${id(4)}::uuid, ${workspaceId}::uuid, '2033-01-01', 'archived'), ('archived-event', ${id(4)}::uuid, ${workspaceId}::uuid, '2026-01-01', 'archived')`;
+        await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "jobEvent")} VALUES ('archived-event', '2034-01-01')`;
+        await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "jobEvent")} VALUES ('job','2026-04-01')`;
         await tx.$executeRaw`INSERT INTO project_event VALUES (${id(8)}::uuid,'2026-05-01'),(${id(26)}::uuid,'2032-01-01')`;
         const { sqlWhere: human } = await resolveProjectReaderAccess(
           {
@@ -175,7 +186,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         expect((await page(otherReader))[0]?.id).toBe(id(3));
         // Creation itself is work, even before the first event is recorded.
         await tx.$executeRaw`INSERT INTO task VALUES ('new-task', ${id(9)}::uuid, ${workspaceId}::uuid, '2026-06-01', NULL, 'PUBLIC', 'READY', 'reader', NULL)`;
-        await tx.$executeRaw`INSERT INTO "Job" VALUES ('new-job', ${id(10)}::uuid, ${workspaceId}::uuid, '2026-07-01', NULL)`;
+        await tx.$executeRaw`INSERT INTO ${netTable("mainnet", "Job")} VALUES ('new-job', ${id(10)}::uuid, ${workspaceId}::uuid, '2026-07-01', NULL)`;
         expect((await page(human)).slice(0, 3).map((p) => p.id)).toEqual(
           [10, 9, 8].map(id),
         );
@@ -206,7 +217,9 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         expect(
           await tx.$queryRaw(projectCountQuery(workspaceId, query)),
         ).toEqual([{ count: 4n }]);
-        await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+        await tx.$executeRawUnsafe(
+          `DROP SCHEMA "${mainnetSchema}", "${schema}" CASCADE`,
+        );
       },
       { timeout: 20000 },
     );
