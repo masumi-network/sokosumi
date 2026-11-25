@@ -845,4 +845,46 @@ describe("URL-owned studio sort", () => {
       "a1",
     ]);
   });
+
+  it("does not report a late sort selection after unmounting for another project", async () => {
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onSelectionChange = vi.fn();
+
+    const { unmount } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+          onSelectionChange,
+        }),
+      { wrapper: nuqsWrapper("?sort=best") },
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    unmount();
+
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [asset("late-best", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    expect(onSelectionChange).not.toHaveBeenCalled();
+  });
 });
