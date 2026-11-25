@@ -8,6 +8,7 @@ import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 const CONTENT_PREFETCH_PATHS = new Set<string>([
   "/",
   "/projects",
+  "/projects/timeline",
   "/agents",
   "/tasks",
   TASK_SCHEDULES_PATH,

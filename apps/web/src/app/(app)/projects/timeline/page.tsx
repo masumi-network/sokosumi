@@ -1,16 +1,12 @@
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { connection } from "next/server";
 import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import {
-  DUE_DAY_FORMAT,
-  dayInTimeZone,
-  dueDayDate,
-} from "@/app/tasks/utils/task-due";
-import { Button } from "@/components/ui/button";
+import { DUE_DAY_FORMAT, dueDayDate } from "@/app/tasks/utils/task-due";
+import { BackLink } from "@/components/back-link";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -20,6 +16,15 @@ import { loadProjectsTimeline } from "./projects-timeline-data";
 
 /** Tasks a cell lists before it links to the rest. */
 const CELL_TASK_LIMIT = 3;
+
+const CAPTION_ID = "projects-timeline-caption";
+
+/**
+ * A cell's first line of text starts at the same height as a card's: the
+ * cell's `p-1`, a 1px border (transparent outside a card) and `py-0.5`.
+ */
+const CELL_TEXT_CLASS =
+  "block min-h-6 rounded-md border border-transparent px-1.5 py-0.5";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Projects.Timeline");
@@ -41,17 +46,19 @@ function TimelineCell({
   moreLabel: (count: number) => string;
   overdue?: boolean;
 }) {
+  // An empty week is bare panel: cards are for work, not for slots.
+  if (tasks.length === 0) return <td className="p-1" />;
   const more = tasks.length - CELL_TASK_LIMIT;
   return (
-    <td className="bg-background border-border rounded-lg border p-1 align-top">
+    <td className="bg-background border-border rounded-lg border p-0 align-top">
       <ul className="flex flex-col gap-0.5">
         {tasks.slice(0, CELL_TASK_LIMIT).map((task) => (
           <li key={task.id}>
             <Link
               href={task.href}
-              title={task.name}
               className={cn(
-                "hover:bg-accent line-clamp-2 min-h-6 rounded-md px-1.5 py-0.5 break-words",
+                CELL_TEXT_CLASS,
+                "hover:bg-accent break-words",
                 // As the due badge marks overdue work: weight, not red.
                 overdue && "font-medium",
               )}
@@ -64,8 +71,11 @@ function TimelineCell({
         {more > 0 ? (
           <li>
             <Link
-              href={`/tasks?projectId=${projectId}`}
-              className="text-muted-foreground hover:bg-accent block min-h-6 rounded-md px-1.5 py-0.5"
+              href={`/tasks?projectId=${projectId}&sort=dueOn`}
+              className={cn(
+                CELL_TEXT_CLASS,
+                "text-muted-foreground hover:bg-accent",
+              )}
             >
               {moreLabel(more)}
             </Link>
@@ -90,15 +100,14 @@ function TimelineSkeleton() {
  * projects. Only Tasks with a due date show, so the page says so.
  */
 export async function ProjectsTimelineContent() {
-  await connection();
   const [t, format, timeZone] = await Promise.all([
     getTranslations("App.Projects.Timeline"),
     getFormatter(),
     getTimeZone(),
   ]);
-  const today = dayInTimeZone(new Date(), timeZone);
+  const { today, rows, tasksCut, projectsCut } =
+    await loadProjectsTimeline(timeZone);
   const weeks = timelineWeeks(today);
-  const { rows, truncated } = await loadProjectsTimeline(today);
   const formatDay = (day: string) =>
     format.dateTime(dueDayDate(day), DUE_DAY_FORMAT);
   const cellLabels = {
@@ -108,13 +117,17 @@ export async function ProjectsTimelineContent() {
 
   return (
     <div className="flex w-full flex-col gap-4 pb-6">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button asChild variant="ghost" className="-ms-2 gap-1.5">
-          <Link href="/projects">
-            <ArrowLeft className="size-4" aria-hidden />
-            {t("back")}
-          </Link>
-        </Button>
+      <RefreshPrefetchedPage />
+      <div className="flex flex-col items-start gap-1">
+        {/* Phones go back with the header's own back, as on a Task page. */}
+        <BackLink
+          href="/projects"
+          className="text-muted-foreground press hover:text-foreground mb-2 hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          <span>{t("back")}</span>
+        </BackLink>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm text-pretty">
           {t("description")}
         </p>
@@ -131,9 +144,18 @@ export async function ProjectsTimelineContent() {
         </div>
       ) : (
         <div className={HOLDER_CLASS}>
-          <div className="overflow-x-auto overscroll-x-contain">
+          {/* A keyboard stop of its own: arrows scroll it, so weeks past the
+              edge are reachable even where no link would take focus. */}
+          <div
+            role="region"
+            aria-labelledby={CAPTION_ID}
+            tabIndex={0}
+            className="focus-visible:ring-ring overflow-x-auto overscroll-x-contain rounded-lg outline-none focus-visible:ring-2"
+          >
             <table className="w-full min-w-[64rem] table-fixed border-separate border-spacing-1 text-sm">
-              <caption className="sr-only">{t("caption")}</caption>
+              <caption id={CAPTION_ID} className="sr-only">
+                {t("caption")}
+              </caption>
               <thead>
                 <tr className="text-muted-foreground text-start text-xs">
                   <th
@@ -164,12 +186,14 @@ export async function ProjectsTimelineContent() {
                   <tr key={row.project.id}>
                     <th
                       scope="row"
-                      className="bg-card-background sticky start-0 z-10 p-0 text-start align-top font-medium"
+                      className="bg-card-background sticky start-0 z-10 p-1 text-start align-top font-medium"
                     >
                       <Link
                         href={`/projects/${row.project.id}`}
-                        title={row.project.name}
-                        className="hover:bg-accent block min-h-6 truncate rounded-md px-1.5 py-1"
+                        className={cn(
+                          CELL_TEXT_CLASS,
+                          "hover:bg-accent break-words",
+                        )}
                       >
                         {row.project.name}
                       </Link>
@@ -194,9 +218,19 @@ export async function ProjectsTimelineContent() {
                     ) : (
                       <td
                         colSpan={weeks.length + 1}
-                        className="text-muted-foreground px-1.5 py-1 align-top"
+                        className="text-muted-foreground p-1 align-top"
                       >
-                        {t("noDueDates")}
+                        {/* Narrow enough to stay beside the project column
+                            on a phone instead of running off its edge. */}
+                        <span
+                          className={cn(
+                            CELL_TEXT_CLASS,
+                            "max-w-48 sm:max-w-none",
+                          )}
+                        >
+                          {/* A cut read may have missed this row's Tasks. */}
+                          {tasksCut ? t("notAllLoaded") : t("noDueDates")}
+                        </span>
                       </td>
                     )}
                   </tr>
@@ -207,8 +241,11 @@ export async function ProjectsTimelineContent() {
         </div>
       )}
 
-      {truncated ? (
-        <p className="text-muted-foreground text-sm">{t("truncated")}</p>
+      {tasksCut ? (
+        <p className="text-muted-foreground text-sm">{t("tasksCut")}</p>
+      ) : null}
+      {projectsCut ? (
+        <p className="text-muted-foreground text-sm">{t("projectsCut")}</p>
       ) : null}
     </div>
   );

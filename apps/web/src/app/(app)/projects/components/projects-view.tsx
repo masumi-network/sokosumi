@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarRange } from "lucide-react";
+import { ChartGantt } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
@@ -18,6 +18,7 @@ import {
   type ProjectsListState,
 } from "@/app/projects/constants";
 import { PageSearchActions } from "@/components/page-search-actions";
+import { RestingIntentLink } from "@/components/resting-intent-link";
 import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { cn } from "@/lib/utils";
@@ -240,10 +241,10 @@ export function ProjectsView({
           />
           <PageSearchActions>
             <Button asChild variant="outline" className="gap-1.5">
-              <Link href="/projects/timeline">
-                <CalendarRange className="size-4" aria-hidden />
+              <RestingIntentLink href="/projects/timeline" prefetchContent>
+                <ChartGantt className="size-4" aria-hidden />
                 <span className="max-sm:sr-only">{labels.timeline}</span>
-              </Link>
+              </RestingIntentLink>
             </Button>
             <ProjectsFilter
               labels={labels.filter}

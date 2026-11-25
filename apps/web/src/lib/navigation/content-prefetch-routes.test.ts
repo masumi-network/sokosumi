@@ -9,6 +9,8 @@ describe("canPrefetchRouteContent", () => {
     ["/calendar?date=2026-11-19&view=week", true],
     ["/ads?projectId=p1&tab=campaigns", true],
     ["/", true],
+    ["/projects/timeline", true],
+    ["/projects/p1", false],
     ["/?projectId=p1", true],
     ["/tasks/task-1", false],
     ["/drive?view=workspace", false],

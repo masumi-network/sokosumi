@@ -4609,8 +4609,8 @@
       },
       "Timeline": {
         "title": "Timeline",
-        "back": "All projects",
-        "description": "Open tasks with a due date, by project, for the next 8 weeks. Tasks without a due date don't show here.",
+        "back": "Back to projects",
+        "description": "Open tasks with a due date, by project, in weeks starting Monday, for the next 8 weeks. Tasks without a due date don't show here.",
         "caption": "Due tasks of each open project, by week",
         "project": "Project",
         "overdue": "Overdue",
@@ -4618,11 +4618,13 @@
         "due": "(due {date})",
         "more": "+{count} more",
         "noDueDates": "No due dates in the next 8 weeks",
-        "truncated": "Showing the first 500 due tasks. Open a project for the rest.",
         "empty": {
           "title": "No open projects",
           "description": "Create a project and give its tasks due dates to see them here."
-        }
+        },
+        "notAllLoaded": "Not all due tasks loaded. Open the project for its list.",
+        "tasksCut": "Not every due task fits here, so some cells may miss tasks. Open a project for its full list.",
+        "projectsCut": "Showing the first 100 open projects."
       }
     },
     "TikTokStudio": {

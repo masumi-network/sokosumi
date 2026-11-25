@@ -4609,8 +4609,8 @@
       },
       "Timeline": {
         "title": "Zeitplan",
-        "back": "Alle Projekte",
-        "description": "Offene Aufgaben mit Fälligkeitsdatum, nach Projekt, für die nächsten 8 Wochen. Aufgaben ohne Fälligkeitsdatum erscheinen hier nicht.",
+        "back": "Zurück zu Projekten",
+        "description": "Offene Aufgaben mit Fälligkeitsdatum, nach Projekt, in Wochen ab Montag, für die nächsten 8 Wochen. Aufgaben ohne Fälligkeitsdatum erscheinen hier nicht.",
         "caption": "Fällige Aufgaben jedes offenen Projekts, nach Woche",
         "project": "Projekt",
         "overdue": "Überfällig",
@@ -4618,11 +4618,13 @@
         "due": "(fällig am {date})",
         "more": "+{count} weitere",
         "noDueDates": "Keine Fälligkeiten in den nächsten 8 Wochen",
-        "truncated": "Die ersten 500 fälligen Aufgaben werden angezeigt. Öffne ein Projekt für den Rest.",
         "empty": {
           "title": "Keine offenen Projekte",
           "description": "Erstelle ein Projekt und gib seinen Aufgaben Fälligkeitsdaten, um sie hier zu sehen."
-        }
+        },
+        "notAllLoaded": "Nicht alle fälligen Aufgaben geladen. Öffne das Projekt für seine Liste.",
+        "tasksCut": "Nicht alle fälligen Aufgaben passen hierher, daher können in manchen Zellen Aufgaben fehlen. Öffne ein Projekt für seine vollständige Liste.",
+        "projectsCut": "Die ersten 100 offenen Projekte werden angezeigt."
       }
     },
     "TikTokStudio": {

@@ -4609,8 +4609,8 @@
       },
       "Timeline": {
         "title": "Cronograma",
-        "back": "Todos los proyectos",
-        "description": "Tareas abiertas con fecha de vencimiento, por proyecto, para las próximas 8 semanas. Las tareas sin fecha de vencimiento no aparecen aquí.",
+        "back": "Volver a proyectos",
+        "description": "Tareas abiertas con fecha de vencimiento, por proyecto, en semanas que empiezan el lunes, para las próximas 8 semanas. Las tareas sin fecha de vencimiento no aparecen aquí.",
         "caption": "Tareas con vencimiento de cada proyecto abierto, por semana",
         "project": "Proyecto",
         "overdue": "Vencidas",
@@ -4618,11 +4618,13 @@
         "due": "(vence el {date})",
         "more": "+{count} más",
         "noDueDates": "Sin vencimientos en las próximas 8 semanas",
-        "truncated": "Se muestran las primeras 500 tareas con vencimiento. Abre un proyecto para ver el resto.",
         "empty": {
           "title": "No hay proyectos abiertos",
           "description": "Crea un proyecto y pon fechas de vencimiento a sus tareas para verlas aquí."
-        }
+        },
+        "notAllLoaded": "No se cargaron todas las tareas con vencimiento. Abre el proyecto para ver su lista.",
+        "tasksCut": "No caben aquí todas las tareas con vencimiento, así que a algunas celdas les pueden faltar tareas. Abre un proyecto para ver su lista completa.",
+        "projectsCut": "Se muestran los primeros 100 proyectos abiertos."
       }
     },
     "TikTokStudio": {
