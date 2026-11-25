@@ -37,7 +37,9 @@ const grill: ChatSkillCatalogItem = {
 
 function wrap(node: ReactNode) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   return <QueryClientProvider client={client}>{node}</QueryClientProvider>;
 }

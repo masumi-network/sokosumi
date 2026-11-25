@@ -51,6 +51,8 @@ export function useResolverSvgMarkup(
         return null;
       } catch {
         return null;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
