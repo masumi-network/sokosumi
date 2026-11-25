@@ -117,19 +117,24 @@ const anyCase = tableNames
   .filter((name) => name === name.toLowerCase())
   .join("|");
 
-function mentions(keywords: string): RegExp {
-  return new RegExp(
-    `\\b(?:${keywords})\\s+(?:(?i:IF\\s+(?:NOT\\s+)?EXISTS)\\s+)?("(?:${exact})"|(?i:${anyCase}))(?![\\w".])`,
-    "g",
+const exactNames = new Set(tableNames);
+// Matched in any case; `isMention` then holds the case rules. Not with inline
+// `(?i:…)` groups: in Core's unit run some of their case-insensitive matches
+// failed after other files had run in the same worker.
+const MENTION_HEAD = `\\b(${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?("(?:${exact})"|(?:${anyCase}))`;
+const MENTION = new RegExp(`${MENTION_HEAD}(?![\\w".])`, "gi");
+// A file without this cannot hold a finding. Without the lookahead, which in a
+// file's raw text sees the quote that ends a literal. Not global: `test` on a
+// global expression moves where the next search starts.
+const MAYBE = new RegExp(MENTION_HEAD, "i");
+
+/** A quoted name in its exact spelling; outside SQL, an uppercase keyword. */
+function isMention([, keyword, name]: RegExpMatchArray, sql: boolean): boolean {
+  return (
+    (sql || keyword === keyword.toUpperCase()) &&
+    (!name.startsWith('"') || exactNames.has(name.slice(1, -1)))
   );
 }
-const UPPERCASE = mentions(KEYWORDS);
-const ANY_CASE = mentions(`(?i:${KEYWORDS})`);
-// A file without this cannot hold a finding. Not global: `test` on a global
-// expression moves where the next search starts.
-const MAYBE = new RegExp(
-  `\\b(?i:${KEYWORDS})\\s+(?:(?i:IF\\s+(?:NOT\\s+)?EXISTS)\\s+)?"?(?:${exact}|(?i:${anyCase}))`,
-);
 const CTE =
   /(?:\bWITH\s+(?:RECURSIVE\s+)?|,\s*)"?(\w+)"?\s*(?:\([^)]*\))?\s+AS\s+(?:NOT\s+)?(?:MATERIALIZED\s+)?\(/gi;
 const TEMP_TABLE =
@@ -268,9 +273,10 @@ function unqualifiedTables(file: string, source: string): Finding[] {
       [...statement.matchAll(CTE)].map((match) => match[1].toLowerCase()),
     );
     return parts.flatMap(({ text, start }) =>
-      [...text.matchAll(sql ? ANY_CASE : UPPERCASE)]
+      [...text.matchAll(MENTION)]
         .filter((match) => {
-          const name = match[1].replaceAll('"', "").toLowerCase();
+          if (!isMention(match, sql)) return false;
+          const name = match[2].replaceAll('"', "").toLowerCase();
           const at = start + match.index;
           return (
             !commonTables.has(name) &&
