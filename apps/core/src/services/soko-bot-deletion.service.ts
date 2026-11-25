@@ -6,10 +6,7 @@ import {
 } from "@/helpers/chat-room-mention-status";
 import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { notFound } from "@/helpers/error";
-import {
-  flagSocialPostQuotes,
-  QUOTED_POST_CANCELLED,
-} from "@/helpers/social-post-quote";
+import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -64,41 +61,6 @@ export interface SokoBotDeletionResult {
      * creator FK restricts a hard delete. */
     socialPosts: number;
   };
-}
-
-/** Social posts that have not gone out; a deleted bot's must never publish. */
-const UNPUBLISHED_SOCIAL_POST_STATUSES = [
-  "DRAFT",
-  "NEEDS_APPROVAL",
-  "SCHEDULED",
-  "FAILED",
-  "MISSED",
-] as const;
-
-/** Cancels the bot's planned posts, as canceling each one by hand would. */
-async function cancelUnpublishedSocialPosts(
-  tx: Prisma.TransactionClient,
-  sokoBotId: string,
-): Promise<void> {
-  const posts = await tx.socialPost.findMany({
-    where: {
-      creatorSokoBotId: sokoBotId,
-      status: { in: [...UNPUBLISHED_SOCIAL_POST_STATUSES] },
-    },
-    select: { id: true },
-  });
-  if (posts.length === 0) return;
-  await tx.socialPost.updateMany({
-    where: { id: { in: posts.map((post) => post.id) } },
-    data: {
-      status: "CANCELED",
-      canceledAt: new Date(),
-      revision: { increment: 1 },
-    },
-  });
-  for (const post of posts) {
-    await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
-  }
 }
 
 /** Everything the bot exclusively owns; none of it outlives the deletion. */
@@ -174,7 +136,7 @@ export async function deleteSokoBot(
       },
     });
     await eraseOwnedRecords(tx, bot.id);
-    await cancelUnpublishedSocialPosts(tx, bot.id);
+    await cancelUnpublishedSocialPosts(tx, { creatorSokoBotId: bot.id });
     const mentionMessageIds = await failOpenChatRoomMentions(
       {
         where: { sokoBotId: bot.id },

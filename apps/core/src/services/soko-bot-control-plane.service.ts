@@ -48,6 +48,7 @@ import {
 } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
+import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   assertSokoBotManagement,
@@ -148,7 +149,10 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
-import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import {
+  LIVE_CUSO_WHERE,
+  ONBOARDING_TURN_PREFIX,
+} from "@/services/cmo-cuso.service";
 import { competitorChecksOnFor } from "@/services/competitors.service";
 import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
@@ -5240,11 +5244,12 @@ export class SokoBotControlPlane {
     };
   }
 
+  /** Returns how many of Cuso's unsent posts the archive canceled. */
   async archive(
     userId: string,
     workspaceId: string,
     selector: SokoBotSelector = ME_SOKO_BOT,
-  ): Promise<void> {
+  ): Promise<number> {
     // Polar stops charging for a live Cuso before he is archived (ADR 0068).
     // It is called here, once, because the transaction below is retried; the
     // role check runs first so only someone who may archive ends it. A
@@ -5294,6 +5299,19 @@ export class SokoBotControlPlane {
           },
         });
       }
+      // An archived Cuso's Project no longer holds its posts, so they would
+      // still publish: cancel them, as a deletion does (#7121).
+      const cuso = await tx.sokoBot.findFirst({
+        where: { id: bot.id, ...LIVE_CUSO_WHERE },
+        select: { projectId: true },
+      });
+      const canceledPosts = cuso?.projectId
+        ? await cancelUnpublishedSocialPosts(
+            tx,
+            { projectId: cuso.projectId },
+            ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"],
+          )
+        : 0;
       // Start over archives through here, so it forfeits too (ADR 0067).
       await forfeitCusoProjectCredits(bot.id, tx);
       await tx.sokoBot.update({
@@ -5314,12 +5332,12 @@ export class SokoBotControlPlane {
       await tx.chatRoomSokoBotMember.deleteMany({
         where: { sokoBotId: bot.id },
       });
-      return { activeTurn, mentionMessageIds };
+      return { activeTurn, mentionMessageIds, canceledPosts };
     }, "Soko Bot archive collided with active work");
     await revokeSubscriptionsLeftByEnding(candidate?.projectId ?? null);
-    if (!archived) return;
+    if (!archived) return 0;
     await publishChatRoomMentionStatuses(archived.mentionMessageIds);
-    if (!archived.activeTurn) return;
+    if (!archived.activeTurn) return archived.canceledPosts;
     try {
       await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
@@ -5339,6 +5357,7 @@ export class SokoBotControlPlane {
         },
       );
     }
+    return archived.canceledPosts;
   }
 }
 
