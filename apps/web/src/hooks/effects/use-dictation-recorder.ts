@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /** Dictation stops and turns into text on its own after two minutes. */
@@ -70,16 +70,19 @@ export function useDictationRecorder({
     clearInterval(recording.timer);
     if (recording.recorder.state !== "inactive") recording.recorder.stop();
     stopStream(recording.stream);
-    if (unmountedRef.current) return;
     setElapsedMs(null);
     onRecordingChange?.(false);
   }
+
+  const stopOnCleanup = useEffectEvent(() => {
+    finish(false);
+  });
 
   useEffect(() => {
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
-      finish(false);
+      stopOnCleanup();
     };
   }, []);
 
@@ -93,19 +96,19 @@ export function useDictationRecorder({
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       startingRef.current = false;
+      setStarting(false);
       if (!unmountedRef.current) {
-        setStarting(false);
         toast.error(t("dictationBlocked"));
       }
       return;
     }
     startingRef.current = false;
+    setStarting(false);
     // Room switched or thread closed during the permission prompt.
     if (unmountedRef.current) {
       stopStream(stream);
       return;
     }
-    setStarting(false);
 
     const recorder = new MediaRecorder(stream, { mimeType: format.mimeType });
     const chunks: Blob[] = [];

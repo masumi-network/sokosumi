@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Copy, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { FundraisingLink } from "@/app/fundraising/components/fundraising-link";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -127,6 +128,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           )}
           <span className="max-md:sr-only">{t("copyLink")}</span>
         </Button>
+        <FundraisingLink />
       </header>
 
       <Tabs

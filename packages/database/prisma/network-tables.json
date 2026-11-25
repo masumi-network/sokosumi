@@ -133,6 +133,7 @@
     "FileResource": "file_resource",
     "FileResultWindow": "file_result_window",
     "FileVersion": "file_version",
+    "FundraisingProspect": "fundraising_prospect",
     "GeocodedPlace": "geocoded_place",
     "HermesMessage": "hermesMessage",
     "HermesPendingConnection": "hermesPendingConnection",
