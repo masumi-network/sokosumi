@@ -12,8 +12,11 @@ import { signUpWithOrganization } from "./sign-up.ts";
  * onto a message's screen-reader-only actions button marks its row, and
  * closing a thread puts focus back where it was opened from (the message's
  * actions button while the thread has no replies, its "1 reply" bar after),
- * with the bar's ring whole inside the message column. Message yourself is
- * headed "Ada Tester (you)", without the avatar's initials.
+ * with the bar's ring whole inside the message column. Escape closes the
+ * thread or the Threads pane from inside it and puts focus back on the same
+ * place. A heading written in a message keeps its look but stays out of the
+ * page's headings. Message yourself is headed "Ada Tester (you)", without the
+ * avatar's initials.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -49,13 +52,13 @@ function focused(page: Page) {
   });
 }
 
-async function send(page: Page, text: string) {
+async function send(page: Page, text: string, shownAs = text) {
   await page.getByRole("textbox", { name: "Message #Launch Plans" }).fill(text);
   await page.getByRole("button", { name: "Send message" }).click();
   // Sent, not just drawn: an optimistic row has no actions button yet.
   await page
     .getByRole("article")
-    .filter({ hasText: text })
+    .filter({ hasText: shownAs })
     .getByRole("button", { name: "Message actions" })
     .waitFor({ state: "attached" });
 }
@@ -74,9 +77,10 @@ async function openThreadFromActions(page: Page) {
   await page.getByRole("button", { name: "Close thread" }).waitFor();
 }
 
-async function closeThread(page: Page) {
+/** Close from inside the thread: its X with Enter, or Escape. */
+async function closeThread(page: Page, key: "Enter" | "Escape" = "Enter") {
   await page.getByRole("button", { name: "Close thread" }).focus();
-  await page.keyboard.press("Enter");
+  await page.keyboard.press(key);
   await page.getByRole("button", { name: "Close thread" }).waitFor({
     state: "detached",
   });
@@ -129,6 +133,13 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await roomHeading.waitFor();
 
       await send(page, "Can someone draft the announcement post by Friday?");
+      await send(page, "### Next steps", "Next steps");
+      const messageHeadings = {
+        drawn: await page
+          .locator("article h3", { hasText: "Next steps" })
+          .count(),
+        named: await page.getByRole("heading", { name: "Next steps" }).count(),
+      };
       await send(page, "Checklist lives in the shared drive.");
 
       // A thread with no replies: focus goes back to the message's actions.
@@ -167,8 +178,25 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page
         .getByRole("button", { name: "1 reply" })
         .waitFor({ state: "attached" });
-      await closeThread(page);
+      await closeThread(page, "Escape");
       const afterReply = await focused(page);
+
+      // Threads, opened from the header (its menu below md), closed with
+      // Escape from inside the pane.
+      if (name === "phone") {
+        await page.getByRole("button", { name: /^More chat options/ }).focus();
+        await page.keyboard.press("Enter");
+        await page.getByRole("menuitem", { name: "Threads" }).focus();
+      } else {
+        await page.getByRole("button", { name: /^Threads/ }).focus();
+      }
+      await page.keyboard.press("Enter");
+      const closeThreads = page.getByRole("button", { name: "Close threads" });
+      await closeThreads.focus();
+      await page.keyboard.press("Escape");
+      await closeThreads.waitFor({ state: "detached" });
+      await page.waitForTimeout(300);
+      const afterThreads = await focused(page);
       await page.screenshot({
         path: `${RESULTS_DIR}${name}-chat-keyboard-focus.png`,
       });
@@ -207,6 +235,15 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       assert.equal(afterReply.focusVisible, true);
       assert.match(afterReply.rowText, /announcement post by Friday/);
       assert.equal(afterReply.ringInsideClip, true, "reply bar ring is whole");
+
+      assert.match(
+        afterThreads.name,
+        name === "phone" ? /^More chat options/ : /^Threads/,
+      );
+      assert.equal(afterThreads.focusVisible, true);
+
+      assert.equal(messageHeadings.drawn, 1, "message heading keeps its h3");
+      assert.equal(messageHeadings.named, 0, "and stays out of the outline");
       assert.deepEqual(errors, []);
     });
   });
