@@ -7,14 +7,9 @@ import type {
   ChatRoomMessage,
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
-import {
-  type ChatTransport,
-  DefaultChatTransport,
-  type FileUIPart,
-  type UIMessage,
-} from "ai";
+import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
 import { reasoningStepsForMetadata } from "@/app/chat/utils/coworker-thought";
@@ -373,124 +368,81 @@ export function useCoworkerDirectRoomStream({
   organizationSlugRef.current = organizationSlug;
   const onStreamSettledRef = useRef(onStreamSettled);
   onStreamSettledRef.current = onStreamSettled;
-  const [prevRoomId, setPrevRoomId] = useState(roomId);
-  const [streamParentState, setStreamParentState] = useState<{
-    roomId: string;
-    parentId: string | null;
-  } | null>(null);
+  const [streamParentMessageId, setStreamParentMessageId] = useState<
+    string | null
+  >(null);
   /**
-   * First-seen wall clock per useChat message id, scoped to the owning Chat's
-   * `resumeStream` identity so overlay `createdAt` (and thus live elapsed
-   * timers) do not reset on every stream chunk recompute or across suspended
-   * room exits.
+   * First-seen wall clock per useChat message id so overlay `createdAt` (and
+   * thus live elapsed timers) do not reset on every stream chunk recompute.
    */
-  const overlayCreatedAtByChatRef = useRef(
-    new WeakMap<object, Map<string, number>>(),
-  );
-  /** Aborts triggered by retiring a Chat on room switch whose onFinish is pending. */
-  const retiredChatAbortsRef = useRef(0);
+  const overlayCreatedAtByMessageIdRef = useRef(new Map<string, number>());
   /** Failed turn shown on its message until Retry, a new send or leaving. */
   const [failure, setFailure] = useState<{
     roomId: string;
     reason: string;
   } | null>(null);
-
-  if (prevRoomId !== roomId) {
-    setPrevRoomId(roomId);
-    setFailure(null);
-    setStreamParentState(null);
-  }
-
-  const activeFailure = roomId && failure?.roomId === roomId ? failure : null;
   // Sync copy so a double-click Retry starts one request, not two.
-  const failureRef = useRef(activeFailure);
-  failureRef.current = activeFailure;
+  const failureRef = useRef(failure);
+  failureRef.current = failure;
   /** Body of the last send, so Retry keeps its thread parent and quote. */
   const lastSendOptionsRef =
     useRef<ReturnType<typeof buildCoworkerStreamSendMessageOptions>>(undefined);
 
   // Restore thread parent for mid-stream resume (sessionStorage survives remount).
-  const streamParentMessageId = !roomId
-    ? null
-    : streamParentState?.roomId === roomId
-      ? streamParentState.parentId
-      : readStoredStreamParentMessageId(roomId);
+  useEffect(() => {
+    setFailure(null);
+    if (!roomId) {
+      setStreamParentMessageId(null);
+      overlayCreatedAtByMessageIdRef.current.clear();
+      return;
+    }
+    setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
+  }, [roomId]);
 
-  const transport = useMemo<ChatTransport<UIMessage>>(() => {
-    const baseTransport = new DefaultChatTransport({
-      api: CHAT_API_PATH,
-      credentials: "include",
-      headers: () => {
-        const slug = organizationSlugRef.current;
-        return slug
-          ? { "x-organization-slug": slug }
-          : ({} as Record<string, string>);
-      },
-      prepareSendMessagesRequest({ messages, body }) {
-        const id = roomIdRef.current;
-        return {
-          body: {
-            ...(body ?? {}),
-            roomId: id,
-            id: id ?? undefined,
-            messages,
-          },
-        };
-      },
-      prepareReconnectToStreamRequest({ id }) {
-        const slug = organizationSlugRef.current;
-        const headers = slug
-          ? ({ "x-organization-slug": slug } as Record<string, string>)
-          : undefined;
-        const rid = (roomIdRef.current ?? id)?.trim() ?? "";
-        if (!rid) {
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: CHAT_API_PATH,
+        credentials: "include",
+        headers: () => {
+          const slug = organizationSlugRef.current;
+          return slug
+            ? { "x-organization-slug": slug }
+            : ({} as Record<string, string>);
+        },
+        prepareSendMessagesRequest({ messages, body }) {
+          const id = roomIdRef.current;
           return {
-            api: CHAT_NO_RESUMABLE_STREAM_PATH,
+            body: {
+              ...(body ?? {}),
+              roomId: id,
+              id: id ?? undefined,
+              messages,
+            },
+          };
+        },
+        prepareReconnectToStreamRequest({ id }) {
+          const slug = organizationSlugRef.current;
+          const headers = slug
+            ? ({ "x-organization-slug": slug } as Record<string, string>)
+            : undefined;
+          const rid = (roomIdRef.current ?? id)?.trim() ?? "";
+          if (!rid) {
+            return {
+              api: CHAT_NO_RESUMABLE_STREAM_PATH,
+              credentials: "include" as RequestCredentials,
+              headers,
+            };
+          }
+          return {
+            api: `/api/chat/${rid}/stream`,
             credentials: "include" as RequestCredentials,
             headers,
           };
-        }
-        return {
-          api: `/api/chat/${rid}/stream`,
-          credentials: "include" as RequestCredentials,
-          headers,
-        };
-      },
-    });
-
-    function trackRetiredAbort(
-      chatId: string,
-      signal: AbortSignal | undefined,
-    ) {
-      if (!signal) {
-        return;
-      }
-      const markIfRetired = () => {
-        if (roomIdRef.current !== chatId) {
-          retiredChatAbortsRef.current += 1;
-        }
-      };
-      if (signal.aborted) {
-        markIfRetired();
-        return;
-      }
-      signal.addEventListener("abort", markIfRetired, { once: true });
-    }
-
-    return {
-      sendMessages(options) {
-        trackRetiredAbort(options.chatId, options.abortSignal);
-        return baseTransport.sendMessages(options);
-      },
-      async reconnectToStream(options) {
-        const stream = await baseTransport.reconnectToStream(options);
-        if (stream && !options.abortSignal?.aborted) {
-          trackRetiredAbort(options.chatId, options.abortSignal);
-        }
-        return stream;
-      },
-    };
-  }, []);
+        },
+      }),
+    [],
+  );
 
   const {
     messages,
@@ -515,11 +467,7 @@ export function useCoworkerDirectRoomStream({
       }
       toast.error(reason);
     },
-    async onFinish({ isAbort, isError }) {
-      if (isAbort && retiredChatAbortsRef.current > 0) {
-        retiredChatAbortsRef.current -= 1;
-        return;
-      }
+    async onFinish({ isError }) {
       const settledRoomId = roomIdRef.current;
       if (!settledRoomId) {
         return;
@@ -537,15 +485,14 @@ export function useCoworkerDirectRoomStream({
       if (settled && roomIdRef.current === settledRoomId) {
         writeStoredStreamParentMessageId(settledRoomId, null);
         setMessages([]);
-        setStreamParentState({ roomId: settledRoomId, parentId: null });
+        setStreamParentMessageId(null);
       }
     },
   });
 
   const isStreaming = status === "submitted" || status === "streaming";
 
-  // Enter: reconnect to Core active stream (Thinking…). Leaving drops the
-  // overlay because useChat builds a fresh Chat instance when id changes.
+  // Leave: drop overlay. Enter: reconnect to Core active stream (Thinking…).
   useCoworkerStreamResume(roomId, resumeStream);
 
   const currentUser = useMemo(() => {
@@ -565,17 +512,10 @@ export function useCoworkerDirectRoomStream({
     if (!enabled || !roomId) {
       return [];
     }
-    function getCreatedAtById(): Map<string, number> {
-      let map = overlayCreatedAtByChatRef.current.get(resumeStream);
-      if (!map) {
-        map = new Map<string, number>();
-        overlayCreatedAtByChatRef.current.set(resumeStream, map);
-      }
-      return map;
-    }
+    const createdAtById = overlayCreatedAtByMessageIdRef.current;
     function stableCreatedAt(key: string, indexHint: number): Date {
       return new Date(
-        assignStableOverlayCreatedAtMs(getCreatedAtById(), key, indexHint),
+        assignStableOverlayCreatedAtMs(createdAtById, key, indexHint),
       );
     }
 
@@ -603,7 +543,6 @@ export function useCoworkerDirectRoomStream({
     }
 
     // Drop keys for messages no longer in the live stream (turn finished / replaced).
-    const createdAtById = getCreatedAtById();
     const liveIds = new Set(
       messages
         .filter((m) => m.role === "user" || m.role === "assistant")
@@ -638,8 +577,8 @@ export function useCoworkerDirectRoomStream({
           parentMessageId: streamParentMessageId,
         }),
       );
-    return activeFailure && status === "error"
-      ? markFailedCoworkerTurn(rows, activeFailure.reason)
+    return failure?.roomId === roomId && status === "error"
+      ? markFailedCoworkerTurn(rows, failure.reason)
       : rows;
   }, [
     enabled,
@@ -649,8 +588,7 @@ export function useCoworkerDirectRoomStream({
     coworker,
     status,
     streamParentMessageId,
-    activeFailure,
-    resumeStream,
+    failure,
   ]);
 
   const sendStreamMessage = useCallback(
@@ -670,7 +608,7 @@ export function useCoworkerDirectRoomStream({
       // retag prior top-level UI messages with a new thread parentMessageId.
       setMessages([]);
       setFailure(null);
-      setStreamParentState({ roomId, parentId: parentMessageId });
+      setStreamParentMessageId(parentMessageId);
       writeStoredStreamParentMessageId(roomId, parentMessageId);
       const files = toCoworkerStreamFileParts(options?.files);
       lastSendOptionsRef.current =
