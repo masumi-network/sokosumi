@@ -6,7 +6,16 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { readerRooms } from "@/services/chat-signal-views.service";
 import { listChatFeed } from "./chat-feed.service";
+
+vi.mock("@/services/chat-signal-views.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/services/chat-signal-views.service")
+    >();
+  return { ...actual, readerRooms: vi.fn(actual.readerRooms) };
+});
 
 vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
@@ -396,5 +405,29 @@ describe.runIf(enabled)("chat feed on PostgreSQL", () => {
     expect(
       (await listChatFeed(alice, organizationId, { take: 1 })).unreadCount,
     ).toBe(1);
+  });
+
+  it("drops a room the viewer leaves after the room list was read", async () => {
+    const actual = vi.mocked(readerRooms).getMockImplementation();
+    if (!actual) throw new Error("readerRooms is not wrapped");
+    vi.mocked(readerRooms).mockImplementationOnce(async (...args) => {
+      const rooms = await actual(...args);
+      await prisma.chatRoomUserMember.deleteMany({
+        where: { roomId: bobDirectId, userId: alice },
+      });
+      return rooms;
+    });
+    try {
+      await prisma.chatRoomReadState.deleteMany({
+        where: { roomId: bobDirectId, userId: alice },
+      });
+      const page = await listChatFeed(alice, organizationId, { take: 50 });
+      expect(page.items.map((item) => item.room.id)).not.toContain(bobDirectId);
+      expect(page.unreadCount).toBe(1);
+    } finally {
+      await prisma.chatRoomUserMember.create({
+        data: { roomId: bobDirectId, userId: alice },
+      });
+    }
   });
 });
