@@ -84,6 +84,11 @@ function joinUrl(apiUrl: string, pathname: string): string {
 async function readResponseBody(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) return undefined;
+  // A CSV export (`GET /contacts/export.csv`) is the one non-JSON body.
+  if (
+    response.headers.get("content-type")?.toLowerCase().startsWith("text/csv")
+  )
+    return text;
   try {
     return JSON.parse(text) as unknown;
   } catch {

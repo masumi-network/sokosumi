@@ -32,7 +32,7 @@ export interface GenericCommandContext {
   signal?: AbortSignal;
 }
 
-/** Runs a catalog row's Core operation and prints Core's JSON body. */
+/** Runs a catalog row's Core operation and prints Core's JSON (or CSV) body. */
 export async function runGenericCommand({
   client,
   stdout,
@@ -99,5 +99,6 @@ export async function runGenericCommand({
     default:
       throw new Error(`Unsupported method in ${row.operation}`);
   }
-  writeJson(stdout, response ?? null);
+  if (typeof response === "string") stdout.write(response);
+  else writeJson(stdout, response ?? null);
 }

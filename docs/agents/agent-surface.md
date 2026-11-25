@@ -31,7 +31,7 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 
 A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
 
-**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset; a hyphenated group keeps its words (`image_studio_catalog` is in `image-studio`, listed in `HYPHENATED_TOOLSETS` in `tools.ts`).
+**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset; a hyphenated group keeps its words (`image_studio_catalog` is in `image-studio`, listed in `HYPHENATED_TOOLSETS` in `tools.ts`). Contact lists are the exception: they sit in `contacts` (`contacts list-lists` → `contacts_list_lists`), so one opt-in covers all contact data.
 
 ## What may be `false`
 
@@ -44,6 +44,7 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 - Binary or multipart uploads: the generic CLI runner and MCP tools send JSON only (`POST /coworkers/{id}/image`; a person sets the picture in the Web app).
 - The admin back office: CLI only, `mcp: false`.
 - Downloads that return file bytes (images, CSV, spreadsheets): the CLI and MCP carry JSON. An API key still reads them over HTTP.
+- Bulk imports (contacts from a Files table or a LinkedIn Connections.csv, pasted addresses into a list): CLI only, `mcp: false`. The contacts CSV export is the one exception to the downloads rule above: the generic runner prints a `text/csv` body as is, so it is CLI only.
 
 "Nobody needs it yet" is not a reason. Leave the operation to the group's `backlog` instead.
 

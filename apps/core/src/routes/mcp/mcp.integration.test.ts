@@ -163,7 +163,7 @@ describe("Sokosumi MCP server", () => {
   it("warns before a tool that spends credits", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=tasks,agents,projects,seo",
+      "?toolsets=tasks,agents,projects,seo,contacts",
     );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
@@ -187,6 +187,8 @@ describe("Sokosumi MCP server", () => {
       "seo_audit_create_monitor",
       "seo_project_analyze",
       "seo_project_create_monitor",
+      "contacts_enrich",
+      "contacts_find_people",
     ]);
     // Open-world: tools that spend credits, plus the ad tools (next test).
     const openWorld = tools.filter((tool) => tool.annotations?.openWorldHint);
