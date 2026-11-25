@@ -102,7 +102,7 @@ export function ProspectSheet({
               </div>
             </SheetHeader>
 
-            <div className="grid gap-5 px-4 pb-6">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-5 px-4 pb-6">
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("columns.stage")}>
                   <StageSelect
