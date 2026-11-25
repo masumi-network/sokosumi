@@ -105,7 +105,7 @@ describe("CheckoutStep", () => {
   it("opens on Yearly, with Monthly one tap away", async () => {
     await render();
     expect(button("Yearly").getAttribute("aria-pressed")).toBe("true");
-    expect(button("Start Starter for $167 a month")).toBeTruthy();
+    expect(button("Start Starter for $2,000 a year")).toBeTruthy();
     await press("Monthly");
     expect(button("Monthly").getAttribute("aria-pressed")).toBe("true");
     expect(button("Start Starter for $200 a month")).toBeTruthy();
@@ -132,13 +132,9 @@ describe("CheckoutStep", () => {
 
   it("says what each plan posts as the landing page does, and the team check on the top plan only", async () => {
     await render();
-    expect(cards()[0]).toContain("One post a day on each account you connect.");
-    expect(cards()[1]).toContain(
-      "Two posts a day on each account you connect.",
-    );
-    expect(cards()[2]).toContain(
-      "Up to three posts a day on each account you connect.",
-    );
+    expect(cards()[0]).toContain("About 360 posts a month on six networks");
+    expect(cards()[1]).toContain("About 530 posts a month on six networks");
+    expect(cards()[2]).toContain("About 900 posts a month on six networks");
     expect(cards()[2]).toContain("Our team checks every post");
     expect(cards()[1]).not.toContain("Our team checks every post");
   });
@@ -195,7 +191,7 @@ describe("CheckoutStep", () => {
     expect(cards()[2]).toContain("All 42 posts a month");
     expect(cards()[2]).toContain("Makes all of it");
     expect(cards()[1]).not.toContain("Makes all of it");
-    expect(button("Start Scale for $833 a month")).toBeTruthy();
+    expect(button("Start Scale for $10,000 a year")).toBeTruthy();
   });
 
   // cmo-v22: the month is written after payment, so each plan says its floor.
@@ -243,7 +239,7 @@ describe("CheckoutStep", () => {
       },
     });
     expect(cards()[0]).toContain("Makes all of it");
-    expect(button("Start Starter for $167 a month")).toBeTruthy();
+    expect(button("Start Starter for $2,000 a year")).toBeTruthy();
   });
 
   it("checks out the plan the person picks, over the one marked", async () => {
@@ -254,7 +250,7 @@ describe("CheckoutStep", () => {
     await act(async () =>
       container.querySelectorAll<HTMLElement>(".ob-plan-option")[2]?.click(),
     );
-    expect(button("Start Scale for $833 a month")).toBeTruthy();
+    expect(button("Start Scale for $10,000 a year")).toBeTruthy();
     await press("Start Scale");
     expect(onCheckout).toHaveBeenCalledWith("year", "scale");
   });
@@ -269,7 +265,7 @@ describe("CheckoutStep", () => {
     expect(cards()[0]).toContain("$200");
     expect(cards()[0]).toContain("$167 a month");
     expect(cards()[0]).toContain("$2,000 billed yearly");
-    expect(button("Start Starter for $167 a month")).toBeTruthy();
+    expect(button("Start Starter for $2,000 a year")).toBeTruthy();
   });
 
   it("fills the same lines on both intervals, so switching never moves the cards", async () => {
@@ -345,7 +341,7 @@ describe("CheckoutStep", () => {
   it("says what credits buy in prices, not a count of what a plan makes", async () => {
     await render();
     expect(container.querySelector(".ob-credits-buy")?.textContent).toBe(
-      "Credits pay for everything Cuso makes: a picture costs 1 credit, a short video about 10 to 20.",
+      "Credits pay for everything Cuso makes: a picture costs 1 to 4 credits, a short video about 10 to 15, a talking video about 150 to 250.",
     );
   });
 
