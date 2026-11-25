@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   workingStrategy: vi.fn(),
   readPlan: vi.fn(),
   moves: vi.fn(),
+  snapshotFind: vi.fn(),
 }));
 // A Cuso version that reads on demand, whatever versions exist.
 vi.mock("@sokosumi/soko-bot", async (importActual) => {
@@ -26,7 +27,10 @@ vi.mock("@sokosumi/soko-bot", async (importActual) => {
   };
 });
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBotTurn: { findUnique: mocks.turnFind } },
+  default: {
+    sokoBotTurn: { findUnique: mocks.turnFind },
+    sokoBotContextSnapshot: { findUnique: mocks.snapshotFind },
+  },
 }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: mocks.findCuso,
@@ -90,6 +94,9 @@ function piece(index: number, day: number, channel = "linkedin") {
 describe("executeCmoRead", () => {
   beforeEach(() => {
     for (const mock of Object.values(mocks)) mock.mockReset();
+    mocks.snapshotFind.mockResolvedValue({
+      packet: { workspace: { marketing: { core: {} } } },
+    });
     mocks.turnFind.mockResolvedValue({
       source: "CHAT",
       clientTurnId: "chat:1",
@@ -142,13 +149,23 @@ describe("executeCmoRead", () => {
   });
 
   it("never reads the plan for a teammate's question", async () => {
+    // Core left the plan out of this turn's context.
+    mocks.snapshotFind.mockResolvedValue({ packet: { workspace: {} } });
+    await expect(
+      executeCmoRead(call("read_calendar", {}), authorized(), NOW),
+    ).rejects.toThrow(/teammate/);
+  });
+
+  // Every member of a shared Cuso asks as a TEAMMATE (ADR 0061); the eval
+  // lane's owner was refused the calendar before.
+  it("reads for a member whose turn carries the plan", async () => {
     await expect(
       executeCmoRead(
-        call("read_calendar", {}),
+        call("read_strategy", { part: "goals" }),
         authorized({ askedByKind: "TEAMMATE" }),
         NOW,
       ),
-    ).rejects.toThrow(/teammate/);
+    ).resolves.toMatchObject({ part: "goals" });
   });
 
   it("reads only the bot's own Project", async () => {

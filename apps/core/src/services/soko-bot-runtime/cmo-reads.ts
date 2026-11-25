@@ -69,7 +69,7 @@ async function cusoForRead(authorized: AuthorizedSokoBotRuntime) {
     throw new SokoBotRuntimeAuthorizationError(
       "Only a CMO assistant on an organized context reads these",
     );
-  if (authorized.askedByKind === "TEAMMATE")
+  if (!(await turnSeesThePlan(authorized.turn.id)))
     throw new SokoBotRuntimeAuthorizationError(
       "A teammate's question does not read the marketing plan",
     );
@@ -79,6 +79,24 @@ async function cusoForRead(authorized: AuthorizedSokoBotRuntime) {
       "This bot has no marketing Project.",
     );
   return cuso;
+}
+
+/**
+ * Whether the turn's context carries the plan: Core leaves it out of a
+ * teammate's question (`ContextPacketBuilder`), and the reads follow it.
+ * Every member's turn of a shared Cuso is asked by a TEAMMATE, so the
+ * packet, not the asker's kind, decides.
+ */
+async function turnSeesThePlan(turnId: string): Promise<boolean> {
+  const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { packet: true },
+  });
+  const packet = snapshot?.packet as
+    | { workspace?: { marketing?: unknown } }
+    | null
+    | undefined;
+  return packet?.workspace?.marketing != null;
 }
 
 /** The strategy version this turn works on: the approved one while it executes. */
