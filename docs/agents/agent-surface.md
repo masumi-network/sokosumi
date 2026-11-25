@@ -69,7 +69,7 @@ A row in `CLI_COMMAND_CATALOG` with an `operation` needs no handler: the CLI run
 { command: "jobs events", usage: "JOB_ID", operation: "GET /jobs/{id}/events" }
 ```
 
-Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (required for writes, refused for reads and for a row with `noBody: true`, such as `tasks pause-schedule`), and `--organization-slug` selects the Workspace. Any other option is an error. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
+Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (required for writes, refused for reads and for a row with `noBody: true`, such as `tasks pause-schedule`; a DELETE row with `body: true`, such as `drive delete`, needs one), and `--organization-slug` selects the Workspace. Any other option is an error. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
 
 CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the manifest operation:
 

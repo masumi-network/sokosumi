@@ -23,6 +23,11 @@ export function instructions(toolsets: readonly string[]): string {
           "tasks_get takes a Task's identifier, such as SOK-12. Other tasks tools take a Task's `id` from tasks_get or tasks_list.",
         ]
       : []),
+    ...(toolsets.includes("drive")
+      ? [
+          "Drive tools other than tables take `scope` instead of `workspace`: `me` for the personal Drive, or `org` with the workspace's `organizationId`.",
+        ]
+      : []),
     ...(others.length > 0
       ? [
           `Off: ${others.join(", ")}. The person turns toolsets on with ?toolsets= on the server URL, comma-separated.`,
