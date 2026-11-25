@@ -1,10 +1,8 @@
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
-import {
-  type SeoBriefContent,
-  seoBriefAction,
-} from "@/schemas/seo-audit-brief.schema";
+import type { SeoBriefContent } from "@/schemas/seo-audit-brief.schema";
+import { seoBriefAction } from "@/schemas/seo-page.schema";
 
 type Action = SeoBriefContent["pages"][number]["action"];
 

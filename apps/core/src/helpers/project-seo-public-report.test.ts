@@ -3,8 +3,8 @@ import {
   failedPageRuns,
   failedSeoSources,
   failedSeoSpecialists,
+  skippedPages,
 } from "./project-seo-public-report";
-import { skippedPages } from "./project-seo-report";
 
 it("counts failed page runs once and excludes deliberate skips from the stored incident count", () => {
   const exception = {

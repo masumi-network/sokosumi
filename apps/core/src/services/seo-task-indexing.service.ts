@@ -50,9 +50,6 @@ import {
   type StoredReceipt,
   storedReceiptSchema,
 } from "./seo-task-indexing-receipt";
-
-export { hasSavedSeoIndexingAssessment } from "./seo-task-indexing-receipt";
-
 import { syncLockService } from "./sync-lock.service";
 
 export const SEO_INDEXING_FRESH_MS = 24 * 60 * 60 * 1000;

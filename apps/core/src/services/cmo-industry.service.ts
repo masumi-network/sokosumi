@@ -75,7 +75,6 @@ const buyerJobSchema = z.object({
   /** The community, platform, network, trade or region they belong to. */
   ecosystem: z.string(),
 });
-export type CmoBuyerJob = z.infer<typeof buyerJobSchema>;
 
 /** The parts of the buyer's job the research must cover. */
 export const CMO_JOB_PARTS = ["struggles", "new", "success", "market"] as const;
