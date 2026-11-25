@@ -22,6 +22,12 @@ export type OpenPortal = () => Promise<{
   error: string | null;
 }>;
 
+/** "25,000 credits a month, $500 a month": what a plan gives and costs. */
+function planTerms(plan: CmoSubscriptionPlan): string {
+  const price = money(plan.priceAmount / 100, plan.currency.toUpperCase());
+  return `${plan.credits.toLocaleString("en")} credits a month, ${price} ${plan.interval === "year" ? "a year" : "a month"}`;
+}
+
 /** The tier's slug is Polar's; only its first letter is ours. */
 function tierName(tier: string): string {
   return tier.charAt(0).toUpperCase() + tier.slice(1);
@@ -85,6 +91,9 @@ export function SubscriptionCard({
   // cancelled; the portal fixes the payment or undoes the cancel first.
   const changeable =
     manage && billing.status === "active" && !billing.cancelAtPeriodEnd;
+  const current = plans.find(
+    (plan) => plan.interval === interval && plan.tier === tier,
+  );
   return (
     <section className="card">
       <h3>Subscription</h3>
@@ -93,7 +102,9 @@ export function SubscriptionCard({
         <span className="grow">
           <span className="v">{tierName(tier)}</span>{" "}
           <span className="note">
-            billed {interval === "year" ? "yearly" : "monthly"}
+            {current
+              ? planTerms(current)
+              : `billed ${interval === "year" ? "yearly" : "monthly"}`}
           </span>
         </span>
         {manage ? <PortalButton openPortal={openPortal} /> : null}
@@ -123,11 +134,7 @@ export function SubscriptionCard({
           plans={plans.filter(
             (plan) => plan.interval === interval && plan.tier !== tier,
           )}
-          currentCredits={
-            plans.find(
-              (plan) => plan.interval === interval && plan.tier === tier,
-            )?.credits ?? 0
-          }
+          currentCredits={current?.credits ?? 0}
           changePlan={changePlan}
         />
       ) : null}
@@ -247,11 +254,7 @@ function PlanChange({
             <span className="grow">
               <b>{plan.name}</b>
               <br />
-              <span className="note">
-                {plan.credits.toLocaleString("en")} credits a month,{" "}
-                {money(plan.priceAmount / 100, plan.currency.toUpperCase())}{" "}
-                {plan.interval === "year" ? "a year" : "a month"}
-              </span>
+              <span className="note">{planTerms(plan)}</span>
             </span>
             <button
               type="button"
