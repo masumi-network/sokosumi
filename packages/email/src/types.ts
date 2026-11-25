@@ -123,6 +123,7 @@ export type TaskUpdateReason =
   | "failed"
   | "canceled"
   | "seoMonitorWorse"
+  | "seoMonitorClicksDrop"
   | "updated";
 
 /** A task changed without asking anything of the reader (SOK-1090, SOK-1142). */
@@ -132,6 +133,9 @@ export interface TaskUpdateEmailProps extends TaskEmailProps {
   site?: null | string;
   newFailures?: null | number;
   drops?: null | number;
+  /** `seoMonitorClicksDrop`: Search Console clicks in the earlier and in the current period. */
+  clicksFrom?: null | number;
+  clicksTo?: null | number;
 }
 
 export interface ProjectUpdateEmailProps extends NotificationEmailProps {

@@ -10,12 +10,15 @@ export function taskNotificationHref(input: {
   const opensResult =
     (input.messageKey === "Notifications.Task.completed" &&
       input.metadata?.seoResult !== false) ||
-    input.messageKey === SEO_MONITOR_WORSE_KEY;
+    SEO_MONITOR_ALERT_KEYS.includes(input.messageKey);
   return opensResult ? `${task}/result` : task;
 }
 
-/** A scheduled SEO check got worse: the change is shown on the result page. */
-const SEO_MONITOR_WORSE_KEY = "Notifications.Task.seoMonitorWorse";
+/** Alerts of a scheduled SEO check: what changed is shown on the result page. */
+const SEO_MONITOR_ALERT_KEYS: readonly (string | undefined)[] = [
+  "Notifications.Task.seoMonitorWorse",
+  "Notifications.Task.seoMonitorClicksDrop",
+];
 
 export function isSeoTaskCompletion(
   key: string | undefined,

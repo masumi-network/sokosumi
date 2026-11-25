@@ -32,6 +32,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { notifySeoMonitorClicksDropSafely } from "./project-seo-monitor-clicks";
 import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
 import {
   commitSeoMutation,
@@ -367,7 +368,10 @@ export async function importProjectSeoAudit(
     createdId = observation.id;
     return commitSeoMutation(tx, observation, options);
   }, "The SEO report import changed. Please retry.");
-  if (createdId) await notifySeoMonitorWorseSafely(task.id, createdId);
+  if (createdId) {
+    await notifySeoMonitorWorseSafely(task.id, createdId);
+    await notifySeoMonitorClicksDropSafely(task.id);
+  }
   return result;
 }
 

@@ -156,6 +156,10 @@
               "subject": "Sokosumi - SEO-Ergebnisse für {site} haben sich verschlechtert",
               "body": "Die neueste geplante Prüfung von {site} ({taskName}) ist schlechter als die davor. Neu fehlgeschlagene Prüfungen: {newFailures}. Ranking-Verluste: {drops}."
             },
+            "seoMonitorClicksDrop": {
+              "subject": "Sokosumi - Search-Console-Klicks für {site} sind gesunken",
+              "body": "Die Search-Console-Klicks für {site} sind gegenüber dem Zeitraum davor von {clicksFrom} auf {clicksTo} gesunken. Bemerkt bei der neuesten geplanten Prüfung ({taskName})."
+            },
             "updated": {
               "subject": "Sokosumi - {taskName} hat sich geändert",
               "body": "{taskName} hat sich geändert."

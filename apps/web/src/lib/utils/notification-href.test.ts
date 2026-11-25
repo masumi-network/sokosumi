@@ -122,16 +122,22 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks/a%2Fb");
   });
 
-  it("opens the result, where the change shows, from an SEO monitor alert", () => {
-    expect(
-      getNotificationHref({
-        kind: "TASK",
-        referenceId: "t1",
-        messageKey: "Notifications.Task.seoMonitorWorse",
-        metadata: { workspaceId: "ws" },
-      }),
-    ).toBe("/tasks/t1/result");
-  });
+  it.each([
+    "Notifications.Task.seoMonitorWorse",
+    "Notifications.Task.seoMonitorClicksDrop",
+  ])(
+    "opens the result, where the change shows, from the SEO monitor alert %s",
+    (messageKey) => {
+      expect(
+        getNotificationHref({
+          kind: "TASK",
+          referenceId: "t1",
+          messageKey,
+          metadata: { workspaceId: "ws" },
+        }),
+      ).toBe("/tasks/t1/result");
+    },
+  );
 
   it("returns job href with agentId", () => {
     expect(

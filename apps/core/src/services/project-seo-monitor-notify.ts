@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { NotificationKind } from "@sokosumi/database";
+import { NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
@@ -25,15 +25,10 @@ export const SEO_MONITOR_WORSE_MESSAGE_KEY =
 const SEO_MONITOR_EARLIER_RUNS = 10;
 
 /**
- * Tells the monitor's Owner when its new result is worse than the result before: a check that passed fails, or a
- * ranked keyword fell beyond the noise band. In-app, and by email through the task update path. Nothing when it
- * stayed the same or got better. The Run (its Task) keys the notification, so a repeated import or a second file of
- * the same Run sends no second one.
+ * The monitor Run behind a Task: its Workspace, the schedule Owner and the SEO collection the monitor reads. Null when
+ * the Task is no monitor Run.
  */
-export async function notifySeoMonitorWorse(
-  taskId: string,
-  observationId: string,
-): Promise<void> {
+export async function seoMonitorRunOf(taskId: string) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     select: {
@@ -47,21 +42,37 @@ export async function notifySeoMonitorWorse(
     },
   });
   const ownerId = task?.schedule?.ownerId;
-  if (!task?.scheduleId || !ownerId) return;
+  if (!task?.scheduleId || !ownerId) return null;
   let plan: SeoMonitorPlan | null;
   try {
     plan = parseSeoMonitorPlan(task.schedule?.description ?? null);
   } catch {
-    return;
+    return null;
   }
   const projectId = task.schedule?.projectId;
-  if (!plan || (plan.version === 1 && !projectId)) return;
+  if (!plan || (plan.version === 1 && !projectId)) return null;
   const owner: Pick<SeoActor, "owner"> = {
     owner:
       plan.version === 2
         ? { kind: "audit", id: plan.auditId }
         : { kind: "project", id: projectId! },
   };
+  return { ...task, scheduleId: task.scheduleId, ownerId, owner };
+}
+
+/**
+ * Tells the monitor's Owner when its new result is worse than the result before: a check that passed fails, or a
+ * ranked keyword fell beyond the noise band. In-app, and by email through the task update path. Nothing when it
+ * stayed the same or got better. The Run (its Task) keys the notification, so a repeated import or a second file of
+ * the same Run sends no second one.
+ */
+export async function notifySeoMonitorWorse(
+  taskId: string,
+  observationId: string,
+): Promise<void> {
+  const task = await seoMonitorRunOf(taskId);
+  if (!task) return;
+  const { ownerId, owner } = task;
   const row = await prisma.projectSeoObservation.findUnique({
     where: { id: observationId },
     select: { observedAt: true, payload: true },
@@ -93,7 +104,7 @@ export async function notifySeoMonitorWorse(
     payload: payload.data,
   });
   if (!isSeoMonitorChangeWorse(change)) return;
-  const input = {
+  await sendSeoMonitorNotification(owner, {
     userId: ownerId,
     workspaceId: task.workspaceId,
     kind: NotificationKind.TASK,
@@ -106,13 +117,33 @@ export async function notifySeoMonitorWorse(
       newFailures: change.newFailureCount,
       drops: change.dropCount,
     },
-  };
-  // One notification per Run. A second file of the Run stops here: inside the transaction the unique key error would
-  // abort it.
-  const { messageParams: _, workspaceId: __, ...key } = input;
+  });
+}
+
+type SeoMonitorNotification = Parameters<typeof createNotification>[0] & {
+  workspaceId: string;
+};
+
+/**
+ * One notification per event of a monitor. `same` names the rows that stand for the same event; by default the Run
+ * (its Task) keys it, so a second file of the Run sends no second one.
+ */
+export async function sendSeoMonitorNotification(
+  { owner }: Pick<SeoActor, "owner">,
+  input: SeoMonitorNotification,
+  same: Prisma.NotificationWhereInput = { referenceId: input.referenceId },
+): Promise<void> {
+  const { userId, workspaceId } = input;
+  // Inside the transaction the unique key error would abort it, so the row is looked for first.
   const sent = (client: Pick<typeof prisma, "notification">) =>
-    client.notification.findUnique({
-      where: { userId_kind_referenceId_eventId_messageKey: key },
+    client.notification.findFirst({
+      where: {
+        userId,
+        kind: input.kind,
+        eventId: input.eventId,
+        messageKey: input.messageKey,
+        ...same,
+      },
       select: { id: true },
     });
   if (await sent(prisma)) return;
@@ -121,15 +152,15 @@ export async function notifySeoMonitorWorse(
   // Under the membership lock: an Owner removed from the Workspace gets no notification. createNotification checks
   // again in the same transaction but throws; this check returns quietly.
   await prisma.$transaction(async (tx) => {
-    await lockCalendarWorkspaceMembership(tx, task.workspaceId);
-    // Two files of one Run notify at the same time: the second waits on the lock and then finds the first one's row.
+    await lockCalendarWorkspaceMembership(tx, workspaceId);
+    // Two imports notify at the same time: the second waits on the lock and then finds the first one's row.
     if (
-      !(await hasCalendarWorkspaceAccess(tx, task.workspaceId, ownerId)) ||
-      (owner.owner.kind === "audit" &&
+      !(await hasCalendarWorkspaceAccess(tx, workspaceId, userId)) ||
+      (owner.kind === "audit" &&
         !(await tx.seoAudit.findFirst({
           where: {
-            id: owner.owner.id,
-            workspaceId: task.workspaceId,
+            id: owner.id,
+            workspaceId,
             deletedAt: null,
             archivedAt: null,
           },

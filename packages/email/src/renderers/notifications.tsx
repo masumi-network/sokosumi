@@ -282,6 +282,8 @@ export function renderTaskCompletedEmail({
  */
 export function renderTaskUpdateEmail({
   actionUrl,
+  clicksFrom,
+  clicksTo,
   drops,
   locale,
   newFailures,
@@ -301,6 +303,8 @@ export function renderTaskUpdateEmail({
     site: site?.trim() || name,
     newFailures: newFailures ?? 0,
     drops: drops ?? 0,
+    clicksFrom: clicksFrom ?? 0,
+    clicksTo: clicksTo ?? 0,
   };
 
   return renderEventEmail({

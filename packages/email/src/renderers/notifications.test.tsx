@@ -294,6 +294,7 @@ describe("notification emails", () => {
       "canceled",
       "failed",
       "seoMonitorWorse",
+      "seoMonitorClicksDrop",
       "updated",
     ] as const;
 
@@ -350,6 +351,24 @@ describe("notification emails", () => {
     expect(rendered.html).toContain("shop.example (Weekly SEO check)");
   });
 
+  it("gives both click counts in a Search Console clicks email", async () => {
+    const rendered = await renderTaskUpdateEmail({
+      actionUrl: TASK_URL,
+      clicksFrom: 120,
+      clicksTo: 60,
+      locale: "en",
+      reason: "seoMonitorClicksDrop",
+      recipientName: "Sandro",
+      site: "shop.example",
+      taskName: "Weekly SEO check",
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - Search Console clicks for shop.example fell",
+    );
+    expect(rendered.html).toContain("fell from 120 to 60 against");
+  });
+
   it("writes the new emails in the locale they are given", async () => {
     const germanRoom = await renderChatRoomMessageEmail({
       actionUrl: ROOM_URL,
@@ -381,6 +400,7 @@ describe("calendar email templates", () => {
         "failed",
         "canceled",
         "seoMonitorWorse",
+        "seoMonitorClicksDrop",
         "updated",
       ] as const;
 

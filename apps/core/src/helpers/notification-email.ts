@@ -110,6 +110,7 @@ const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
   "failed",
   "canceled",
   "seoMonitorWorse",
+  "seoMonitorClicksDrop",
 ];
 
 export function taskUpdateReasonOf(messageKey: string): TaskUpdateReason {
@@ -317,6 +318,8 @@ export async function buildNotificationEmail(
           site: readString(params, "site"),
           newFailures: readCount(params, "newFailures"),
           drops: readCount(params, "drops"),
+          clicksFrom: readCount(params, "clicksFrom"),
+          clicksTo: readCount(params, "clicksTo"),
         }),
       );
     }
