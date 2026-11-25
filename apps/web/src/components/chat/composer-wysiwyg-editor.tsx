@@ -5,7 +5,6 @@ import { Hash } from "lucide-react";
 import type { ClipboardEvent, ReactNode, Ref } from "react";
 import {
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -18,10 +17,7 @@ import {
   type ComposerSuggestion,
   resolveComposerSuggestion,
 } from "@/components/chat/composer-suggestions";
-import {
-  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
-  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
-} from "@/components/chat/room-message-composer";
+import { ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME } from "@/components/chat/room-message-composer";
 import {
   createChannelLinkSpan,
   createMentionSpan,
@@ -31,9 +27,6 @@ import {
   getActiveEmojiTrigger,
   getActiveTrigger,
   getCaretOffset,
-  getCaretRect,
-  getMentionPopupPositionFromAnchorRect,
-  getPopupPositionFromRect,
   getSuggestionPopupFixedStyle,
   isWhitespaceChar,
   MENTION_CLASSNAME,
@@ -44,13 +37,13 @@ import {
   serializeEditorText,
   setCaretAfterNode,
   shouldAppendTrailingSpace,
-  type TriggerPosition,
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 import { useComposerActiveFormatsPublish } from "@/hooks/effects/use-composer-active-formats-publish";
 import { useComposerBlurTimeoutCleanup } from "@/hooks/effects/use-composer-blur-timeout-cleanup";
 import { useComposerExternalValueSync } from "@/hooks/effects/use-composer-external-value-sync";
+import { useComposerSuggestionPopupPosition } from "@/hooks/effects/use-composer-suggestion-popup-position";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
@@ -93,7 +86,6 @@ type SuggestionUiState =
   | {
       open: true;
       suggestion: ComposerSuggestion;
-      position: TriggerPosition;
       activeIndex: number;
     };
 
@@ -334,11 +326,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
       : [];
 
   const activeIndex = suggestionUi.open ? suggestionUi.activeIndex : 0;
-  const triggerPosition = suggestionUi.open ? suggestionUi.position : null;
-  const suggestionKind = suggestionUi.open
-    ? suggestionUi.suggestion.kind
-    : null;
+  const activeSuggestion = suggestionUi.open ? suggestionUi.suggestion : null;
+  const suggestionKind = activeSuggestion?.kind ?? null;
   const isOpen = suggestionUi.open;
+  const triggerPosition = useComposerSuggestionPopupPosition(
+    editorElement,
+    activeSuggestion,
+  );
   const visibleSuggestionCount =
     suggestionKind === "emoji"
       ? emojiMatches.length
@@ -349,17 +343,14 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const openSuggestions = useCallback(
     ({
       suggestion,
-      nextTriggerPosition,
       nextActiveIndex = 0,
     }: {
       suggestion: ComposerSuggestion;
-      nextTriggerPosition: TriggerPosition;
       nextActiveIndex?: number;
     }) => {
       setSuggestionUi({
         open: true,
         suggestion,
-        position: nextTriggerPosition,
         activeIndex: nextActiveIndex,
       });
     },
@@ -370,25 +361,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     setSuggestionUi({ open: false });
     manualMentionOpenRef.current = false;
   }, []);
-
-  const getSuggestionPopupPosition = useCallback(
-    (editor: HTMLElement, kind: ComposerSuggestion["kind"]) => {
-      if (kind === "mention" || kind === "emoji" || kind === "channel") {
-        const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
-        if (shell instanceof HTMLElement) {
-          return getMentionPopupPositionFromAnchorRect(
-            shell.getBoundingClientRect(),
-          );
-        }
-      }
-      const caretRect = getCaretRect(editor);
-      const fallbackRect = editor.getBoundingClientRect();
-      return caretRect
-        ? getPopupPositionFromRect(caretRect)
-        : getPopupPositionFromRect(fallbackRect);
-    },
-    [],
-  );
 
   const syncFromEditor = useCallback(() => {
     if (!editorRef.current) {
@@ -482,10 +454,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
             query: "",
             triggerStart: caret,
           },
-          nextTriggerPosition: getSuggestionPopupPosition(
-            editorRef.current,
-            "mention",
-          ),
           nextActiveIndex: 0,
         });
         return;
@@ -499,10 +467,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (suggestion) {
         openSuggestions({
           suggestion,
-          nextTriggerPosition: getSuggestionPopupPosition(
-            editorRef.current,
-            suggestion.kind,
-          ),
           nextActiveIndex: 0,
         });
         return;
@@ -517,7 +481,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
   }, [
     channels,
     closeSuggestions,
-    getSuggestionPopupPosition,
     normalizedMentions.length,
     openSuggestions,
     publishActiveFormats,
@@ -904,10 +867,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
         query: "",
         triggerStart: caret,
       },
-      nextTriggerPosition: getSuggestionPopupPosition(editor, "mention"),
       nextActiveIndex: 0,
     });
-  }, [getSuggestionPopupPosition, openSuggestions]);
+  }, [openSuggestions]);
 
   const getLiveSuggestionAtCaret = useCallback(() => {
     if (!editorRef.current) return null;
@@ -948,16 +910,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     openSuggestions({
       suggestion: live,
-      nextTriggerPosition: getSuggestionPopupPosition(
-        editorRef.current,
-        live.kind,
-      ),
       nextActiveIndex: Math.min(suggestionUi.activeIndex, listLength - 1),
     });
   }, [
     closeSuggestions,
     getLiveSuggestionAtCaret,
-    getSuggestionPopupPosition,
     normalizedMentions,
     openSuggestions,
     publishActiveFormats,
@@ -974,36 +931,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     },
     [],
   );
-
-  useEffect(() => {
-    if (!isOpen || !editorRef.current || !suggestionKind) return;
-    const editor = editorRef.current;
-
-    const updatePosition = () => {
-      const nextPosition = getSuggestionPopupPosition(editor, suggestionKind);
-      setSuggestionUi((prev) => {
-        if (!prev.open) return prev;
-        return { ...prev, position: nextPosition };
-      });
-    };
-
-    const visualViewport = window.visualViewport;
-    visualViewport?.addEventListener("resize", updatePosition);
-    visualViewport?.addEventListener("scroll", updatePosition);
-    window.addEventListener("resize", updatePosition);
-    let nestedRafId = 0;
-    const rafId = requestAnimationFrame(() => {
-      nestedRafId = requestAnimationFrame(updatePosition);
-    });
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      cancelAnimationFrame(nestedRafId);
-      visualViewport?.removeEventListener("resize", updatePosition);
-      visualViewport?.removeEventListener("scroll", updatePosition);
-      window.removeEventListener("resize", updatePosition);
-    };
-  }, [getSuggestionPopupPosition, isOpen, suggestionKind]);
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
