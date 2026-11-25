@@ -118,7 +118,8 @@ model ProjectSeoRankPoint {
   position       Float?
   /// "ranked" or "not_in_range". A failed read is no point.
   positionStatus String
-  checkedResults Int?
+  /// The payload accepts any integer, also above the 32-bit range. A double holds each safe integer exactly.
+  checkedResults Float?
   device         String?
 
   @@unique([observationId, key])

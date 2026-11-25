@@ -6,7 +6,7 @@ CREATE TABLE "project_seo_rank_point" (
     "observedAt" TIMESTAMP(3) NOT NULL,
     "position" DOUBLE PRECISION,
     "positionStatus" TEXT NOT NULL,
-    "checkedResults" INTEGER,
+    "checkedResults" DOUBLE PRECISION,
     "device" TEXT,
 
     CONSTRAINT "project_seo_rank_point_pkey" PRIMARY KEY ("id")

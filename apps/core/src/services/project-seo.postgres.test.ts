@@ -3106,9 +3106,12 @@ describe.skipIf(!enabled)(
           select: { position: true, positionStatus: true, observedAt: true },
         });
       expect(await points()).toEqual([]);
-      expect((await backfillSeoRankPoints({ dryRun: true })).points).toBe(
-        (await backfillSeoRankPoints()).points,
-      );
+      // The run reads every result of the database, so only this result's own points are compared.
+      expect(
+        (await backfillSeoRankPoints({ dryRun: true })).points,
+      ).toBeGreaterThanOrEqual(1);
+      expect(await points()).toEqual([]);
+      await backfillSeoRankPoints();
       expect(await points()).toEqual([
         {
           position: 4,
@@ -3116,8 +3119,24 @@ describe.skipIf(!enabled)(
           observedAt: new Date("2026-10-04T09:00:00.000Z"),
         },
       ]);
-      // A second run finds every point in place.
-      expect((await backfillSeoRankPoints()).points).toBe(0);
+      // A second run leaves the point as it is.
+      await backfillSeoRankPoints();
+      expect(await points()).toHaveLength(1);
+      // The payload accepts a count above the 32-bit range. The point keeps it.
+      const wide = rankingsPayload(page.url, "2026-10-05T09:00:00.000Z");
+      Object.assign(wide.keywords[0], {
+        position: null,
+        positionStatus: "not_in_range",
+        checkedResults: 2 ** 31,
+      });
+      const deep = await storeResult(page.id, wide);
+      await backfillSeoRankPoints();
+      expect(
+        await prisma.projectSeoRankPoint.findMany({
+          where: { observationId: deep.id },
+          select: { checkedResults: true },
+        }),
+      ).toEqual([{ checkedResults: 2 ** 31 }]);
     });
 
     it("reads the rank history only from rankings and audit_lite results", async () => {

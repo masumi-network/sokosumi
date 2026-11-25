@@ -1,3 +1,4 @@
+import { isPrismaForeignKeyViolation } from "@/helpers/prisma";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { SEO_RANK_POINT_KINDS, seoRankPoints } from "./project-seo-rank-points";
@@ -18,11 +19,15 @@ export async function backfillSeoRankPoints(
   for (;;) {
     const rows = await prisma.projectSeoObservation.findMany({
       // Public results only, as the import writes them: a private row holds no keyword reads.
-      where: { kind: { in: SEO_RANK_POINT_KINDS }, ownerId: null },
+      // "After this id", not a cursor row: the step holds when the last result was deleted meanwhile.
+      where: {
+        kind: { in: SEO_RANK_POINT_KINDS },
+        ownerId: null,
+        ...(after && { id: { gt: after } }),
+      },
       select: { id: true, payload: true },
       orderBy: { id: "asc" },
       take: BATCH,
-      ...(after && { cursor: { id: after }, skip: 1 }),
     });
     if (!rows.length) return count;
     after = rows.at(-1)?.id;
@@ -36,18 +41,26 @@ export async function backfillSeoRankPoints(
       }
       const data = seoRankPoints(row.id, parsed.data);
       if (!data.length) continue;
-      count.points += options.dryRun
-        ? // A result's points are written together and never change: the missing ones are the rest.
+      if (options.dryRun) {
+        // A result's points are written together and never change: the missing ones are the rest.
+        count.points +=
           data.length -
           (await prisma.projectSeoRankPoint.count({
             where: { observationId: row.id },
-          }))
-        : (
-            await prisma.projectSeoRankPoint.createMany({
-              data,
-              skipDuplicates: true,
-            })
-          ).count;
+          }));
+        continue;
+      }
+      try {
+        count.points += (
+          await prisma.projectSeoRankPoint.createMany({
+            data,
+            skipDuplicates: true,
+          })
+        ).count;
+      } catch (error) {
+        // The result was deleted after this step read it: it needs no points.
+        if (!isPrismaForeignKeyViolation(error)) throw error;
+      }
     }
   }
 }
