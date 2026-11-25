@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   CONTACT_CHANNEL_TYPES,
   type CONTACT_SORT_FIELDS,
@@ -1286,7 +1287,7 @@ export async function findDuplicateContacts(
   const read = limit * 2;
   const sameName = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
     SELECT lower(btrim(c."name")) AS "key", array_agg(c."id"::text ORDER BY c."createdAt") AS "ids"
-    FROM "contact" c
+    FROM ${sharedTable("contact")} c
     WHERE c."workspaceId" = ${actor.workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
@@ -1300,8 +1301,8 @@ export async function findDuplicateContacts(
   `;
   const sameCompany = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
     SELECT min(c."name") AS "key", array_agg(DISTINCT c."id"::text) AS "ids"
-    FROM "contact" c
-    JOIN "contact_channel" ch ON ch."contactId" = c."id" AND ch."type" = 'EMAIL'
+    FROM ${sharedTable("contact")} c
+    JOIN ${sharedTable("contact_channel")} ch ON ch."contactId" = c."id" AND ch."type" = 'EMAIL'
     WHERE c."workspaceId" = ${actor.workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
@@ -1725,7 +1726,7 @@ async function listContactsByScore(
     options.direction === "asc" ? PrismaRaw.sql`ASC` : PrismaRaw.sql`DESC`;
   const ordered = await prisma.$queryRaw<{ id: string }[]>`
     SELECT c.id FROM unnest(${ids}::uuid[]) AS c(id)
-    LEFT JOIN contact_score s
+    LEFT JOIN ${sharedTable("contact_score")} s
       ON s."contactId" = c.id AND s."userId" = ${actor.userId}
     ORDER BY ${column} ${direction} NULLS LAST, c.id ${direction}
   `;
@@ -1785,7 +1786,7 @@ export async function rememberCompanyAliases(
   if (contactIds.length === 0) return;
   await tx.$executeRaw`
     ${contactCompaniesCte(workspaceId)}
-    UPDATE contact_company cc
+    UPDATE ${sharedTable("contact_company")} cc
     SET aliases = ARRAY(SELECT DISTINCT unnest(cc.aliases || g.orgs) ORDER BY 1)
     FROM (
       SELECT key, array_agg(DISTINCT org) FILTER (WHERE org IS NOT NULL) AS orgs
@@ -1805,13 +1806,13 @@ export function contactCompaniesCte(workspaceId: string) {
     WITH live AS (
       SELECT c.id, c.organization AS raw,
         nullif(regexp_replace(lower(coalesce(c.organization, '')), '[^[:alnum:]]+', '', 'g'), '') AS org
-      FROM contact c
+      FROM ${sharedTable("contact")} c
       WHERE c."workspaceId" = ${workspaceId}::uuid
         AND c."mergedIntoId" IS NULL AND c."archivedAt" IS NULL
     ), domains AS (
       SELECT DISTINCT l.id, lower(split_part(ch.value, '@', 2)) AS domain
       FROM live l
-      JOIN contact_channel ch ON ch."contactId" = l.id AND ch.type = 'EMAIL'
+      JOIN ${sharedTable("contact_channel")} ch ON ch."contactId" = l.id AND ch.type = 'EMAIL'
       WHERE lower(split_part(ch.value, '@', 2)) !~ ${SHARED_MAIL_DOMAIN}
     ), domain_names AS (
       SELECT d.domain, l.org, count(*) AS n
@@ -1892,7 +1893,7 @@ export async function contactCompanyMemberIds(
       WHERE org = regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g')
       UNION
       -- A company someone renamed is found by its new name too.
-      SELECT cc.key FROM contact_company cc
+      SELECT cc.key FROM ${sharedTable("contact_company")} cc
       WHERE cc."workspaceId" = ${workspaceId}::uuid
         AND lower(cc.name) = lower(btrim(${name}))
     )
@@ -1905,7 +1906,7 @@ export async function contactCompanyMemberIds(
   // stored rows (kept when everyone is archived) and its live members.
   const archived = await prisma.$queryRaw<{ id: string }[]>`
     WITH rows AS (
-      SELECT cc.key, cc.name, cc.domain, cc.aliases FROM contact_company cc
+      SELECT cc.key, cc.name, cc.domain, cc.aliases FROM ${sharedTable("contact_company")} cc
       WHERE cc."workspaceId" = ${workspaceId}::uuid
         AND (lower(cc.name) = lower(btrim(${name}))
           OR cc.key = 'n:' || regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g'))
@@ -1915,7 +1916,7 @@ export async function contactCompanyMemberIds(
       UNION SELECT substr(key, 3) FROM rows WHERE key LIKE 'n:%'
       UNION SELECT unnest(aliases) FROM rows
       UNION SELECT DISTINCT regexp_replace(lower(c.organization), '[^[:alnum:]]+', '', 'g')
-        FROM contact c WHERE c.id = ANY(${liveIds}::uuid[]) AND c.organization IS NOT NULL
+        FROM ${sharedTable("contact")} c WHERE c.id = ANY(${liveIds}::uuid[]) AND c.organization IS NOT NULL
     ), domains AS (
       SELECT domain FROM rows WHERE domain IS NOT NULL
       UNION SELECT substr(key, 3) FROM rows WHERE key LIKE 'd:%'
@@ -1923,8 +1924,8 @@ export async function contactCompanyMemberIds(
       SELECT c.id,
         nullif(regexp_replace(lower(coalesce(c.organization, '')), '[^[:alnum:]]+', '', 'g'), '') AS org,
         lower(split_part(ch.value, '@', 2)) AS domain
-      FROM contact c
-      LEFT JOIN contact_channel ch ON ch."contactId" = c.id AND ch.type = 'EMAIL'
+      FROM ${sharedTable("contact")} c
+      LEFT JOIN ${sharedTable("contact_channel")} ch ON ch."contactId" = c.id AND ch.type = 'EMAIL'
       WHERE c."workspaceId" = ${workspaceId}::uuid
         AND c."mergedIntoId" IS NULL
         AND c."archivedAt" IS NOT NULL

@@ -5,6 +5,7 @@
  * the background and ranks queries against them.
  */
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { unprocessableEntity } from "@/helpers/error";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { vectorLiteral } from "@/lib/contacts/embeddings";
@@ -67,8 +68,8 @@ export async function rankContacts(
   // Not materialized, so each method's predicate reaches its index.
   const base = PrismaRaw.sql`
     SELECT cs."contactId", cs."document", cs."search_vector", cs."embedding"
-    FROM "contact_search" cs
-    JOIN "contact" c ON c."id" = cs."contactId"
+    FROM ${sharedTable("contact_search")} cs
+    JOIN ${sharedTable("contact")} c ON c."id" = cs."contactId"
     WHERE cs."workspaceId" = ${workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND ${archived}
@@ -191,8 +192,8 @@ export async function embedStaleContacts(
     { contactId: string; document: string; hash: string }[]
   >`
     SELECT cs."contactId"::text AS "contactId", cs."document", md5(cs."document") AS hash
-    FROM "contact_search" cs
-    JOIN "contact" c ON c."id" = cs."contactId"
+    FROM ${sharedTable("contact_search")} cs
+    JOIN ${sharedTable("contact")} c ON c."id" = cs."contactId"
     WHERE cs."workspaceId" = ${workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
@@ -214,7 +215,7 @@ export async function embedStaleContacts(
     if (done.length === 0) continue;
     // One statement per batch; a document changed meanwhile stays stale.
     embedded += await prisma.$executeRaw`
-      UPDATE "contact_search" cs
+      UPDATE ${sharedTable("contact_search")} cs
       SET "embedding" = v.vector::vector, "embeddedHash" = v.hash
       FROM unnest(
         ${done.map((row) => row.contactId)}::uuid[],
@@ -233,8 +234,8 @@ export async function workspacesWithStaleEmbeddings(
 ): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ workspaceId: string }[]>`
     SELECT DISTINCT cs."workspaceId"::text AS "workspaceId"
-    FROM "contact_search" cs
-    JOIN "contact" c ON c."id" = cs."contactId"
+    FROM ${sharedTable("contact_search")} cs
+    JOIN ${sharedTable("contact")} c ON c."id" = cs."contactId"
     WHERE c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
       AND cs."embeddedHash" IS DISTINCT FROM md5(cs."document")

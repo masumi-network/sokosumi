@@ -11,7 +11,7 @@ import { listAdminSeoAlerts } from "./admin-seo-alerts";
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
-// Temp tables keep the all-workspace dashboard test independent of rows created by parallel suites.
+// Scratch tables keep the all-workspace dashboard test independent of rows created by parallel suites.
 it.skipIf(!enabled)(
   "deduplicates runs, counts only real page exceptions and distinguishes consent, evidence, and unknowns",
   async () => {
@@ -29,7 +29,7 @@ it.skipIf(!enabled)(
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`CREATE SCHEMA "${sharedSchema}"`);
       await tx.$executeRawUnsafe(`CREATE SCHEMA "${mainnetSchema}"`);
-      // The alerts query still reads taskEvent by its bare name outside the billing CTEs.
+      // The transaction-local path keeps the fixture setup and its bare table names inside the scratch schema.
       await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${sharedSchema}"`);
       await tx.$executeRaw`CREATE TABLE ${sharedTable("taskEvent")} ("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint)`;
       await tx.$executeRaw`CREATE TABLE ${netTable("mainnet", "Transaction")} (id text, amount bigint)`;
@@ -43,7 +43,7 @@ it.skipIf(!enabled)(
         'seo_connection("workspaceId" uuid, "userId" text, provider text, status text, id uuid DEFAULT gen_random_uuid(), "updatedAt" timestamp DEFAULT now())',
         'project_seo_observation(id uuid, "auditId" uuid, "projectId" uuid, "sourceTaskId" text, source text, kind text, "ownerId" text, payload jsonb, "pageIds" uuid[], "createdAt" timestamp)',
       ])
-        await tx.$executeRawUnsafe(`CREATE TEMP TABLE ${ddl} ON COMMIT DROP`);
+        await tx.$executeRawUnsafe(`CREATE TABLE ${ddl}`);
       const workspace = "00000000-0000-4000-8000-000000000001";
       await tx.$executeRaw`INSERT INTO workspace VALUES (${workspace}::uuid,NULL,'org')`;
       await tx.$executeRaw`INSERT INTO organization VALUES ('org','audit-ops')`;
@@ -106,11 +106,11 @@ it.skipIf(!enabled)(
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(57)}::uuid,${id(3)}::uuid,NULL,'4','seo_coworker','audit_full',NULL,'{"sourceFailures":["lighthouseFailed"]}',ARRAY[${id(66)}::uuid],timestamp '2026-10-04')`;
       await tx.$executeRaw`UPDATE project_seo_analysis SET "failureReason"='The source report or its current authority could not be validated' WHERE "taskId"='12'`;
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(56)}::uuid,${id(4)}::uuid,NULL,'5','search_console','index_inspection','owner4','{"receipt":{"status":"needs_property"}}',NULL,timestamp '2026-10-05')`;
-      // Autovacuum cannot analyze temporary tables. Give the planner the fixture's row counts
+      // Autovacuum cannot see the fixture tables created inside this transaction. Give the planner their row counts
       // before the dashboard reads so PostgreSQL can choose a plan for these small tables.
-      await tx.$executeRaw`ANALYZE pg_temp.project_seo_analysis, pg_temp.seo_audit, pg_temp.workspace,
-        pg_temp.organization, pg_temp.project, pg_temp.task, ${sharedTable("taskEvent")}, ${netTable("mainnet", "Transaction")},
-        pg_temp.seo_connection, pg_temp.project_seo_observation`;
+      await tx.$executeRaw`ANALYZE project_seo_analysis, seo_audit, workspace,
+        organization, project, task, ${sharedTable("taskEvent")}, ${netTable("mainnet", "Transaction")},
+        seo_connection, project_seo_observation`;
       const beforeDisconnect = await listAdminSeoAlerts(
         { period: "all", page: 1 },
         tx,

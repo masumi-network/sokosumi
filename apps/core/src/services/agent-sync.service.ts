@@ -5,6 +5,7 @@ import {
   type Prisma,
   RiskClassification,
 } from "@sokosumi/database";
+import { netTable } from "@sokosumi/database/sql-tables";
 import {
   isV2RegistryIdentifier,
   normalizeMasumiPaymentUnit,
@@ -97,7 +98,7 @@ async function findAgentIdsByIdentifierCaseInsensitive(
   agentIdentifier: string,
 ): Promise<string[]> {
   const rows = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "Agent"
+    SELECT "id" FROM ${netTable("mainnet", "Agent")}
     WHERE lower("blockchainIdentifier") = lower(${agentIdentifier})`;
   return rows.map((row) => row.id);
 }

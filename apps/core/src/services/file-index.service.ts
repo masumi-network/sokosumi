@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { BlobNotFoundError } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
@@ -127,7 +128,7 @@ export async function writeVersionChunks(input: {
 
   for (const chunk of input.chunks) {
     await client.$executeRaw(PrismaRaw.sql`
-      INSERT INTO file_chunk (
+      INSERT INTO ${sharedTable("file_chunk")} (
         id, "createdAt", "versionId", "chunkId", ordinal, anchor, text,
         "evidenceScopeId", "scopeVersion", "inputDigest", search_vector
       ) VALUES (

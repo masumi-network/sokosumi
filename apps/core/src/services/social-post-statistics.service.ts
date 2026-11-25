@@ -1,5 +1,6 @@
 import { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
 import { z } from "zod";
 import {
@@ -75,7 +76,7 @@ export async function listSocialPostStatistics(
               ELSE false END
         )
       THEN statistics->'metrics' ELSE NULL END AS metrics
-      FROM social_post
+      FROM ${sharedTable("social_post")}
       WHERE "projectId" = ${input.projectId}::uuid
         AND "workspaceId" = ${input.workspaceId}::uuid
         AND status = 'PUBLISHED'

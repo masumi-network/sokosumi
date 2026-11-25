@@ -6,6 +6,7 @@ import {
   FileSourceKind,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   driveFolderPathFromSourceId,
   normalizeFileResourceName,
@@ -410,8 +411,8 @@ async function loadWindowExtractionStates(input: {
   >(PrismaRaw.sql`
     SELECT fv."extractionState"
     FROM unnest(${input.resourceIds}::text[]) AS wanted(resource_id)
-    JOIN file_resource fr ON fr.id::text = wanted.resource_id
-    LEFT JOIN file_version fv
+    JOIN ${sharedTable("file_resource")} fr ON fr.id::text = wanted.resource_id
+    LEFT JOIN ${sharedTable("file_version")} fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
     WHERE ${authorized}
   `);
@@ -494,7 +495,7 @@ export async function loadLiveResources(
       (
         -- The chunk that matched, when one was named; otherwise the
         -- document's opening, which is what this always returned.
-        SELECT fc.text FROM file_chunk fc
+        SELECT fc.text FROM ${sharedTable("file_chunk")} fc
         WHERE fc."versionId" = fv.id
         ORDER BY (fc.id::text = wanted.chunk_id) DESC NULLS LAST,
                  fc.ordinal ASC
@@ -504,8 +505,8 @@ export async function loadLiveResources(
       ${input.resourceIds}::text[],
       ${wantedChunks}::text[]
     ) AS wanted(resource_id, chunk_id)
-    JOIN file_resource fr ON fr.id::text = wanted.resource_id
-    LEFT JOIN file_version fv
+    JOIN ${sharedTable("file_resource")} fr ON fr.id::text = wanted.resource_id
+    LEFT JOIN ${sharedTable("file_version")} fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
     WHERE ${authorized}
   `);

@@ -104,8 +104,6 @@ src/services/evals/eval-seo-fixtures.postgres.test.ts 19  # trigger body
 src/services/file-backfill.postgres.test.ts 19  # trigger body
 src/services/file-curated-vocabulary.postgres.test.ts 19  # trigger body
 src/services/file-metadata-labels.postgres.test.ts 19  # trigger body
-src/services/file-reindex-chain.postgres.test.ts 17  # unqualified raw SQL
-src/services/file-related.postgres.test.ts 17  # unqualified raw SQL
 src/services/file-search.postgres.test.ts 19  # trigger body
 src/services/file-suggestion-backfill.postgres.test.ts 19  # trigger body
 src/services/file-suggestions.postgres.test.ts 19  # trigger body

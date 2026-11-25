@@ -1,3 +1,4 @@
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -131,7 +132,7 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
       >`
       SELECT "sokoBotId", COUNT(*) AS turns,
         SUM("overheadCostUsdMicros") AS overhead
-      FROM soko_bot_turn
+      FROM ${sharedTable("soko_bot_turn")}
       WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
       GROUP BY "sokoBotId"`,
       // Each turn keeps its spend split by source. Older turns only know their
@@ -151,7 +152,7 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
         SUM((s.value->>'calls')::float8) AS calls,
         SUM((s.value->>'inputTokens')::float8) AS input,
         SUM((s.value->>'outputTokens')::float8) AS output
-      FROM soko_bot_turn t
+      FROM ${sharedTable("soko_bot_turn")} t
       CROSS JOIN LATERAL jsonb_each(t.usage->'bySource') s
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND t."createdAt" >= ${since}
         AND jsonb_typeof(t.usage->'bySource') = 'object'
@@ -164,7 +165,7 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
           THEN (t.usage->>'inputTokens')::float8 ELSE 0 END) AS input,
         SUM(CASE WHEN jsonb_typeof(t.usage->'outputTokens') = 'number'
           THEN (t.usage->>'outputTokens')::float8 ELSE 0 END) AS output
-      FROM soko_bot_turn t
+      FROM ${sharedTable("soko_bot_turn")} t
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND t."createdAt" >= ${since}
         AND jsonb_typeof(t.usage->'bySource') IS DISTINCT FROM 'object'
         AND COALESCE(t."costUsdMicros", 0) > 0
@@ -173,20 +174,20 @@ export async function cmoSpend(since: Date): Promise<CmoSpend[]> {
         { sokoBotId: string; capability: string; calls: bigint }[]
       >`
       SELECT t."sokoBotId", c.capability, COUNT(*) AS calls
-      FROM soko_bot_tool_call c
-      JOIN soko_bot_turn t ON t.id = c."turnId"
+      FROM ${sharedTable("soko_bot_tool_call")} c
+      JOIN ${sharedTable("soko_bot_turn")} t ON t.id = c."turnId"
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND c."createdAt" >= ${since}
       GROUP BY t."sokoBotId", c.capability`,
       // A quote only counts once it was charged, in the period it was charged.
       prisma.$queryRaw<{ projectId: string; cents: bigint | null }[]>`
       SELECT j."projectId", SUM(COALESCE(j."chargedCents", 0)) AS cents
-      FROM project_image_job j
-      JOIN "Transaction" t ON t.id = j."transactionId"
+      FROM ${sharedTable("project_image_job")} j
+      JOIN ${netTable("mainnet", "Transaction")} t ON t.id = j."transactionId"
       WHERE j."projectId" = ANY(${projects}::uuid[]) AND t."createdAt" >= ${since}
       GROUP BY j."projectId"`,
       prisma.$queryRaw<{ sokoBotId: string; cents: bigint | null }[]>`
       SELECT "sokoBotId", SUM(cents) AS cents
-      FROM soko_bot_usage
+      FROM ${netTable("mainnet", "soko_bot_usage")}
       WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
       GROUP BY "sokoBotId"`,
       // Newest first, so the first save with problems is the latest.

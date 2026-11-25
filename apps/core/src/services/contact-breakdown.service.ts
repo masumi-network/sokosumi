@@ -5,6 +5,7 @@
  * paging through thousands of contacts.
  */
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import type { ContactFilter } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import {
@@ -160,8 +161,8 @@ async function groupsBy(
         await prisma.$queryRaw<ContactBreakdownGroup[]>`
           SELECT i."userId" AS key, coalesce(u."name", 'A teammate') AS label,
             count(DISTINCT i."contactId")::int AS count
-          FROM "contact_interaction" i
-          LEFT JOIN "user" u ON u."id" = i."userId"
+          FROM ${sharedTable("contact_interaction")} i
+          LEFT JOIN ${sharedTable("user")} u ON u."id" = i."userId"
           WHERE i."contactId" = ANY(${ids}::uuid[]) AND i."userId" IS NOT NULL
           GROUP BY i."userId", u."name"
         `,
@@ -176,7 +177,7 @@ async function groupsBy(
         await prisma.$queryRaw<ContactBreakdownGroup[]>`
           SELECT ${column} AS key, ${column} AS label,
             count(DISTINCT ch."contactId")::int AS count
-          FROM "contact_channel" ch
+          FROM ${sharedTable("contact_channel")} ch
           WHERE ch."contactId" = ANY(${ids}::uuid[])
           GROUP BY 1
         `,
@@ -188,7 +189,7 @@ async function groupsBy(
 function countBy(column: PrismaRaw.Sql, ids: string[]) {
   return prisma.$queryRaw<{ value: string | null; count: number }[]>`
     SELECT ${column} AS value, count(*)::int AS count
-    FROM "contact" c
+    FROM ${sharedTable("contact")} c
     WHERE c."id" = ANY(${ids}::uuid[])
     GROUP BY 1
   `;
@@ -250,7 +251,7 @@ async function lastContactGroups(
         ELSE 'older'
       END AS key,
       count(*)::int AS count
-    FROM "contact" c
+    FROM ${sharedTable("contact")} c
     WHERE c."id" = ANY(${ids}::uuid[])
     GROUP BY 1
   `;
@@ -273,7 +274,7 @@ async function listGroups(
   });
   const manual = await prisma.$queryRaw<{ listId: string; count: number }[]>`
     SELECT m."listId"::text AS "listId", count(*)::int AS count
-    FROM "contact_list_member" m
+    FROM ${sharedTable("contact_list_member")} m
     WHERE m."contactId" = ANY(${ids}::uuid[])
     GROUP BY 1
   `;
