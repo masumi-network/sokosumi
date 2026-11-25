@@ -12,21 +12,21 @@ prisma migrate diff [options]
 
 - Compares two sources (`--from-...` and `--to-...`)
 - Sources can be:
-    - Empty (`empty`)
-    - Schema file (`schema`)
-    - Migrations directory (`migrations`)
-    - Database URL (`url`) or Configured Datasource (`config-datasource`)
+  - Empty (`empty`)
+  - Schema file (`schema`)
+  - Migrations directory (`migrations`)
+  - Database URL (`url`) or Configured Datasource (`config-datasource`)
 - Outputs the difference:
-    - Human-readable summary (default)
-    - SQL script (`--script`)
+  - Human-readable summary (default)
+  - SQL script (`--script`)
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--script` | Render SQL script to stdout |
+| Option        | Description                                        |
+| ------------- | -------------------------------------------------- |
+| `--script`    | Render SQL script to stdout                        |
 | `--exit-code` | Exit 2 if changes detected, 0 if empty, 1 if error |
-| `--config` | Custom path to your Prisma config file |
+| `--config`    | Custom path to your Prisma config file             |
 
 ### Sources (Must provide one `from` and one `to`)
 

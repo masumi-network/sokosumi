@@ -17,11 +17,12 @@ Inject debug IDs into JavaScript files and sourcemaps
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument      | Description                                |
+| ------------- | ------------------------------------------ |
 | `<directory>` | Directory to scan for JS + sourcemap pairs |
 
 **Flags:**
+
 - `--ext <value> - Comma-separated file extensions to process (default: .js,.cjs,.mjs)`
 - `--ignore <value> - Comma-separated glob patterns to exclude (gitignore-style)`
 - `--ignore-file <value> - Path to a file with gitignore-style patterns to exclude`
@@ -50,11 +51,12 @@ Upload sourcemaps to Sentry
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument      | Description                                               |
+| ------------- | --------------------------------------------------------- |
 | `<directory>` | Directory containing sourcemaps, or a glob like 'dist/**' |
 
 **Flags:**
+
 - `--release <value> - Release version to associate with the upload`
 - `--dist <value> - Distribution identifier to disambiguate builds within a release`
 - `--url-prefix <value> - URL prefix for uploaded files - (default: "~/")`
@@ -100,11 +102,12 @@ Resolve and report sourcemap linkage for JavaScript files
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument      | Description                    |
+| ------------- | ------------------------------ |
 | `<directory>` | Directory to scan for JS files |
 
 **Flags:**
+
 - `--ext <value> - Comma-separated file extensions to process (default: .js,.cjs,.mjs)`
 - `--ignore <value> - Comma-separated glob patterns to exclude (gitignore-style)`
 - `--ignore-file <value> - Path to a file with gitignore-style patterns to exclude`

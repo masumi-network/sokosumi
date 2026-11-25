@@ -8,12 +8,12 @@ A suppression list prevents sending to addresses that should never receive email
 
 ### What to Suppress
 
-| Reason | Action | Can Unsuppress? |
-|--------|--------|-----------------|
-| Hard bounce | Add immediately | No (address invalid) |
-| Complaint (spam) | Add immediately | No (legal requirement) |
-| Soft bounce (3x) | Add after threshold | Yes, after 30-90 days |
-| Manual removal | Add on request | Only if user requests |
+| Reason           | Action              | Can Unsuppress?        |
+| ---------------- | ------------------- | ---------------------- |
+| Hard bounce      | Add immediately     | No (address invalid)   |
+| Complaint (spam) | Add immediately     | No (legal requirement) |
+| Soft bounce (3x) | Add after threshold | Yes, after 30-90 days  |
+| Manual removal   | Add on request      | Only if user requests  |
 
 ### Implementation
 
@@ -64,13 +64,13 @@ Regular maintenance to keep lists healthy.
 
 ### Automated Cleanup
 
-| Task | Frequency | Action |
-|------|-----------|--------|
-| Remove hard bounces | Real-time (via webhook) | Immediate suppression |
-| Remove complaints | Real-time (via webhook) | Immediate suppression |
-| Process unsubscribes | Real-time | Remove from marketing lists |
-| Review soft bounces | Daily | Suppress after 3 failures |
-| Remove inactive | Monthly | Re-engagement → remove |
+| Task                 | Frequency               | Action                      |
+| -------------------- | ----------------------- | --------------------------- |
+| Remove hard bounces  | Real-time (via webhook) | Immediate suppression       |
+| Remove complaints    | Real-time (via webhook) | Immediate suppression       |
+| Process unsubscribes | Real-time               | Remove from marketing lists |
+| Review soft bounces  | Daily                   | Suppress after 3 failures   |
+| Remove inactive      | Monthly                 | Re-engagement → remove      |
 
 Learn more: https://resend.com/docs/knowledge-base/audience-hygiene
 
@@ -102,14 +102,14 @@ async function runReengagement() {
 
 ### Email Logs
 
-| Data Type | Recommended Retention | Notes |
-|-----------|----------------------|-------|
-| Send attempts | 90 days | Debugging, analytics |
-| Delivery status | 90 days | Compliance, reporting |
-| Bounce/complaint events | 3 years | Required for CASL |
-| Suppression list | Indefinite | Never delete |
-| Email content | 30 days | Storage costs |
-| Consent records | 3 years after expiry | Legal requirement |
+| Data Type               | Recommended Retention | Notes                 |
+| ----------------------- | --------------------- | --------------------- |
+| Send attempts           | 90 days               | Debugging, analytics  |
+| Delivery status         | 90 days               | Compliance, reporting |
+| Bounce/complaint events | 3 years               | Required for CASL     |
+| Suppression list        | Indefinite            | Never delete          |
+| Email content           | 30 days               | Storage costs         |
+| Consent records         | 3 years after expiry  | Legal requirement     |
 
 ### Retention Policy Implementation
 
@@ -134,15 +134,16 @@ async function cleanupOldData() {
 
 ## Metrics to Monitor
 
-| Metric | Target | Alert Threshold |
-|--------|--------|-----------------|
-| Bounce rate | <2% | >2% |
-| Complaint rate | <0.05% | >0.05% |
-| Suppression list growth | Stable | Sudden spike |
+| Metric                  | Target | Alert Threshold |
+| ----------------------- | ------ | --------------- |
+| Bounce rate             | <2%    | >2%             |
+| Complaint rate          | <0.05% | >0.05%          |
+| Suppression list growth | Stable | Sudden spike    |
 
 ## Transactional vs Marketing Lists
 
 **Keep separate:**
+
 - Transactional: Can send to anyone with account relationship
 - Marketing: Only opted-in subscribers
 

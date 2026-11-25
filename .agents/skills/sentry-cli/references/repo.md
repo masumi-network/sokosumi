@@ -17,29 +17,30 @@ List repositories
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all), &lt;org&gt;/&lt;name&gt; or &lt;name&gt; (a project, else matching names), or a name glob (&lt;org&gt;/web-*) |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum number of repositories to list - (default: "25")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Repository ID |
-| `name` | string | Repository name |
-| `url` | string \| null | Repository URL |
-| `provider` | object | Version control provider |
-| `status` | string | Integration status |
-| `dateCreated` | string | Creation date (ISO 8601) |
-| `integrationId` | string | Integration ID |
-| `externalSlug` | string \| null | External slug (e.g. org/repo) |
-| `externalId` | string \| null | External ID |
-| `orgSlug` | string | Organization slug |
+| Field           | Type           | Description                   |
+| --------------- | -------------- | ----------------------------- |
+| `id`            | string         | Repository ID                 |
+| `name`          | string         | Repository name               |
+| `url`           | string \| null | Repository URL                |
+| `provider`      | object         | Version control provider      |
+| `status`        | string         | Integration status            |
+| `dateCreated`   | string         | Creation date (ISO 8601)      |
+| `integrationId` | string         | Integration ID                |
+| `externalSlug`  | string \| null | External slug (e.g. org/repo) |
+| `externalId`    | string \| null | External ID                   |
+| `orgSlug`       | string         | Organization slug             |
 
 **Examples:**
 

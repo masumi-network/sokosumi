@@ -8,37 +8,37 @@ If an agent acts on the content of received emails, also install the `agent-emai
 
 ## SDK Methods
 
-| Operation | Node.js | Python |
-|-----------|---------|--------|
-| Create inbox | `resend.inboxes.create(params)` | `resend.Inboxes.create(params)` |
-| List inboxes | `resend.inboxes.list(params?)` | `resend.Inboxes.list(params?)` |
-| Get inbox | `resend.inboxes.get(idOrEmail)` | `resend.Inboxes.get(inbox_id)` |
-| Update inbox | `resend.inboxes.update(id, params)` | `resend.Inboxes.update(params)`, `id` inside params |
-| Delete inbox | `resend.inboxes.remove(id)` | `resend.Inboxes.remove(inbox_id)` |
-| Get agent settings | `resend.inboxes.agent.get({ inboxId })` | `resend.Inboxes.Agent.get(inbox_id)` |
-| Update agent settings | `resend.inboxes.agent.update({ inboxId, ...params })` | `resend.Inboxes.Agent.update(params)`, `inbox_id` inside params |
-| List labels | `resend.inboxes.labels.list({ inboxId })` | `resend.Inboxes.Labels.list(inbox_id)` |
-| Create label | `resend.inboxes.labels.create({ inboxId, ...params })` | `resend.Inboxes.Labels.create(params)`, `inbox_id` inside params |
-| Update label | `resend.inboxes.labels.update({ inboxId, labelId, ...params })` | `resend.Inboxes.Labels.update(params)`, `inbox_id` and `id` inside params |
-| Delete label | `resend.inboxes.labels.remove({ inboxId, labelId })` | `resend.Inboxes.Labels.remove(inbox_id, label_id)` |
-| List threads | `resend.inboxes.threads.list({ inboxId, ...params })` | `resend.Inboxes.Threads.list(inbox_id, params?)` |
-| Search threads | `resend.inboxes.threads.search({ inboxId, ...params })` | `resend.Inboxes.Threads.search(inbox_id, params?)` |
-| Get thread | `resend.inboxes.threads.get({ inboxId, threadId })` | `resend.Inboxes.Threads.get(inbox_id, thread_id)` |
-| Update thread | `resend.inboxes.threads.update({ inboxId, threadId, ...params })` | `resend.Inboxes.Threads.update(params)`, `inbox_id` and `id` inside params |
-| Delete thread | `resend.inboxes.threads.remove({ inboxId, threadId })` | `resend.Inboxes.Threads.remove(inbox_id, thread_id)` |
-| Add thread labels | `resend.inboxes.threads.labels.add({ inboxId, threadId, labels })` | `resend.Inboxes.Threads.Labels.add(params)`, `inbox_id`, `thread_id` and `labels` inside params |
-| Set thread labels | `resend.inboxes.threads.labels.set({ inboxId, threadId, labels })` | `resend.Inboxes.Threads.Labels.set(params)`, `inbox_id`, `thread_id` and `labels` inside params |
-| Remove thread label | `resend.inboxes.threads.labels.remove({ inboxId, threadId, labelId })` | `resend.Inboxes.Threads.Labels.remove(inbox_id, thread_id, label_id)` |
-| List thread emails | `resend.inboxes.threads.emails.list({ inboxId, threadId, ...params })` | `resend.Inboxes.Threads.Emails.list(inbox_id, thread_id, params?)` |
-| Get thread email | `resend.inboxes.threads.emails.get({ inboxId, threadId, emailId })` | `resend.Inboxes.Threads.Emails.get(inbox_id, thread_id, email_id)` |
-| Reply to thread email | `resend.inboxes.threads.emails.reply({ inboxId, threadId, emailId, ...params })` | `resend.Inboxes.Threads.Emails.reply(params)`, `inbox_id`, `thread_id` and `email_id` inside params |
-| Forward thread email | `resend.inboxes.threads.emails.forward({ inboxId, threadId, emailId, ...params })` | `resend.Inboxes.Threads.Emails.forward(params)`, `inbox_id`, `thread_id` and `email_id` inside params |
-| List drafts | `resend.inboxes.drafts.list({ inboxId, ...params })` | `resend.Inboxes.Drafts.list(inbox_id, params?)` |
-| Create draft | `resend.inboxes.drafts.create({ inboxId, ...params })` | `resend.Inboxes.Drafts.create(params)`, `inbox_id` inside params |
-| Get draft | `resend.inboxes.drafts.get({ inboxId, draftId })` | `resend.Inboxes.Drafts.get(inbox_id, draft_id)` |
-| Update draft | `resend.inboxes.drafts.update({ inboxId, draftId, ...params })` | `resend.Inboxes.Drafts.update(params)`, `inbox_id` and `id` inside params |
-| Delete draft | `resend.inboxes.drafts.remove({ inboxId, draftId })` | `resend.Inboxes.Drafts.remove(inbox_id, draft_id)` |
-| Send draft | `resend.inboxes.drafts.send({ inboxId, draftId })` | `resend.Inboxes.Drafts.send(inbox_id, draft_id)` |
+| Operation             | Node.js                                                                            | Python                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Create inbox          | `resend.inboxes.create(params)`                                                    | `resend.Inboxes.create(params)`                                                                       |
+| List inboxes          | `resend.inboxes.list(params?)`                                                     | `resend.Inboxes.list(params?)`                                                                        |
+| Get inbox             | `resend.inboxes.get(idOrEmail)`                                                    | `resend.Inboxes.get(inbox_id)`                                                                        |
+| Update inbox          | `resend.inboxes.update(id, params)`                                                | `resend.Inboxes.update(params)`, `id` inside params                                                   |
+| Delete inbox          | `resend.inboxes.remove(id)`                                                        | `resend.Inboxes.remove(inbox_id)`                                                                     |
+| Get agent settings    | `resend.inboxes.agent.get({ inboxId })`                                            | `resend.Inboxes.Agent.get(inbox_id)`                                                                  |
+| Update agent settings | `resend.inboxes.agent.update({ inboxId, ...params })`                              | `resend.Inboxes.Agent.update(params)`, `inbox_id` inside params                                       |
+| List labels           | `resend.inboxes.labels.list({ inboxId })`                                          | `resend.Inboxes.Labels.list(inbox_id)`                                                                |
+| Create label          | `resend.inboxes.labels.create({ inboxId, ...params })`                             | `resend.Inboxes.Labels.create(params)`, `inbox_id` inside params                                      |
+| Update label          | `resend.inboxes.labels.update({ inboxId, labelId, ...params })`                    | `resend.Inboxes.Labels.update(params)`, `inbox_id` and `id` inside params                             |
+| Delete label          | `resend.inboxes.labels.remove({ inboxId, labelId })`                               | `resend.Inboxes.Labels.remove(inbox_id, label_id)`                                                    |
+| List threads          | `resend.inboxes.threads.list({ inboxId, ...params })`                              | `resend.Inboxes.Threads.list(inbox_id, params?)`                                                      |
+| Search threads        | `resend.inboxes.threads.search({ inboxId, ...params })`                            | `resend.Inboxes.Threads.search(inbox_id, params?)`                                                    |
+| Get thread            | `resend.inboxes.threads.get({ inboxId, threadId })`                                | `resend.Inboxes.Threads.get(inbox_id, thread_id)`                                                     |
+| Update thread         | `resend.inboxes.threads.update({ inboxId, threadId, ...params })`                  | `resend.Inboxes.Threads.update(params)`, `inbox_id` and `id` inside params                            |
+| Delete thread         | `resend.inboxes.threads.remove({ inboxId, threadId })`                             | `resend.Inboxes.Threads.remove(inbox_id, thread_id)`                                                  |
+| Add thread labels     | `resend.inboxes.threads.labels.add({ inboxId, threadId, labels })`                 | `resend.Inboxes.Threads.Labels.add(params)`, `inbox_id`, `thread_id` and `labels` inside params       |
+| Set thread labels     | `resend.inboxes.threads.labels.set({ inboxId, threadId, labels })`                 | `resend.Inboxes.Threads.Labels.set(params)`, `inbox_id`, `thread_id` and `labels` inside params       |
+| Remove thread label   | `resend.inboxes.threads.labels.remove({ inboxId, threadId, labelId })`             | `resend.Inboxes.Threads.Labels.remove(inbox_id, thread_id, label_id)`                                 |
+| List thread emails    | `resend.inboxes.threads.emails.list({ inboxId, threadId, ...params })`             | `resend.Inboxes.Threads.Emails.list(inbox_id, thread_id, params?)`                                    |
+| Get thread email      | `resend.inboxes.threads.emails.get({ inboxId, threadId, emailId })`                | `resend.Inboxes.Threads.Emails.get(inbox_id, thread_id, email_id)`                                    |
+| Reply to thread email | `resend.inboxes.threads.emails.reply({ inboxId, threadId, emailId, ...params })`   | `resend.Inboxes.Threads.Emails.reply(params)`, `inbox_id`, `thread_id` and `email_id` inside params   |
+| Forward thread email  | `resend.inboxes.threads.emails.forward({ inboxId, threadId, emailId, ...params })` | `resend.Inboxes.Threads.Emails.forward(params)`, `inbox_id`, `thread_id` and `email_id` inside params |
+| List drafts           | `resend.inboxes.drafts.list({ inboxId, ...params })`                               | `resend.Inboxes.Drafts.list(inbox_id, params?)`                                                       |
+| Create draft          | `resend.inboxes.drafts.create({ inboxId, ...params })`                             | `resend.Inboxes.Drafts.create(params)`, `inbox_id` inside params                                      |
+| Get draft             | `resend.inboxes.drafts.get({ inboxId, draftId })`                                  | `resend.Inboxes.Drafts.get(inbox_id, draft_id)`                                                       |
+| Update draft          | `resend.inboxes.drafts.update({ inboxId, draftId, ...params })`                    | `resend.Inboxes.Drafts.update(params)`, `inbox_id` and `id` inside params                             |
+| Delete draft          | `resend.inboxes.drafts.remove({ inboxId, draftId })`                               | `resend.Inboxes.Drafts.remove(inbox_id, draft_id)`                                                    |
+| Send draft            | `resend.inboxes.drafts.send({ inboxId, draftId })`                                 | `resend.Inboxes.Drafts.send(inbox_id, draft_id)`                                                      |
 
 Use `.remove()`, not `.delete()`, in the Node.js SDK.
 
@@ -74,6 +74,7 @@ const { data: deleted } = await resend.inboxes.remove('b3e2b2b6-3f0e-4c8e-9ad3-2
 ```
 
 **Key gotchas:**
+
 - Create returns only `{ object, id }`. Call `get` for the other fields.
 - Without `forwarding`, the domain must have receiving enabled, DKIM and SPF verified, and the inbound MX record verified or pending. With `forwarding: true`, the domain only needs DKIM and SPF, and Resend returns a `receiving_address` to forward mail to.
 - Create returns 422 for a domain that does not meet these rules, 409 for an address already in use, 403 when the team is at the inbox limit of its plan, and 451 for a blocked account.
@@ -101,6 +102,7 @@ const { data: updated } = await resend.inboxes.agent.update({
 ```
 
 **Key gotchas:**
+
 - An inbox without an agent returns `instructions: null`, `tone: null` and `actions: []`. Update creates the agent when the inbox has none.
 - Omitted fields keep their value. Send `null` to clear `instructions` or `tone`.
 - `actions` replaces the whole set, without duplicates. Send `[]` to disable all actions. The values are `draft_reply`, `forward_thread`, `add_labels`, `assign_thread`, `mark_as_spam`, `archive` and `move_to_trash`.
@@ -134,6 +136,7 @@ await resend.inboxes.labels.remove({ inboxId, labelId: label.id });
 ```
 
 **Key gotchas:**
+
 - `color` is a `#RRGGBB` hex string. The API returns it in uppercase. Without `color`, the API picks a random color.
 - An inbox has at most 100 labels. Names are unique per inbox, compared without case. A duplicate name or a full inbox returns 422.
 - The list is not paginated. It returns every label, oldest first.
@@ -190,6 +193,7 @@ const { data: trashed } = await resend.inboxes.threads.remove({ inboxId, threadI
 ```
 
 **Key gotchas:**
+
 - Folders are `inbox`, `archive`, `spam`, `sent` and `trash`. A thread is in exactly one folder. The API sets `sent` for threads with only outbound emails. You cannot set it.
 - `folders` defaults to `['inbox']`, or to `['inbox', 'archive', 'sent']` when `labels` is set. `spam` and `trash` are only included when you name them.
 - `after` and `before` take a thread ID, not a date. Pass only one of them. A cursor thread that is not in the selected folders returns 404.
@@ -241,6 +245,7 @@ const { data: forwarded } = await resend.inboxes.threads.emails.forward({
 ```
 
 **Key gotchas:**
+
 - `threads.emails.list` returns the emails oldest first. Pass the last `id` as `after` for the next, newer page. A cursor that is not an email of the thread returns 404.
 - The `emailId` comes from `threads.emails.list` or from `matched_email_id` in a search result, not from `resend.emails`.
 - Reply sends right away, with no stored draft. For a received email, the reply goes to its `Reply-To` addresses, or to its sender. For an email the inbox sent, it goes to that email's `to` recipients. You cannot set `to` on a reply.
@@ -311,6 +316,7 @@ await resend.inboxes.drafts.remove({ inboxId, draftId: other.id });
 ```
 
 **Key gotchas:**
+
 - For a reply draft, pass `threadId` and `replyToEmailId` together. Without `to`, the API addresses it like a reply. Send `to: []` to leave it empty.
 - Each email can have one unsent reply draft. Creating another returns 200 with the ID of the existing draft, not 201. That request ignores every other field except `attachments`, which replaces the attachments of the existing draft. With the `draft_reply` action on, the inbox agent can create that draft before you do.
 - A draft needs at least one non-empty `to`, `cc`, `bcc`, `subject`, `text`, `html` or `attachments`. `to`, `cc` and `bcc` together have at most 50 recipients.
@@ -329,16 +335,16 @@ await resend.inboxes.drafts.remove({ inboxId, draftId: other.id });
 
 Create draft, send draft, reply and forward accept an idempotency key, the same as `resend.emails.send()`. Pass it in the options argument: `{ idempotencyKey }` in Node.js, `{"idempotency_key": ...}` in Python. Use it when you retry these calls, so a retry does not create a second draft or send a second email.
 
-| Key Facts | |
-|-----------|---|
-| **Operations** | `drafts.create`, `drafts.send`, `threads.emails.reply`, `threads.emails.forward`. No other inbox operation takes it |
-| **Format** | `<event-type>/<entity-id>` (e.g., `refund-reply/<email-id>`) |
-| **Length** | 1 to 256 characters |
-| **Expiration** | 24 hours |
-| **Same key + same payload** | Returns the first successful (2xx) response without a new draft or email. The response has the `idempotent-replayed: true` header |
-| **Failed first request** | Not stored. Retry it with the same key |
-| **Same key + different payload** | Returns 409 `invalid_idempotent_request` |
-| **Same key while the first request runs** | Returns 409 `concurrent_idempotent_requests` |
+| Key Facts                                 |                                                                                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Operations**                            | `drafts.create`, `drafts.send`, `threads.emails.reply`, `threads.emails.forward`. No other inbox operation takes it               |
+| **Format**                                | `<event-type>/<entity-id>` (e.g., `refund-reply/<email-id>`)                                                                      |
+| **Length**                                | 1 to 256 characters                                                                                                               |
+| **Expiration**                            | 24 hours                                                                                                                          |
+| **Same key + same payload**               | Returns the first successful (2xx) response without a new draft or email. The response has the `idempotent-replayed: true` header |
+| **Failed first request**                  | Not stored. Retry it with the same key                                                                                            |
+| **Same key + different payload**          | Returns 409 `invalid_idempotent_request`                                                                                          |
+| **Same key while the first request runs** | Returns 409 `concurrent_idempotent_requests`                                                                                      |
 
 ## API Key Permissions
 
@@ -361,18 +367,18 @@ Inboxes send `inbox.*` events. See the event list in [webhooks.md](webhooks.md#o
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Reading fields from a create or update response | Create and update of inboxes, labels and drafts, and agent update, return only `{ object, id }`. Call `get` |
-| Labeling a thread with `threads.update` | Update takes only `read` and `folder`. Use `threads.labels.add`, `set` or `remove` |
-| Calling `threads.labels.set` to add one label | `set` replaces every label on the thread. Use `add` |
-| Reading threads with a sending access key | That key can only reply, forward, create drafts and send drafts. Use a full access key |
-| Setting `Reply-To` in `headers` on a reply, forward or draft send | Resend sets `In-Reply-To`, `References` and `Reply-To`. Leave them out of `headers` |
-| Passing `to` on a reply | Reply sets `to` from the email you reply to. Use `forward` to send to someone new |
-| Using an ID from `resend.emails.list()` as `emailId` | Use the ID from `threads.emails.list` or `matched_email_id` from a search |
-| Expecting `threads.remove` to delete at once | It moves the thread to `trash` for 30 days. Update `folder` to restore it |
-| Setting `folder: 'sent'` | `sent` is set by the API. Use `inbox`, `archive`, `spam` or `trash` |
-| Using a named color like `'red'` | Use a `#RRGGBB` hex string |
-| Sending `attachments` on a draft update to add one file | It replaces every attachment. Send the full list |
-| Updating only `html` on a draft that has `text` | The omitted body part becomes `null`. Send both |
-| Expecting a new email to show in search at once | Search can be up to about a minute behind. Use `threads.list` for the newest threads |
+| Mistake                                                           | Fix                                                                                                         |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Reading fields from a create or update response                   | Create and update of inboxes, labels and drafts, and agent update, return only `{ object, id }`. Call `get` |
+| Labeling a thread with `threads.update`                           | Update takes only `read` and `folder`. Use `threads.labels.add`, `set` or `remove`                          |
+| Calling `threads.labels.set` to add one label                     | `set` replaces every label on the thread. Use `add`                                                         |
+| Reading threads with a sending access key                         | That key can only reply, forward, create drafts and send drafts. Use a full access key                      |
+| Setting `Reply-To` in `headers` on a reply, forward or draft send | Resend sets `In-Reply-To`, `References` and `Reply-To`. Leave them out of `headers`                         |
+| Passing `to` on a reply                                           | Reply sets `to` from the email you reply to. Use `forward` to send to someone new                           |
+| Using an ID from `resend.emails.list()` as `emailId`              | Use the ID from `threads.emails.list` or `matched_email_id` from a search                                   |
+| Expecting `threads.remove` to delete at once                      | It moves the thread to `trash` for 30 days. Update `folder` to restore it                                   |
+| Setting `folder: 'sent'`                                          | `sent` is set by the API. Use `inbox`, `archive`, `spam` or `trash`                                         |
+| Using a named color like `'red'`                                  | Use a `#RRGGBB` hex string                                                                                  |
+| Sending `attachments` on a draft update to add one file           | It replaces every attachment. Send the full list                                                            |
+| Updating only `html` on a draft that has `text`                   | The omitted body part becomes `null`. Send both                                                             |
+| Expecting a new email to show in search at once                   | Search can be up to about a minute behind. Use `threads.list` for the newest threads                        |

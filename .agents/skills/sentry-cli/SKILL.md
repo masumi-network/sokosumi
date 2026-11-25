@@ -57,16 +57,16 @@ The `sentry` CLI follows conventions from well-known tools — if you're familia
 
 The CLI uses semantic exit codes. Key ranges for agents:
 
-| Range | Meaning | Agent Action |
-|-------|---------|-------------|
-| 0 | Success | Proceed normally |
-| 10–19 | Auth error | Prompt user to run `sentry auth login` |
-| 20–29 | Input error | Check command arguments and retry |
-| 30–39 | API error | Retry or report to user |
-| 40–49 | Feature unavailable | Inform user about plan/settings |
-| 50–59 | Operation error | Report to user |
-| 60–69 | Command-specific | Check stderr for details |
-| 252 | Invalid argument | Check the command's `--help` and fix the argument |
+| Range | Meaning             | Agent Action                                      |
+| ----- | ------------------- | ------------------------------------------------- |
+| 0     | Success             | Proceed normally                                  |
+| 10–19 | Auth error          | Prompt user to run `sentry auth login`            |
+| 20–29 | Input error         | Check command arguments and retry                 |
+| 30–39 | API error           | Retry or report to user                           |
+| 40–49 | Feature unavailable | Inform user about plan/settings                   |
+| 50–59 | Operation error     | Report to user                                    |
+| 60–69 | Command-specific    | Check stderr for details                          |
+| 252   | Invalid argument    | Check the command's `--help` and fix the argument |
 
 See [Exit Codes](/exit-codes/) for the complete reference.
 
@@ -216,6 +216,7 @@ sentry release deploy my-org/1.0.0 production
 ```
 
 **Key details:**
+
 - The positional is `<org-slug>/<version>`. In `sentry release create sentry/1.0.0`, `sentry` is the org and `1.0.0` is the version — the slash separates org from version, it is not part of the version string.
 - The **version** must match the `release` value in `Sentry.init()`. If your SDK uses `"1.0.0"`, the command must use `org/1.0.0`.
 - `--auto` requires a Sentry repository integration (GitHub/GitLab/Bitbucket). It matches your `origin` remote against Sentry's repo list. Without a git checkout, it uses the repository and commit from CI variables such as `GITHUB_REPOSITORY`/`GITHUB_SHA`, `CI_PROJECT_PATH`/`CI_COMMIT_SHA`, or `VERCEL_GIT_*` (Vercel production builds), so it works in builds without `.git`.
@@ -285,22 +286,22 @@ Sentry dashboards use a **6-column grid**. When adding widgets, aim to fill comp
 
 Display types with default sizes:
 
-| Display Type | Width | Height | Category | Notes |
-|---|---|---|---|---|
-| `big_number` | 2 | 1 | common | Compact KPI — place 3 per row (2+2+2=6) |
-| `line` | 3 | 2 | common | Half-width chart — place 2 per row (3+3=6) |
-| `area` | 3 | 2 | common | Half-width chart — place 2 per row |
-| `bar` | 3 | 2 | common | Half-width chart — place 2 per row |
-| `table` | 6 | 2 | common | Full-width — always takes its own row |
-| `stacked_area` | 3 | 2 | specialized | Stacked area chart |
-| `top_n` | 3 | 2 | specialized | Top N ranked list |
-| `categorical_bar` | 3 | 2 | specialized | Categorical bar chart |
-| `text` | 3 | 2 | specialized | Static text/markdown widget |
-| `details` | 3 | 2 | internal | Detail view |
-| `wheel` | 3 | 2 | internal | Pie/wheel chart |
-| `rage_and_dead_clicks` | 3 | 2 | internal | Rage/dead click visualization |
-| `server_tree` | 3 | 2 | internal | Hierarchical tree display |
-| `agents_traces_table` | 3 | 2 | internal | Agents traces table |
+| Display Type           | Width | Height | Category    | Notes                                      |
+| ---------------------- | ----- | ------ | ----------- | ------------------------------------------ |
+| `big_number`           | 2     | 1      | common      | Compact KPI — place 3 per row (2+2+2=6)    |
+| `line`                 | 3     | 2      | common      | Half-width chart — place 2 per row (3+3=6) |
+| `area`                 | 3     | 2      | common      | Half-width chart — place 2 per row         |
+| `bar`                  | 3     | 2      | common      | Half-width chart — place 2 per row         |
+| `table`                | 6     | 2      | common      | Full-width — always takes its own row      |
+| `stacked_area`         | 3     | 2      | specialized | Stacked area chart                         |
+| `top_n`                | 3     | 2      | specialized | Top N ranked list                          |
+| `categorical_bar`      | 3     | 2      | specialized | Categorical bar chart                      |
+| `text`                 | 3     | 2      | specialized | Static text/markdown widget                |
+| `details`              | 3     | 2      | internal    | Detail view                                |
+| `wheel`                | 3     | 2      | internal    | Pie/wheel chart                            |
+| `rage_and_dead_clicks` | 3     | 2      | internal    | Rage/dead click visualization              |
+| `server_tree`          | 3     | 2      | internal    | Hierarchical tree display                  |
+| `agents_traces_table`  | 3     | 2      | internal    | Agents traces table                        |
 
 Use **common** types for general dashboards. Use **specialized** only when specifically requested. Avoid **internal** types unless the user explicitly asks.
 

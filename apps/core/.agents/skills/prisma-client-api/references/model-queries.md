@@ -262,20 +262,20 @@ const groups = await prisma.user.groupBy({
 
 ## Return Types
 
-| Method | Returns |
-|--------|---------|
-| `findUnique` | Record \| null |
-| `findUniqueOrThrow` | Record (throws if not found) |
-| `findFirst` | Record \| null |
-| `findFirstOrThrow` | Record (throws if not found) |
-| `findMany` | Record[] |
-| `create` | Record |
-| `createMany` | { count: number } |
-| `createManyAndReturn` | Record[] |
-| `update` | Record |
-| `updateMany` | { count: number } |
-| `delete` | Record |
-| `deleteMany` | { count: number } |
-| `count` | number |
-| `aggregate` | Aggregate result |
-| `groupBy` | Group result[] |
+| Method                | Returns                      |
+| --------------------- | ---------------------------- |
+| `findUnique`          | Record \| null               |
+| `findUniqueOrThrow`   | Record (throws if not found) |
+| `findFirst`           | Record \| null               |
+| `findFirstOrThrow`    | Record (throws if not found) |
+| `findMany`            | Record[]                     |
+| `create`              | Record                       |
+| `createMany`          | { count: number }            |
+| `createManyAndReturn` | Record[]                     |
+| `update`              | Record                       |
+| `updateMany`          | { count: number }            |
+| `delete`              | Record                       |
+| `deleteMany`          | { count: number }            |
+| `count`               | number                       |
+| `aggregate`           | Aggregate result             |
+| `groupBy`             | Group result[]               |

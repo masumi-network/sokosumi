@@ -4,13 +4,13 @@ Define custom properties that can be set on contacts and interpolated in broadca
 
 ## SDK Methods
 
-| Operation | Node.js | Python |
-|-----------|---------|--------|
-| Create | `resend.contactProperties.create(params)` | `resend.ContactProperties.create(params)` |
-| Get | `resend.contactProperties.get(id)` | `resend.ContactProperties.get(id)` |
-| List | `resend.contactProperties.list(params?)` | `resend.ContactProperties.list()` |
-| Update | `resend.contactProperties.update(params)` | `resend.ContactProperties.update(params)` |
-| Delete | `resend.contactProperties.remove(id)` | `resend.ContactProperties.remove(id)` |
+| Operation | Node.js                                   | Python                                    |
+| --------- | ----------------------------------------- | ----------------------------------------- |
+| Create    | `resend.contactProperties.create(params)` | `resend.ContactProperties.create(params)` |
+| Get       | `resend.contactProperties.get(id)`        | `resend.ContactProperties.get(id)`        |
+| List      | `resend.contactProperties.list(params?)`  | `resend.ContactProperties.list()`         |
+| Update    | `resend.contactProperties.update(params)` | `resend.ContactProperties.update(params)` |
+| Delete    | `resend.contactProperties.remove(id)`     | `resend.ContactProperties.remove(id)`     |
 
 ## Create Parameters
 
@@ -100,12 +100,12 @@ The fallback after the pipe overrides the property-level `fallbackValue` for tha
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Trying to change `key` or `type` after creation | Both are immutable — delete and recreate if wrong |
-| Updating fields other than `fallbackValue` | Only `fallbackValue` can be updated via the API |
-| `fallbackValue` type mismatch | Must match the property `type` (string value for string property, number for number) |
-| `{{VAR}}` instead of `{{{VAR}}}` in broadcast HTML | Triple braces required |
-| Special characters in key | Only alphanumeric characters and underscores allowed |
-| Calling `.delete()` instead of `.remove()` | Node.js SDK uses `.remove()` for all delete operations |
-| Ignoring `error` return | Node.js SDK returns `{ data, error }` — always check `error` |
+| Mistake                                            | Fix                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Trying to change `key` or `type` after creation    | Both are immutable — delete and recreate if wrong                                    |
+| Updating fields other than `fallbackValue`         | Only `fallbackValue` can be updated via the API                                      |
+| `fallbackValue` type mismatch                      | Must match the property `type` (string value for string property, number for number) |
+| `{{VAR}}` instead of `{{{VAR}}}` in broadcast HTML | Triple braces required                                                               |
+| Special characters in key                          | Only alphanumeric characters and underscores allowed                                 |
+| Calling `.delete()` instead of `.remove()`         | Node.js SDK uses `.remove()` for all delete operations                               |
+| Ignoring `error` return                            | Node.js SDK returns `{ data, error }` — always check `error`                         |

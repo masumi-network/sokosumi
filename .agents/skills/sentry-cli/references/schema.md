@@ -17,11 +17,12 @@ Browse the Sentry API schema
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                                        |
+| ------------ | ------------------------------------------------------------------ |
 | `<query...>` | API concept, CLI command path, exact operation ID, or METHOD /path |
 
 **Flags:**
+
 - `--all - Show all endpoints in a flat list`
 - `-q, --search <value> - Search endpoints by keyword`
 

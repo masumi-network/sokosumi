@@ -17,11 +17,12 @@ List recent traces in a project
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                             |
+| ----------------- | ------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/&lt;project&gt; or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of traces (1-1000) - (default: "25")`
 - `-q, --query <value> - Search query (Sentry search syntax)`
 - `-s, --sort <value> - Sort by: date, duration - (default: "date")`
@@ -31,14 +32,14 @@ List recent traces in a project
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `trace` | string | Trace ID |
-| `id` | string | Span ID of the root span |
-| `transaction` | string | Transaction name |
-| `timestamp` | string | Timestamp (ISO 8601) |
-| `span.duration` | number | Duration (ms) |
-| `project` | string | Project slug |
+| Field           | Type   | Description              |
+| --------------- | ------ | ------------------------ |
+| `trace`         | string | Trace ID                 |
+| `id`            | string | Span ID of the root span |
+| `transaction`   | string | Transaction name         |
+| `timestamp`     | string | Timestamp (ISO 8601)     |
+| `span.duration` | number | Duration (ms)            |
+| `project`       | string | Project slug             |
 
 **Examples:**
 
@@ -68,11 +69,12 @@ View details of a specific trace
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                    | Description                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
 | `<org/project/trace-id...>` | [&lt;org&gt;/&lt;project&gt;/]&lt;trace-id&gt; - Target (optional) and trace ID (required) |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `--full - Fetch full span attributes (auto-enabled with --json)`
 - `--spans <value> - Span tree depth limit (number, "all" for unlimited, "no" to disable) - (default: "3")`
@@ -118,11 +120,12 @@ View logs associated with a trace
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                    | Description                                                                                   |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
 | `<org/project/trace-id...>` | [&lt;org&gt;/[&lt;project&gt;/]]&lt;trace-id&gt; - Optional org/project and required trace ID |
 
 **Flags:**
+
 - `-w, --web - Open trace in browser`
 - `-t, --period <value> - Time range: "7d", "2024-01-01..2024-02-01", ">=2024-01-01" - (default: "14d")`
 - `-n, --limit <value> - Number of log entries (<=1000) - (default: "100")`

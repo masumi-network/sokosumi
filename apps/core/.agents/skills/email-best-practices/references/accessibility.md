@@ -6,7 +6,7 @@ Emails must be readable by screen readers, dark-mode clients, translation tools,
 
 ### Set `lang` and `dir` on `<html>` and on `<body>`'s direct children (Serious)
 
-Both attributes are needed in **two places**: on `<html>` *and* on the direct children of `<body>`. Several email clients strip the attributes from `<html>`, which is why duplicating them on the body's children is the single most common accessibility failure in production email.
+Both attributes are needed in **two places**: on `<html>` _and_ on the direct children of `<body>`. Several email clients strip the attributes from `<html>`, which is why duplicating them on the body's children is the single most common accessibility failure in production email.
 
 ```html
 <html lang="en" dir="ltr">

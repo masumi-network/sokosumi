@@ -63,11 +63,11 @@ const pipeline = createDrainPipeline<DrainContext>({
 
 ## Backoff Strategies
 
-| Strategy | Delay Pattern | Best For |
-|----------|--------------|----------|
+| Strategy      | Delay Pattern     | Best For                                          |
+| ------------- | ----------------- | ------------------------------------------------- |
 | `exponential` | 1s, 2s, 4s, 8s... | Default. Transient failures needing recovery time |
-| `linear` | 1s, 2s, 3s, 4s... | Predictable delay growth |
-| `fixed` | 1s, 1s, 1s, 1s... | Rate-limited APIs with known cooldown |
+| `linear`      | 1s, 2s, 3s, 4s... | Predictable delay growth                          |
+| `fixed`       | 1s, 1s, 1s, 1s... | Rate-limited APIs with known cooldown             |
 
 ## Returned Drain Function API
 

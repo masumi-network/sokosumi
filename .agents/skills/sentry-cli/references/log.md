@@ -17,11 +17,12 @@ List logs from a project
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                       | Description                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
 | `<org/project-or-trace-id...>` | [&lt;org&gt;/[&lt;project&gt;/]]&lt;trace-id&gt;, &lt;org&gt;/&lt;project&gt;, or &lt;project&gt; |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of log entries (1-1000) - (default: "100")`
 - `-q, --query <value> - Filter query (e.g., "severity:error", "project:backend", "project:[a,b]")`
 - `-f, --follow <value> - Stream logs (optionally specify poll interval in seconds)`
@@ -31,14 +32,14 @@ List logs from a project
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `sentry.item_id` | string | Unique log entry ID |
-| `timestamp` | string | Log timestamp (ISO 8601) |
-| `timestamp_precise` | number | Nanosecond-precision timestamp |
-| `message` | string \| null | Log message |
-| `severity` | string \| null | Severity level (error, warning, info, debug) |
-| `trace` | string \| null | Trace ID for correlation |
+| Field               | Type           | Description                                  |
+| ------------------- | -------------- | -------------------------------------------- |
+| `sentry.item_id`    | string         | Unique log entry ID                          |
+| `timestamp`         | string         | Log timestamp (ISO 8601)                     |
+| `timestamp_precise` | number         | Nanosecond-precision timestamp               |
+| `message`           | string \| null | Log message                                  |
+| `severity`          | string \| null | Severity level (error, warning, info, debug) |
+| `trace`             | string \| null | Trace ID for correlation                     |
 
 **Examples:**
 
@@ -83,11 +84,12 @@ View details of one or more log entries
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                  | Description                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `<org/project/log-id...>` | [&lt;org&gt;/&lt;project&gt;] &lt;log-id&gt; [&lt;log-id&gt;...] - Target (optional) and one or more log IDs |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 

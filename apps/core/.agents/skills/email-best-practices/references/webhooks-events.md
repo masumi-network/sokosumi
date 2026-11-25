@@ -4,20 +4,21 @@ Receiving and processing email delivery events in real-time.
 
 ## Event Types
 
-| Event | When Fired | Use For |
-|-------|------------|---------|
-| `email.sent` | Email accepted by Resend | Confirming send initiated |
-| `email.delivered` | Email delivered to recipient server | Confirming delivery |
-| `email.bounced` | Email bounced (hard or soft) | List hygiene, alerting |
-| `email.complained` | Recipient marked as spam | Immediate unsubscribe |
-| `email.opened` | Recipient opened email | Engagement tracking |
-| `email.clicked` | Recipient clicked link | Engagement tracking |
+| Event              | When Fired                          | Use For                   |
+| ------------------ | ----------------------------------- | ------------------------- |
+| `email.sent`       | Email accepted by Resend            | Confirming send initiated |
+| `email.delivered`  | Email delivered to recipient server | Confirming delivery       |
+| `email.bounced`    | Email bounced (hard or soft)        | List hygiene, alerting    |
+| `email.complained` | Recipient marked as spam            | Immediate unsubscribe     |
+| `email.opened`     | Recipient opened email              | Engagement tracking       |
+| `email.clicked`    | Recipient clicked link              | Engagement tracking       |
 
 ## Webhook Setup
 
 ### 1. Create Endpoint
 
 Your endpoint must:
+
 - Accept POST requests
 - Return 2xx status quickly (within 5 seconds)
 - Handle duplicate events (idempotent processing)
@@ -133,6 +134,7 @@ async function processWebhook(event) {
 ### Retry Behavior
 
 If your endpoint returns non-2xx, webhooks will retry with exponential backoff:
+
 - Retry 1: ~30 seconds
 - Retry 2: ~1 minute
 - Retry 3: ~5 minutes
@@ -158,6 +160,7 @@ ngrok http 3000
 **Verify handling:** Send test events through Resend dashboard or manually trigger each event type.
 
 ## Ingest webhooks for data storage
+
 - [Open source repo](https://github.com/resend/resend-webhooks-ingester)
 - [Why store data](https://resend.com/docs/dashboard/webhooks/how-to-store-webhooks-data)
 

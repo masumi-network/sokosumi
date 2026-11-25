@@ -15,15 +15,15 @@ This skill assumes the audit lives in **your app**. To extend the evlog package 
 
 When you already know the system is wired and just need to remember the API:
 
-| Situation | Helper |
-|---|---|
-| Inside a request handler, action succeeded | `log.audit({ action, actor, target, outcome: 'success' })` |
-| Inside a request handler, AuthZ denial | `log.audit.deny('reason', { action, actor, target })` |
-| Standalone job / script / CLI (no request) | `audit({ action, actor, target, outcome })` |
-| Auto-record success / failure / denied for a function | `withAudit({ action, target }, fn)` |
-| Recording a state change | add `changes: auditDiff(before, after)` |
-| Centralised typed action vocabulary | `defineAuditCatalog('billing', { INVOICE_REFUND: { target: 'invoice' } })` — or `defineAuditAction('invoice.refund', { target: 'invoice' })` for one-offs |
-| Asserting audits in tests | `mockAudit()` — `assertAudit()` or `toIncludeAuditOf()` |
+| Situation                                             | Helper                                                                                                                                                    |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inside a request handler, action succeeded            | `log.audit({ action, actor, target, outcome: 'success' })`                                                                                                |
+| Inside a request handler, AuthZ denial                | `log.audit.deny('reason', { action, actor, target })`                                                                                                     |
+| Standalone job / script / CLI (no request)            | `audit({ action, actor, target, outcome })`                                                                                                               |
+| Auto-record success / failure / denied for a function | `withAudit({ action, target }, fn)`                                                                                                                       |
+| Recording a state change                              | add `changes: auditDiff(before, after)`                                                                                                                   |
+| Centralised typed action vocabulary                   | `defineAuditCatalog('billing', { INVOICE_REFUND: { target: 'invoice' } })` — or `defineAuditAction('invoice.refund', { target: 'invoice' })` for one-offs |
+| Asserting audits in tests                             | `mockAudit()` — `assertAudit()` or `toIncludeAuditOf()`                                                                                                   |
 
 `AuditFields` schema (always provide `action`, `actor`, `outcome`; `target` strongly recommended; the rest is filled in for you):
 
@@ -50,14 +50,14 @@ interface AuditFields {
 
 An audit log answers a forensic question: **who did what, on which resource, when, from where, with which outcome.** That's a different shape from observability logs, which is why the operational rules differ:
 
-|                | Audit log                                       | Observability log                  |
-| -------------- | ----------------------------------------------- | ---------------------------------- |
-| Question       | "Who tried to do what, was it allowed?"         | "How did this request behave?"     |
-| Sampling       | Never (force-keep)                              | Often (head + tail)                |
-| Retention      | 1 – 7 years (compliance)                        | 30 – 90 days                       |
-| Mutability     | Append-only, tamper-evident                     | Mutable, lossy                     |
-| Audience       | Auditors, security, legal                       | Engineers                          |
-| Storage        | Often dedicated (separate dataset / DB)         | Shared with telemetry              |
+|            | Audit log                               | Observability log              |
+| ---------- | --------------------------------------- | ------------------------------ |
+| Question   | "Who tried to do what, was it allowed?" | "How did this request behave?" |
+| Sampling   | Never (force-keep)                      | Often (head + tail)            |
+| Retention  | 1 – 7 years (compliance)                | 30 – 90 days                   |
+| Mutability | Append-only, tamper-evident             | Mutable, lossy                 |
+| Audience   | Auditors, security, legal               | Engineers                      |
+| Storage    | Often dedicated (separate dataset / DB) | Shared with telemetry          |
 
 evlog ships the audit layer as a thin extension of its wide-event pipeline (a typed `audit` field on `BaseWideEvent` plus a few helpers and drain wrappers). The point is that you compose with the primitives the app already uses: same drains, same enrichers, same redact, same framework integration. There is no parallel system to maintain.
 
@@ -68,14 +68,14 @@ log.audit(...) ──► sets event.audit ──► force-keep ──► auditEn
                                                                                   └─► auditOnly(signed(fsDrain))
 ```
 
-| Building block                              | Role                                                                | Required?               |
-| ------------------------------------------- | ------------------------------------------------------------------- | ----------------------- |
-| `log.audit()` / `audit()` / `withAudit()`   | Sets `event.audit` and force-keeps the event                        | Yes                     |
-| `auditEnricher()`                           | Auto-fills `event.audit.context` (req / trace / ip / ua / tenantId) | Recommended             |
-| `auditOnly(drain)`                          | Filters the drain to events with `event.audit` set                  | Recommended             |
-| `signed(drain, ...)`                        | Adds tamper-evident integrity (HMAC or hash-chain)                  | Optional (compliance)   |
-| `auditRedactPreset`                         | Strict PII preset for audit events                                  | Recommended             |
-| `mockAudit()`                               | Captures audit events in tests                                      | Yes (in tests)          |
+| Building block                            | Role                                                                | Required?             |
+| ----------------------------------------- | ------------------------------------------------------------------- | --------------------- |
+| `log.audit()` / `audit()` / `withAudit()` | Sets `event.audit` and force-keeps the event                        | Yes                   |
+| `auditEnricher()`                         | Auto-fills `event.audit.context` (req / trace / ip / ua / tenantId) | Recommended           |
+| `auditOnly(drain)`                        | Filters the drain to events with `event.audit` set                  | Recommended           |
+| `signed(drain, ...)`                      | Adds tamper-evident integrity (HMAC or hash-chain)                  | Optional (compliance) |
+| `auditRedactPreset`                       | Strict PII preset for audit events                                  | Recommended           |
+| `mockAudit()`                             | Captures audit events in tests                                      | Yes (in tests)        |
 
 ## Design calls before writing code
 
@@ -83,13 +83,13 @@ Make these explicit and write them down somewhere a security reviewer can find. 
 
 ### 1. Where do audits live?
 
-| Drain                              | Use when                                          | Trade-offs                                                                                  |
-| --------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| **FS** (`evlog/fs` + `signed`)    | Self-hosted, simple, you control the disk         | Manual rotation/backup; single-process unless you persist hash-chain `state` externally     |
-| **Dedicated Axiom dataset**       | You already use Axiom                             | Easy queries, separate retention/billing; cost scales with volume                           |
-| **Postgres / Neon / Aurora**      | You want SQL queries, joins with app data         | Need a schema, indexes, retention job; idempotency key prevents duplicates                  |
-| **S3 + Object Lock**              | Append-only WORM compliance (HIPAA / FINRA)       | Read latency; pair with a queryable mirror (Athena)                                         |
-| **Multiple drains**                | Different audiences (engineers ↔ legal)           | Use `auditOnly` per drain; drains fail in isolation by design                                 |
+| Drain                          | Use when                                    | Trade-offs                                                                              |
+| ------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **FS** (`evlog/fs` + `signed`) | Self-hosted, simple, you control the disk   | Manual rotation/backup; single-process unless you persist hash-chain `state` externally |
+| **Dedicated Axiom dataset**    | You already use Axiom                       | Easy queries, separate retention/billing; cost scales with volume                       |
+| **Postgres / Neon / Aurora**   | You want SQL queries, joins with app data   | Need a schema, indexes, retention job; idempotency key prevents duplicates              |
+| **S3 + Object Lock**           | Append-only WORM compliance (HIPAA / FINRA) | Read latency; pair with a queryable mirror (Athena)                                     |
+| **Multiple drains**            | Different audiences (engineers ↔ legal)     | Use `auditOnly` per drain; drains fail in isolation by design                           |
 
 > **Rule of thumb.** Pick at least two: a queryable one (Axiom / Postgres) for day-to-day forensics + an append-only one (FS journal with hash-chain, or S3 Object Lock) as the compliance artefact. The two-drain pattern protects against vendor outages and admin mistakes on the queryable side.
 
@@ -127,12 +127,12 @@ Then either (a) partition the audit dataset by `audit.context.tenantId`, or (b) 
 
 Pick a window per drain and document it. Enforce at the drain layer, not in app code, because the drain already has audited mechanisms for it (lifecycle policies, `DELETE` jobs, dataset retention).
 
-| Framework | Typical retention                                                   |
-| --------- | ------------------------------------------------------------------- |
-| SOC2      | 1 year minimum, 7 years recommended                                 |
-| HIPAA     | 6 years                                                             |
-| PCI DSS   | 1 year (3 months immediately accessible)                            |
-| GDPR      | "As long as necessary" — see "GDPR vs append-only" below            |
+| Framework | Typical retention                                        |
+| --------- | -------------------------------------------------------- |
+| SOC2      | 1 year minimum, 7 years recommended                      |
+| HIPAA     | 6 years                                                  |
+| PCI DSS   | 1 year (3 months immediately accessible)                 |
+| GDPR      | "As long as necessary" — see "GDPR vs append-only" below |
 
 How to enforce per drain:
 
@@ -379,6 +379,7 @@ rg -n "auditEnricher|auditOnly|signed\(" --type ts
 ```
 
 Flag if:
+
 - `auditEnricher()` is missing → `event.audit.context` is empty, no requestId / IP / tenant correlation.
 - An audit-only drain exists but is not wrapped in `auditOnly(...)` → main events leak into the audit dataset (privacy & cost incident).
 - Only one drain → no tamper-evident copy. Acceptable only if the single drain is WORM (S3 Object Lock, BigQuery append-only, Postgres immutable).
@@ -398,6 +399,7 @@ rg -n "(?i)\b(delete|update|create|refund|grant|revoke|promote|demote|reset|impe
 On Nuxt, Nitro, Next.js, TanStack Start, or Hono, you can also run `npx @evlog/cli map --no-write`, whose `audit` / `audit-coverage` checks flag sensitive routes that log nothing. Useful as a second pass; keep the greps above for denials and actor shape, which the CLI does not fully cover.
 
 For each match, check:
+
 - Mutating endpoint without a `log.audit()` or `withAudit()` → coverage gap.
 - `403` / `Forbidden` thrown without a paired `log.audit.deny()` → silent denial. This is the single most common gap.
 - `actor: { type: 'user', id: 'cron' }` or hard-coded actors in cron / queue handlers → wrong `actor.type`. Should be `'system'`, `'api'`, or `'agent'`.
@@ -414,6 +416,7 @@ rg -n "strategy:\s*['\"](?:hmac|hash-chain)" --type ts
 ```
 
 Flag if:
+
 - `auditRedactPreset` is not merged into the global redact config → `Authorization`, `Cookie`, `password`, `token`, `apiKey`, `cardNumber`, `cvv`, `ssn` may leak through `audit.changes`.
 - `auditDiff()` is called on objects containing PII fields not listed in `redactPaths` → leak in the patch payload.
 - HMAC `secret` is hard-coded or read from `process.env.SECRET` without a rotation plan / `keyId` → events become unverifiable after rotation.
@@ -426,6 +429,7 @@ rg -n "mockAudit\(|toIncludeAuditOf\(" --type ts
 ```
 
 Flag if:
+
 - No tests use `mockAudit()` → audit pipeline silently drifts unnoticed.
 - Tests only assert success outcomes → denial paths can rot. Every privileged action should have at least one denied-outcome test.
 - Tests assert against `RegExp` actions broadly → typos in `audit.action` slip through (an action typo is a missing alert in production).

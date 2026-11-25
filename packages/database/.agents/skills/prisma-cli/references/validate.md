@@ -17,9 +17,9 @@ prisma validate [options]
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--schema` | Path to schema file |
+| Option     | Description                            |
+| ---------- | -------------------------------------- |
+| `--schema` | Path to schema file                    |
 | `--config` | Custom path to your Prisma config file |
 
 ## Examples
