@@ -13,6 +13,8 @@ export type SeoRankSeries = {
     value: number | null;
     outside?: { top: number | null };
   }[];
+  /** Older reads of the period exist that the workspace did not send (its load or point limit). */
+  cut: boolean;
 };
 type RankPoint = SeoRankSeries["points"][number];
 
@@ -84,6 +86,9 @@ export function seoRankHistory(
   const series = [...byDevice]
     .map(([device, days]) => ({
       device,
+      cut: rows.some(
+        (row) => row.device === device && row.positionHistoryCut === true,
+      ),
       points: [...days]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, read]) => ({ date, ...read })),

@@ -81,7 +81,14 @@ export function SeoKeywordHistory({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {series.length ? (
-        <HistoryPart title={t("historyPaidTitle")} note={t("historyPaidNote")}>
+        <HistoryPart
+          title={t("historyPaidTitle")}
+          note={
+            series.some((item) => item.cut)
+              ? `${t("historyPaidNote")} ${t("historyOlderHidden")}`
+              : t("historyPaidNote")
+          }
+        >
           {series.map((item) =>
             item.points.length ? (
               <SeoTrendChart

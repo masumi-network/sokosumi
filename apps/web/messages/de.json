@@ -13630,6 +13630,7 @@
         "historyShow": "Verlauf",
         "historyPaidTitle": "Positionen in bezahlten Prüfungen",
         "historyPaidNote": "Jeder Punkt ist eine Prüfung der Suchergebnisse an diesem Tag.",
+        "historyOlderHidden": "Ältere Prüfungen werden nicht angezeigt.",
         "historyPaidLabel": "{device, select, mobile {Mobil} desktop {Desktop} other {Alle Geräte}}: Position in bezahlten Prüfungen für „{keyword}“",
         "historyNotInRange": "Nicht in den geprüften Ergebnissen",
         "historyNotInTop": "Nicht in den Top {count}",
