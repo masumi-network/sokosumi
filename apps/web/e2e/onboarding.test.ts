@@ -126,6 +126,27 @@ for (const { name, ...viewport } of PROJECTS) {
         .waitFor();
       await page.getByRole("textbox", { name: "First name" }).fill("Ada");
       await page.getByRole("textbox", { name: "Last name" }).fill(name);
+      // An added password gets focus and a label that outlasts typing, like
+      // the names; persona A then goes on without one.
+      await page
+        .getByRole("button", { name: "Add a password for future logins" })
+        .click();
+      // Focus moves on the frame after the field appears; wait for it.
+      await page.getByRole("textbox", { name: "Password" }).waitFor();
+      await page.waitForFunction(
+        () => document.activeElement?.getAttribute("name") === "password",
+      );
+      const passwordLabel = await page
+        .locator("label", { hasText: /^Password$/ })
+        .boundingBox();
+      // A screen-reader-only label is 1px wide.
+      assert.ok(
+        passwordLabel && passwordLabel.width > 20,
+        "the password label shows above its field",
+      );
+      await page
+        .getByRole("button", { name: "Sign up without a password" })
+        .click();
       const codeField = page.getByRole("textbox", {
         name: "Code from the email",
       });
@@ -185,7 +206,17 @@ for (const { name, ...viewport } of PROJECTS) {
       // stays inside the studio's frame, a pick survives a fold, and the last
       // option clears the pinned Create.
       const more = page.getByRole("button", { name: /More details/ });
+      const closedCreate = await create.boundingBox();
       await more.click();
+      // It sits by the pinned Create, so what it opens starts below the
+      // screen; the page brings it up once the fold has opened.
+      await page.waitForFunction(() => {
+        const background = document.querySelector(
+          "[role=radiogroup][aria-label='Background']",
+        );
+        const top = background?.getBoundingClientRect().top;
+        return top !== undefined && top >= 0 && top < window.innerHeight / 2;
+      });
       // The studio's own box; the frame around it has padding that hides overflow.
       const studio = owl.locator(
         "xpath=ancestor::div[contains(@class,'@container')]",
@@ -200,13 +231,46 @@ for (const { name, ...viewport } of PROJECTS) {
           (frame?.x ?? 0) + (frame?.width ?? 0),
         );
       assert.equal(sticking, 0, "no studio control sticks out of its frame");
+      // The big preview is now above the screen; a small live one beside Back
+      // and Create shows each pick, and leaves with the fold.
+      const mini = create.locator("xpath=..").locator("img");
+      await mini.waitFor();
+      // Back drops to its icon so the mini costs Create no width: a name that
+      // fits with More details closed still fits with it open.
+      const openCreate = await create.boundingBox();
+      assert.ok(
+        closedCreate &&
+          openCreate &&
+          openCreate.width >= closedCreate.width - 0.5,
+        "Create is as wide with More details open as closed",
+      );
+      const backBox = await page
+        .getByRole("button", { name: "Back", exact: true })
+        .boundingBox();
+      assert.ok(
+        backBox && backBox.width >= minTarget && backBox.height >= minTarget,
+        `Back stays a ${minTarget}px target`,
+      );
+      const before = await mini.getAttribute("src");
       const headwear = page.getByRole("radiogroup", { name: "Headwear" });
-      await headwear.getByRole("radio", { name: "Crown" }).click();
+      // The look starts random, so pick a headwear it does not wear yet:
+      // only a real change can change the picture.
+      const pick = headwear
+        .locator("[role=radio][aria-checked=false]:enabled")
+        .first();
+      const picked = (await pick.textContent())?.trim() ?? "";
+      await pick.click();
+      await page.waitForFunction(
+        ([el, src]) => el?.getAttribute("src") !== src,
+        [await mini.elementHandle(), before] as const,
+      );
       await more.click();
+      await mini.waitFor({ state: "detached" });
       await more.click();
+      await mini.waitFor();
       assert.equal(
         await headwear
-          .getByRole("radio", { name: "Crown" })
+          .getByRole("radio", { name: picked, exact: true })
           .getAttribute("aria-checked"),
         "true",
         "a pick survives folding More details",
@@ -257,6 +321,15 @@ for (const { name, ...viewport } of PROJECTS) {
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });
+      // They picked Personal, so the switcher says Personal, not their name.
+      const showSidebar = saved.getByRole("button", { name: "Show sidebar" });
+      if (await showSidebar.isVisible()) await showSidebar.click();
+      await saved
+        .getByRole("button", { name: "Personal", exact: true })
+        .click();
+      await saved
+        .getByRole("menuitem", { name: /^Personal\b.*Just you$/ })
+        .waitFor();
       await context.close();
       assert.deepEqual(errors, []);
     });

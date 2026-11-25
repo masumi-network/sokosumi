@@ -2,7 +2,7 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -12,6 +12,7 @@ import {
   type DesignMdOwner,
 } from "@/components/design-md/types";
 import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
+import { useProjectBrandSetupStart } from "@/hooks/effects/use-project-brand-setup-start";
 import {
   resolveProjectSiteIcon,
   updateProject,
@@ -135,11 +136,12 @@ function BrandSetup({
     owner,
   });
 
-  useEffect(() => {
-    resolveIcon();
-    if (!viewerId) return;
-    void brand.generate({ url: websiteUrl });
-  }, []);
+  useProjectBrandSetupStart({
+    resolveIcon,
+    viewerId,
+    websiteUrl,
+    generateDesignMd: brand.generate,
+  });
 
   const isBusy = isResolvingLogo || brand.isRunning || brand.status === "idle";
 

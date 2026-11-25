@@ -19,6 +19,7 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { CHAT_MOBILE_COMPOSER_SAFE_AREA_PB } from "@/app/chat/components/chat-mobile-tab-registry";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
+import { LiveBotAvatarLazy } from "@/components/soko-bot/lazy-live-bot-avatar.client";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
   SokoBotSetupHeader,
@@ -90,6 +91,8 @@ export function CreateState({
   const [avatarCode, setAvatarCode] = useState<string | null>(null);
   // True once the lazy-loaded AvatarStudio chunk has mounted its preview.
   const [studioReady, setStudioReady] = useState(false);
+  // More details scrolls the big preview away, so the pinned bar shows a small one.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const handleStudioRef = useCallback((node: HTMLDivElement | null) => {
     setStudioReady(node !== null);
   }, []);
@@ -269,6 +272,7 @@ export function CreateState({
               compact
               code={avatarCode}
               onChange={setAvatarCode}
+              onMoreDetailsChange={setDetailsOpen}
               studioRef={handleStudioRef}
             />
           </div>
@@ -281,14 +285,27 @@ export function CreateState({
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
           )}
         >
+          {/* Same look as the preview above; decorative, the preview carries the name.
+              Flush against Back's icon, so mini and icon take no more room than Back with its label. */}
+          {detailsOpen && avatarCode ? (
+            <LiveBotAvatarLazy
+              code={avatarCode}
+              state="idle"
+              size={40}
+              className="ring-border -me-2 size-10 rounded-full ring-1"
+            />
+          ) : null}
+          {/* While the mini shows, Back keeps only its icon, so Create keeps
+              the width it has with More details closed and a long name fits. */}
           <Button
             type="button"
             variant="ghost"
+            size={detailsOpen ? "icon" : "default"}
             disabled={isPending}
             onClick={() => goToStep("name")}
           >
             <ArrowLeft aria-hidden />
-            {t("back")}
+            <span className={cn(detailsOpen && "sr-only")}>{t("back")}</span>
           </Button>
           <Button
             type="submit"

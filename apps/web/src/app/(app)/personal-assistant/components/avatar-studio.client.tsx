@@ -29,6 +29,7 @@ import {
   type ReactNode,
   useCallback,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -46,6 +47,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  matchesMediaQuery,
+  REDUCED_MOTION_MEDIA_QUERY,
+} from "@/hooks/effects/use-media-query";
 import { setSokoBotAvatarCodeAction } from "@/lib/actions/soko-bot/action";
 import { stillSrc } from "@/lib/bot-avatar/load";
 import { cn } from "@/lib/utils";
@@ -178,11 +183,14 @@ export function AvatarStudio({
   code: value,
   onChange,
   compact = false,
+  onMoreDetailsChange,
 }: {
   code: string | null;
   onChange: (code: string) => void;
   /** Setup: the preview, Shuffle and animals first, the rest under "More details", no preview states. */
   compact?: boolean;
+  /** Setup: More details opened or closed, which scrolls the preview away or back. */
+  onMoreDetailsChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("App.SokoBot.AvatarStudio");
   const look = useMemo(
@@ -190,6 +198,11 @@ export function AvatarStudio({
     [value],
   );
   const [state, setState] = useState<AvatarState>("idle");
+  // Setup pins Create to the foot, right under More details, so its fold opens
+  // below the screen. Once the fold has its height, bring it up.
+  const moreDetailsRef = useRef<HTMLButtonElement>(null);
+  const showMoreDetails = (behavior: ScrollBehavior) =>
+    moreDetailsRef.current?.scrollIntoView({ block: "start", behavior });
   const code = formatAvatarCode(look);
   const updateLook = (next: AvatarLook) => onChange(formatAvatarCode(next));
   const set = (patch: Partial<AvatarLook>) => updateLook({ ...look, ...patch });
@@ -352,8 +365,18 @@ export function AvatarStudio({
             </div>
           </Group>
           {compact ? (
-            <Collapsible>
-              <DisclosureTrigger className="w-full">
+            <Collapsible
+              onOpenChange={(open) => {
+                onMoreDetailsChange?.(open);
+                // Without motion there is no animation to wait for.
+                if (open && matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY))
+                  requestAnimationFrame(() => showMoreDetails("auto"));
+              }}
+            >
+              <DisclosureTrigger
+                ref={moreDetailsRef}
+                className="w-full scroll-mt-4"
+              >
                 <span className="flex flex-col">
                   <span className="text-sm font-medium">
                     {t("moreDetails")}
@@ -364,7 +387,16 @@ export function AvatarStudio({
                 </span>
               </DisclosureTrigger>
               {/* Room in the fold's own clip box for the 4 px selected and focus rings. */}
-              <DisclosureContent className="-mx-2 px-2">
+              <DisclosureContent
+                className="-mx-2 px-2"
+                onAnimationEnd={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    event.currentTarget.dataset.state === "open"
+                  )
+                    showMoreDetails("smooth");
+                }}
+              >
                 <div className="flex flex-col gap-5 pt-4 pb-2">{details}</div>
               </DisclosureContent>
             </Collapsible>
