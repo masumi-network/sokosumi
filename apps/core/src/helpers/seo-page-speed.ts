@@ -237,6 +237,11 @@ function readHistory(
   );
   if (!history || !status) return {};
   if (status !== "comparable") return { history: { status } };
+  const series = reportObject(history.series);
+  // No series is the worker's answer for a read that gave none. A series that is no object is not,
+  // with or without source references.
+  if (history.series != null && !series)
+    return { history: { status: "unavailable" } };
   if (!Array.isArray(refs)) return { history: { status: "legacy_unverified" } };
   const record = history.sourceRecord;
   const bound =
@@ -252,10 +257,6 @@ function readHistory(
         params.level === level
       );
     });
-  const series = reportObject(history.series);
-  // No series is the worker's answer for a read that gave none. A series that is no object is not.
-  if (history.series != null && !series)
-    return { history: { status: "unavailable" } };
   const read: SpeedHistory = { status };
   let given = false;
   for (const key of ["lcp", "inp", "cls"] as const) {

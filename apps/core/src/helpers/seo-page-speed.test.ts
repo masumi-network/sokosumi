@@ -438,6 +438,17 @@ describe("CrUX History on a measured field", () => {
     });
   });
 
+  it("reads a series that is no object as unavailable in a Report without source references", () => {
+    for (const broken of [false, "broken", []])
+      expect(
+        historyOf({ status: "comparable", series: broken }, undefined),
+      ).toEqual({ status: "unavailable" });
+    for (const readable of [{}, { series }, { series: null }])
+      expect(
+        historyOf({ status: "comparable", ...readable }, undefined),
+      ).toEqual({ status: "legacy_unverified" });
+  });
+
   it("drops a stored history it cannot read and keeps the measurement and the audit", () => {
     const stored = JSON.parse(
       JSON.stringify(
