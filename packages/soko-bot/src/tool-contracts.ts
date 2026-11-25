@@ -686,6 +686,43 @@ export const sokoBotFindPeopleInputSchema = z.object({
   focus: z.string().trim().min(1).max(300).optional(),
 });
 
+export const FUNDRAISING_STAGES = [
+  "TO_RESEARCH",
+  "WARM_PATH",
+  "REACHED_OUT",
+  "MEETING",
+  "DATA_ROOM",
+  "DILIGENCE",
+  "COMMITTED",
+  "PASSED",
+] as const;
+
+export const sokoBotFundraisingPipelineInputSchema = z
+  .object({
+    stage: z.enum(FUNDRAISING_STAGES).optional(),
+    /** Only investors who opened the data room. */
+    openedDataRoom: z.boolean().optional(),
+    /** Only investors whose follow-up date is today or past, or who have not answered for 7 days. */
+    needsFollowUp: z.boolean().optional(),
+    limit: z.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+
+export const sokoBotInvestorWarmPathsInputSchema = z
+  .object({
+    contactId: z.uuid(),
+    /** Also look the fund's portfolio up with Exa first (a flat charge). */
+    research: z.boolean().optional(),
+  })
+  .strict();
+
+export const sokoBotFindInvestorsInputSchema = z
+  .object({
+    brief: z.string().trim().min(10).max(1_500),
+    size: z.union([z.literal(10), z.literal(25)]).default(10),
+  })
+  .strict();
+
 export const sokoBotEnrichContactInputSchema = z.object({
   contactId: z.uuid(),
 });
@@ -1686,6 +1723,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   manage_contact_lists: sokoBotManageContactListsInputSchema,
   find_people: sokoBotFindPeopleInputSchema,
   enrich_contact: sokoBotEnrichContactInputSchema,
+  fundraising_pipeline: sokoBotFundraisingPipelineInputSchema,
+  investor_warm_paths: sokoBotInvestorWarmPathsInputSchema,
+  find_investors: sokoBotFindInvestorsInputSchema,
   create_project: sokoBotCreateProjectInputSchema,
   update_project: sokoBotUpdateProjectInputSchema,
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
@@ -1973,6 +2013,12 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
   find_people:
     "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. People already on the list are skipped, so the same search twice finds almost nobody new: focus narrows one search (a region, sector, stage, firm type) without changing the description. Found people wait on the list as suggestions for your owner to add; say who you found and why. For many people, confirm the total cost first and vary focus from search to search.",
+  fundraising_pipeline:
+    'The owner\'s raise, when their workspace has Fundraising: every investor on the Investors list with stage (TO_RESEARCH, WARM_PATH, REACHED_OUT, MEETING, DATA_ROOM, DILIGENCE, COMMITTED, PASSED), owner, next step and follow-up date, last touch and reply state, what they opened in the data room and when, and a link. Filter by stage, openedDataRoom or needsFollowUp. Use it for "who opened the deck", "who went quiet", "where do we stand with X". Owner only; refused elsewhere, say so plainly. Read only: drafting follow-ups is draft_email, one per investor, never a send.',
+  investor_warm_paths:
+    "How the owner can reach one investor on the raise, strongest first: a teammate who already knows them, a teammate connected on LinkedIn, a contact at the fund, or a contact at a company the fund backed (name, role, who on the team knows them, touches, last touch, strength 0-100), plus the fund's researched portfolio (company, round, date, source). research: true first looks the portfolio up with Exa for a flat $0.10; only when the owner asks for research. Owner only. Name the path and the teammate; never promise an intro the owner has not asked for. When the call is refused because Fundraising is not on for this workspace, say exactly that.",
+  find_investors:
+    "Find new investors for the owner's raise with Exa's agent: brief says stage, sector, geography and cheque size; size 10 or 25. One flat $0.50 per search against a monthly cap; the result says what it cost and how many were found. People found wait as suggestions on the Investors list (link given) until the owner adds or dismisses them there; this tool adds nobody. People already on the list are skipped. Owner only, and only when the owner asks in their own chat message this turn. Report the names with their reason and source, and the cost. When the call is refused or comes back empty because Fundraising is not on for this workspace, tell the owner exactly that in one sentence and stop: no web search in its place, no list of investors from memory.",
   enrich_contact:
     "Look a person up on the web and fill their empty fields (role, organization, location, LinkedIn, summary), the Enrich button. Never overwrites what is there and records the source. Costs 1 credit, only when something was filled. Use it when your owner asks to complete a contact, not on every contact you touch.",
   create_project:
