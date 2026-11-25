@@ -43,6 +43,34 @@ describe("SEO trend chart Google updates", () => {
       expect(screen.getByRole("cell", { name: date })).toBeInTheDocument();
     },
   );
+  it("marks a read outside the results and names it in the table", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <SeoResultMessagesProvider messages={messages.App.Seo}>
+          <SeoTrendChart
+            points={[
+              { date: "2026-12-03", value: 7 },
+              { date: "2026-12-10", value: null, outside: { top: 20 } },
+              { date: "2026-12-17", value: null },
+            ]}
+            series={{ source: "serp", key: "position" }}
+            unit="position"
+            label="SERP"
+            formatValue={String}
+            unavailable="No read"
+            outsideLabel={(top) => `Not in the top ${top}`}
+            joinReads
+          />
+        </SeoResultMessagesProvider>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getAllByTestId("seo-trend-outside")).toHaveLength(1);
+    expect(screen.getByTestId("seo-trend-outside-line")).toBeInTheDocument();
+    expect(
+      screen.getByRole("cell", { name: "Not in the top 20" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "No read" })).toBeInTheDocument();
+  });
   it("says an update that has no end on the as-of day is still rolling out", () => {
     // 2026-11-08 to 2026-11-15: the November 2026 core update started on 2026-11-10, with no end on 2026-11-13.
     const points = Array.from({ length: 8 }, (_, index) => ({

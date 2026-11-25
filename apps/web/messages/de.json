@@ -13513,6 +13513,7 @@
         "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen",
+        "trendTruncated": "Google hat mehr Zeilen geliefert, als diese Synchronisierung lesen kann. Einige Tage können fehlen.",
         "summary": "In den ersten Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}}",
         "firstPage": "{count} auf der ersten Seite",
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
@@ -13630,7 +13631,8 @@
         "historyPaidNote": "Jeder Punkt ist eine Prüfung der Suchergebnisse an diesem Tag.",
         "historyPaidLabel": "{device, select, mobile {Mobil} desktop {Desktop} other {Alle Geräte}}: Position in bezahlten Prüfungen für „{keyword}“",
         "historyNotInRange": "Nicht in den geprüften Ergebnissen",
-        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine Prüfung, die die Seite nicht in ihren Ergebnissen fand, hat keine Position.",
+        "historyNotInTop": "Nicht in den Top {count}",
+        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine hohle Markierung unten ist eine Prüfung, die die Seite nicht in ihren Ergebnissen fand: Sie hat keine Position.",
         "historyGscTitle": "Durchschnittliche Position in der Search Console, täglich",
         "historyGscNote": "Ein Durchschnitt über alle Impressionen des Tages, keine einzelne Prüfung.",
         "serp": {

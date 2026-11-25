@@ -19,19 +19,24 @@ import {
   SEO_MARKER_KINDS,
   type SeoChartMarker,
   type SeoMarkerKind,
+  type SeoTrendPoint,
   seoChartEvents,
   seoTrendModel,
 } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
   report?: boolean;
-  points: ProjectSeoMetric["points"];
+  points: SeoTrendPoint[];
   unit: ProjectSeoMetric["unit"];
   /** What the chart shows: "Search clicks". */
   label: string;
   formatValue: (value: number) => string;
   /** Text for a day without a measurement. */
   unavailable: string;
+  /** Text for a read that did not find the page in its `top` results (a point with `outside`). */
+  outsideLabel?: (top: number | null) => string;
+  /** First and last day of the x axis, when another chart beside this one shares it. */
+  domain?: { from: string; to: string };
   /** Events on the site, drawn as a dashed line and an icon on their day. */
   markers?: SeoChartMarker[];
   /** The points are single reads: a line joins neighbouring reads (seoTrendModel `joinReads`). */
@@ -67,6 +72,8 @@ export function SeoTrendChart({
   label,
   formatValue,
   unavailable,
+  outsideLabel,
+  domain,
   markers,
   joinReads,
   positionNote,
@@ -87,6 +94,7 @@ export function SeoTrendChart({
     markers,
     joinReads,
     seoChartEvents(series),
+    domain,
   );
   const last = points.length - 1;
   const day = (date: string) =>
@@ -95,8 +103,15 @@ export function SeoTrendChart({
       day: "numeric",
       timeZone: "UTC",
     });
-  const value = (point: { value: number | null }) =>
-    point.value === null ? unavailable : formatValue(point.value);
+  const value = (point: {
+    value: number | null;
+    outside?: SeoTrendPoint["outside"] | null;
+  }) =>
+    point.value !== null
+      ? formatValue(point.value)
+      : point.outside && outsideLabel
+        ? outsideLabel(point.outside.top)
+        : unavailable;
   const fullDay = (date: string) =>
     format.dateTime(new Date(`${date}T12:00:00Z`), {
       dateStyle: "medium",
@@ -316,6 +331,19 @@ export function SeoTrendChart({
                   />
                 ),
               )}
+              {model.outsideFrom === null ? null : (
+                // Under this line a mark is a read that did not find the page: it has no position.
+                <line
+                  data-testid="seo-trend-outside-line"
+                  className="stroke-border"
+                  vectorEffect="non-scaling-stroke"
+                  strokeDasharray="2 3"
+                  x1={0}
+                  x2={100}
+                  y1={100}
+                  y2={100}
+                />
+              )}
               {focus && !model.bars ? (
                 <line
                   className="stroke-muted-foreground"
@@ -327,6 +355,18 @@ export function SeoTrendChart({
                 />
               ) : null}
             </svg>
+            {model.points.map((point, index) =>
+              point.outside && index !== active ? (
+                // Hollow: a read, but not a position.
+                <span
+                  key={`outside:${point.date}`}
+                  aria-hidden
+                  data-testid="seo-trend-outside"
+                  className="border-muted-foreground bg-background pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
+                  style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                />
+              ) : null,
+            )}
             {model.points.map((point, index) =>
               !model.bars &&
               point.y !== null &&

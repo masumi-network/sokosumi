@@ -297,12 +297,23 @@ describe("keyword trend", () => {
   it("fills missing days with gaps up to the last day Google reported", () => {
     expect(keywordTrend(seriesWorkspace(), "  USDC ", "US")).toEqual({
       state: "measured",
+      truncated: false,
       points: [
         { date: "2026-10-01", value: 6.5 },
         { date: "2026-10-02", value: null },
         { date: "2026-10-03", value: null },
         { date: "2026-10-04", value: null },
       ],
+    });
+  });
+
+  it("says when the read stopped at its row limit", () => {
+    const queries = seriesWorkspace();
+    if (!queries.keywordSeries) throw new Error("fixture");
+    queries.keywordSeries.truncated = true;
+    expect(keywordTrend(queries, "usdc", "US")).toMatchObject({
+      state: "measured",
+      truncated: true,
     });
   });
 

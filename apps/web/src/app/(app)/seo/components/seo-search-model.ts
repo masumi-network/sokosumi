@@ -126,7 +126,12 @@ export type SeoKeywordTrend =
   | { state: "not_requested" }
   /** Asked for, but Google listed no impressions for it in the period. */
   | { state: "empty" }
-  | { state: "measured"; points: { date: string; value: number | null }[] };
+  | {
+      state: "measured";
+      points: { date: string; value: number | null }[];
+      /** The read stopped at its row limit, so a day without a value can be a day Google did not return. */
+      truncated: boolean;
+    };
 
 /**
  * One tracked keyword's daily average position from the last Search Console sync.
@@ -164,7 +169,7 @@ export function keywordTrend(
     const date = new Date(day).toISOString().slice(0, 10);
     points.push({ date, value: byDate.get(date) ?? null });
   }
-  return { state: "measured", points };
+  return { state: "measured", points, truncated: series.truncated };
 }
 
 /**

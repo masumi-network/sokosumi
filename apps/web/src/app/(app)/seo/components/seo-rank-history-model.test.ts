@@ -18,6 +18,7 @@ const point = (
   position,
   positionStatus,
   device: "desktop",
+  checkedResults: 20,
 });
 
 function row(device: Keyword["device"], history?: Point[]): Keyword {
@@ -28,7 +29,7 @@ function row(device: Keyword["device"], history?: Point[]): Keyword {
 }
 
 describe("seoRankHistory", () => {
-  it("keeps the newest read of a day, a not-found read as a gap, and drops a failed read", () => {
+  it("keeps the newest read of a day, a not-found read with the results it checked, and drops a failed read", () => {
     const [series] = seoRankHistory([
       row("desktop", [
         point("2026-10-01T08:00:00Z", 9),
@@ -36,14 +37,17 @@ describe("seoRankHistory", () => {
         point("2026-10-02T09:00:00Z", null),
         point("2026-10-03T09:00:00Z", null, "unavailable"),
         point("2026-10-04T09:00:00Z", 5),
+        // A point of a Core that does not send the checked results yet.
+        { ...point("2026-10-05T09:00:00Z", null), checkedResults: undefined },
       ]),
     ]);
     expect(series).toEqual({
       device: "desktop",
       points: [
         { date: "2026-10-01", value: 7 },
-        { date: "2026-10-02", value: null },
+        { date: "2026-10-02", value: null, outside: { top: 20 } },
         { date: "2026-10-04", value: 5 },
+        { date: "2026-10-05", value: null, outside: { top: null } },
       ],
     });
   });

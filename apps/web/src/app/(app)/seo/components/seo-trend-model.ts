@@ -12,7 +12,13 @@ const FIRST_POSITION = 1;
 /** Rates show one percent decimal, so a finer step would repeat a tick label. */
 const MIN_RATIO_STEP = 0.001;
 
-type Point = ProjectSeoMetric["points"][number];
+/** Share of a position plot kept under the scale for reads that found the page outside the checked results. */
+const OUTSIDE_BAND = 0.15;
+
+export type SeoTrendPoint = ProjectSeoMetric["points"][number] & {
+  /** A position read that did not find the page in its `top` results: drawn under the scale, never as a value. */
+  outside?: { top: number | null };
+};
 
 /** What happened on a marked day, strongest last: a confirmed fix outranks the work that led to it. */
 export const SEO_MARKER_KINDS = [
@@ -87,7 +93,7 @@ const OPEN_UPDATE_LAST_DAY =
  * top), because a lower position is better.
  */
 export function seoTrendModel(
-  points: Point[],
+  points: SeoTrendPoint[],
   unit: ProjectSeoMetric["unit"],
   /** Events on the site by day; a day outside the plotted span is left out. */
   markers: SeoChartMarker[] = [],
@@ -98,6 +104,8 @@ export function seoTrendModel(
   joinReads = false,
   /** Google updates and data anomalies; the ones outside the plotted days are left out. */
   events: readonly GoogleEvent[] = GOOGLE_EVENTS,
+  /** First and last day of the x axis, so two charts side by side share it. Default: the points' own days. */
+  domain?: { from: string; to: string },
 ) {
   const inverted = unit === "position";
   // Older saved syncs stored position 0 for days without impressions.
@@ -117,13 +125,23 @@ export function seoTrendModel(
         : raw;
   const lower = inverted ? FIRST_POSITION : 0;
   const upper = Math.max(step * Math.ceil(peak / step), lower + step);
+  const outside = points.map(
+    (point, index) =>
+      (inverted && values[index] === null && point.outside) || null,
+  );
+  // The scale ends above the band, so a read outside the results never sits on a position.
+  const scale = outside.some(Boolean) ? 1 - OUTSIDE_BAND : 1;
   const y = (value: number) => {
     const share = (value - lower) / (upper - lower);
-    return (inverted ? share : 1 - share) * 100;
+    return (inverted ? share * scale : 1 - share) * 100;
   };
   const days = points.map((point) => dayNumber(point.date));
-  const first = days[0] ?? 0;
-  const span = (days.at(-1) ?? first) - first;
+  const first = domain
+    ? Math.min(days[0] ?? Infinity, dayNumber(domain.from))
+    : (days[0] ?? 0);
+  const span =
+    Math.max(days.at(-1) ?? first, domain ? dayNumber(domain.to) : first) -
+    first;
   // Counts are whole events per day, so they draw as bars in equal day bands.
   const bars = unit === "count";
   const band = 100 / (span + 1);
@@ -135,7 +153,12 @@ export function seoTrendModel(
       : span > 0
         ? ((days[index] - first) / span) * 100
         : 50,
-    y: values[index] === null ? null : y(values[index] as number),
+    y: outside[index]
+      ? 100
+      : values[index] === null
+        ? null
+        : y(values[index] as number),
+    outside: outside[index],
   }));
   // Several events on one day share one marker, drawn as the strongest of them.
   const marked = new Map<
@@ -210,7 +233,8 @@ export function seoTrendModel(
     : [];
   const runs: number[][] = [];
   plotted.forEach((point, index) => {
-    if (point.y === null) return;
+    // A read outside the results has a mark of its own and breaks the line: no position joins it.
+    if (point.y === null || point.outside) return;
     const run = runs.at(-1);
     const previous = run?.at(-1);
     if (
@@ -253,6 +277,8 @@ export function seoTrendModel(
     bars,
     band,
     inverted,
+    /** Where the band for reads outside the results starts, in percent of the plot; null without such a read. */
+    outsideFrom: scale < 1 ? scale * 100 : null,
   };
 }
 
