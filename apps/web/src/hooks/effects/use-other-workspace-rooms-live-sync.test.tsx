@@ -72,7 +72,10 @@ function okResponse(ids: string[]): Response {
 
 function mountLiveReader() {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   function Reader() {
     useOtherWorkspaceRooms({
@@ -114,7 +117,12 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
   });
 
   it("removes rooms, applies read updates preserving workspace metadata, and throttles active invalidations", () => {
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
     queryClient.setQueryData<ChatRoom[]>(key, [
       sampleRoom("r1"),
@@ -182,7 +190,12 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
   });
 
   it("unsubscribes and clears pending throttle timer on StrictMode replay, Activity hide, and unmount", () => {
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const requestRead = vi.fn();
 
     const { rerender, unmount } = render(

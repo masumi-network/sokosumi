@@ -42,7 +42,16 @@ vi.mock("next-intl", () => ({
 function renderDialog() {
   const onClose = vi.fn();
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <ImportContactsDialog onClose={onClose} />
     </QueryClientProvider>,
   );

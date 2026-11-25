@@ -82,7 +82,14 @@ function mountCard(
 ) {
   vi.stubGlobal("fetch", vi.fn(read));
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: Infinity,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   render(
     <QueryClientProvider client={client}>

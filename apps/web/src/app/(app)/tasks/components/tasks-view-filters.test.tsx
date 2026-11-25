@@ -85,7 +85,12 @@ function renderTasksViewFilters(
   restoredQuery: string | null = null,
   display?: (activeFilters: string[]) => React.ReactNode,
 ) {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   queryClient.setQueryData(workspaceTagsQueryKey(activeOrganizationId), [
     { id: WORKSPACE_TAG_ID, displayName: "Release blocker", archived: false },
     {

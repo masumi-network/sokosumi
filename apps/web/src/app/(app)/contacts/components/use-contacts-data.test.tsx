@@ -24,7 +24,12 @@ const page = (id: string) => ({
 const never = () => new Promise(() => {});
 
 function setup(first: ContactQuery) {
-  const cache = new QueryClient();
+  const cache = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={cache}>{children}</QueryClientProvider>
   );

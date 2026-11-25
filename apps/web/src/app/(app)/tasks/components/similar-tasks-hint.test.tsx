@@ -38,7 +38,10 @@ function hint(
 
 function renderHint(brief: string, activeOrganizationId: string | null) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const view = render(hint(queryClient, brief, activeOrganizationId));
   return {

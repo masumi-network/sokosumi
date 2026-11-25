@@ -49,7 +49,12 @@ function renderQuestions(focusQuestionId?: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   Element.prototype.scrollIntoView = vi.fn();
   api.fetchDataRoomQuestions.mockResolvedValue([
     question("q1", "First?"),

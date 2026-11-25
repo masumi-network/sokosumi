@@ -9,7 +9,12 @@ import { useInvalidateProjectScopeOnNavigation } from "./use-invalidate-project-
 
 describe("useInvalidateProjectScopeOnNavigation", () => {
   it("does not invalidate on mount and invalidates when pathname changes", () => {
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>

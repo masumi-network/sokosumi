@@ -106,7 +106,12 @@ describe("chatQueryKeys", () => {
   });
 
   it("matches all user and workspace scopes with cross-scope prefixes without matching other domains", () => {
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const transcriptA = chatQueryKeys.transcript(scopeA, "room_1");
     const transcriptPersonal = chatQueryKeys.transcript(personal, "room_2");
     const elsewhereA = chatQueryKeys.elsewhere(scopeA);
@@ -144,11 +149,15 @@ describe("chatQueryKeys", () => {
     expect(queryClient.getQueryData(elsewhereA)).toEqual(["room-a:updated"]);
     expect(queryClient.getQueryData(elsewhereB)).toEqual(["room-b:updated"]);
     expect(queryClient.getQueryData(transcriptA)).toEqual(["msg-a"]);
+    queryClient.clear();
   });
 
   it("shows no unpinned Elsewhere rows from the previous workspace while the next workspace read is pending", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const workspaceBDeferred = Promise.withResolvers<ChatRoom[]>();
     fetchElsewhereMock

@@ -159,7 +159,10 @@ function renderWorkspace(
 ) {
   const View = monitorsOnly ? SeoMonitorPanel : SeoWorkspace;
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime } },
+    defaultOptions: {
+      queries: { retry: false, staleTime, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   const content = (
@@ -802,7 +805,10 @@ describe("SEO workspace integration", () => {
       });
     }
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     vi.stubGlobal(
@@ -8939,7 +8945,10 @@ describe("SEO workspace integration", () => {
 
     viewer.userId = null;
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     const wrap = () => (
@@ -9010,7 +9019,10 @@ describe("SEO workspace integration", () => {
 
     viewer.userId = null;
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     const wrap = () => (

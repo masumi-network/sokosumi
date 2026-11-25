@@ -150,7 +150,16 @@ beforeEach(() => {
 
 function renderSmartList(searchParams = "?list=list-leads") {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <ContactsWorkspace sync={null} />
       </NuqsTestingAdapter>
@@ -284,7 +293,16 @@ describe("ContactsWorkspace Archived view", () => {
   function renderAt(searchParams: string) {
     const onUrlUpdate = vi.fn();
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY },
+              mutations: { gcTime: Number.POSITIVE_INFINITY },
+            },
+          })
+        }
+      >
         <NuqsTestingAdapter
           searchParams={searchParams}
           onUrlUpdate={onUrlUpdate}

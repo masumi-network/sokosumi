@@ -145,7 +145,10 @@ describe("room cache across a hidden app shell", () => {
     };
     const props = roomsClientBaseProps();
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const key = chatQueryKeys.transcript(
       { userId: "user-1", workspaceId: "org-1" },

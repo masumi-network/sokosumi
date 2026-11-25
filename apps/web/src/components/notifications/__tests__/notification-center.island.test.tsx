@@ -1951,7 +1951,14 @@ describe("Notification Center Needs you view", () => {
     window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, "needs-action");
     // The app's own default: a minute of freshness for every query.
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: 60_000,
+          gcTime: Number.POSITIVE_INFINITY,
+        },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     renderComponent(
       <QueryClientProvider client={client}>

@@ -46,7 +46,10 @@ const clients: QueryClient[] = [];
 
 function page(content: React.ReactNode, searchParams = "") {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   return (

@@ -91,7 +91,14 @@ function renderView(
     <QueryClientProvider
       client={
         new QueryClient({
-          defaultOptions: { queries: { retry: false, staleTime } },
+          defaultOptions: {
+            queries: {
+              retry: false,
+              staleTime,
+              gcTime: Number.POSITIVE_INFINITY,
+            },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
         })
       }
     >
@@ -235,7 +242,14 @@ describe("UnreadThreadsView", () => {
       );
     }
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: 60_000,
+          gcTime: Number.POSITIVE_INFINITY,
+        },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const { rerender } = render(
       <QueryClientProvider client={client}>

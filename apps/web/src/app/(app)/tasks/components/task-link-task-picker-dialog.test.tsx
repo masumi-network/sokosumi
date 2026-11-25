@@ -52,7 +52,12 @@ function tasksPage(tasks: TaskListItem[], nextCursor: string | null = null) {
   };
 }
 
-let queryClient = new QueryClient();
+let queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { gcTime: Number.POSITIVE_INFINITY },
+    mutations: { gcTime: Number.POSITIVE_INFINITY },
+  },
+});
 
 function picker(
   open: boolean,
@@ -81,7 +86,12 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  queryClient = new QueryClient();
+  queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   getTasksMock.mockReset();
   getTasksMock.mockResolvedValue(tasksPage([]));
   useSessionMock.mockReset();

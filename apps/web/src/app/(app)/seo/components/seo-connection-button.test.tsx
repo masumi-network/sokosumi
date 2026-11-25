@@ -48,7 +48,10 @@ vi.mock("sonner", () => ({ toast: { error: m.error } }));
 const clients: QueryClient[] = [];
 function show(onConnected = vi.fn(), withAnalytics = false) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   render(
@@ -211,7 +214,10 @@ describe("native SEO connection consent", () => {
     m.popup.mockResolvedValue({ kind: "popup_blocked" });
     const onError = vi.fn();
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     const { unmount } = render(
@@ -249,7 +255,10 @@ describe("native SEO connection consent", () => {
   it("shows a blocked popup in the place of the banner text, so nothing in the banner moves", async () => {
     m.popup.mockResolvedValue({ kind: "popup_blocked" });
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     const model = { data: seoTestWorkspace(), openStatistics: vi.fn() };
@@ -343,7 +352,10 @@ describe("native SEO connection consent", () => {
   it("runs the caller's next step when the new status removes the control", async () => {
     const onConnected = vi.fn();
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     // A properties read in the view: the connect waits for its new answer.
