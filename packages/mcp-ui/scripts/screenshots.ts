@@ -26,12 +26,13 @@ const ALL_WIDTHS = new Set(["default", "fullscreen"]);
 const STATES = new Set(["loading", "empty", "error"]);
 
 const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) =>
-  Object.entries(fixtures).flatMap(([fixture, { allWidths, play = [] }]) =>
-    THEMES.flatMap((theme) =>
-      (ALL_WIDTHS.has(fixture) || allWidths ? WIDTHS : [STATE_WIDTH]).map(
-        (width) => ({ view, fixture, theme, width, play }),
+  Object.entries(fixtures).flatMap(
+    ([fixture, { allWidths, play = [], step }]) =>
+      THEMES.flatMap((theme) =>
+        (ALL_WIDTHS.has(fixture) || allWidths ? WIDTHS : [STATE_WIDTH]).map(
+          (width) => ({ view, fixture, theme, width, play, step }),
+        ),
       ),
-    ),
   ),
 );
 
@@ -49,7 +50,7 @@ const browser = await chromium.launch({
 });
 
 try {
-  for (const { view, fixture, theme, width, play } of shots) {
+  for (const { view, fixture, theme, width, play, step } of shots) {
     const page = await browser.newPage({
       viewport: { width, height: 900 },
       colorScheme: theme,
@@ -80,7 +81,7 @@ try {
           .click();
       }
     }
-    if (play.length > 0) await page.waitForTimeout(300);
+    if (step) await frame.locator(`[data-step="${step}"]`).waitFor();
     if (errors.length > 0) {
       throw new Error(`${view}/${fixture}/${theme}: ${errors.join("; ")}`);
     }

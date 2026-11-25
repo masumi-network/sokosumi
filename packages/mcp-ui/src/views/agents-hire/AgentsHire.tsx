@@ -7,8 +7,13 @@ import {
   SchemaForm,
 } from "../../shell/SchemaForm.tsx";
 import type { ViewContext } from "../../shell/Shell.tsx";
-import { isPlainReference, isUnderBase, t } from "../../shell/text.ts";
-import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import {
+  formatNumber,
+  isPlainReference,
+  isUnderBase,
+  t,
+} from "../../shell/text.ts";
+import { Message, PrimaryButton, QuietButton } from "../../shell/ui.tsx";
 
 /** `agents_input_schema`'s result, which `agents_show_hire` returns unchanged. */
 export const HireResult = z.object({ data: InputSchema });
@@ -20,6 +25,12 @@ const Agent = z.object({
 const Balance = z.object({ data: z.object({ spendable: z.number() }) });
 const Job = z.object({ data: z.object({ id: z.string() }) });
 const Refusal = z.object({ message: z.string() });
+
+/**
+ * Core's smallest credit unit (1/10^10 credit). A free agent's hire is capped
+ * here, since Core needs a positive `maxCredits`: any real price fails.
+ */
+const SMALLEST_CREDIT = 1e-10;
 
 /** What the confirm step shows: Core's answers, fetched by the view. */
 interface Quote {
@@ -123,12 +134,17 @@ export function AgentsHire({
           inputSchema: data.data,
           inputData: answers,
           // The shown price caps the charge: a higher price fails instead.
-          ...(current.price > 0 && { maxCredits: current.price }),
+          maxCredits: current.price > 0 ? current.price : SMALLEST_CREDIT,
         },
       });
       const job = parsed(Job, result);
       if (job) {
         setStep({ kind: "hired", quote: current, jobId: job.data.id });
+        return;
+      }
+      if (!result.isError) {
+        // Core answered without a Job we can read: it may have started one.
+        setStep({ kind: "unknown" });
         return;
       }
       hiring.current = false;
@@ -153,12 +169,15 @@ export function AgentsHire({
 
   const credits = (amount: number) =>
     t(amount === 1 ? "agentsHire.credit" : "agentsHire.credits", {
-      amount: new Intl.NumberFormat(locale, {
-        maximumFractionDigits: 20,
-      }).format(amount),
+      amount: formatNumber(amount, locale),
     });
   const workspaceName = workspace ?? t("agentsHire.personal");
 
+  if (!agentId) {
+    return (
+      <Message title={t("shell.error.title")} body={t("shell.error.body")} />
+    );
+  }
   if (!canCall) {
     return (
       <AskToHire context={context} agentId={agentId} workspace={workspace} />

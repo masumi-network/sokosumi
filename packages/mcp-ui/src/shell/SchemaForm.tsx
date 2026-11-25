@@ -501,7 +501,7 @@ function FieldRow({
           {values.map((value, index) => {
             const checked = draft.includes(index);
             return (
-              <label key={value} className="flex min-h-11 items-center gap-3">
+              <label key={index} className="flex min-h-11 items-center gap-3">
                 <input
                   type={multi ? "checkbox" : "radio"}
                   name={idPrefix}

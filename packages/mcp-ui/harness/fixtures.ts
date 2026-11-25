@@ -20,6 +20,8 @@ export interface Fixture {
   calls?: Record<string, ToolResult | "pending" | "fail"> | false;
   /** Steps the screenshot script plays in the view before the shot. */
   play?: ({ fill: string; value: string } | { click: string })[];
+  /** The view's `data-step` once `play` is done; the shot waits for it. */
+  step?: string;
   /** Shot at 320, 402 and 768px, like `default`. */
   allWidths?: boolean;
 }
@@ -275,6 +277,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
   "agents-hire": {
     default: { input: HIRE.input, result: hireSchema, calls: hireCalls },
     invalid: {
+      step: "form",
       input: HIRE.input,
       result: hireSchema,
       calls: hireCalls,
@@ -282,6 +285,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       allWidths: true,
     },
     confirm: {
+      step: "confirm",
       input: HIRE.input,
       result: hireSchema,
       calls: hireCalls,
@@ -289,6 +293,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       allWidths: true,
     },
     submitting: {
+      step: "hiring",
       input: HIRE.input,
       result: hireSchema,
       calls: { ...hireCalls, agents_hire: "pending" },
@@ -296,6 +301,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       allWidths: true,
     },
     success: {
+      step: "hired",
       input: HIRE.input,
       result: hireSchema,
       calls: hireCalls,
@@ -303,6 +309,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       allWidths: true,
     },
     failed: {
+      step: "refused",
       input: HIRE.input,
       result: hireSchema,
       calls: {

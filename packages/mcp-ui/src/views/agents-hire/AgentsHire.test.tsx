@@ -36,10 +36,12 @@ async function openHire({
   calls = {},
   input = HIRE.input,
   schema = HIRE.schema,
+  locale = "en-US",
 }: {
   calls?: Record<string, Answer> | false;
   input?: Record<string, unknown>;
   schema?: unknown;
+  locale?: string;
 } = {}) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const bridge = new AppBridge(
@@ -50,7 +52,7 @@ async function openHire({
       message: { text: {} },
       ...(calls !== false && { serverTools: {} }),
     },
-    { hostContext: { locale: "en-US" } },
+    { hostContext: { locale } },
   );
   const sent = { calls: vi.fn(), messages: vi.fn(), links: vi.fn() };
   const answers = { ...CALLS, ...calls };
@@ -275,6 +277,32 @@ describe("AgentsHire hire", () => {
     expect(screen.getByLabelText(/^Topic/)).toBeTruthy();
   });
 
+  it("offers no retry when Core answers without a readable Job", async () => {
+    const sent = await openHire({ calls: { agents_hire: data({ job: "?" }) } });
+    await review();
+    fireEvent.click(button("Hire"));
+
+    expect(
+      await screen.findByText(
+        /Check your Jobs in Sokosumi before you try again/,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Hire|Back/ })).toBeNull();
+    expect(hires(sent)).toHaveLength(1);
+  });
+
+  it("caps a free agent's hire at Core's smallest credit unit", async () => {
+    const sent = await openHire({
+      calls: { agents_get: data({ ...HIRE.agent, credits: 0 }) },
+    });
+    await review();
+    expect(document.body.textContent).toContain("Free");
+    fireEvent.click(button("Hire"));
+
+    await screen.findByText("cm_job_7f3k2");
+    expect(hires(sent)[0]?.[1]).toMatchObject({ body: { maxCredits: 1e-10 } });
+  });
+
   it("offers no retry when the hire's outcome is unknown", async () => {
     await openHire({ calls: { agents_hire: "fail" } });
     await review();
@@ -286,6 +314,23 @@ describe("AgentsHire hire", () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Hire|Back/ })).toBeNull();
+  });
+});
+
+describe("AgentsHire inputs", () => {
+  it("shows the price whatever locale the host sends", async () => {
+    await openHire({ locale: "not_a_locale!" });
+    await review();
+
+    expect(document.body.textContent).toContain("12.5 credits");
+  });
+
+  it("shows the error state when the call names no agent", async () => {
+    await openHire({ input: { workspace: "acme" } });
+
+    expect(
+      await screen.findByRole("heading", { name: "This view could not load" }),
+    ).toBeTruthy();
   });
 });
 
