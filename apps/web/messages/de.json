@@ -216,7 +216,8 @@
       "inviteMembers": "Mitglieder einladen",
       "organizationSettings": "Einstellungen",
       "membersAndSettings": "Mitglieder & Einstellungen",
-      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}",
+      "justYou": "Nur du"
     },
     "DataTable": {
       "Data": {
