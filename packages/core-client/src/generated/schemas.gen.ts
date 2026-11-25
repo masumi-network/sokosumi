@@ -63865,6 +63865,10 @@ export const CmoProductionSchema = {
             ],
             description: 'When a stuck month\'s next production run starts. Null unless state is stuck.'
         },
+        writerFailed: {
+            type: 'boolean',
+            description: 'A stuck month stopped because Core\'s month writer wrote nothing in the last run: a fault on our side, not Cuso\'s.'
+        },
         floor: {
             anyOf: [
                 {
@@ -63902,6 +63906,7 @@ export const CmoProductionSchema = {
         'beyondPlan',
         'withoutPicture',
         'retryAt',
+        'writerFailed',
         'floor'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { type CmoPiece } from "@/services/cmo-production.service";
+import { expectCoreLog } from "@/test/core-log";
 
 const m = vi.hoisted(() => ({
   generateText: vi.fn(),
@@ -523,6 +524,28 @@ describe("writeCmoMonthPieces", () => {
     // The month's checks would have run past the deadline: the next call does them.
     expect(m.draftProblems).not.toHaveBeenCalled();
     expect(now - start).toBeLessThan(115_000);
+  });
+
+  it("says plainly that Core failed when every chunk wrote nothing", async () => {
+    // entry.fyi, 2026-11-23 to 25: every call answered "written 0, call again".
+    m.readCmoProduction.mockResolvedValue({
+      strategy,
+      pending: [piece("p1")],
+      failedMedia: new Set(),
+    });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockRejectedValue(new Error("Invalid schema"));
+    expectCoreLog("warn", "A chunk of the month wrote nothing");
+    expectCoreLog("error", "Core's month writer wrote nothing");
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(result).toMatchObject({ written: 0, refused: [], left: 1 });
+    expect(result.next).toContain("fault on our side");
+    expect(result.next).toContain("Do not call write_month_pieces again");
   });
 
   it("gives a model call only what the deadline leaves", () => {

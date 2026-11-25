@@ -358,6 +358,20 @@ describe("todayLine", () => {
     expect(line).toMatch(/so I try the rest again (tomorrow )?at \d\d:\d\d\.$/);
   });
 
+  it("says a month stopped by Core's writer is our fault, not Cuso's", () => {
+    const stopped = at("stuck");
+    const line = todayLine(
+      {
+        ...stopped,
+        production: { ...stopped.production, writerFailed: true },
+      },
+      0,
+    );
+    expect(line).toBe(
+      `Something on our side stopped your month at ${made.ready} of ${made.total}. We're fixing it, and I try again soon.`,
+    );
+  });
+
   it("counts the month while a run is about to make the rest", () => {
     expect(todayLine(at("starting"), 0)).toBe(
       `I'm making your month: ${made.ready} of ${made.total} ready.`,

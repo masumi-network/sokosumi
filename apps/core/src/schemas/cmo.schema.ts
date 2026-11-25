@@ -177,6 +177,11 @@ export const cmoProductionSchema = z
       .describe(
         "When a stuck month's next production run starts. Null unless state is stuck.",
       ),
+    writerFailed: z
+      .boolean()
+      .describe(
+        "A stuck month stopped because Core's month writer wrote nothing in the last run: a fault on our side, not Cuso's.",
+      ),
     floor: z
       .union([
         z.object({

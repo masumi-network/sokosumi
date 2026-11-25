@@ -286,6 +286,8 @@ export interface CmoProductionStatus {
   withoutPicture: string[];
   /** When a stopped month's next run starts; null unless stuck. */
   retryAt: string | null;
+  /** Stuck because Core's month writer wrote nothing in the last run: ours. */
+  writerFailed: boolean;
   /**
    * cmo-v22: the posts the plan promises at least (`cmoMonthFloor`) and
    * those of the month made, gone out or paused by the owner; null for a
@@ -671,11 +673,34 @@ async function startProductionRun(
 }
 
 type ProductionRun = {
+  id: string;
   clientTurnId: string;
   status: SokoBotTurnStatus;
   createdAt: Date;
   completedAt: Date | null;
 };
+
+/**
+ * Whether every write_month_pieces call of a run wrote nothing and refused
+ * nothing: Core's writer failed, not Cuso (entry.fyi, 2026-11-23 to 25).
+ */
+async function writerWroteNothing(turnId: string): Promise<boolean> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId, capability: "write_month_pieces", status: "COMPLETED" },
+    select: { result: true },
+  });
+  return (
+    calls.length > 0 &&
+    calls.every((call) => {
+      const result = call.result as { written?: unknown; refused?: unknown };
+      return (
+        result?.written === 0 &&
+        Array.isArray(result.refused) &&
+        result.refused.length === 0
+      );
+    })
+  );
+}
 
 /** Cuso's production runs of today and of this approval, newest first. */
 function productionRuns(
@@ -698,6 +723,7 @@ function productionRuns(
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
+      id: true,
       clientTurnId: true,
       status: true,
       createdAt: true,
@@ -764,6 +790,7 @@ export async function readCmoProduction(
         beyondPlan: [],
         withoutPicture: [],
         retryAt: null,
+        writerFailed: false,
         floor: null,
       },
       version: null,
@@ -871,6 +898,7 @@ export async function readCmoProduction(
     : null;
   /** When a stopped month's next run starts. */
   let retryAt: string | null = null;
+  let writerFailed = false;
   let restart = false;
   const read = (
     state: CmoProductionStatus["state"],
@@ -893,6 +921,7 @@ export async function readCmoProduction(
       beyondPlan,
       withoutPicture: withoutPicture.map((piece) => piece.id),
       retryAt,
+      writerFailed,
       floor,
     },
     version: approved,
@@ -958,6 +987,7 @@ export async function readCmoProduction(
       : ended;
   if (runsNow < due) {
     retryAt = due.toISOString();
+    writerFailed = last ? await writerWroteNothing(last.id) : false;
     return read("stuck", runs);
   }
   restart = capped || stalled;

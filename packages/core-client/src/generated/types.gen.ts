@@ -15639,6 +15639,10 @@ export type CmoProduction = {
      */
     retryAt: string | null;
     /**
+     * A stuck month stopped because Core's month writer wrote nothing in the last run: a fault on our side, not Cuso's.
+     */
+    writerFailed: boolean;
+    /**
      * cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.
      */
     floor: {

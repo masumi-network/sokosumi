@@ -199,6 +199,7 @@ describe("thread", () => {
           beyondPlan: [],
           withoutPicture: [],
           retryAt: null,
+          writerFailed: false,
           floor: null,
         },
         updates: [
