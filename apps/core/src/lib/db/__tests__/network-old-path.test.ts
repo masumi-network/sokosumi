@@ -9,9 +9,9 @@ import { beforeAll, expect, it } from "vitest";
 //
 // Known gaps: this is a lexical scan. It does not follow re-exports, dynamic
 // imports or keys, mutable aliases, delegates held separately, client
-// factories or extensions, named transaction callbacks, client type aliases,
-// or clients passed inside another object. A PrismaClient annotation alone
-// does not identify the default client.
+// factories or extensions, named transaction callbacks, imported or generic
+// client type aliases, or clients passed in an object. A PrismaClient
+// annotation alone does not identify the default client.
 // Relations use locally known clients and fragments. Imported or returned
 // untyped fragments, conditional spread contents, unknown overriding keys,
 // _count, orderBy and nested writes are outside the scan; so are inferred
@@ -266,10 +266,13 @@ function scanSources(sources: ReadonlyMap<string, string>) {
       return type.typeArguments?.[0];
   }
 
-  function isLegacyType(type: ts.TypeNode | undefined): boolean {
+  function isLegacyType(
+    type: ts.TypeNode | undefined,
+    seen?: ReadonlySet<ts.TypeAliasDeclaration>,
+  ): boolean {
     if (!type) return false;
     if (ts.isUnionTypeNode(type))
-      return type.types.every((part) => isLegacyType(part));
+      return type.types.every((part) => isLegacyType(part, seen));
     const queried = utilityTarget(type, "Pick") ?? type;
     if (ts.isTypeQueryNode(queried)) {
       return (
@@ -277,10 +280,20 @@ function scanSources(sources: ReadonlyMap<string, string>) {
         isDefaultClient(queried.exprName, true)
       );
     }
-    if (!ts.isTypeReferenceNode(type)) return false;
+    if (!ts.isTypeReferenceNode(queried)) return false;
+    const alias = declarationOf(queried.typeName);
+    if (
+      alias &&
+      ts.isTypeAliasDeclaration(alias) &&
+      !alias.typeParameters &&
+      alias.getSourceFile() === queried.getSourceFile() &&
+      !seen?.has(alias)
+    ) {
+      return isLegacyType(alias.type, new Set(seen).add(alias));
+    }
     return (
-      prismaType(type.typeName) === "TransactionClient" ||
-      namedType(type, prismaModule) === "DbClient"
+      prismaType(queried.typeName) === "TransactionClient" ||
+      namedType(queried, prismaModule) === "DbClient"
     );
   }
 
@@ -589,7 +602,7 @@ it("keeps NetworkDb whole", () => {
 
 const defaultImport = 'import prisma from "@/lib/db/prisma";';
 const scopeImport =
-  'import type { NetworkDb, NetworkScope } from "@/lib/db/network-scope";';
+  'import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";';
 const modelImport = 'import type { Prisma } from "@sokosumi/database";';
 it.each([
   [
@@ -611,8 +624,13 @@ it.each([
     const e = (db: Pick<typeof prisma, "job">) => db.job.findMany();
     const f = (db: Prisma.TransactionClient | typeof prisma) => db.job.findMany();
     db?.["job"]!.findMany();
-    declare const typed: DbClient; typed.job.findMany();`,
-    { calls: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
+    declare const typed: DbClient; typed.job.findMany();
+    const alias = (tx: Tx) => tx.job.findMany();
+    const pickedAlias = (tx: Pick<Tx, "job">) => tx.job.findMany();
+    type Tx = Prisma.TransactionClient;
+    const pickedTransaction = (tx: Pick<Prisma.TransactionClient, "creditBucket">) => tx.creditBucket.findMany();
+    const pickedClient = (client: Pick<DbClient, "job">) => client.job.findMany();`,
+    { calls: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23] },
   ],
   [
     "typed relation returns and conditional spreads",
@@ -626,8 +644,10 @@ it.each([
     function where(): Prisma.JobWhereInput { return { task: { is: { id: "1" } } }; }
     const include = (): Prisma.TaskInclude => ({ jobs: true });
     const nested = { task: { select: { id: true } } } satisfies Prisma.JobSelect;
-    prisma.task.findMany({ where: { jobs: { some: {} }, ...(extra && { id: "1" }) } });`,
-    { relations: [4, 6, 8, 9, 10, 11] },
+    prisma.task.findMany({ where: { jobs: { some: {} }, ...(extra && { id: "1" }) } });
+    const shared = (db: SharedDb) => db.task.findMany({ where: { jobs: { some: {} } } });
+    prisma.project.findMany({ where: { tasks: { some: { jobs: { some: {} } } } } });`,
+    { relations: [4, 6, 8, 9, 10, 11, 12, 13] },
   ],
   [
     "Pick and Omit references",
