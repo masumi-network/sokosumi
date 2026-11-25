@@ -183,8 +183,6 @@ const sameSet = (a: string[], b: string[]) =>
   a.length === b.length &&
   a.every((value) => b.includes(value));
 
-export { skippedPages } from "./project-seo-public-report";
-
 const SKIPPED_REASON_CHARS = 300;
 
 /** Bind evidence to the durable request, including Market, devices and approved external targets. */

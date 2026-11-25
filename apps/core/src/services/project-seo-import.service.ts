@@ -20,12 +20,12 @@ import {
   failedSeoSpecialists,
   reportObject,
   SEO_REPORT_IMPORT_REJECTED,
+  skippedPages,
   withoutApprovedSearchConsole,
 } from "@/helpers/project-seo-public-report";
 import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
-  skippedPages,
 } from "@/helpers/project-seo-report";
 import { readAuditPlan } from "@/helpers/seo-audit-plan";
 import prisma from "@/lib/db/prisma";
