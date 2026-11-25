@@ -303,20 +303,13 @@ describe("project ids", () => {
       cmo.installCommand,
       "pnpm install --frozen-lockfile --filter cmo...",
     );
-    assert.deepEqual(cmo.git, web.git);
-  });
-
-  it("deploys the CMO.XYZ website from main and /deploy only, like web", async () => {
-    const web = JSON.parse(
-      await readFile(path.join(repoRoot, "apps/web/vercel.json"), "utf8"),
-    );
-    const site = JSON.parse(
-      await readFile(
-        path.join(repoRoot, "apps/cmo-website/vercel.json"),
-        "utf8",
-      ),
-    );
-    assert.deepEqual(site.git, web.git);
+    // The CMO.XYZ website too: Git deploys main only, previews come from /deploy.
+    for (const app of ["cmo", "cmo-website"]) {
+      const config = JSON.parse(
+        await readFile(path.join(repoRoot, "apps", app, "vercel.json"), "utf8"),
+      );
+      assert.deepEqual(config.git, web.git, app);
+    }
   });
 });
 
@@ -1348,12 +1341,18 @@ describe("previewApps", () => {
     ]);
   });
 
-  it("builds the website when the file list may be truncated", () => {
-    const files = Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, i) => ({
-      filename: `apps/web/f${i}.ts`,
-    }));
-    assert.equal(isTruncatedFileList(files), true);
-    assert.ok(previewApps(files).includes("cmo-website"));
+  it("reads ./ paths and skips a PR that only deletes site files", () => {
+    assert.ok(
+      previewApps(["./apps/cmo-website/public/index.html"]).includes(
+        "cmo-website",
+      ),
+    );
+    assert.equal(
+      previewApps([
+        { filename: "apps/cmo-website/public/index.html", status: "removed" },
+      ]).includes("cmo-website"),
+      false,
+    );
   });
 });
 
@@ -1681,7 +1680,7 @@ describe("preview skip on /deploy", () => {
       }),
     );
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 4);
+    assert.equal(created.length, 3);
     assert.deepEqual(posted, []);
   });
 

@@ -19,6 +19,9 @@ import {
 
 const NETWORKS = ["mainnet", "preprod"];
 const APPS = ["web", "core", "cmo", "cmo-website"];
+// Every `/deploy` builds these; the CMO.XYZ website joins them only when the
+// PR changes it (see previewApps).
+export const BASE_PREVIEW_APPS = APPS.filter((app) => app !== "cmo-website");
 const WRITE_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 
 export const VERCEL_TEAM_ID = "team_vDNcRyOgTGZegIQbMw4QXF0n";
@@ -156,13 +159,18 @@ export const PREVIEW_RELEVANT_PREFIXES = [
   "packages/",
 ];
 
-export function isPreviewRelevantPath(filePath) {
-  if (typeof filePath !== "string" || filePath.length === 0) {
-    return false;
+function normalizedPath(filePath) {
+  if (typeof filePath !== "string") {
+    return "";
   }
-  const normalized = filePath.startsWith("./") ? filePath.slice(2) : filePath;
-  return PREVIEW_RELEVANT_PREFIXES.some((prefix) =>
-    normalized.startsWith(prefix),
+  return filePath.startsWith("./") ? filePath.slice(2) : filePath;
+}
+
+export function isPreviewRelevantPath(filePath) {
+  const normalized = normalizedPath(filePath);
+  return (
+    normalized.length > 0 &&
+    PREVIEW_RELEVANT_PREFIXES.some((prefix) => normalized.startsWith(prefix))
   );
 }
 
@@ -192,20 +200,24 @@ export function changesVercelConfig(files) {
 
 /**
  * The apps a `/deploy` builds. The CMO.XYZ website is static and depends on
- * nothing else, so it builds only when the PR changes it. Branches from before
- * the move into the monorepo also lack its root directory, and its failed
- * build would fail the whole command. A truncated file list builds it too.
+ * nothing else, so it builds only when the PR adds or edits a file under
+ * `apps/cmo-website/`. Branches from before the move into the monorepo, or a
+ * PR that deletes the site, lack its root directory, and its failed build
+ * would fail the whole command.
+ * shortcut: a truncated file list (3,000+ files) may hide a site change and
+ * skips the site; read the head tree for `apps/cmo-website` if that matters.
  */
 export function previewApps(files) {
   const changesSite =
-    isTruncatedFileList(files) ||
-    (Array.isArray(files) &&
-      files.some((file) =>
-        String(typeof file === "string" ? file : file?.filename).startsWith(
-          "apps/cmo-website/",
-        ),
-      ));
-  return changesSite ? APPS : APPS.filter((app) => app !== "cmo-website");
+    Array.isArray(files) &&
+    files.some(
+      (file) =>
+        file?.status !== "removed" &&
+        normalizedPath(
+          typeof file === "string" ? file : file?.filename,
+        ).startsWith("apps/cmo-website/"),
+    );
+  return changesSite ? APPS : BASE_PREVIEW_APPS;
 }
 
 export function noPreviewChangesMessage() {
