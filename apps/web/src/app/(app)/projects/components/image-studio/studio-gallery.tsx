@@ -14,8 +14,8 @@ import {
   Shuffle,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { useEffect, useState, useTransition } from "react";
+import { useQueryState } from "nuqs";
+import { useState, useTransition } from "react";
 import {
   usePageListSearch,
   usePageSearchQuery,
@@ -33,6 +33,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  type StudioSort,
+  studioSortParser,
+} from "@/hooks/effects/use-studio-sort-refresh";
 import { cn } from "@/lib/utils";
 
 import { imageRepeatRoute, resolveModel } from "./catalog";
@@ -72,8 +76,7 @@ export function StudioGallery({
   onRate,
   onHide,
   ratingBusyIds = [],
-  sort = "newest",
-  onSortChange,
+  sort,
   onReroll,
   onReusePrompt,
   onToggleSelect,
@@ -98,8 +101,7 @@ export function StudioGallery({
   ) => void;
   onHide?: (asset: StudioAsset) => void;
   ratingBusyIds?: string[];
-  sort?: "newest" | "best";
-  onSortChange?: (sort: "newest" | "best") => void;
+  sort?: StudioSort;
   /** Same brief, same settings, no reference: another draw of the dice. */
   onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
@@ -193,9 +195,7 @@ export function StudioGallery({
         {t("adGallery")}
       </h2>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {onSortChange ? (
-          <GallerySort onSortChange={onSortChange} sort={sort} />
-        ) : null}
+        {sort ? <GallerySort /> : null}
         {hasProducts && sort !== "best" ? (
           <Button
             aria-pressed={groupByProduct}
@@ -610,30 +610,16 @@ function PendingTile({
   );
 }
 
-function GallerySort({
-  sort,
-  onSortChange,
-}: {
-  sort: "newest" | "best";
-  onSortChange: (sort: "newest" | "best") => void;
-}) {
+function GallerySort() {
   const t = useTranslations("App.Studio.Rating");
-  const [querySort, setQuerySort] = useQueryState(
-    "sort",
-    parseAsStringLiteral(["newest", "best"]).withDefault("newest"),
-  );
-  // Back/forward and shared URLs select the same Core ordering as this control.
-  useEffect(() => {
-    onSortChange(querySort);
-  }, [querySort, onSortChange]);
+  const [sort, setSort] = useQueryState("sort", studioSortParser);
   return (
     <select
       aria-label={t("sort")}
       className="border-input bg-background focus-visible:ring-ring h-10 rounded-md border px-2 text-sm focus-visible:ring-2 md:h-8"
       onChange={(event) => {
         const next = event.target.value === "best" ? "best" : "newest";
-        onSortChange(next);
-        void setQuerySort(next);
+        void setSort(next);
       }}
       value={sort}
     >
