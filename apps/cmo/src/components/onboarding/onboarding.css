@@ -2153,6 +2153,58 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
+/* Each plan's chart arrow, top right, in the card's line colour so Scale's
+   tip still shows where it breaks out over the page. */
+.ob-plan-rise {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  width: 64px;
+  height: 40px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.ob-plan-rise path {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: var(--line-width-small);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ob-plan-rise-steep path {
+  stroke-width: var(--line-width);
+}
+
+.ob-plan-option .ob-value {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-plan-rise path {
+    stroke-dasharray: 1 2;
+    stroke-dashoffset: 1;
+    animation: ob-plan-draw 700ms ease-out var(--rise-delay, 450ms) forwards;
+  }
+
+  /* Scale's rise speeds up as it goes. */
+  .ob-plan-rise-steep path {
+    animation-duration: 900ms;
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+
+  .ob-plan-option .ob-swap {
+    animation: ob-fade 150ms ease-out;
+  }
+}
+
+@keyframes ob-plan-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .ob-confirming {
   display: flex;
   align-items: center;

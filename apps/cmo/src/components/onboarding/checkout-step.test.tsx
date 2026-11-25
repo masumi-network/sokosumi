@@ -244,6 +244,32 @@ describe("CheckoutStep", () => {
     expect(button("Start Starter for $167 a month")).toBeTruthy();
   });
 
+  it("fills the same lines on both intervals, so switching never moves the cards", async () => {
+    await render();
+    const lines = () =>
+      [...container.querySelectorAll(".ob-plan-option")].map(
+        (card) => card.children.length,
+      );
+    const yearly = lines();
+    await press("Monthly");
+    expect(lines()).toEqual(yearly);
+    expect(cards()[0]).toContain("Billed monthly");
+  });
+
+  it("draws a chart arrow on each plan, hidden from screen readers", async () => {
+    await render();
+    const arrows = [
+      ...container.querySelectorAll(".ob-plan-option svg.ob-plan-rise"),
+    ];
+    expect(arrows).toHaveLength(3);
+    expect(
+      arrows.every((svg) => svg.getAttribute("aria-hidden") === "true"),
+    ).toBe(true);
+    expect(
+      arrows.map((svg) => svg.classList.contains("ob-plan-rise-steep")),
+    ).toEqual([false, false, true]);
+  });
+
   it("sends the person to Polar with the interval and the plan they picked", async () => {
     const onCheckout = vi.fn(async () => ({
       url: "https://polar.sh/checkout/c_1",
