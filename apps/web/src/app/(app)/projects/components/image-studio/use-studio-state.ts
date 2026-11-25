@@ -1,8 +1,15 @@
 "use client";
 
 import type { StudioAssetRating } from "@sokosumi/core-client";
+import { useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
 
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
+import {
+  type StudioSort,
+  studioSortParser,
+  useStudioSortRefresh,
+} from "@/hooks/effects/use-studio-sort-refresh";
 import { useStudioStatePolling } from "@/hooks/effects/use-studio-state-polling";
 
 import type { StudioAsset, StudioJob, StudioState } from "./types";
@@ -48,8 +55,8 @@ export interface StudioStateHook {
   loadOlder: () => Promise<void>;
   hasOlder: boolean;
   isRefreshing: boolean;
-  sort: "newest" | "best";
-  setSort: (sort: "newest" | "best") => void;
+  sort: StudioSort;
+  setSort: (sort: StudioSort) => void;
   updateRating: (assetId: string, rating: StudioAssetRating) => void;
   removeAsset: (assetId: string) => void;
   /** A code the page maps to a localized message, never a display string. */
@@ -70,11 +77,11 @@ export function useStudioState(options: {
 }): StudioStateHook {
   const { projectId, initialState, initialSelectedAssetId } = options;
   const [state, setState] = useState<StudioState>(initialState);
-  const [sort, setSort] = useState<"newest" | "best">("newest");
-  const sortRef = useRef(sort);
-  sortRef.current = sort;
+  const [sort, setQuerySort] = useQueryState("sort", studioSortParser);
+  const latestSortRef = useLatestRef(sort);
   const pendingOlder = useRef<string | null>(null);
-  const loadedSortRef = useRef<"newest" | "best">("newest");
+  const loadedSortRef = useRef<StudioSort>("newest");
+  const activeRefreshId = useRef(0);
   const removedAssetIds = useRef(new Set<string>());
   const mutationRevision = useRef(0);
   const [error, setError] = useState<StudioErrorCode | null>(null);
@@ -105,6 +112,7 @@ export function useStudioState(options: {
   if (switching) {
     removedAssetIds.current.clear();
     loadedSortRef.current = "newest";
+    activeRefreshId.current += 1;
     setShownProjectId(projectId);
     setState(initialState);
     setSelection(shownSelection);
@@ -202,8 +210,9 @@ export function useStudioState(options: {
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
+    const refreshId = ++activeRefreshId.current;
     setIsRefreshing(true);
-    const requestedSort = sortRef.current;
+    const requestedSort = latestSortRef.current;
     const requestedRevision = mutationRevision.current;
     try {
       // The selection is pinned into the request so a version older than the
@@ -224,7 +233,7 @@ export function useStudioState(options: {
       // out. Neither its rows nor its failure belongs to what is on screen.
       if (
         projectId !== shownProjectIdRef.current ||
-        requestedSort !== sortRef.current ||
+        requestedSort !== latestSortRef.current ||
         requestedRevision !== mutationRevision.current
       )
         return;
@@ -239,7 +248,7 @@ export function useStudioState(options: {
       const next = (await response.json()) as StudioState;
       if (
         projectId !== shownProjectIdRef.current ||
-        requestedSort !== sortRef.current ||
+        requestedSort !== latestSortRef.current ||
         requestedRevision !== mutationRevision.current
       )
         return;
@@ -249,22 +258,23 @@ export function useStudioState(options: {
     } catch {
       if (
         projectId !== shownProjectIdRef.current ||
-        requestedSort !== sortRef.current
+        requestedSort !== latestSortRef.current
       )
         return;
       setError("refresh_failed");
     } finally {
       if (
         projectId === shownProjectIdRef.current &&
-        requestedSort === sortRef.current
+        refreshId === activeRefreshId.current
       )
         setIsRefreshing(false);
     }
-  }, [projectId, applyState]);
+  }, [projectId, applyState, latestSortRef]);
 
   const activeJobs = shownState.jobs.filter(isActive);
   const hasActive = activeJobs.length > 0;
 
+  useStudioSortRefresh(projectId, sort, loadedSortRef, refresh);
   useStudioStatePolling(projectId, hasActive, refresh);
 
   /**
@@ -278,7 +288,7 @@ export function useStudioState(options: {
     // Through the ref rather than through a dependency: the ref always holds
     // the project on screen, so this cannot page the previous project's
     // history into the current project's gallery.
-    const requestedSort = sortRef.current;
+    const requestedSort = latestSortRef.current;
     if (requestedSort !== loadedSortRef.current) return;
     const requestedRevision = mutationRevision.current;
     const cursor = stateRef.current.nextCursor;
@@ -305,7 +315,7 @@ export function useStudioState(options: {
       // left is not older history of the one they are looking at.
       if (
         projectId !== shownProjectIdRef.current ||
-        requestedSort !== sortRef.current ||
+        requestedSort !== latestSortRef.current ||
         requestedRevision !== mutationRevision.current
       )
         return;
@@ -327,7 +337,7 @@ export function useStudioState(options: {
     } catch {
       if (
         projectId !== shownProjectIdRef.current ||
-        requestedSort !== sortRef.current
+        requestedSort !== latestSortRef.current
       )
         return;
       setError("load_older_failed");
@@ -335,11 +345,11 @@ export function useStudioState(options: {
       if (pendingOlder.current === requestKey) pendingOlder.current = null;
       if (
         projectId === shownProjectIdRef.current &&
-        requestedSort === sortRef.current
+        requestedSort === latestSortRef.current
       )
         setIsRefreshing(false);
     }
-  }, [projectId]);
+  }, [projectId, latestSortRef]);
 
   const updateRating = useCallback(
     (assetId: string, rating: StudioAssetRating) => {
@@ -368,13 +378,10 @@ export function useStudioState(options: {
   }, []);
 
   const changeSort = useCallback(
-    (nextSort: "newest" | "best") => {
-      if (nextSort === sortRef.current) return;
-      sortRef.current = nextSort;
-      setSort(nextSort);
-      void refresh();
+    (nextSort: StudioSort) => {
+      void setQuerySort(nextSort);
     },
-    [refresh],
+    [setQuerySort],
   );
 
   const selectAsset = useCallback(

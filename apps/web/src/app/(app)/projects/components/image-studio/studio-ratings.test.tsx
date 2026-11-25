@@ -7,7 +7,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { Activity } from "react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { Activity, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -33,13 +34,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
-vi.mock("nuqs", async (importOriginal) => {
-  const { useState } = await import("react");
-  return {
-    ...(await importOriginal<typeof import("nuqs")>()),
-    useQueryState: () => useState("newest"),
-  };
-});
 vi.mock("sonner", () => ({ toast: { error: mocks.toast } }));
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
@@ -90,16 +84,18 @@ const ASSET: StudioAsset = {
   contentPath: "/ad-a",
 };
 
-function mount(assets = [ASSET]) {
+function mount(assets = [ASSET], searchParams = "") {
   return render(
-    <ImageStudio
-      catalog={TEST_CATALOG}
-      initialSelectedAssetId={null}
-      initialState={{ assets, jobs: [], nextCursor: null }}
-      labels={TEST_LABELS}
-      projectId="project-a"
-      readOnly={false}
-    />,
+    <NuqsTestingAdapter hasMemory searchParams={searchParams}>
+      <ImageStudio
+        catalog={TEST_CATALOG}
+        initialSelectedAssetId={null}
+        initialState={{ assets, jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId="project-a"
+        readOnly={false}
+      />
+    </NuqsTestingAdapter>,
   );
 }
 
@@ -247,6 +243,131 @@ describe("studio ratings", () => {
     expect(
       screen.queryByRole("button", { name: "groupByProduct" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("loads ?sort=best on mount under StrictMode without a second fetch", async () => {
+    const best = {
+      ...ASSET,
+      id: "best",
+      score: 1.8,
+      product: { id: "mug", name: "Mug" },
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ assets: [best, ASSET], jobs: [], nextCursor: null }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <StrictMode>
+        <NuqsTestingAdapter hasMemory searchParams="?sort=best">
+          <ImageStudio
+            catalog={TEST_CATALOG}
+            initialSelectedAssetId={null}
+            initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+            labels={TEST_LABELS}
+            projectId="project-a"
+            readOnly={false}
+          />
+        </NuqsTestingAdapter>
+      </StrictMode>,
+    );
+
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/projects/project-a/image-studio/state?sort=best&assetId=ad-a",
+        expect.any(Object),
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      [...document.querySelectorAll("figure[data-asset-id]")].map((tile) =>
+        tile.getAttribute("data-asset-id"),
+      ),
+    ).toEqual(["best", "ad-a"]);
+  });
+
+  it("changes sort and reloads once per Back/Forward URL navigation", async () => {
+    const best = {
+      ...ASSET,
+      id: "best",
+      score: 1.8,
+      product: { id: "mug", name: "Mug" },
+    };
+    const fetchMock = vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify({
+            assets: url.includes("sort=best") ? [best, ASSET] : [ASSET, best],
+            jobs: [],
+            nextCursor: null,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const view = mount([ASSET, best], "");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue(
+      "newest",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Forward to ?sort=best
+    view.rerender(
+      <NuqsTestingAdapter hasMemory searchParams="?sort=best">
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("sort=best");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
+
+    // Back to default newest
+    view.rerender(
+      <NuqsTestingAdapter hasMemory searchParams="">
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[0]).not.toContain("sort=best");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue(
+      "newest",
+    );
+
+    // Forward back to ?sort=best
+    view.rerender(
+      <NuqsTestingAdapter hasMemory searchParams="?sort=best">
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET, best], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[2]?.[0]).toContain("sort=best");
+    expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
   });
 
   it("soft-hides an ad from the menu and keeps it out of the gallery", async () => {
