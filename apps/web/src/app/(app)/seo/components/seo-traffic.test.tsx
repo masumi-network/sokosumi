@@ -65,6 +65,7 @@ function renderTraffic(
           String(init?.body),
         );
         const site = scope === "site";
+        const noDays = Boolean(workspace.brandTerms?.includes("nodays"));
         const home = {
           url: "https://www.example.com/",
           clicks: 3,
@@ -88,17 +89,20 @@ function renderTraffic(
           to,
           limited: false,
           totals,
-          daily: [{ date: from, ...totals }],
+          // The term "nodays" stands for a report whose daily read failed.
+          ...(!noDays && { daily: [{ date: from, ...totals }] }),
           ...(workspace.brandTerms?.length && {
             brand: {
               limited: false,
-              daily: [
-                {
-                  date: from,
-                  branded: { clicks: 2, impressions: 20 },
-                  nonBranded: { clicks: 1, impressions: 10 },
-                },
-              ],
+              daily: noDays
+                ? []
+                : [
+                    {
+                      date: from,
+                      branded: { clicks: 2, impressions: 20 },
+                      nonBranded: { clicks: 1, impressions: 10 },
+                    },
+                  ],
             },
           }),
           pages: [
@@ -921,6 +925,14 @@ describe("SEO Traffic branded split", () => {
       "No query listed · Times shown",
     );
     expect(section.getByRole("table")).toHaveTextContent("60");
+  });
+
+  it("shows the split without a chart when no day has data", async () => {
+    renderTraffic(brandWorkspace(["nodays"]), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    expect(section.getByRole("button", { name: "Branded" })).toBeVisible();
+    expect(section.queryByRole("table")).toBeNull();
   });
 
   it("offers the site name as the first brand terms", async () => {

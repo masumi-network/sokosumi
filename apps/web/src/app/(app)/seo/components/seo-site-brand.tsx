@@ -39,6 +39,7 @@ export function SeoSiteBrand({
     return null;
   const split = terms.length ? seoSiteBrandSplit(report, metric) : null;
   const bucket = split?.points[chosen] ? chosen : "branded";
+  const points = split?.points[bucket] ?? [];
   const label = `${t(`siteTraffic.brandBuckets.${bucket}`)} · ${t(`siteTraffic.${metric}`)}`;
   return (
     <SeoSection title={t("traffic.brandSplit")}>
@@ -81,14 +82,21 @@ export function SeoSiteBrand({
               })}
             </dl>
             <p className="text-sm font-medium">{label}</p>
-            <SeoTrendChart
-              series={{ source: "search_console", key: metric }}
-              label={label}
-              points={split.points[bucket] ?? []}
-              unit="count"
-              unavailable={t("none")}
-              formatValue={(v) => format.number(v)}
-            />
+            {points.length ? (
+              <SeoTrendChart
+                series={{ source: "search_console", key: metric }}
+                label={label}
+                points={points}
+                unit="count"
+                unavailable={t("none")}
+                formatValue={(v) => format.number(v)}
+              />
+            ) : (
+              // No day totals and no listed query: the chart has no day to draw.
+              <p className="text-muted-foreground text-sm">
+                {t("overview.noDailyTrend")}
+              </p>
+            )}
             <p className="text-muted-foreground text-xs">
               {t(
                 split.limited
