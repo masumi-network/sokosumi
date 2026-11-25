@@ -268,17 +268,13 @@ jobs:
           PG_DUMP: docker exec postgres pg_dump
         run: packages/database/scripts/split-network-layout.sh "postgresql://user:password@localhost:5432/sokosumi"
 
-      - name: Prepare raw SQL on the split layout
+      # Every file not on the pending list, as `Test Core PostgreSQL` runs
+      # them: Vitest's exit code is the verdict.
+      - name: Test against PostgreSQL on the split layout
         env: &split-layout
           DATABASE_SCHEMA_SHARED: shared
           DATABASE_SCHEMA_MAINNET: mainnet
           DATABASE_SCHEMA_PREPROD: preprod
-        run: pnpm --filter @sokosumi/database exec tsx scripts/prepare-raw-sql.ts
-
-      # Every file not on the pending list, as `Test Core PostgreSQL` runs
-      # them: Vitest's exit code is the verdict.
-      - name: Test against PostgreSQL on the split layout
-        env: *split-layout
         run: |
           SPLIT_LAYOUT_RUN=must-pass RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
@@ -299,6 +295,11 @@ jobs:
             --passWithNoTests=false --reporter=default --reporter=json \
             --outputFile.json="$report" || true
           pnpm --filter core exec tsx scripts/split-layout-pending.mts "$report"
+
+      - name: Prepare raw SQL on the split layout
+        if: ${{ !cancelled() }}
+        env: *split-layout
+        run: pnpm --filter core exec tsx scripts/prepare-raw-sql.ts
 
   # One job for the same reason as `web`: the unit suite, behind the same
   # `Setup`. Its PostgreSQL suites, migrations and drift check run beside it
