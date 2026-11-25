@@ -287,12 +287,27 @@ describe("Sokosumi MCP server", () => {
       client.readResource({ uri: "ui://sokosumi/nope.00000000.html" }),
     ).rejects.toThrow("Unknown view: ui://sokosumi/nope.00000000.html");
 
-    // No UI tool in these toolsets, so no view either.
+    // Views ignore toolsets: a conversation still renders after they change.
     const vendors = await connect(auth, "?toolsets=vendors");
-    expect((await vendors.listResources()).resources).toEqual([]);
-    await expect(
-      vendors.readResource({ uri: MCP_UI.hello.uri }),
-    ).rejects.toThrow(`Unknown view: ${MCP_UI.hello.uri}`);
+    expect(
+      (await vendors.listTools()).tools.filter((tool) => tool._meta?.ui),
+    ).toEqual([]);
+    expect((await vendors.listResources()).resources).toEqual([
+      {
+        uri: MCP_UI.hello.uri,
+        name: "hello",
+        mimeType: "text/html;profile=mcp-app",
+      },
+    ]);
+    expect(
+      (await vendors.readResource({ uri: MCP_UI.hello.uri })).contents,
+    ).toEqual([
+      {
+        uri: MCP_UI.hello.uri,
+        mimeType: "text/html;profile=mcp-app",
+        text: MCP_UI.hello.html,
+      },
+    ]);
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {

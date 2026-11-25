@@ -56,7 +56,7 @@ export function instructions(toolsets: readonly string[]): string {
 /**
  * A fresh, stateless MCP server for one HTTP request, acting for `caller`,
  * with the tools in `toolsets` (`tools.ts`), the UI tools whose data twin is
- * among them (`ui-tools.ts`), and those UI tools' views as `ui://` resources.
+ * among them (`ui-tools.ts`), and every UI tool's view as a `ui://` resource.
  * Every tool call runs as a `/v1` request (`dispatch.ts`).
  */
 export function createSokosumiMcpServer(
@@ -69,6 +69,9 @@ export function createSokosumiMcpServer(
       capabilities: {
         tools: {},
         resources: {},
+        // MCP Apps 2026-01-26 defines extension settings (`mimeTypes`) only
+        // for the client ("Client (Host) Capabilities"); "Server Behavior"
+        // has the server read them and declare none. So: empty settings.
         extensions: { [UI_EXTENSION]: {} },
       },
       instructions: instructions(toolsets),
@@ -85,8 +88,11 @@ export function createSokosumiMcpServer(
       uiTools.set(row.name, { ...row, twin, view: MCP_UI[row.ui] });
     }
   }
+  // Every registered view, whatever the toolsets: the HTML is static and holds
+  // no data, and an older conversation still renders after the toolsets
+  // change (ADR 0083).
   const views = new Map<string, McpUiView>(
-    [...uiTools.values()].map(({ ui, view }) => [ui, view]),
+    MCP_UI_TOOLS.map(({ ui }) => [ui, MCP_UI[ui]]),
   );
 
   server.setRequestHandler("tools/list", () => ({
