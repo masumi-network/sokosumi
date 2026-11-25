@@ -168,3 +168,34 @@ it("says the trend in words, why a short check used one device and how many page
   ).toBeVisible();
   expect(document.querySelector("figure svg")).toBeNull();
 });
+
+it("says how many pages wait, and why, when the audit tested no page", () => {
+  const workspace = seoTestWorkspace();
+  const table = {
+    rows: [],
+    dropped: 0,
+    notChecked: { count: 4, reason: "quota" as const },
+    observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+    observedAt: new Date("2026-11-11T00:26:00Z"),
+  };
+  workspace.siteSpeed = table;
+  const view = render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoSiteSpeed workspace={workspace} />
+    </NextIntlClientProvider>,
+  );
+  expect(
+    screen.getByText(
+      `Pages not checked: 4. ${messages.App.Seo.siteSpeed.gap.quota}`,
+    ),
+  ).toBeVisible();
+  expect(screen.queryByRole("table")).toBeNull();
+  // No page and no count: the section says nothing.
+  workspace.siteSpeed = { ...table, notChecked: { count: 0, reason: "quota" } };
+  view.rerender(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoSiteSpeed workspace={{ ...workspace }} />
+    </NextIntlClientProvider>,
+  );
+  expect(view.container).toBeEmptyDOMElement();
+});

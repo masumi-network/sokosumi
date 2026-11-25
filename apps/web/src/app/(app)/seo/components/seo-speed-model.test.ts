@@ -4,6 +4,7 @@ import {
   seoDeviceVerdict,
   seoPageTrend,
   seoPageVerdict,
+  seoSpeedOutsideTable,
   seoVitalStatus,
   seoVitalTrend,
 } from "./seo-speed-model";
@@ -132,6 +133,32 @@ it("keeps the limit line inside the chart when every week is far under it", () =
   });
   expect(trend).toMatchObject({ chart: true, direction: "steady" });
   if (trend.chart) expect(trend.limit).toBeGreaterThan(0);
+});
+
+it("keeps each point at its height when the highest value is near the end of the number range", () => {
+  const trend = seoVitalTrend("lcp", {
+    status: "comparable",
+    weeks: weeks.slice(0, 2),
+    lcp: [100, 1.7e308],
+  });
+  if (!trend.chart) throw new Error("no chart");
+  expect(trend.points[0]?.y).toBeCloseTo(1);
+  expect(trend.points[1]?.y).toBeCloseTo(1 - 1 / 1.1);
+});
+
+it("keeps for the research panel the measurements that the speed table does not show", () => {
+  const on = (pageUrl: string, device: "mobile" | "desktop") =>
+    seoTestSpeedDevice({ pageUrl, testedUrl: pageUrl, device });
+  const audit = [
+    on("https://example.com/", "mobile"),
+    on("https://example.com/", "desktop"),
+    on("https://example.com/blog", "mobile"),
+  ];
+  // A reduced row shows one device; the blog page is not in the table.
+  const table = { rows: [{ devices: [audit[0]!] }] };
+  expect(seoSpeedOutsideTable(audit, table)).toEqual(audit.slice(1));
+  expect(seoSpeedOutsideTable(audit, null)).toEqual(audit);
+  expect(seoSpeedOutsideTable(undefined, table)).toBeUndefined();
 });
 
 it("calls a small change steady and a slower INP worse", () => {

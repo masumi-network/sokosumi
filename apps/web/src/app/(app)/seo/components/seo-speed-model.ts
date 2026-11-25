@@ -242,8 +242,9 @@ export function seoVitalTrend(
   if (!first || !last || measured.length < SEO_TREND_MIN_POINTS)
     return { chart: false, reason: "too_few" };
   const { good } = SEO_VITAL_LIMITS[metric];
-  const top =
-    Math.max(good, ...measured.map(({ value }) => value)) * SEO_TREND_HEADROOM;
+  // The share of the highest value comes first: a product with the headroom can leave the number range.
+  const top = Math.max(good, ...measured.map(({ value }) => value));
+  const height = (value: number) => 1 - value / top / SEO_TREND_HEADROOM;
   const change = last.value - first.value;
   const noise = Math.max(
     first.value * SEO_TREND_STEADY_SHARE,
@@ -257,12 +258,25 @@ export function seoVitalTrend(
     last,
     points: values.map((value, index) => ({
       x: weeks.length > 1 ? index / (weeks.length - 1) : 0,
-      y: value == null ? null : 1 - value / top,
+      y: value == null ? null : height(value),
       alone:
         value != null && values[index - 1] == null && values[index + 1] == null,
     })),
-    limit: 1 - good / top,
+    limit: height(good),
   };
+}
+
+/**
+ * The measurements of an audit that the site speed table does not show. The table shows a page and device
+ * once; a measured page that is not in the table keeps its place in the research panel.
+ */
+export function seoSpeedOutsideTable(
+  rows: SeoSpeedDevice[] | undefined,
+  table: { rows: { devices: SeoSpeedDevice[] }[] } | null | undefined,
+) {
+  const key = (row: SeoSpeedDevice) => `${row.device} ${row.pageUrl}`;
+  const shown = new Set(table?.rows.flatMap(({ devices }) => devices.map(key)));
+  return rows?.filter((row) => !shown.has(key(row)));
 }
 
 /** A page's trend in one word: one vital that gets slower on one device outweighs the ones that get faster. Null: no vital has a trend. */

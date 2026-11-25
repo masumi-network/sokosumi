@@ -45,7 +45,28 @@ export function SeoSiteSpeed({
   const [open, setOpen] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const speed = workspace.siteSpeed;
-  if (!speed?.rows.length) return null;
+  if (!speed) return null;
+  const header = {
+    lang: "en",
+    title: t("siteSpeed.title"),
+    description: t("siteSpeed.description"),
+    actions: (
+      <span className="text-muted-foreground text-xs">
+        {t("pageSpeed.date")} <SeoDate report day value={speed.observedAt} />
+      </span>
+    ),
+  };
+  const notChecked = speed.notChecked?.count ? (
+    <p className="text-muted-foreground px-2 text-sm">
+      {t("siteSpeed.notChecked", {
+        count: speed.notChecked.count,
+        reason: t(`siteSpeed.gap.${speed.notChecked.reason}`),
+      })}
+    </p>
+  ) : null;
+  // An audit that tested no page still says how many pages wait, and why.
+  if (!speed.rows.length)
+    return notChecked && <SeoSection {...header}>{notChecked}</SeoSection>;
   const rows = seoSiteSpeedRows(speed);
   const fold = seoFoldCount(rows.length);
   const site = seoSiteUrl(workspace);
@@ -56,16 +77,7 @@ export function SeoSiteSpeed({
   const percent = (share: number) =>
     format.number(share, { style: "percent", maximumFractionDigits: 0 });
   return (
-    <SeoSection
-      lang="en"
-      title={t("siteSpeed.title")}
-      description={t("siteSpeed.description")}
-      actions={
-        <span className="text-muted-foreground text-xs">
-          {t("pageSpeed.date")} <SeoDate report day value={speed.observedAt} />
-        </span>
-      }
-    >
+    <SeoSection {...header}>
       <div className={HOLDER_ITEM_CLASS}>
         <Table className={SEO_STACKED_TABLE_CLASS}>
           <TableHeader>
@@ -199,14 +211,7 @@ export function SeoSiteSpeed({
           </TableBody>
         </Table>
       </div>
-      {speed.notChecked?.count ? (
-        <p className="text-muted-foreground px-2 text-sm">
-          {t("siteSpeed.notChecked", {
-            count: speed.notChecked.count,
-            reason: t(`siteSpeed.gap.${speed.notChecked.reason}`),
-          })}
-        </p>
-      ) : null}
+      {notChecked}
       {rows.length > fold && (
         <SeoShowMore
           more={t("siteSpeed.showMore", { count: rows.length - fold })}

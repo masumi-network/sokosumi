@@ -141,3 +141,42 @@ it("leaves the page speed row out when the site speed table shows the pages", ()
   );
   expect(screen.queryByText("Page speed")).toBeNull();
 });
+
+it("keeps the page speed row for a measured page that the site speed table lacks", () => {
+  const workspace = seoTestWorkspace();
+  const pageUrl = workspace.pages[0].url;
+  const other = new URL("/other", pageUrl).href;
+  const device = seoTestSpeedDevice({ pageUrl, testedUrl: pageUrl });
+  const observation = {
+    ...seoTestObservation(workspace),
+    kind: "audit_full" as const,
+    pageSpeed: [
+      device,
+      seoTestSpeedDevice({ pageUrl: other, testedUrl: other }),
+    ],
+  };
+  workspace.observations = [observation];
+  workspace.siteSpeed = {
+    rows: [{ url: pageUrl, audited: true, devices: [device] }],
+    dropped: 0,
+    observationId: observation.id,
+    observedAt: observation.observedAt,
+  };
+  const view = render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoAuditResearch workspace={workspace} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Page speed")).toBeVisible();
+  expect(view.container.textContent).toContain("/other");
+  // The table of another audit shows none of this audit's measurements.
+  workspace.siteSpeed.observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
+  view.rerender(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoAuditResearch workspace={{ ...workspace }} />
+    </NextIntlClientProvider>,
+  );
+  expect(
+    screen.getByText("2 pages", { selector: "summary span" }),
+  ).toBeVisible();
+});

@@ -18,6 +18,7 @@ import {
   SeoSection,
 } from "./seo-shared";
 import { SeoSiteEvidence } from "./seo-site-evidence";
+import { seoSpeedOutsideTable } from "./seo-speed-model";
 import { lastAuditResearch } from "./seo-summary-model";
 
 function ResearchRow({
@@ -64,8 +65,13 @@ export function SeoAuditResearch({
   const audit = lastAuditResearch(workspace);
   const research = audit?.checklistBreakdown?.research;
   const full = workspace.observations.find((row) => row.kind === "audit_full");
-  // The site speed table on Overview shows the same pages; the row stays for an audit without the table.
-  const speed = workspace.siteSpeed?.rows.length ? undefined : full?.pageSpeed;
+  // The site speed table on Overview shows its pages; the row keeps each measurement of the audit that the table lacks.
+  const speed = seoSpeedOutsideTable(
+    full?.pageSpeed,
+    workspace.siteSpeed?.observationId === full?.id
+      ? workspace.siteSpeed
+      : null,
+  );
   const site = workspace.siteEvidence;
   const consoleItems = discovery
     ? discovery.actions.length + discovery.changes.length
