@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../cookie-consent.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../public/cookie-consent.js', import.meta.url), 'utf8');
 const key = 'cmo-cookie-consent-v1';
 function browser({ choice, age = 0, gpc = false, analytics = 'G-TEST', geo = { consentRequired: true } } = {}) {
   const nodes = [];

@@ -1,4 +1,4 @@
-"""Builds assets/cuso/poses.svg, the hero's animated Cuso, from the brand guide's 2D SVGs.
+"""Builds public/assets/cuso/poses.svg, the hero's animated Cuso, from the brand guide's 2D SVGs.
 
 Run once when the brand guide's poses change:
 
@@ -113,7 +113,7 @@ def main() -> None:
         f'<svg data-pose="{k}" width="100" height="100" viewBox="{box(*m)}" overflow="visible" visibility="hidden">{body}</svg>'
         for k, (m, body) in poses.items()
     )
-    out = Path(__file__).resolve().parent.parent / "assets/cuso/poses.svg"
+    out = Path(__file__).resolve().parent.parent / "public/assets/cuso/poses.svg"
     out.write_text(rounded(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">{nested}</svg>\n'))
     logging.info("wrote %s (%d KB)", out, out.stat().st_size // 1024)
 

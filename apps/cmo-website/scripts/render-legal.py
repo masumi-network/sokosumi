@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SITE = ROOT / 'public'
 PAGES = ('terms', 'privacy', 'imprint', 'dpa')
 COMPANY = json.loads((ROOT / 'legal' / 'company.json').read_text())
 
@@ -68,7 +69,7 @@ def render(source: str) -> tuple[str, str, str]:
 
 def page(name: str) -> str:
     title, content, contents = render(resolve((ROOT / 'legal' / f'{name}.md').read_text()))
-    home = (ROOT / 'index.html').read_text()
+    home = (SITE / 'index.html').read_text()
     footer = re.search(r'  <footer\b.*?</footer>', home, re.S).group()
     footer = footer.replace('href="#', 'href="/#')
     return f'''<!DOCTYPE html>
@@ -120,7 +121,7 @@ def main() -> None:
     assert '<a ' not in inline('[bad](javascript:alert)')
     assert '[LEGAL EMAIL]' in inline('[LEGAL EMAIL]')
     for name in PAGES:
-        target = ROOT / name / 'index.html'
+        target = SITE / name / 'index.html'
         output = page(name)
         if args.check:
             if not target.exists() or target.read_text() != output:
