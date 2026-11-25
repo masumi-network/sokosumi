@@ -1969,6 +1969,25 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-weekly-review-last-week",
+    title: "Measures last week, not next month's drafts",
+    intent:
+      "The Monday review reads the week before today: it asks for statistics of exactly those seven days and never treats drafts dated next month as last week's posts.",
+    // Core sends the weekly review rhythm's own prompt and packet.
+    prompt: "Weekly marketing review (the rhythm's prompt and packet).",
+    rubric:
+      "The packet names today and last week's seven days and lists the three X posts published in them, whose statistics X returned this morning (1,840, 960 and 2,310 impressions); four drafts are dated next month. Cuso measures those three posts: list_social_post_statistics (or get_social_post) for last week's range only, and reports only numbers a source returned. He files report_update kind weekly with a verdict (hold is fine with three posts) and changes nothing he cannot justify. Treating next month's drafts as last week, a range outside last week, saying last week's posts have no numbers or blaming the X connection for them, or an invented number fails. Account-level history needs a live connector the eval does not have; noting that it is unavailable is fine.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE"],
+      tools: ["report_update"],
+      anyTools: ["list_social_post_statistics", "get_social_post"],
+      forbiddenTools: ["publish_social_post", "create_task"],
+      // The eval Project connects no analytics, so looking for them fails.
+      allowFailedTools: ["list_integration_tools"],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "cmo-competitor-feed",
     title: "Writes the competitor feed from stored signals only",
     intent:

@@ -70,6 +70,11 @@ import {
 } from "./eval-cmo-runner";
 import { cmoSeoReportChecks, isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
+import {
+  CMO_WEEKLY_REVIEW_CASE_ID,
+  cmoWeeklyReviewMessage,
+  weeklyReviewChecks,
+} from "./eval-cmo-weekly-review";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
@@ -257,7 +262,10 @@ async function startScenario(
               workspaceId: lane.workspaceId,
               sokoBotId,
               clientTurnId,
-              message: scenario.prompt,
+              message:
+                prepare === "cmo-weekly-review"
+                  ? await cmoWeeklyReviewMessage(lane)
+                  : scenario.prompt,
             })
           ).turnId
       : await startLabScenarioTurn(
@@ -354,6 +362,16 @@ async function pollScenario(
   }
   if (scenario.id === CMO_ADS_CASE_ID) {
     const extra = await adsChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_WEEKLY_REVIEW_CASE_ID) {
+    const extra = weeklyReviewChecks(
+      turn.toolCalls,
+      turn.finalAnswer ?? "",
+      context.startedAt,
+    );
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

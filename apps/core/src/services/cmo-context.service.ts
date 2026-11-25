@@ -589,6 +589,24 @@ export function draftHorizon(now: Date): string {
   return new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
 }
 
+function day(at: Date, offset = 0): string {
+  return new Date(at.getTime() + offset * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * The seven days before today (Monday to Sunday on the review's Monday), and
+ * the day after, for an exclusive bound.
+ */
+export function cmoLastWeek(now: Date): {
+  from: string;
+  to: string;
+  until: string;
+} {
+  return { from: day(now, -7), to: day(now, -1), until: day(now) };
+}
+
 /** The packet appended to a CMO rhythm's prompt. */
 export async function buildCmoBeatPacket(
   sokoBotId: string,
@@ -619,14 +637,28 @@ export async function buildCmoBeatPacket(
   const onDemand = cmoReadsOnDemand(
     getSokoBotVersion(sources.versionId).skills,
   );
+  // The weekly review measures the seven days before today, and only what
+  // went out in them: listed by change date, December's drafts looked like
+  // last week to entry.fyi's review of 23 November.
+  const lastWeek = key === "cmo-weekly-review" ? cmoLastWeek(now) : null;
   const posts = cuso
     ? await prisma.socialPost.findMany({
         where: {
           projectId: cuso.projectId,
-          updatedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) },
+          ...(lastWeek
+            ? {
+                status: "PUBLISHED",
+                publishedAt: {
+                  gte: new Date(`${lastWeek.from}T00:00:00Z`),
+                  lt: new Date(`${lastWeek.until}T00:00:00Z`),
+                },
+              }
+            : {
+                updatedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) },
+              }),
         },
-        orderBy: { updatedAt: "desc" },
-        take: 20,
+        orderBy: lastWeek ? { publishedAt: "asc" } : { updatedAt: "desc" },
+        take: lastWeek ? 100 : 20,
         select: {
           id: true,
           provider: true,
@@ -654,7 +686,13 @@ export async function buildCmoBeatPacket(
       ? "## Brand Brain and strategy: workspace.marketing in your context holds the core, its map and what this run needs. Read the rest with read_calendar, read_strategy, read_brand_brain and read_report."
       : "## Brand Brain and strategy: workspace.marketing in your context. Its calendar is the next 31 days; entries outside that window stay when you save_strategy.",
     "",
-    "## Social posts, last 14 days",
+    ...(lastWeek
+      ? [
+          `## Today: ${day(now)}. Last week: ${lastWeek.from} to ${lastWeek.to}. Measure only these seven days: ask every source (list_social_post_statistics, analytics, Search Console) for exactly this range.`,
+          "",
+          `## Social posts published last week (${lastWeek.from} to ${lastWeek.to})`,
+        ]
+      : ["## Social posts, last 14 days"]),
     ...(posts.length
       ? posts.map(
           (post) =>

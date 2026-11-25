@@ -78,6 +78,7 @@ import {
   startCmoMonthCalendarCase,
 } from "./eval-cmo-month-calendar";
 import { clearCmoSeoReport, prepareCmoSeoReport } from "./eval-cmo-seo-report";
+import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -555,6 +556,10 @@ export async function prepareCmoChatCase(
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup === "cmo-report") {
     await seedCmoReports(lane);
+    return {};
+  }
+  if (setup === "cmo-weekly-review") {
+    await prepareCmoWeeklyReview(lane);
     return {};
   }
   if (
