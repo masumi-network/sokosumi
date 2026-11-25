@@ -27,8 +27,11 @@ const Job = z.object({ data: z.object({ id: z.string() }) });
 const Refusal = z.object({ message: z.string() });
 
 /**
- * Core's smallest credit unit (1/10^10 credit). A free agent's hire is capped
- * here, since Core needs a positive `maxCredits`: any real price fails.
+ * The cap for a free agent's hire: Core's smallest credit unit (10^-10 credit,
+ * one billing cent). Core rejects `maxCredits: 0` (`createJobRequestSchema`
+ * has `.positive()`, and `createAgentJobForUser` reads 0 as "no cap"), so a
+ * free hire sends this instead, and a price that appeared after the confirm
+ * fails with "Credit cost exceeds maximum accepted credits".
  */
 const SMALLEST_CREDIT = 1e-10;
 
