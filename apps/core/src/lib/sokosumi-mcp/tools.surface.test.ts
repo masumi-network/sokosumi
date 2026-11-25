@@ -789,6 +789,139 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
       csv: "URL\nhttps://example.com/",
     },
   },
+  // SOKD-375: Drive
+  drive_search: { scope: "me", q: "pricing", limit: 10 },
+  drive_files: { scope: "org", organizationId: "org-1", folder: "reports" },
+  drive_recents: { scope: "me" },
+  drive_get: { id: "file-1", scope: "me" },
+  drive_related: { id: "file-1", scope: "me" },
+  drive_folders: { scope: "me" },
+  drive_create_folder: { body: { scope: "me", folderPath: "reports/2026" } },
+  drive_rename_folder: {
+    body: {
+      scope: "me",
+      oldFolderPath: "reports",
+      newFolderPath: "archive/reports",
+    },
+  },
+  drive_delete_folder: { body: { scope: "me", folderPath: "drafts" } },
+  drive_move: {
+    body: {
+      scope: "me",
+      sourcePathname: "notes.pdf",
+      targetFolderPath: "reports",
+      itemType: "file",
+    },
+  },
+  drive_rename: {
+    body: { oldPathname: "users/u/notes.pdf", newFilename: "minutes.pdf" },
+  },
+  drive_delete: { body: { pathname: "users/u/notes.pdf" } },
+  drive_update_metadata: {
+    id: "file-1",
+    scope: "me",
+    body: { expectedMetadataRevision: 3, addTagLabelIds: ["label-1"] },
+  },
+  drive_decide_suggestion: {
+    id: "file-1",
+    suggestionId: "suggestion-1",
+    scope: "me",
+    body: { decision: "accept", expectedMetadataRevision: 3 },
+  },
+  drive_select: { body: { scope: "me", windowCursor: "cursor-1" } },
+  drive_update_metadata_batch: {
+    body: {
+      scope: "me",
+      selectionToken: "token-1",
+      idempotencyKey: "tag-contracts-1",
+      addTagLabelIds: ["label-1"],
+    },
+  },
+  drive_reindex: { id: "file-1", scope: "me" },
+  drive_add_google_sheet: {
+    body: {
+      scope: "me",
+      url: "https://docs.google.com/spreadsheets/d/abc/edit",
+    },
+  },
+  drive_google_sheet: { id: "file-1", scope: "me" },
+  drive_refresh_google_sheet: { id: "file-1", scope: "me" },
+  drive_tasks: { scope: "me", taskId: "task-1" },
+  drive_copy_task_file: { body: { scope: "me", taskFileId: "task-file-1" } },
+  drive_labels: { scope: "me", kind: "TAG" },
+  drive_create_label: {
+    body: { scope: "me", kind: "TAG", displayName: "Contracts" },
+  },
+  drive_update_label: {
+    id: "label-1",
+    body: { scope: "me", displayName: "Signed contracts" },
+  },
+  drive_collections: { scope: "me" },
+  drive_create_collection: {
+    body: { scope: "me", name: "Contracts", definition: { q: "contract" } },
+  },
+  drive_update_collection: {
+    id: "collection-1",
+    body: { scope: "me", name: "Signed contracts" },
+  },
+  drive_delete_collection: { id: "collection-1", scope: "me" },
+  drive_share: { scope: "me", resourceId: "file-1" },
+  drive_unshare: { id: "share-1", scope: "me" },
+  drive_tables: { workspace: "acme", search: "leads" },
+  drive_create_table: {
+    workspace: "acme",
+    body: {
+      key: "create-leads-1",
+      title: "Leads",
+      columns: [{ name: "Company", type: "text" }],
+    },
+  },
+  drive_table: { id: "table-1" },
+  drive_update_table: {
+    id: "table-1",
+    body: { key: "rename-1", version: 2, title: "Qualified leads" },
+  },
+  drive_query_table: { id: "table-1", body: { limit: 50 } },
+  drive_edit_rows: {
+    id: "table-1",
+    body: { key: "rows-1", insert: [{ cells: {} }] },
+  },
+  drive_save_view: {
+    id: "table-1",
+    body: { key: "view-1", name: "Open", definition: {} },
+  },
+  drive_undo_table: {
+    id: "table-1",
+    body: { key: "undo-1", batchId: "batch-1" },
+  },
+  drive_table_history: { id: "table-1", limit: 20 },
+  drive_enrich_table: {
+    id: "table-1",
+    body: {
+      key: "enrich-1",
+      prompt: "Find each company's website",
+      rowIds: ["row-1"],
+      columnIds: ["column-1"],
+      assigneeId: "cw-1",
+    },
+  },
+  drive_data_rooms: { scope: "org", organizationId: "org-1" },
+  drive_create_data_room: { body: { scope: "me", folderPath: "deal" } },
+  drive_open_questions: { scope: "me" },
+  drive_data_room: { id: "room-1", scope: "me" },
+  drive_close_data_room: { id: "room-1", scope: "me" },
+  drive_remove_data_room_member: {
+    id: "room-1",
+    memberId: "member-1",
+    scope: "me",
+  },
+  drive_data_room_events: { id: "room-1", scope: "me" },
+  drive_data_room_questions: { id: "room-1", scope: "me" },
+  drive_order_data_room: { id: "room-1", body: { scope: "me", entries: [] } },
+  drive_set_data_room_colleagues: {
+    id: "room-1",
+    body: { scope: "org", organizationId: "org-1", userIds: ["user-2"] },
+  },
 };
 
 const CORE = "https://core.example.test";

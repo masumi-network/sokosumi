@@ -143,8 +143,14 @@ describe("Sokosumi MCP server", () => {
       ),
     );
 
+    const drive = await connect(auth, "?toolsets=drive");
+    expect(drive.instructions).toContain(
+      "Drive tools other than tables take `scope`",
+    );
+
     const client = await connect(auth, "?toolsets=tasks");
     expect(client.instructions).toContain("Toolsets on: tasks.");
+    expect(client.instructions).not.toContain("Drive tools");
     expect(client.instructions).toContain(
       "Other tasks tools take a Task's `id`",
     );
