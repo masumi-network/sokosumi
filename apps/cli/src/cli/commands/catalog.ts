@@ -2443,6 +2443,307 @@ export const CLI_COMMAND_CATALOG = [
     usage: "",
     operation: "GET /chats/stickers",
   },
+  // SOKD-377 soko-bots
+  {
+    command: "soko-bots me",
+    usage: "",
+    operation: "GET /soko-bots/me",
+  },
+  {
+    command: "soko-bots create-mine",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me",
+  },
+  {
+    command: "soko-bots archive-mine",
+    usage: "",
+    operation: "DELETE /soko-bots/me",
+  },
+  {
+    command: "soko-bots delete-mine",
+    usage: "",
+    operation: "DELETE /soko-bots/me/permanent",
+  },
+  {
+    command: "soko-bots my-activity",
+    usage: "",
+    operation: "GET /soko-bots/me/activity",
+  },
+  {
+    command: "soko-bots my-usage",
+    usage: "",
+    operation: "GET /soko-bots/me/usage",
+  },
+  {
+    command: "soko-bots my-stats",
+    usage: "",
+    operation: "GET /soko-bots/me/stats",
+  },
+  {
+    command: "soko-bots my-turns",
+    usage: "",
+    operation: "GET /soko-bots/me/turns",
+  },
+  {
+    command: "soko-bots ask-mine",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/turns",
+  },
+  {
+    command: "soko-bots my-turn",
+    usage: "TURN_ID",
+    operation: "GET /soko-bots/me/turns/{turnId}",
+  },
+  {
+    command: "soko-bots my-turn-results",
+    usage: "TURN_ID",
+    operation: "GET /soko-bots/me/turns/{turnId}/results",
+  },
+  {
+    command: "soko-bots my-turn-conversation",
+    usage: "TURN_ID",
+    operation: "GET /soko-bots/me/turns/{id}/conversation",
+  },
+  {
+    command: "soko-bots cancel-my-turn",
+    usage: "TURN_ID",
+    operation: "POST /soko-bots/me/turns/{turnId}/cancel",
+    noBody: true,
+  },
+  {
+    command: "soko-bots rate-my-turn",
+    usage: "TURN_ID --input-json JSON",
+    operation: "POST /soko-bots/me/turns/{id}/feedback",
+  },
+  {
+    command: "soko-bots reset-my-memory",
+    usage: "",
+    operation: "POST /soko-bots/me/memory/reset",
+    noBody: true,
+  },
+  {
+    command: "soko-bots create-my-schedule",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/schedules",
+  },
+  {
+    command: "soko-bots update-my-schedule",
+    usage: "SCHEDULE_ID --input-json JSON",
+    operation: "PATCH /soko-bots/me/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots delete-my-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "DELETE /soko-bots/me/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots introduce-mine",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/introduce",
+  },
+  {
+    command: "soko-bots rename-mine",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/name",
+  },
+  {
+    command: "soko-bots set-my-avatar",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/avatar-code",
+  },
+  {
+    command: "soko-bots set-my-version",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/version",
+  },
+  {
+    command: "soko-bots set-my-proactive",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/proactive",
+  },
+  {
+    command: "soko-bots set-my-board-following",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/board-following",
+  },
+  {
+    command: "soko-bots set-my-team-standup",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/team-standup",
+  },
+  {
+    command: "soko-bots my-skills",
+    usage: "",
+    operation: "GET /soko-bots/me/skills",
+  },
+  {
+    command: "soko-bots install-my-skill",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/skills",
+  },
+  {
+    command: "soko-bots remove-my-skill",
+    usage: "SKILL_ID",
+    operation: "DELETE /soko-bots/me/skills/{skillId}",
+  },
+  {
+    command: "soko-bots lab-ingest",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/lab/ingest",
+  },
+  {
+    command: "soko-bots lab-task-event",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/lab/task-event",
+  },
+  {
+    command: "soko-bots lab-runs",
+    usage: "",
+    operation: "GET /soko-bots/me/lab/runs",
+  },
+  {
+    command: "soko-bots lab-judge",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/lab/judge",
+  },
+  {
+    command: "soko-bots versions",
+    usage: "",
+    operation: "GET /soko-bots/versions",
+  },
+  {
+    command: "soko-bots team",
+    usage: "",
+    operation: "GET /soko-bots/team",
+  },
+  {
+    command: "soko-bots search-skills",
+    usage: "--query q=TEXT",
+    operation: "GET /soko-bots/skills/search",
+  },
+  {
+    command: "soko-bots browse-skills",
+    usage: "",
+    operation: "GET /soko-bots/skills/browse",
+  },
+  {
+    command: "soko-bots create",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots",
+  },
+  {
+    command: "soko-bots get",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}",
+  },
+  {
+    command: "soko-bots reactivate",
+    usage: "SOKO_BOT_ID",
+    operation: "POST /soko-bots/{sokoBotId}",
+    noBody: true,
+  },
+  {
+    command: "soko-bots archive",
+    usage: "SOKO_BOT_ID",
+    operation: "DELETE /soko-bots/{sokoBotId}",
+  },
+  {
+    command: "soko-bots delete",
+    usage: "SOKO_BOT_ID",
+    operation: "DELETE /soko-bots/{sokoBotId}/permanent",
+  },
+  {
+    command: "soko-bots activity",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/activity",
+  },
+  {
+    command: "soko-bots usage",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/usage",
+  },
+  {
+    command: "soko-bots stats",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/stats",
+  },
+  {
+    command: "soko-bots turns",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/turns",
+  },
+  {
+    command: "soko-bots ask",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "POST /soko-bots/{sokoBotId}/turns",
+  },
+  {
+    command: "soko-bots turn",
+    usage: "SOKO_BOT_ID TURN_ID",
+    operation: "GET /soko-bots/{sokoBotId}/turns/{turnId}",
+  },
+  {
+    command: "soko-bots turn-results",
+    usage: "SOKO_BOT_ID TURN_ID",
+    operation: "GET /soko-bots/{sokoBotId}/turns/{turnId}/results",
+  },
+  {
+    command: "soko-bots cancel-turn",
+    usage: "SOKO_BOT_ID TURN_ID",
+    operation: "POST /soko-bots/{sokoBotId}/turns/{turnId}/cancel",
+    noBody: true,
+  },
+  {
+    command: "soko-bots reset-memory",
+    usage: "SOKO_BOT_ID",
+    operation: "POST /soko-bots/{sokoBotId}/memory/reset",
+    noBody: true,
+  },
+  {
+    command: "soko-bots create-schedule",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "POST /soko-bots/{sokoBotId}/schedules",
+  },
+  {
+    command: "soko-bots update-schedule",
+    usage: "SOKO_BOT_ID SCHEDULE_ID --input-json JSON",
+    operation: "PATCH /soko-bots/{sokoBotId}/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots delete-schedule",
+    usage: "SOKO_BOT_ID SCHEDULE_ID",
+    operation: "DELETE /soko-bots/{sokoBotId}/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots rename",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/name",
+  },
+  {
+    command: "soko-bots set-avatar",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/avatar-code",
+  },
+  {
+    command: "soko-bots set-version",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/version",
+  },
+  {
+    command: "soko-bots set-proactive",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/proactive",
+  },
+  {
+    command: "soko-bots set-board-following",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/board-following",
+  },
+  {
+    command: "soko-bots set-team-standup",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/team-standup",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

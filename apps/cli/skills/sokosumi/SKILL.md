@@ -471,6 +471,22 @@ sokosumi chats mark-read ROOM_ID
 
 Over MCP, the chat tools are in the `chats` toolset, off by default: add `?toolsets=workspaces,tasks,coworkers,chats`. `chats_send` and `chats_retry_mention` are marked as spending credits. Deleting a Channel, inviting a guest, invite links and file uploads are CLI-only; archiving stays on MCP. Stickers, voice transcription, the live reply stream and the Elsewhere list stay in Sokosumi Web.
 
+## Soko Bots
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/soko-bots.json`] Every `soko-bots` command calls one Core operation, like `jobs events`. `soko-bots me` and the `my-` commands act on your personal Soko Bot in the selected Workspace; the others take a `SOKO_BOT_ID` from `soko-bots team`, shared bots included.
+
+```sh
+sokosumi soko-bots me --organization-slug WORKSPACE_SLUG
+sokosumi soko-bots team --organization-slug WORKSPACE_SLUG
+sokosumi soko-bots ask-mine --input-json '{"clientTurnId":"brief-1","message":"What is due this week?"}'
+sokosumi soko-bots my-turn TURN_ID
+sokosumi soko-bots ask SOKO_BOT_ID --input-json '{"clientTurnId":"brief-2","message":"Summarize the board"}'
+```
+
+A turn runs in the background: read it with `my-turn` or `turn` until it settles. Reusing a `clientTurnId` returns the same turn instead of starting another. Asking, schedules, the Lab rhythms and turning on proactive work, board-following or the stand-up spend workspace credits: confirm with the person first. `reset-my-memory` and `reset-memory` erase what the bot remembers, and `delete-mine` and `delete` erase the bot. Every write is a mainnet write and needs the operator `yes` above.
+
+Over MCP, the Soko Bot tools are in the `soko-bots` toolset, off by default: add `?toolsets=workspaces,tasks,coworkers,soko-bots`. Tools that spend credits are marked so the client asks first. Permanent deletion is CLI-only. A person resolves a bot's pending decisions, connects integrations and manages its API keys, secrets, sandbox and MCP servers in Sokosumi Web.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:

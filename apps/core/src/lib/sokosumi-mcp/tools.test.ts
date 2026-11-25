@@ -41,6 +41,7 @@ describe("toolsetOf", () => {
 
   it("keeps a hyphenated route group whole", () => {
     expect(toolsetOf("image_studio_catalog")).toBe("image-studio");
+    expect(toolsetOf("soko_bots_ask")).toBe("soko-bots");
   });
 });
 

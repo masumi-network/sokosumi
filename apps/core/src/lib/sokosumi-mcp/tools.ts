@@ -2839,10 +2839,358 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "GET /chats/stickers",
     description: "List your saved stickers.",
   },
+  // SOKD-377 soko-bots
+  {
+    name: "soko_bots_me",
+    operation: "GET /soko-bots/me",
+    description:
+      "Get your personal Soko Bot in the workspace, with its name, version and settings.",
+  },
+  {
+    name: "soko_bots_create_mine",
+    operation: "POST /soko-bots/me",
+    description:
+      "Create or reactivate your personal Soko Bot in the workspace: `body.name`, optional `body.timezone` and personality sliders.",
+  },
+  {
+    name: "soko_bots_archive_mine",
+    operation: "DELETE /soko-bots/me",
+    description:
+      "Archive your personal Soko Bot. soko_bots_create_mine brings it back with its memory.",
+  },
+  {
+    name: "soko_bots_my_activity",
+    operation: "GET /soko-bots/me/activity",
+    description: "List what your personal Soko Bot did recently.",
+  },
+  {
+    name: "soko_bots_my_usage",
+    operation: "GET /soko-bots/me/usage",
+    description:
+      "Get the credits your personal Soko Bot used and its daily limit.",
+  },
+  {
+    name: "soko_bots_my_stats",
+    operation: "GET /soko-bots/me/stats",
+    description: "Get your personal Soko Bot's turn counts and ratings.",
+  },
+  {
+    name: "soko_bots_my_turns",
+    operation: "GET /soko-bots/me/turns",
+    description:
+      "List your personal Soko Bot's turns, newest first. Page with `cursor`.",
+  },
+  {
+    name: "soko_bots_ask_mine",
+    operation: "POST /soko-bots/me/turns",
+    description:
+      "Spends workspace credits. Ask your personal Soko Bot as you: `body.message` and a fresh `body.clientTurnId` (any unique string; resending one returns the same turn). The turn runs in the background; read it with the turn tool until it settles. Confirm the question with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_my_turn",
+    operation: "GET /soko-bots/me/turns/{turnId}",
+    description:
+      "Get one turn of your personal Soko Bot: its status and answer.",
+  },
+  {
+    name: "soko_bots_my_turn_results",
+    operation: "GET /soko-bots/me/turns/{turnId}/results",
+    description:
+      "Get the result cards (Tasks, Jobs, files) a turn of your personal Soko Bot produced.",
+  },
+  {
+    name: "soko_bots_my_turn_conversation",
+    operation: "GET /soko-bots/me/turns/{id}/conversation",
+    description:
+      "Get how your personal Soko Bot reached an answer: the turn, its follow-ups, whom it asked, and each step's model, cost and time.",
+  },
+  {
+    name: "soko_bots_cancel_my_turn",
+    operation: "POST /soko-bots/me/turns/{turnId}/cancel",
+    description: "Stop a running turn of your personal Soko Bot.",
+  },
+  {
+    name: "soko_bots_rate_my_turn",
+    operation: "POST /soko-bots/me/turns/{id}/feedback",
+    description:
+      "Tell your personal Soko Bot whether a turn was useful: `body.useful`.",
+  },
+  {
+    name: "soko_bots_reset_my_memory",
+    operation: "POST /soko-bots/me/memory/reset",
+    description:
+      "Erase everything your personal Soko Bot remembers. This cannot be undone; confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_create_my_schedule",
+    operation: "POST /soko-bots/me/schedules",
+    description:
+      "Spends workspace credits. Schedule a recurring prompt for your personal Soko Bot: `body.name`, `body.prompt`, `body.cronExpression` and `body.timezone`. Each run is a paid turn. Confirm the prompt and the times with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_update_my_schedule",
+    operation: "PATCH /soko-bots/me/schedules/{scheduleId}",
+    description:
+      "Change a schedule of your personal Soko Bot: `body.name`, `prompt`, `cronExpression`, `timezone` or `enabled`, or skip, move or restore one run with `body.run`. Only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_delete_my_schedule",
+    operation: "DELETE /soko-bots/me/schedules/{scheduleId}",
+    description: "Delete a schedule of your personal Soko Bot.",
+  },
+  {
+    name: "soko_bots_introduce_mine",
+    operation: "POST /soko-bots/me/introduce",
+    description:
+      "Have your personal Soko Bot post its introduction into its Direct with you, once: `body.roomId`. No turn runs.",
+  },
+  {
+    name: "soko_bots_rename_mine",
+    operation: "PUT /soko-bots/me/name",
+    description: "Rename your personal Soko Bot: `body.name`.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_set_my_avatar",
+    operation: "PUT /soko-bots/me/avatar-code",
+    description:
+      "Set your personal Soko Bot's avatar from its code: `body.code`.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_set_my_version",
+    operation: "PUT /soko-bots/me/version",
+    description:
+      "Move your personal Soko Bot to another version: `body.versionId` from soko_bots_versions.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_set_my_proactive",
+    operation: "PUT /soko-bots/me/proactive",
+    description:
+      "Spends workspace credits. Set your personal Soko Bot's unprompted work: `body.paused`, `body.dailyLimit` (turns a day), `body.timezone`, `body.mailAutoRead`. Unpaused, the bot starts paid turns on its own. Confirm with the person before unpausing or raising the limit.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_set_my_board_following",
+    operation: "PUT /soko-bots/me/board-following",
+    description:
+      "Spends workspace credits. Turn following the Task board on or off for your personal Soko Bot (`body.enabled`). While on, the bot starts paid turns on its own. Confirm with the person before turning it on.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_set_my_team_standup",
+    operation: "PUT /soko-bots/me/team-standup",
+    description:
+      "Spends workspace credits. Turn the team stand-up on or off for your personal Soko Bot (`body.enabled`). While on, the bot starts paid turns on its own. Confirm with the person before turning it on.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_my_skills",
+    operation: "GET /soko-bots/me/skills",
+    description: "List the skills installed on your personal Soko Bot.",
+  },
+  {
+    name: "soko_bots_install_my_skill",
+    operation: "POST /soko-bots/me/skills",
+    description:
+      "Install a skill on your personal Soko Bot: `body.source` from soko_bots_search_skills, and `body.skillName` when the source holds several.",
+  },
+  {
+    name: "soko_bots_remove_my_skill",
+    operation: "DELETE /soko-bots/me/skills/{skillId}",
+    description: "Remove a skill from your personal Soko Bot.",
+  },
+  {
+    name: "soko_bots_lab_ingest",
+    operation: "POST /soko-bots/me/lab/ingest",
+    description:
+      "Spends workspace credits. Run one of your personal Soko Bot's proactive rhythms now as a real turn: `body.beat` is `standup`, `weekly-wrap` or `delta`. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_lab_task_event",
+    operation: "POST /soko-bots/me/lab/task-event",
+    description:
+      "Spends workspace credits. Show your personal Soko Bot a Task event as a real turn: `body.status` (`INPUT_REQUIRED`, `FAILED` or `COMPLETED`), `body.comment` and optional `body.taskId`. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_lab_runs",
+    operation: "GET /soko-bots/me/lab/runs",
+    description:
+      "List your personal Soko Bot's Lab runs with their judge scores. Filter by `versionId`.",
+  },
+  {
+    name: "soko_bots_lab_judge",
+    operation: "POST /soko-bots/me/lab/judge",
+    description:
+      "Grade a Lab turn of your personal Soko Bot against its scenario: `body.turnId` and `body.scenarioId`.",
+  },
+  {
+    name: "soko_bots_versions",
+    operation: "GET /soko-bots/versions",
+    description: "List the Soko Bot versions you can pick.",
+  },
+  {
+    name: "soko_bots_team",
+    operation: "GET /soko-bots/team",
+    description:
+      "List the Soko Bots in the workspace you can reach: yours and the shared ones.",
+  },
+  {
+    name: "soko_bots_search_skills",
+    operation: "GET /soko-bots/skills/search",
+    description: "Search the skills a Soko Bot can install.",
+  },
+  {
+    name: "soko_bots_browse_skills",
+    operation: "GET /soko-bots/skills/browse",
+    description:
+      "Browse the skills a Soko Bot can install, page by page (`page`).",
+  },
+  {
+    name: "soko_bots_create",
+    operation: "POST /soko-bots",
+    description:
+      "Create a Soko Bot: `body.scope` `personal` (yours), `project` (with `body.projectId`) or `workspace` (shared by every member), and `body.name`.",
+  },
+  {
+    name: "soko_bots_get",
+    operation: "GET /soko-bots/{sokoBotId}",
+    description:
+      "Get a Soko Bot you reach, with its scope, version and settings. Ids from soko_bots_team.",
+  },
+  {
+    name: "soko_bots_reactivate",
+    operation: "POST /soko-bots/{sokoBotId}",
+    description:
+      "Reactivate an archived shared Soko Bot. Organization owner or admin only.",
+  },
+  {
+    name: "soko_bots_archive",
+    operation: "DELETE /soko-bots/{sokoBotId}",
+    description:
+      "Archive a Soko Bot. soko_bots_reactivate brings a shared one back.",
+  },
+  {
+    name: "soko_bots_activity",
+    operation: "GET /soko-bots/{sokoBotId}/activity",
+    description: "List what a Soko Bot did recently.",
+  },
+  {
+    name: "soko_bots_usage",
+    operation: "GET /soko-bots/{sokoBotId}/usage",
+    description: "Get the credits a Soko Bot used and its daily limit.",
+  },
+  {
+    name: "soko_bots_stats",
+    operation: "GET /soko-bots/{sokoBotId}/stats",
+    description: "Get a Soko Bot's turn counts and ratings.",
+  },
+  {
+    name: "soko_bots_turns",
+    operation: "GET /soko-bots/{sokoBotId}/turns",
+    description:
+      "List a Soko Bot's turns, newest first. Every member reads a shared bot's turns. Page with `cursor`.",
+  },
+  {
+    name: "soko_bots_ask",
+    operation: "POST /soko-bots/{sokoBotId}/turns",
+    description:
+      "Spends workspace credits. Ask a Soko Bot as you: `body.message` and a fresh `body.clientTurnId` (any unique string; resending one returns the same turn). The turn runs in the background; read it with the turn tool until it settles. Confirm the question with the person first. On a shared bot your seat pays.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_turn",
+    operation: "GET /soko-bots/{sokoBotId}/turns/{turnId}",
+    description: "Get one turn of a Soko Bot: its status and answer.",
+  },
+  {
+    name: "soko_bots_turn_results",
+    operation: "GET /soko-bots/{sokoBotId}/turns/{turnId}/results",
+    description:
+      "Get the result cards (Tasks, Jobs, files) a turn of a Soko Bot produced.",
+  },
+  {
+    name: "soko_bots_cancel_turn",
+    operation: "POST /soko-bots/{sokoBotId}/turns/{turnId}/cancel",
+    description: "Stop a running turn of a Soko Bot.",
+  },
+  {
+    name: "soko_bots_reset_memory",
+    operation: "POST /soko-bots/{sokoBotId}/memory/reset",
+    description:
+      "Erase everything a Soko Bot remembers. This cannot be undone; confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_create_schedule",
+    operation: "POST /soko-bots/{sokoBotId}/schedules",
+    description:
+      "Spends workspace credits. Schedule a recurring prompt for a Soko Bot: `body.name`, `body.prompt`, `body.cronExpression` and `body.timezone`. Each run is a paid turn. Confirm the prompt and the times with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_update_schedule",
+    operation: "PATCH /soko-bots/{sokoBotId}/schedules/{scheduleId}",
+    description:
+      "Change a schedule of a Soko Bot: `body.name`, `prompt`, `cronExpression`, `timezone` or `enabled`, or skip, move or restore one run with `body.run`. Only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_delete_schedule",
+    operation: "DELETE /soko-bots/{sokoBotId}/schedules/{scheduleId}",
+    description: "Delete a schedule of a Soko Bot.",
+  },
+  {
+    name: "soko_bots_rename",
+    operation: "PUT /soko-bots/{sokoBotId}/name",
+    description: "Rename a Soko Bot: `body.name`.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_set_avatar",
+    operation: "PUT /soko-bots/{sokoBotId}/avatar-code",
+    description: "Set a Soko Bot's avatar from its code: `body.code`.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_set_version",
+    operation: "PUT /soko-bots/{sokoBotId}/version",
+    description:
+      "Move a Soko Bot to another version: `body.versionId` from soko_bots_versions.",
+    destructive: true,
+  },
+  {
+    name: "soko_bots_set_proactive",
+    operation: "PUT /soko-bots/{sokoBotId}/proactive",
+    description:
+      "Spends workspace credits. Set a Soko Bot's unprompted work: `body.paused`, `body.dailyLimit` (turns a day), `body.timezone`, `body.mailAutoRead`. Unpaused, the bot starts paid turns on its own. Confirm with the person before unpausing or raising the limit.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_set_board_following",
+    operation: "PUT /soko-bots/{sokoBotId}/board-following",
+    description:
+      "Spends workspace credits. Turn following the Task board on or off for a Soko Bot (`body.enabled`). While on, the bot starts paid turns on its own. Confirm with the person before turning it on.",
+    spendsCredits: true,
+  },
+  {
+    name: "soko_bots_set_team_standup",
+    operation: "PUT /soko-bots/{sokoBotId}/team-standup",
+    description:
+      "Spends workspace credits. Turn the team stand-up on or off for a Soko Bot (`body.enabled`). While on, the bot starts paid turns on its own. Confirm with the person before turning it on.",
+    spendsCredits: true,
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */
-const HYPHENATED_TOOLSETS = ["image-studio"];
+const HYPHENATED_TOOLSETS = ["image-studio", "soko-bots"];
 
 /** A tool's toolset: the route group its name starts with. */
 export function toolsetOf(name: string): string {
