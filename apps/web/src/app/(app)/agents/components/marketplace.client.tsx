@@ -57,6 +57,7 @@ export function Marketplace({ agents }: { agents: CatalogBrowseAgent[] }) {
         logo={getAgentAuthorResolvedImage(agent)}
         label={vendor ? t("byVendor", { vendor }) : t("aboutSourceExternal")}
         alt={t("vendorLogo", { agent: agent.name })}
+        size="sm"
       />
     );
   }
