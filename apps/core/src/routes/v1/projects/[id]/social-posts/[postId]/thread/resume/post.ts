@@ -7,7 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requirePersonApproval } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   resumeSocialPostThreadRequestSchema,
@@ -19,6 +19,7 @@ import { resumeSocialPostThread } from "@/services/social-posts.service";
 import {
   mapSocialPostServiceError,
   presentSocialPost,
+  socialPostWebPath,
 } from "../../../route-helpers.js";
 
 const route = withOrganizationSlugHeaderParameter(
@@ -26,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/social-posts/{postId}/thread/resume",
     description:
-      "Confirm an unconfirmed X thread part was not posted. Clears its in-flight marker so retry can continue; does not publish. Requires the observed revision. Requires an interactive user session in the Project's Workspace.",
+      "Confirm an unconfirmed X thread part was not posted. Clears its in-flight marker so retry can continue; does not publish. Requires the observed revision. A person does this on a browser session in the Project's Workspace; any other credential gets 403 `person_approval_required` with the post's Web link (ADR 0077).",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -55,10 +56,13 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const { id: projectId, postId } = c.req.valid("param");
+    const userContext = requirePersonApproval(
+      c.var.authContext,
+      socialPostWebPath(projectId, postId),
+    );
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { id: projectId, postId } = c.req.valid("param");
     const input = c.req.valid("json");
 
     try {

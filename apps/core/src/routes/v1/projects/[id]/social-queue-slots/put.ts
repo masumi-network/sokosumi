@@ -23,7 +23,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "put",
     path: "/{id}/social-queue-slots",
     description:
-      "Replace a Project's weekly posting-queue times. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.",
+      "Replace a Project's weekly posting-queue times. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context and Calendar beta access.",
     tags: ["Projects"],
     request: {
       params: socialQueueSlotProjectParamsSchema,

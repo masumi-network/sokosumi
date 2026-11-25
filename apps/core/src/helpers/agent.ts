@@ -9,6 +9,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import type { PrismaRaw } from "@sokosumi/database/client";
+import { netTable, netType } from "@sokosumi/database/sql-tables";
 import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
@@ -445,12 +446,12 @@ export const calculateAverageExecutionTime = async (
     `
     SELECT 
       AVG(EXTRACT(EPOCH FROM (completed_event."createdAt" - j."createdAt"))) as avg_duration_seconds
-    FROM "Job" j
+    FROM ${netTable("mainnet", "Job").sql} j
     INNER JOIN LATERAL (
       SELECT js."createdAt"
-      FROM "jobEvent" js
+      FROM ${netTable("mainnet", "jobEvent").sql} js
       WHERE js."jobId" = j.id
-      AND js."status" = 'COMPLETED'::"AgentJobStatus"
+      AND js."status" = 'COMPLETED'::${netType("mainnet", "AgentJobStatus").sql}
       ORDER BY js."createdAt" DESC
       LIMIT 1
     ) completed_event ON true

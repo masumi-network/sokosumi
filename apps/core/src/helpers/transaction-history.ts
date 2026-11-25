@@ -3,6 +3,7 @@ import type {
   TaskX402PaymentRefundKind,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import type { AgentPreview, UserPreview } from "@/helpers/history";
 import type prisma from "@/lib/db/prisma";
@@ -92,7 +93,8 @@ export type TransactionHistoryPrismaClient = Pick<typeof prisma, "$queryRaw">;
  * they reference also carries the `taskEvent` that charged it, so listing them
  * here would only shadow a better label.
  */
-const KIND_CASE = PrismaRaw.sql`
+function transactionKindCase() {
+  return PrismaRaw.sql`
   CASE
     WHEN t."amount" > 0 THEN 'topUp'
     WHEN j."id" IS NOT NULL THEN 'job'
@@ -105,6 +107,7 @@ const KIND_CASE = PrismaRaw.sql`
     ELSE 'unattributed'
   END
 `;
+}
 
 /**
  * Scopes the ledger to the active workspace. `Transaction` has no
@@ -177,7 +180,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       t."createdAt" AS "consumedAt",
       t."amount",
       t."userId",
-      ${KIND_CASE} AS "kind",
+      ${transactionKindCase()} AS "kind",
       COALESCE(
         j."projectId",
         pij."projectId",
@@ -253,44 +256,44 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         rtk."name",
         rpij."prompt"
       ) AS "searchText"
-    FROM "Transaction" AS t
-    LEFT JOIN "Job" AS j ON j."transactionId" = t."id"
-    LEFT JOIN "Agent" AS a ON a."id" = j."agentId"
-    LEFT JOIN "project_image_job" AS pij ON pij."transactionId" = t."id"
+    FROM ${netTable("mainnet", "Transaction")} AS t
+    LEFT JOIN ${netTable("mainnet", "Job")} AS j ON j."transactionId" = t."id"
+    LEFT JOIN ${netTable("mainnet", "Agent")} AS a ON a."id" = j."agentId"
+    LEFT JOIN ${sharedTable("project_image_job")} AS pij ON pij."transactionId" = t."id"
     -- TaskEvent is one-to-many on the schema even though mainnet has exactly
     -- one per charging transaction, so pick a stable single row.
     LEFT JOIN LATERAL (
       SELECT e."id", e."taskId", e."comment"
-      FROM "taskEvent" AS e
+      FROM ${sharedTable("taskEvent")} AS e
       WHERE e."transactionId" = t."id"
       ORDER BY e."createdAt" ASC, e."id" ASC
       LIMIT 1
     ) AS te ON TRUE
-    LEFT JOIN "task" AS tk ON tk."id" = te."taskId"
-    LEFT JOIN "coworker_usage" AS cu ON cu."transactionId" = t."id"
-    LEFT JOIN "coworker" AS cw ON cw."id" = cu."coworkerId"
-    LEFT JOIN "seo_audit_chat_turn" AS sch ON sch."transactionId" = t."id"
-    LEFT JOIN "soko_bot_usage" AS sbu ON sbu."transactionId" = t."id"
-    LEFT JOIN "soko_bot" AS sb ON sb."id" = sbu."sokoBotId"
+    LEFT JOIN ${sharedTable("task")} AS tk ON tk."id" = te."taskId"
+    LEFT JOIN ${netTable("mainnet", "coworker_usage")} AS cu ON cu."transactionId" = t."id"
+    LEFT JOIN ${sharedTable("coworker")} AS cw ON cw."id" = cu."coworkerId"
+    LEFT JOIN ${sharedTable("seo_audit_chat_turn")} AS sch ON sch."transactionId" = t."id"
+    LEFT JOIN ${netTable("mainnet", "soko_bot_usage")} AS sbu ON sbu."transactionId" = t."id"
+    LEFT JOIN ${sharedTable("soko_bot")} AS sb ON sb."id" = sbu."sokoBotId"
     -- A usage row's reference is the turn it billed.
-    LEFT JOIN "soko_bot_turn" AS sbt ON sbt."id"::TEXT = sbu."referenceId"
-    LEFT JOIN "soko_bot_schedule_run" AS sbr ON sbr."turnId" = sbt."id"
-    LEFT JOIN "soko_bot_schedule" AS sbs ON sbs."id" = sbr."scheduleId"
-    LEFT JOIN "contact_people_search" AS cps ON cps."transactionId" = t."id"
-    LEFT JOIN "contact_list" AS cl ON cl."id" = cps."listId"
-    LEFT JOIN "contact" AS ct ON ct."id" = cps."contactId"
+    LEFT JOIN ${sharedTable("soko_bot_turn")} AS sbt ON sbt."id"::TEXT = sbu."referenceId"
+    LEFT JOIN ${sharedTable("soko_bot_schedule_run")} AS sbr ON sbr."turnId" = sbt."id"
+    LEFT JOIN ${sharedTable("soko_bot_schedule")} AS sbs ON sbs."id" = sbr."scheduleId"
+    LEFT JOIN ${sharedTable("contact_people_search")} AS cps ON cps."transactionId" = t."id"
+    LEFT JOIN ${sharedTable("contact_list")} AS cl ON cl."id" = cps."listId"
+    LEFT JOIN ${sharedTable("contact")} AS ct ON ct."id" = cps."contactId"
     -- A spend can draw from several buckets. One is enough to name a source.
     LEFT JOIN LATERAL (
       SELECT b."referenceType"::TEXT AS "referenceType", b."projectId"
-      FROM "credit_consumption" AS cc
-      JOIN "credit_bucket" AS b ON b."id" = cc."bucketId"
+      FROM ${netTable("mainnet", "credit_consumption")} AS cc
+      JOIN ${netTable("mainnet", "credit_bucket")} AS b ON b."id" = cc."bucketId"
       WHERE cc."transactionId" = t."id"
       ORDER BY cc."createdAt" ASC, cc."id" ASC
       LIMIT 1
     ) AS bucket ON TRUE
     -- The bucket a top up created. One-to-one with the transaction that paid
     -- for it, so this is a plain join rather than a lateral pick.
-    LEFT JOIN "credit_bucket" AS topup ON topup."sourceTransactionId" = t."id"
+    LEFT JOIN ${netTable("mainnet", "credit_bucket")} AS topup ON topup."sourceTransactionId" = t."id"
     -- What a refund top up refunded. Each source stores a unique back-reference
     -- to its refund transaction, so these are plain joins. A refund comes from
     -- exactly one of them. project_image_job.refundTransactionId is legacy
@@ -300,18 +303,18 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     -- A split refund (ADR 0067) links one part; every other part's bucket
     -- carries the linked part's referenceId plus '#<scope>', so it resolves to
     -- the linked refund and names the same record.
-    LEFT JOIN "credit_bucket" AS linkedrefund
+    LEFT JOIN ${netTable("mainnet", "credit_bucket")} AS linkedrefund
       ON topup."referenceType" = 'REFUND'
       AND POSITION('#' IN topup."referenceId") > 0
       AND linkedrefund."referenceType" = 'REFUND'
       AND linkedrefund."referenceId" = SPLIT_PART(topup."referenceId", '#', 1)
-    LEFT JOIN "Job" AS rj ON rj."refundedTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
-    LEFT JOIN "jobPurchase" AS rjp ON rjp."jobId" = rj."id"
-    LEFT JOIN "task_payment_claim" AS rpc ON rpc."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
-    LEFT JOIN "taskEvent" AS rpce ON rpce."id" = rpc."taskEventId"
-    LEFT JOIN "task_x402_payment" AS rx ON rx."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
-    LEFT JOIN "task" AS rtk ON rtk."id" = COALESCE(rpce."taskId", rx."taskId")
-    LEFT JOIN "project_image_job" AS rpij ON rpij."refundTransactionId" = t."id"
+    LEFT JOIN ${netTable("mainnet", "Job")} AS rj ON rj."refundedTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
+    LEFT JOIN ${netTable("mainnet", "jobPurchase")} AS rjp ON rjp."jobId" = rj."id"
+    LEFT JOIN ${netTable("mainnet", "task_payment_claim")} AS rpc ON rpc."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
+    LEFT JOIN ${sharedTable("taskEvent")} AS rpce ON rpce."id" = rpc."taskEventId"
+    LEFT JOIN ${netTable("mainnet", "task_x402_payment")} AS rx ON rx."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
+    LEFT JOIN ${sharedTable("task")} AS rtk ON rtk."id" = COALESCE(rpce."taskId", rx."taskId")
+    LEFT JOIN ${sharedTable("project_image_job")} AS rpij ON rpij."refundTransactionId" = t."id"
     WHERE ${buildScopeSql(params)}
   `;
 }
@@ -340,7 +343,7 @@ export async function findTransactionHistoryPage(
     filters.push(PrismaRaw.sql`
       (ledger."consumedAt", ledger."id") < (
         SELECT c."createdAt", c."id"
-        FROM "Transaction" AS c
+        FROM ${netTable("mainnet", "Transaction")} AS c
         WHERE c."id" = ${pagination.cursor}
       )
     `);

@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import type { createPrismaClient } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { APIError } from "better-auth/api";
 
 import {
@@ -42,7 +43,7 @@ export async function prepareOrganizationForDeletion(
           Array<{ id: string; stripeCustomerId: string | null }>
         >`
       SELECT id, "stripeCustomerId"
-      FROM "organization"
+      FROM ${sharedTable("organization")}
       WHERE id = ${organizationId}
       FOR UPDATE
     `;

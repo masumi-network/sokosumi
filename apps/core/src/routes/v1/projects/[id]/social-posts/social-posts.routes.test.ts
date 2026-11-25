@@ -12,6 +12,7 @@ import {
   notFound,
   unauthorized,
 } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -121,9 +122,15 @@ const USER_API_KEY_AUTH: AuthenticationContext = {
   authenticationMethod: "api_key",
 };
 
-const OAUTH_TOKEN_AUTH: AuthenticationContext = {
+const MCP_TOKEN_AUTH: AuthenticationContext = {
   ...SESSION_AUTH,
   authenticationMethod: "oauth",
+};
+
+const THIRD_PARTY_OAUTH_AUTH: AuthenticationContext = {
+  ...SESSION_AUTH,
+  authenticationMethod: "oauth",
+  oauthClientId: "client_123",
 };
 
 const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
@@ -241,6 +248,7 @@ function createApp(
   mountCancelSocialPost(app);
   mountDuplicateSocialPost(app);
   mountPublishSocialPost(app);
+  app.onError(errorHandler);
 
   return app;
 }
@@ -364,31 +372,7 @@ describe("Project social post routes", () => {
   });
 
   it.each([
-    ["user API key", USER_API_KEY_AUTH],
-    ["OAuth token", OAUTH_TOKEN_AUTH],
-  ] as const)(
-    "lets a person's %s read posts, and nothing else",
-    async (_name, auth) => {
-      const responses = await Promise.all(allOperations(createApp(auth)));
-
-      expect(responses.map((response) => response.status)).toEqual([
-        200, 403, 200, 403, 403, 403, 403, 403, 403, 403,
-      ]);
-      expect(listSocialPostsMock).toHaveBeenCalled();
-      expect(getSocialPostMock).toHaveBeenCalled();
-      expect(createSocialPostMock).not.toHaveBeenCalled();
-      expect(updateSocialPostMock).not.toHaveBeenCalled();
-      expect(scheduleSocialPostMock).not.toHaveBeenCalled();
-      expect(cancelSocialPostMock).not.toHaveBeenCalled();
-      expect(approveSocialPostMock).not.toHaveBeenCalled();
-      expect(rejectSocialPostMock).not.toHaveBeenCalled();
-      expect(duplicateSocialPostMock).not.toHaveBeenCalled();
-      expect(publishSocialPostNowMock).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each([
-    ["coworker", COWORKER_CONTEXT_AUTH],
+    ["undelegated coworker", COWORKER_CONTEXT_AUTH],
     ["Soko Bot", SOKO_BOT_CONTEXT_AUTH],
   ] as const)("rejects %s before every operation", async (_name, auth) => {
     const responses = await Promise.all(allOperations(createApp(auth)));
@@ -398,6 +382,78 @@ describe("Project social post routes", () => {
     ]);
     expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expectNoServiceCalls();
+  });
+
+  // ADR 0077: an agent drafts, schedules and cancels; a person approves,
+  // rejects and publishes.
+  describe.each([
+    ["user API key", USER_API_KEY_AUTH, undefined],
+    ["third-party OAuth token", THIRD_PARTY_OAUTH_AUTH, undefined],
+    ["MCP token", MCP_TOKEN_AUTH, undefined],
+    ["Coworker", COWORKER_CONTEXT_AUTH, "cow_123"],
+  ] as const)("an agent on a %s", (_name, auth, coworkerId) => {
+    beforeEach(() => {
+      requireAuthorizedUserContextMock.mockResolvedValue({
+        userId: USER_ID,
+        organizationId: null,
+      });
+    });
+
+    it("drafts, schedules and cancels as an agent, and stops at approval", async () => {
+      const responses = await Promise.all(allOperations(createApp(auth)));
+
+      expect(responses.map((response) => response.status)).toEqual([
+        200, 201, 200, 200, 200, 200, 403, 403, 201, 403,
+      ]);
+      for (const service of [
+        createSocialPostMock,
+        updateSocialPostMock,
+        scheduleSocialPostMock,
+        duplicateSocialPostMock,
+      ]) {
+        expect(service).toHaveBeenCalledWith(
+          expect.objectContaining({ userId: USER_ID, coworkerId, agent: true }),
+        );
+      }
+      expect(cancelSocialPostMock).toHaveBeenCalledOnce();
+      const read = await responses[2]!.json();
+      expect(read.data).toMatchObject({
+        canPublishNow: false,
+        canApprove: false,
+        canReject: false,
+      });
+      expect(approveSocialPostMock).not.toHaveBeenCalled();
+      expect(rejectSocialPostMock).not.toHaveBeenCalled();
+      expect(publishSocialPostNowMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["approve", "reject", "publish"])(
+      "sends %s to the post in Sokosumi",
+      async (action) => {
+        const response = await createApp(auth).request(
+          `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/${action}`,
+          json("POST", { revision: 0 }),
+        );
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          message: "A person approves this in Sokosumi",
+          kind: CORE_API_ERROR_KINDS.PERSON_APPROVAL_REQUIRED,
+          webUrl: `https://example.com/social?projectId=${PROJECT_ID}&postId=${POST_ID}`,
+        });
+      },
+    );
+  });
+
+  it("drafts as a person on a browser session", async () => {
+    const responses = await Promise.all(allOperations(createApp()));
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 201, 200, 200, 200, 200, 200, 200, 201, 200,
+    ]);
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: false }),
+    );
   });
 
   it("allows every operation without Social beta membership", async () => {
@@ -662,7 +718,7 @@ describe("Project social post routes", () => {
     },
   );
 
-  it("lets a person's API key read statistics, but not refresh them", async () => {
+  it("lets an agent's API key read and refresh statistics (ADR 0077)", async () => {
     listSocialPostStatisticsMock.mockResolvedValue({
       posts: [draftPost],
       summary: [],
@@ -676,8 +732,8 @@ describe("Project social post routes", () => {
     const refresh = await app.request(`${base}/${POST_ID}/statistics/refresh`, {
       method: "POST",
     });
-    expect(refresh.status).toBe(403);
-    expect(refreshSocialPostStatisticsMock).not.toHaveBeenCalled();
+    expect(refresh.status).not.toBe(403);
+    expect(refreshSocialPostStatisticsMock).toHaveBeenCalled();
   });
 
   it("allows a delegated Coworker to read and refresh workspace statistics", async () => {
@@ -739,6 +795,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      agent: false,
       organizationId: null,
       text: "Hello world",
       socialConnectionId: undefined,
@@ -799,6 +856,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      agent: false,
       organizationId: null,
       text: "Hello world",
       socialConnectionId: SOCIAL_CONNECTION_ID,
@@ -924,6 +982,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      agent: false,
       organizationId: null,
       postId: POST_ID,
       text: "Edited",
@@ -1012,6 +1071,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      agent: false,
       postId: POST_ID,
       scheduledAt: new Date(SCHEDULED_AT),
       timezone: "Europe/Zurich",
@@ -1084,6 +1144,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      agent: false,
       organizationId: null,
       postId: POST_ID,
     });
@@ -1372,17 +1433,20 @@ describe("thread resume confirmation", () => {
   it.each([
     COWORKER_CONTEXT_AUTH,
     USER_API_KEY_AUTH,
-    OAUTH_TOKEN_AUTH,
+    THIRD_PARTY_OAUTH_AUTH,
+    MCP_TOKEN_AUTH,
     SOKO_BOT_CONTEXT_AUTH,
-  ])("requires an interactive human session: %j", async (auth) => {
-    expect(
-      (
-        await createApp(auth).request(
-          url,
-          json("POST", { revision: 0, confirmedNotPosted: true }),
-        )
-      ).status,
-    ).toBe(403);
+  ])("sends an agent to the post in Sokosumi: %j", async (auth) => {
+    const response = await createApp(auth).request(
+      url,
+      json("POST", { revision: 0, confirmedNotPosted: true }),
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.PERSON_APPROVAL_REQUIRED,
+      webUrl: `https://example.com/social?projectId=${PROJECT_ID}&postId=${POST_ID}`,
+    });
+    expect(resumeSocialPostThreadMock).not.toHaveBeenCalled();
   });
 
   it("requires authentication, beta access and a workspace before touching a post", async () => {

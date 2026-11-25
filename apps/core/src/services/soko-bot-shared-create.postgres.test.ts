@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { requestProjectClose } from "./project-close-lifecycle.service";
@@ -481,7 +482,9 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
     let close: ReturnType<typeof closeProject> | undefined;
     try {
       close = closeProject(fixture, project.id);
-      await waitForLockWait('%from "workspace"%for update%');
+      await waitForLockWait(
+        `%from ${sharedTable("workspace").sql}%for update%`,
+      );
       creation = createSharedSokoBot({
         callerUserId: fixture.member,
         workspaceId: fixture.workspace,

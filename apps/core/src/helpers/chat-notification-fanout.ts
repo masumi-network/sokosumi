@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { buildNamedChatMessagePreview } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
@@ -139,7 +140,7 @@ async function deliverToCurrentRoomMember(
       Array<{ access: string; mutedAt: Date | null }>
     >`
       SELECT access, "mutedAt"
-      FROM "chat_room_user_member"
+      FROM ${sharedTable("chat_room_user_member")}
       WHERE "roomId" = ${roomId}::UUID
         AND "userId" = ${input.userId}
       FOR UPDATE
@@ -517,7 +518,7 @@ async function rewriteRowFromMessage(
         // Keep this lock until this recipient's copy is updated. Separate
         // transactions prevent a slow room-wide sweep from rolling back all rows.
         await tx.$queryRaw`
-          SELECT "id" FROM "chat_room_message"
+          SELECT "id" FROM ${sharedTable("chat_room_message")}
           WHERE "id" = ${source.messageId}::uuid
             AND "roomId" = ${source.roomId}::uuid
           FOR UPDATE

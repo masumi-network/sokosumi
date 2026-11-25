@@ -933,6 +933,73 @@ export const CLI_COMMAND_CATALOG = [
     operation: "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
     noBody: true,
   },
+  // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters (ADR 0077).
+  {
+    command: "projects social-post-create",
+    usage: "PROJECT_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts",
+  },
+  {
+    command: "projects social-post-update",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/social-posts/{postId}",
+  },
+  {
+    command: "projects social-post-schedule",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/schedule",
+  },
+  {
+    command: "projects social-post-queue",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/queue",
+  },
+  {
+    command: "projects social-post-cancel",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/cancel",
+  },
+  {
+    command: "projects social-post-duplicate",
+    usage:
+      "PROJECT_ID POST_ID --input-json {} [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/duplicate",
+  },
+  {
+    command: "projects social-post-statistics-refresh",
+    usage:
+      "PROJECT_ID POST_ID --input-json {} [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/statistics/refresh",
+  },
+  {
+    command: "projects social-account-post-recycle",
+    usage:
+      "PROJECT_ID ACCOUNT_POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "POST /projects/{id}/social-account-posts/{accountPostId}/recycle",
+  },
+  {
+    command: "projects social-queue-slots-update",
+    usage: "PROJECT_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/social-queue-slots",
+  },
+  {
+    command: "projects social-connection-statistics-refresh",
+    usage:
+      "PROJECT_ID CONNECTION_ID --input-json {} [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh",
+  },
+  {
+    command: "projects newsletter-issue-cancel",
+    usage:
+      "PROJECT_ID ISSUE_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/cancel",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

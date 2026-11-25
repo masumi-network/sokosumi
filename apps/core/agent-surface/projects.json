@@ -282,74 +282,83 @@
       "reason": "A person approves, publishes and connects accounts (ADR 0077)."
     },
     "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-connection-statistics-refresh",
+      "mcp": "projects_social_connection_statistics_refresh"
     },
     "POST /projects/{id}/social-posts": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-create",
+      "mcp": "projects_social_post_create"
     },
     "PATCH /projects/{id}/social-posts/{postId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-update",
+      "mcp": "projects_social_post_update"
     },
     "POST /projects/{id}/social-posts/{postId}/publish": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/schedule": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-schedule",
+      "mcp": "projects_social_post_schedule"
     },
     "POST /projects/{id}/social-posts/{postId}/queue": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-queue",
+      "mcp": "projects_social_post_queue"
     },
     "POST /projects/{id}/social-posts/{postId}/approve": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/reject": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/cancel": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-cancel",
+      "mcp": "projects_social_post_cancel"
     },
     "POST /projects/{id}/social-posts/{postId}/duplicate": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-duplicate",
+      "mcp": "projects_social_post_duplicate"
     },
     "POST /projects/{id}/social-posts/{postId}/thread/resume": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/statistics/refresh": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-statistics-refresh",
+      "mcp": "projects_social_post_statistics_refresh"
     },
     "PUT /projects/{id}/social-queue-slots": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-queue-slots-update",
+      "mcp": "projects_social_queue_slots_update"
     },
     "POST /projects/{id}/social-account-posts/{accountPostId}/recycle": {
+      "cli": "projects social-account-post-recycle",
+      "mcp": "projects_social_account_post_recycle"
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/cancel": {
+      "cli": "projects newsletter-issue-cancel",
+      "mcp": "projects_newsletter_issue_cancel"
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/approve": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/schedule": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/send-now": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     }
   }
 }

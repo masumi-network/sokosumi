@@ -1,3 +1,4 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import prisma from "@/lib/db/prisma";
 
 export interface ChatRoomMessageMetadataPatchClient {
@@ -42,7 +43,7 @@ export async function mergeChatRoomMessageMetadataKeys(
 
   if (contentMustEqual !== undefined && requireNotDeleted) {
     return client.$executeRaw`
-      UPDATE "chat_room_message"
+      UPDATE ${sharedTable("chat_room_message")}
       SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
       WHERE id = ${messageId}::uuid
         AND "deletedAt" IS NULL
@@ -52,7 +53,7 @@ export async function mergeChatRoomMessageMetadataKeys(
 
   if (contentMustEqual !== undefined) {
     return client.$executeRaw`
-      UPDATE "chat_room_message"
+      UPDATE ${sharedTable("chat_room_message")}
       SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
       WHERE id = ${messageId}::uuid
         AND content = ${contentMustEqual}
@@ -61,7 +62,7 @@ export async function mergeChatRoomMessageMetadataKeys(
 
   if (requireNotDeleted) {
     return client.$executeRaw`
-      UPDATE "chat_room_message"
+      UPDATE ${sharedTable("chat_room_message")}
       SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
       WHERE id = ${messageId}::uuid
         AND "deletedAt" IS NULL
@@ -69,7 +70,7 @@ export async function mergeChatRoomMessageMetadataKeys(
   }
 
   return client.$executeRaw`
-    UPDATE "chat_room_message"
+    UPDATE ${sharedTable("chat_room_message")}
     SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
     WHERE id = ${messageId}::uuid
   `;
@@ -102,7 +103,7 @@ export async function deleteChatRoomMessageMetadataKeys(
 
   if (contentMustEqual !== undefined && requireNotDeleted) {
     return client.$executeRaw`
-      UPDATE "chat_room_message"
+      UPDATE ${sharedTable("chat_room_message")}
       SET metadata = NULLIF(
         COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
         '{}'::jsonb
@@ -115,7 +116,7 @@ export async function deleteChatRoomMessageMetadataKeys(
 
   if (contentMustEqual !== undefined) {
     return client.$executeRaw`
-      UPDATE "chat_room_message"
+      UPDATE ${sharedTable("chat_room_message")}
       SET metadata = NULLIF(
         COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
         '{}'::jsonb
@@ -127,7 +128,7 @@ export async function deleteChatRoomMessageMetadataKeys(
 
   if (requireNotDeleted) {
     return client.$executeRaw`
-      UPDATE "chat_room_message"
+      UPDATE ${sharedTable("chat_room_message")}
       SET metadata = NULLIF(
         COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
         '{}'::jsonb
@@ -138,7 +139,7 @@ export async function deleteChatRoomMessageMetadataKeys(
   }
 
   return client.$executeRaw`
-    UPDATE "chat_room_message"
+    UPDATE ${sharedTable("chat_room_message")}
     SET metadata = NULLIF(
       COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
       '{}'::jsonb
