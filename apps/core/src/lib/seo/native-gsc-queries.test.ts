@@ -310,40 +310,6 @@ describe("tracked keyword daily rows", () => {
     expect(leftOut).toEqual([]);
   });
 
-  it("keeps keywords that differ by case folding only in one read", () => {
-    const tracked = (keyword: string, priority: "high" | "low") => ({
-      keyword,
-      saved: true,
-      priority,
-      countryCode: "US",
-      version: 1,
-      source: "saved",
-    });
-    // The filter ignores case, so a read of "οσ" also returns the rows of "ος".
-    const { groups, leftOut } = selectTrackedKeywords([
-      ...Array.from({ length: 24 }, (_, i) =>
-        tracked(`kw ${String(i).padStart(2, "0")}`, "high"),
-      ),
-      tracked("οσ", "high"),
-      tracked("ος", "low"),
-    ]);
-    const first = groups[0].keywords;
-    // The first read is full, so the twin has no read that would accept its rows.
-    expect([first.length, first.includes("οσ"), groups.length]).toEqual([
-      25,
-      true,
-      1,
-    ]);
-    expect(leftOut).toEqual(["ος (US)"]);
-    const roomy = selectTrackedKeywords([
-      tracked("οσ", "high"),
-      tracked("ος", "low"),
-    ]);
-    expect(roomy.groups).toEqual([
-      { countryCode: "US", keywords: ["οσ", "ος"] },
-    ]);
-  });
-
   it("stops at 4 reads per sync when long keywords fill each read", () => {
     const keywords = Array.from({ length: 12 }, (_, i) => ({
       keyword: `${String(i).padStart(2, "0")}${"a".repeat(1500)}`,
@@ -386,6 +352,22 @@ describe("tracked keyword daily rows", () => {
         { keyword: "unused keyword", countryCode: "US", points: [] },
       ],
     });
+  });
+
+  it("leaves out the rows of a query that differs from a keyword by case folding only", () => {
+    // The filter ignores case: a read of "οσ" also returns "ος", which is another keyword.
+    const result = normalizeGscKeywordSeries(
+      query,
+      { countryCode: "US", keywords: ["οσ"] },
+      { rows: [day("2026-10-10", "οσ", 1, 4), day("2026-10-10", "ος", 9, 9)] },
+    );
+    expect(result.keywords).toEqual([
+      {
+        keyword: "οσ",
+        countryCode: "US",
+        points: [expect.objectContaining({ date: "2026-10-10", clicks: 1 })],
+      },
+    ]);
   });
 
   it("refuses a query outside the set, a date outside the period, duplicates and other groupings", () => {

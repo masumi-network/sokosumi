@@ -196,7 +196,9 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
       a.rank - b.rank ||
       Number(b.focus) - Number(a.focus) ||
       a.key.localeCompare(b.key) ||
-      a.countryCode.localeCompare(b.countryCode),
+      a.countryCode.localeCompare(b.countryCode) ||
+      // Two keys can compare as equal in the locale. The code units decide then, not the input order.
+      Number(a.key > b.key) - Number(a.key < b.key),
   );
   const groups = new Map<string, string[][]>();
   const leftOut: string[] = [];
@@ -207,26 +209,13 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
     const fits = (chunk: string[]) =>
       chunk.length < SEO_KEYWORD_SERIES_READ_KEYWORDS &&
       keywordExpression([...chunk, key]).length <= GSC_FILTER_EXPRESSION_LIMIT;
-    // The filter ignores case, so a read also returns the rows of a keyword that differs by case folding
-    // only ("οσ" and "ος"). Such keywords stay in one read: another read would refuse the row.
-    const fold = key.toUpperCase();
-    const twin = chunks.find((chunk) =>
-      chunk.some((other) => other.toUpperCase() === fold),
-    );
     const open =
       chosen < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
       gscCountry(countryCode) &&
       (groups.has(countryCode) ||
         groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES);
-    let chunk = open ? (twin ?? chunks.find(fits)) : undefined;
-    if (chunk && !fits(chunk)) chunk = undefined;
-    if (
-      open &&
-      !chunk &&
-      !twin &&
-      reads < SEO_KEYWORD_SERIES_MAX_READS &&
-      fits([])
-    ) {
+    let chunk = open ? chunks.find(fits) : undefined;
+    if (open && !chunk && reads < SEO_KEYWORD_SERIES_MAX_READS && fits([])) {
       chunk = [];
       chunks.push(chunk);
       reads++;
@@ -307,7 +296,9 @@ export function gscKeywordSeriesArguments(
 /**
  * Validates one date/query response against the requested scope. A malformed
  * grouping, a date outside the period, a query outside the requested keywords
- * or a duplicate row refuses the whole read. Case and spacing variants of one
+ * or a duplicate row refuses the whole read. The filter ignores case, so it
+ * also returns a query that differs from a keyword by case folding only ("ος"
+ * for "οσ"). That query is another keyword: its rows are left out. Case and spacing variants of one
  * keyword merge per day: clicks and impressions add up, position is weighted
  * by impressions and is null when there are none.
  */
@@ -327,6 +318,10 @@ export function normalizeGscKeywordSeries(
       >(),
     ]),
   );
+  const filters = [...days.keys()].map(
+    (keyword) =>
+      new RegExp(`^${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "iu"),
+  );
   const seen = new Set<string>();
   for (const row of report.rows) {
     if (row.keys.length !== KEYWORD_SERIES_DIMENSIONS.length)
@@ -335,8 +330,11 @@ export function normalizeGscKeywordSeries(
     if (!withinPeriod(date, query))
       throw new Error("Search Console returned a date outside the period");
     const byDate = days.get(normalizeSeoQuery(text));
-    if (!byDate)
+    if (!byDate) {
+      if (filters.some((filter) => filter.test(normalizeSeoQuery(text))))
+        continue;
       throw new Error("Search Console returned a query outside the keywords");
+    }
     const identity = JSON.stringify([date, text]);
     if (seen.has(identity))
       throw new Error("Search Console returned a duplicate keyword row");
