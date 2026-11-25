@@ -1,18 +1,19 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-
 import { TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { badRequest } from "@/helpers/error";
+import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
+import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
 
 const {
   botFindFirstMock,
   botFindUniqueMock,
+  brandBrainFindUniqueMock,
   marketingStrategyFindFirstMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
@@ -120,6 +121,7 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  brandBrainFindUniqueMock: vi.fn(),
   marketingStrategyFindFirstMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
@@ -526,6 +528,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     user: { findUnique: social.owner, findMany: userFindManyMock },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
+    brandBrain: { findUnique: brandBrainFindUniqueMock },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -12471,6 +12474,62 @@ describe("CMO record saves", () => {
       }),
     ).rejects.toThrow(/Rule "20-word summary": the summary has 21 words/);
     expect(tx.marketingStrategy.create).not.toHaveBeenCalled();
+  });
+
+  it("asks for New: on a network without a profile after a patch save too", async () => {
+    const service = new SokoBotRuntimeService();
+    toolCallCountMock.mockResolvedValueOnce(1);
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    brandBrainFindUniqueMock.mockResolvedValueOnce({
+      body: websiteOnlyBrain(
+        (cmoBrandBrains as Record<string, unknown>)["utxo.ag"],
+      ),
+    });
+    const review = await service["reviewCmoPlan"](
+      {
+        ...owner,
+        turn: { ...owner.turn, versionId: "cmo-v22" },
+      } as never,
+      {
+        ...SCOPE,
+        capability: "save_strategy",
+        toolCallId: "save-2",
+      } as never,
+      {
+        approved: false,
+        projectId: "project-1",
+        executing: false,
+        strategy: {
+          month: "2026-11",
+          summary: "Grow.",
+          goals: ["More demo requests"],
+          mix: [],
+          funnel: [],
+          pillars: [],
+          channels: [
+            {
+              channel: "linkedin",
+              cadence: "1 a day",
+              why: "Buyers read here.",
+            },
+            {
+              channel: "youtube",
+              cadence: "7 a week",
+              why: "New: Open YouTube.",
+            },
+          ],
+          calendar: [],
+          questions: [],
+          proposals: [],
+          leftOut: [],
+        } as never,
+        planSent: false,
+        calendarSent: false,
+      },
+    );
+    expect(review?.problems).toContain(
+      'the Brand Brain shows no profile on linkedin; start its why with "New:" and say the owner opens the account.',
+    );
   });
 
   it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
