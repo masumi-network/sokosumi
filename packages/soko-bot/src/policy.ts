@@ -165,6 +165,11 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_writing_skill",
   "find_style_references",
   "write_month_pieces",
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
   "list_social_comments",
   "handle_social_comment",
   "read_seo",
@@ -208,6 +213,23 @@ export function isSokoBotAnnouncementCapability(
 }
 
 /**
+ * Cuso's reads of what his organized context leaves out (cmo-v23): the
+ * calendar, the strategy's parts, the Brand Brain's sections, the reports and
+ * the competitor moves. Read-only, capped, and only his own Project's.
+ */
+export const SOKO_BOT_CMO_READ_CAPABILITIES = [
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCmoReadCapability(value: string): boolean {
+  return (SOKO_BOT_CMO_READ_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/**
  * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
  * workspace (Brand Brain, strategy), so a CMO bot has them on every turn and
  * no other bot ever does; `applyVersionCapabilities` enforces both.
@@ -224,6 +246,8 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "find_style_references",
   // Core writes the month's pieces at once (cmo-v6's production run).
   "write_month_pieces",
+  // What an organized context leaves out, read when a turn needs it (cmo-v23).
+  ...SOKO_BOT_CMO_READ_CAPABILITIES,
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
