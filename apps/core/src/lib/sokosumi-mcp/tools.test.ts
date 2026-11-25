@@ -112,7 +112,8 @@ describe("feature toolsets", () => {
     }
   });
 
-  it("keeps everyday Task work in `tasks`", () => {
+  it("keeps everyday Task work in `tasks` and files in `task-files`", () => {
+    expect(names("task-files")).toEqual(["tasks_files", "tasks_upload_url"]);
     expect(names("tasks")).toEqual([
       "tasks_list",
       "tasks_get",
@@ -152,7 +153,6 @@ describe("feature toolsets", () => {
   });
 
   it("puts Project features in their own toolsets", () => {
-    expect(names("task-files")).toEqual(["tasks_files", "tasks_upload_url"]);
     expect(names("ads")).toEqual(
       MCP_TOOLS.map((tool) => tool.name).filter((name) =>
         name.startsWith("projects_ads_"),

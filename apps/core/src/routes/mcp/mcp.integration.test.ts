@@ -137,7 +137,6 @@ describe("Sokosumi MCP server", () => {
     // SOKD-410: feature toolsets keep the default small. Growing it is a
     // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
     expect(defaults).toHaveLength(34);
-    expect(defaults.length).toBeLessThanOrEqual(45);
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
     expect(await listed("?toolsets=vendors,organizations")).toEqual(
@@ -161,6 +160,14 @@ describe("Sokosumi MCP server", () => {
     await expect(
       client.callTool({ name: "users_get", arguments: { id: "me" } }),
     ).rejects.toThrow("Unknown tool: users_get");
+
+    // A Task feature toolset without `tasks` still needs the id rule, and
+    // tasks_get to resolve SOK-12.
+    const files = await connect(auth, "?toolsets=task-files");
+    expect(files.instructions).toContain(
+      "Other tasks tools take a Task's `id`",
+    );
+    expect(files.instructions).toContain("Add the tasks toolset for them.");
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {

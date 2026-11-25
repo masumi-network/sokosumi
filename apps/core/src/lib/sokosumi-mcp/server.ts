@@ -18,9 +18,15 @@ export function instructions(toolsets: readonly string[]): string {
       ? "Call workspaces_list first: a tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`."
       : "A tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`; ask the person for it, or for the workspaces toolset.",
     `Toolsets on: ${toolsets.join(", ")}.`,
-    ...(toolsets.includes("tasks")
+    // These toolsets take a Task's `id` (SOKD-410).
+    ...(["tasks", "task-sharing", "task-files"].some((name) =>
+      toolsets.includes(name),
+    )
       ? [
           "tasks_get takes a Task's identifier, such as SOK-12. Other tasks tools take a Task's `id` from tasks_get or tasks_list.",
+          ...(toolsets.includes("tasks")
+            ? []
+            : ["Add the tasks toolset for them."]),
         ]
       : []),
     ...(toolsets.includes("drive")
