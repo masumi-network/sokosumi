@@ -47,6 +47,11 @@ describe("seoTaskRequestPacket", () => {
 });
 
 describe("removeSeoTaskRequest", () => {
+  it("leaves a description without a request line exactly as written", () => {
+    const code = "    line one\r\n    line two\n";
+    expect(removeSeoTaskRequest(code)).toBe(code);
+  });
+
   it("shows the summary without the machine line", () => {
     const description = seoTaskDescription(
       "Full SEO audit of 1 page.",

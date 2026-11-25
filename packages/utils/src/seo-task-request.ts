@@ -54,9 +54,8 @@ export function removeSeoTaskRequest(
   markdown: string,
   markers: readonly SeoTaskMarker[] = ["seo_audit", "seo_job"],
 ): string {
-  return markdown
-    .split(LINE_BREAK)
-    .filter((line) => !isRequestLine(line, markers))
-    .join("\n")
-    .trim();
+  const lines = markdown.split(LINE_BREAK);
+  const kept = lines.filter((line) => !isRequestLine(line, markers));
+  // Text without a request line is left exactly as written (indentation, line breaks).
+  return kept.length === lines.length ? markdown : kept.join("\n").trim();
 }
