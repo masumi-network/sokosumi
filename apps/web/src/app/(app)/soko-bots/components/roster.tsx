@@ -4,7 +4,6 @@ import {
   Calendar,
   ListTodo,
   MessageSquare,
-  Plus,
   Settings,
   User,
   UserPlus,
@@ -231,9 +230,6 @@ export async function YourAssistantSection({
           </div>
         ) : !bot || !me ? (
           <div className={shell}>
-            <span className="bg-muted text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
-              <Plus aria-hidden className="size-6" />
-            </span>
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-foreground text-lg font-medium">
                 {t("noAssistantYou")}
