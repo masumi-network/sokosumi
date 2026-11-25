@@ -467,7 +467,7 @@ sokosumi chats thread-messages ROOM_ID MESSAGE_ID
 sokosumi chats mark-read ROOM_ID
 ```
 
-`chats send` posts as the signed-in person. A message that mentions a Coworker or Soko Bot, or goes to a Direct with one, starts a paid turn: it spends workspace credits, so confirm the text and the recipients with the person first. `chats retry-mention` spends credits the same way. Every write is a mainnet write and needs the operator `yes` above.
+`chats send` posts as the signed-in person. A message that mentions a Coworker or Soko Bot, or goes to a Soko Bot Direct, starts a paid turn: it spends workspace credits, so confirm the text and the recipients with the person first. `chats retry-mention` spends credits the same way. A 1:1 Direct with a Coworker replies only in Sokosumi Web, through the live stream. Every write is a mainnet write and needs the operator `yes` above.
 
 Over MCP, the chat tools are in the `chats` toolset, off by default: add `?toolsets=workspaces,tasks,coworkers,chats`. `chats_send` and `chats_retry_mention` are marked as spending credits. Inviting a guest, invite links and file uploads are CLI-only. Stickers, voice transcription, the live reply stream and the Elsewhere list stay in Sokosumi Web.
 

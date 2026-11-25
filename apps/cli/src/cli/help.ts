@@ -273,7 +273,8 @@ Drive:
 Chats:
   Rooms come from sokosumi chats rooms --organization-slug WORKSPACE_SLUG; a room's id fills ROOM_ID.
   sokosumi chats messages ROOM_ID, sokosumi chats send ROOM_ID --input-json '{"content":"Draft is ready."}'.
-  chats send spends credits when it mentions a Coworker or Soko Bot, or goes to a Direct with one: it replies as a paid turn.
+  chats send spends credits when it mentions a Coworker or Soko Bot, or goes to a Soko Bot Direct: it replies as a paid turn.
+  A 1:1 Coworker Direct replies only in Sokosumi Web.
   Star, mute, pin, read, join and archive take no body. Inviting guests and invite links are CLI-only;
   stickers, voice transcription and the live reply stream stay in Sokosumi Web.
 

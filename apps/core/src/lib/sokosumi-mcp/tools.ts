@@ -2577,7 +2577,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "chats_remove_member",
     operation: "DELETE /chats/rooms/{id}/members/{userId}",
     description:
-      "Remove a person from a Channel. Any member may remove a guest; only an organization owner or admin may remove a member.",
+      "Remove a person from a Channel. Any host member may remove a guest; only an organization owner or admin may remove a member.",
   },
   {
     name: "chats_add_members",
@@ -2697,7 +2697,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "chats_send",
     operation: "POST /chats/rooms/{id}/messages",
     description:
-      "Spends workspace credits. A Coworker or Soko Bot the message mentions, or the one in a Direct, replies into the room as a paid turn. Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. Confirm the text with the person first.",
+      "Spends workspace credits. A Coworker or Soko Bot the message mentions, or the Soko Bot of a Soko Bot Direct, replies into the room as a paid turn. In a Direct with one Coworker and you alone, the Coworker replies only in Sokosumi Web. Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. Confirm the text with the person first.",
     spendsCredits: true,
   },
   {

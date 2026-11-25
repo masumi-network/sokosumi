@@ -58,7 +58,7 @@
     "POST /chats/rooms/{id}/stream": {
       "cli": false,
       "mcp": false,
-      "reason": "Server-sent event stream, not JSON; `chats send` posts a message and the reply arrives in `chats messages`."
+      "reason": "Server-sent event stream, not JSON: a 1:1 Coworker Direct replies through it in Sokosumi Web. `chats send` mentions reply into `chats messages`."
     },
     "GET /chats/rooms/{id}/pinned-messages": {
       "cli": "chats pinned",
