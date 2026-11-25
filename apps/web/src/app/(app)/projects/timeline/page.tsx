@@ -220,12 +220,14 @@ export async function ProjectsTimelineContent() {
                         colSpan={weeks.length + 1}
                         className="text-muted-foreground p-1 align-top"
                       >
-                        {/* Narrow enough to stay beside the project column
-                            on a phone instead of running off its edge. */}
+                        {/* Narrow enough to fit beside the project column
+                            on a phone, and held there while the weeks
+                            scroll: the column is w-28 (sm:w-40) plus the
+                            table's 4px spacing on both sides. */}
                         <span
                           className={cn(
                             CELL_TEXT_CLASS,
-                            "max-w-48 sm:max-w-none",
+                            "sticky start-30 max-w-48 sm:start-42 sm:max-w-none",
                           )}
                         >
                           {/* A cut read may have missed this row's Tasks. */}
