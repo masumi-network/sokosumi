@@ -8644,7 +8644,7 @@ export const postTasksByIdEventsStartAdmissionV1 = <ThrowOnError extends boolean
 });
 
 /**
- * Settle a completed full audit once using the original cost-plus approval and verified API receipts.
+ * Settle a completed full audit once, using its approved price and verified API receipts.
  */
 export const postTasksByIdEventsSeoSettlementV1 = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdEventsSeoSettlementV1Data, ThrowOnError>): RequestResult<PostTasksByIdEventsSeoSettlementV1Responses, PostTasksByIdEventsSeoSettlementV1Errors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdEventsSeoSettlementV1Responses, PostTasksByIdEventsSeoSettlementV1Errors, ThrowOnError>({
     responseTransformer: postTasksByIdEventsSeoSettlementV1ResponseTransformer,
