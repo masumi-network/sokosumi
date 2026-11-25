@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { adminSeoAlertNotifications } from "./admin-seo-alert-notify";
+import {
+  ADMIN_SEO_ALERT_MAX_PAGES,
+  adminSeoAlertNotifications,
+  readAdminSeoAlerts,
+} from "./admin-seo-alert-notify";
 
 const alert = (
   id: string,
@@ -63,5 +67,77 @@ describe("adminSeoAlertNotifications", () => {
       [{ userId: "admin-1", referenceId: "task-1" }],
     );
     expect(inputs.map((input) => input.userId)).toEqual(["admin-2"]);
+  });
+});
+
+describe("readAdminSeoAlerts", () => {
+  const NOW = new Date("2026-11-25T12:00:00.000Z");
+  const at = (hoursAgo: number) =>
+    new Date(NOW.getTime() - hoursAgo * 3_600_000).toISOString();
+  const row = (
+    id: string,
+    hoursAgo: number,
+    severity: "critical" | "warning" = "critical",
+  ) => ({ id, taskId: null, severity, at: at(hoursAgo) });
+  /** Serves the rows 25 to a page, as the list does, and records the pages asked for. */
+  const pagesOf = (rows: ReturnType<typeof row>[]) => {
+    const asked: number[] = [];
+    const readPage = async (page: number) => {
+      asked.push(page);
+      return {
+        critical: rows.filter((item) => item.severity === "critical").length,
+        items: rows.slice((page - 1) * 25, page * 25),
+      };
+    };
+    return { asked, readPage };
+  };
+  const rows = (count: number, hoursAgo = 1) =>
+    Array.from({ length: count }, (_, index) => row(`a${index}`, hoursAgo));
+
+  it("reads the 26th critical alert, on the second page", async () => {
+    const { asked, readPage } = pagesOf(rows(26));
+    const result = await readAdminSeoAlerts(readPage, NOW);
+    expect(result.alerts.map((alert) => alert.id)).toContain("a25");
+    expect(result).toMatchObject({ critical: 26, capped: false, old: 0 });
+    expect(asked).toEqual([1, 2]);
+  });
+
+  it("stops at the page limit and says the read was cut", async () => {
+    const { asked, readPage } = pagesOf(
+      rows(25 * ADMIN_SEO_ALERT_MAX_PAGES + 5),
+    );
+    const result = await readAdminSeoAlerts(readPage, NOW);
+    expect(result.alerts).toHaveLength(25 * ADMIN_SEO_ALERT_MAX_PAGES);
+    expect(result.capped).toBe(true);
+    expect(asked).toHaveLength(ADMIN_SEO_ALERT_MAX_PAGES);
+  });
+
+  it("does not say the read was cut when the last allowed page is short", async () => {
+    const { readPage } = pagesOf(rows(25 * ADMIN_SEO_ALERT_MAX_PAGES - 1));
+    expect((await readAdminSeoAlerts(readPage, NOW)).capped).toBe(false);
+  });
+
+  it("skips and counts a critical alert older than 24 hours", async () => {
+    const { readPage } = pagesOf([row("new", 23), row("old", 25)]);
+    const result = await readAdminSeoAlerts(readPage, NOW);
+    expect(result.alerts.map((alert) => alert.id)).toEqual(["new"]);
+    expect(result).toMatchObject({ critical: 2, old: 1 });
+  });
+
+  it("does not read a second page when the first one ends with an old or a warning alert", async () => {
+    const old = pagesOf([...rows(24), ...rows(6, 30)]);
+    expect(await readAdminSeoAlerts(old.readPage, NOW)).toMatchObject({
+      critical: 30,
+      old: 6,
+    });
+    expect(old.asked).toEqual([1]);
+    const warning = pagesOf([
+      ...rows(24),
+      ...Array.from({ length: 6 }, () => row("w", 1, "warning")),
+    ]);
+    expect(
+      (await readAdminSeoAlerts(warning.readPage, NOW)).alerts,
+    ).toHaveLength(24);
+    expect(warning.asked).toEqual([1]);
   });
 });

@@ -14,7 +14,7 @@ export default function mount(app: Hono) {
       async (context) => {
         // When already aborted (sync deadline), skip the read and the writes.
         const result = context.abortSignal.aborted
-          ? { critical: 0, read: 0, sent: 0 }
+          ? { critical: 0, read: 0, old: 0, capped: false, sent: 0 }
           : await notifyAdminSeoAlerts();
 
         context.log.set({ result });
