@@ -616,17 +616,17 @@
     "POST /projects/{id}/newsletter/subscribers": {
       "cli": false,
       "mcp": false,
-      "reason": "Records the person's consent or emails a double opt-in request; a person adds subscribers (owner decision pending, ADR 0077)."
+      "reason": "Subscriber consent: a person adds subscribers (ADR 0077)."
     },
     "POST /projects/{id}/newsletter/subscribers/import": {
       "cli": false,
       "mcp": false,
-      "reason": "Records consent for, or emails a double opt-in request to, up to 50,000 addresses; a person imports subscribers (owner decision pending, ADR 0077)."
+      "reason": "Subscriber consent: a person adds subscribers (ADR 0077)."
     },
     "POST /projects/{id}/newsletter/subscribers/from-contacts": {
       "cli": false,
       "mcp": false,
-      "reason": "Records consent for, or emails a double opt-in request to, whole contact lists; a person adds them (owner decision pending, ADR 0077)."
+      "reason": "Subscriber consent: a person adds subscribers (ADR 0077)."
     },
     "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}": {
       "cli": "newsletter update-subscriber",

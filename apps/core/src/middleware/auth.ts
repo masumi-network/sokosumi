@@ -333,9 +333,9 @@ export function forbidAgentActor(
 }
 
 /**
- * Owner-mutation / human-only user context: session user. Rejects agent
- * actors so
- * `X-Context-User-Id` cannot impersonate the resource owner.
+ * Owner-mutation user context: a person by any sign-in (session, API key or
+ * OAuth token). Rejects Coworker and Soko Bot actors so `X-Context-User-Id`
+ * cannot impersonate the resource owner.
  *
  * Use for notifications, history, billing, org member lists, and similar
  * surfaces. See the handler actor menu on {@link UserContext}.
