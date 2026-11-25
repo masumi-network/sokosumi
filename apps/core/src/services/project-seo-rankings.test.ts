@@ -116,6 +116,7 @@ function workspaceOf(
   results: ReturnType<typeof result>[],
   base = input(),
   history = results,
+  limited = false,
 ) {
   const rows = results.map((payload) => observation(base, payload));
   const historyRows =
@@ -125,6 +126,7 @@ function workspaceOf(
   return withSeoRankings(
     projectSeoProjection({ ...base, observations: rows }),
     historyRows,
+    limited,
   );
 }
 
@@ -207,6 +209,19 @@ describe("keyword position history", () => {
     expect(history).toHaveLength(SEO_RANK_HISTORY_POINTS);
     expect(history.at(0)?.observedAt).toBe(at(5));
     expect(history.at(-1)?.observedAt).toBe(at(SEO_RANK_HISTORY_POINTS + 4));
+    expect(workspaceOf(results).keywords[0].positionHistoryCut).toBe(true);
+  });
+
+  it("says that older reads are missing only when a limit left some out", () => {
+    const full = Array.from({ length: SEO_RANK_HISTORY_POINTS }, (_, day) =>
+      result(day, [{ position: 4 }]),
+    ).reverse();
+    expect(workspaceOf(full).keywords[0].positionHistoryCut).toBe(false);
+    // The load limit cuts whole results: every series can miss older reads.
+    const short = [result(1, [{ position: 4 }])];
+    expect(
+      workspaceOf(short, input(), short, true).keywords[0].positionHistoryCut,
+    ).toBe(true);
   });
 
   it("follows the period of the workspace", () => {
