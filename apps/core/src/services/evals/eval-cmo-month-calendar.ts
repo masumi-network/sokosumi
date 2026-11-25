@@ -106,7 +106,9 @@ export async function cmoMonthCalendarChecks(input: {
   plan: MarketingStrategyPlan;
   examples: readonly CmoCalendarEntry[];
   level: CmoVolumeLevel;
-  repeats?: typeof cmoMonthRepeats;
+  repeats?: (
+    month: readonly CmoCalendarEntry[],
+  ) => Promise<{ ids: ReadonlySet<string> }>;
 }): Promise<{ checks: ScenarioCheck[]; output: Record<string, unknown> }> {
   const { plan, level } = input;
   const month = inMonth(plan);

@@ -229,17 +229,25 @@ export function cmoMonthCalendarSystem(input: {
 export function cmoMonthChunkPrompt(
   slots: readonly CmoMonthSlot[],
   avoid: readonly string[],
+  /** A repair: what each post repeated, and the points already spent. */
+  repair?: { repeated: ReadonlyMap<string, string>; spent: readonly string[] },
 ): string {
   return [
     `Write these ${slots.length} posts. Answer every id, in this order.`,
     ...slots.map(
       (slot) =>
-        `- ${slot.id} · ${slot.date} ${slot.time} · ${cmoSlotNetworks(slot).join("+")} ${slot.format} · pillar ${slot.pillar} · ${slot.approach} · ${slot.stage}${slot.seed ? ` · Build on ${slot.seed}` : ""}`,
+        `- ${slot.id} · ${slot.date} ${slot.time} · ${cmoSlotNetworks(slot).join("+")} ${slot.format} · pillar ${slot.pillar} · ${slot.approach} · ${slot.stage}${slot.seed ? ` · Build on ${slot.seed}` : ""}${repair?.repeated.get(slot.id) ? ` · Repeated ${repair.repeated.get(slot.id)}: make another point with another title` : ""}`,
     ),
     avoid.length > 0
       ? [
           "Titles already in the month, which these must not repeat in other words:",
           ...avoid.map((title) => `- ${title}`),
+        ].join("\n")
+      : "",
+    repair?.spent.length
+      ? [
+          "Points the month already makes as often as it may, which these must not argue again:",
+          ...repair.spent.map((claim) => `- ${claim}`),
         ].join("\n")
       : "",
   ]
@@ -309,15 +317,25 @@ async function inTurns<T>(
 export async function cmoMonthRepeats(
   calendar: readonly CmoCalendarEntry[],
   find: typeof findRepeats = findRepeats,
-): Promise<{ ids: Set<string>; costUsd: number }> {
+): Promise<{
+  ids: Set<string>;
+  /** What each repeating post repeats: the earlier title or the point. */
+  repeated: Map<string, string>;
+  /** Points argued by as many posts as one point may have. */
+  spent: { pillar: string | undefined; claim: string }[];
+  costUsd: number;
+}> {
   const live = calendar.filter((entry) => entry.status !== "skipped");
   const ids = new Set<string>();
+  const repeated = new Map<string, string>();
   const titles = await find(
     live.map((entry) => entry.title),
     "title",
   );
   titles.repeats.forEach((earlier, index) => {
-    if (earlier !== null) ids.add(live[index]!.id);
+    if (earlier === null) return;
+    ids.add(live[index]!.id);
+    repeated.set(live[index]!.id, `the title "${live[earlier]?.title}"`);
   });
   const arguing = live.filter((entry) => entry.claim?.trim());
   const claims = await find(
@@ -332,9 +350,22 @@ export async function cmoMonthRepeats(
   group.forEach((first, index) => {
     const seen = (count.get(first) ?? 0) + 1;
     count.set(first, seen);
-    if (seen > MAX_CLAIM_POSTS) ids.add(arguing[index]!.id);
+    if (seen <= MAX_CLAIM_POSTS) return;
+    ids.add(arguing[index]!.id);
+    repeated.set(arguing[index]!.id, `the point "${arguing[first]?.claim}"`);
   });
-  return { ids, costUsd: titles.costUsd + claims.costUsd };
+  const spent = [...count]
+    .filter(([, seen]) => seen >= MAX_CLAIM_POSTS)
+    .map(([first]) => ({
+      pillar: arguing[first]?.pillar,
+      claim: arguing[first]?.claim ?? "",
+    }));
+  return {
+    ids,
+    repeated,
+    spent,
+    costUsd: titles.costUsd + claims.costUsd,
+  };
 }
 
 /** What the written month breaks of its strategy: the shares and every step. */
@@ -392,6 +423,10 @@ async function writeSlots(
   slots: readonly CmoMonthSlot[],
   avoid: (chunk: readonly CmoMonthSlot[]) => string[],
   round: string,
+  repair?: (chunk: readonly CmoMonthSlot[]) => {
+    repeated: ReadonlyMap<string, string>;
+    spent: readonly string[];
+  },
 ): Promise<{ entries: CmoCalendarEntry[]; costUsd: number }> {
   const chunks = cmoMonthChunks(slots, context.start, SLOTS_PER_CHUNK);
   let costUsd = 0;
@@ -410,7 +445,7 @@ async function writeSlots(
             openai: { reasoningEffort: "low" },
           },
           system,
-          prompt: cmoMonthChunkPrompt(chunk, avoid(chunk)),
+          prompt: cmoMonthChunkPrompt(chunk, avoid(chunk), repair?.(chunk)),
           output: Output.object({ schema: writtenSchema }),
           maxOutputTokens: 16_000,
           abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
@@ -461,7 +496,7 @@ function pillarTitles(
   return calendar
     .filter((entry) => entry.pillar && pillars.has(entry.pillar))
     .map((entry) => entry.title)
-    .slice(-80);
+    .slice(-160);
 }
 
 /**
@@ -532,6 +567,15 @@ export async function writeCmoMonthCalendar(context: WriteContext): Promise<{
       again,
       (chunk) => pillarTitles(kept, chunk),
       `repair${round}`,
+      (chunk) => {
+        const pillars = new Set(chunk.map((slot) => slot.pillar));
+        return {
+          repeated: found.repeated,
+          spent: found.spent
+            .filter((point) => !point.pillar || pillars.has(point.pillar))
+            .map((point) => point.claim),
+        };
+      },
     ).catch(() => ({ entries: [], costUsd: 0 }));
     costUsd += rewrite.costUsd;
     for (const entry of rewrite.entries) written.set(entry.id, entry);

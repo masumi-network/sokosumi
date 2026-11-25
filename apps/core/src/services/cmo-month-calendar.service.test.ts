@@ -254,6 +254,10 @@ describe("cmoMonthRepeats", () => {
       costUsd: 0,
     }));
     expect([...found.ids].sort()).toEqual(["b", "d", "e"]);
+    // The repair is told what each repeated, and which point is spent.
+    expect(found.repeated.get("b")).toBe('the title "a"');
+    expect(found.repeated.get("d")).toBe('the point "one claim"');
+    expect(found.spent.map((point) => point.claim)).toEqual(["one claim"]);
   });
 });
 
@@ -436,5 +440,16 @@ describe("the brief", () => {
       "m-1 · 2026-12-01 09:00 · linkedin image · pillar Launch planning · educational · awareness · Build on i1: one",
     );
     expect(prompt).toContain("Titles already in the month");
+    expect(prompt).not.toContain("Repeated");
+    const repair = cmoMonthChunkPrompt([slot("m-1")], [], {
+      repeated: new Map([["m-1", 'the point "A clear mint day sells"']]),
+      spent: ["A clear mint day sells"],
+    });
+    expect(repair).toContain(
+      'Repeated the point "A clear mint day sells": make another point with another title',
+    );
+    expect(repair).toContain(
+      "Points the month already makes as often as it may, which these must not argue again:\n- A clear mint day sells",
+    );
   });
 });
