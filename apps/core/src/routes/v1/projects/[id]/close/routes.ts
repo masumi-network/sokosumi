@@ -45,7 +45,7 @@ const closeRoute = createRoute({
   path: "/{id}/close",
   tags: ["Projects"],
   description:
-    "Freeze a revision-protected cutoff and begin closing a Project. Interactive session user only.",
+    "Freeze a revision-protected cutoff and begin closing a Project. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.",
   request: {
     params: paramsSchema,
     body: {

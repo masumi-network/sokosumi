@@ -170,7 +170,7 @@ describe("GET /v1/projects/activity", () => {
     const [sql] = queryRawMock.mock.calls[0];
     // Tasks, jobs and project events each join project p.
     expect(
-      sql.sql.match(/NOT EXISTS \(SELECT 1 FROM project_hide h/g),
+      sql.sql.match(/NOT EXISTS \(SELECT 1 FROM "public"."project_hide" h/g),
     ).toHaveLength(3);
     expect(sql.values).toContain("user_123");
   });

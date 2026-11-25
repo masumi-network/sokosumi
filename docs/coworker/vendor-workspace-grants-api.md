@@ -165,9 +165,12 @@ with `sokosumi:api` (`GET /v1/users/me/workspaces`); see
 [`../oauth-clients.md`](../oauth-clients.md).
 
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
-`/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or
-with context headers). Session users or Soko Bot with workspace
-context may create, approve, deny, or revoke.
+`/v1/users/{id}/vendor-grants/*`) return **403** for Coworker and Soko Bot
+auth (bare or with context headers). Creating a grant and approving one need a
+browser session: an API key or an OAuth or MCP token gets 403
+`person_approval_required` with `webUrl` (`/account`, or the organization's
+settings), per [ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md).
+The person's own credentials may still deny or revoke.
 
 ---
 

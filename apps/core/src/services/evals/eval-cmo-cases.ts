@@ -2,6 +2,7 @@ import type { SokoBotScenario } from "@sokosumi/soko-bot";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
 import brands from "./fixtures/cmo-brands.json";
 import monthPlans from "./fixtures/cmo-month-plans.json";
+import examplePlans from "./fixtures/cmo-v22-plans.json";
 
 export interface CmoEvalBrand {
   name: string;
@@ -75,6 +76,11 @@ export type CmoEvalCase =
       variety?: true;
       /** A LinkedIn month: scored on Jev's read of each post's first two lines. */
       openings?: true;
+      /**
+       * cmo-v22: the plan is the strategy with its example posts, and the
+       * case is Core's calendar written after payment at this plan level.
+       */
+      writes?: "steady" | "active" | "all_in";
     };
 
 /**
@@ -90,6 +96,7 @@ const RESEARCH_BRANDS = [
   "Blue Bottle Coffee",
   "utxo.ag",
   "Begin",
+  "entry.fyi",
 ];
 
 /**
@@ -108,6 +115,8 @@ const STRATEGY_BRANDS = [
   "FREITAG",
   "plausible.io",
   "tldraw.com",
+  "nmkr.io",
+  "entry.fyi",
 ];
 
 function slug(name: string) {
@@ -151,6 +160,17 @@ export function websiteOnlyBrain(brain: unknown): unknown {
   };
 }
 const frozenPlans = monthPlans as Record<string, unknown>;
+
+/**
+ * cmo-v22 strategies as Cuso saved them (the plan and its example posts),
+ * each the input of Core's month writer at every plan level.
+ */
+const frozenExamplePlans = examplePlans as Record<string, unknown>;
+const WRITER_LEVELS = [
+  { level: "steady", plan: "Starter" },
+  { level: "active", plan: "Growth" },
+  { level: "all_in", plan: "Scale" },
+] as const;
 
 /**
  * cmo-v5's promises NMKR's month of 2026-11-19 broke, each a case on a
@@ -457,6 +477,22 @@ export const CMO_EVAL_CASES = [
       brandBrain: frozenBrains[name],
     }),
   ),
+  ...Object.keys(frozenExamplePlans)
+    .filter((name) => frozenBrains[name])
+    .flatMap((name) =>
+      WRITER_LEVELS.map(({ level, plan }) => ({
+        id: `cmo-month-calendar-${slug(name)}-${level.replace("_", "-")}`,
+        suite: "cmo" as const,
+        area: "Month",
+        title: `Plans ${name}'s ${plan} month after payment`,
+        intent: `Core writes the whole ${plan} month from cmo-v22's plan and examples, in parallel calls: at least the plan's floor, every topic and kind of post at its share on every network, every funnel step, no post repeating another's point across calls, and the examples kept word for word.`,
+        kind: "cmo-month" as const,
+        brand: brand(name),
+        brandBrain: frozenBrains[name],
+        plan: frozenExamplePlans[name],
+        writes: level,
+      })),
+    ),
   ...MONTH_BRANDS.filter((name) => frozenBrains[name] && frozenPlans[name]).map(
     (name) => ({
       id: `cmo-month-${slug(name)}`,

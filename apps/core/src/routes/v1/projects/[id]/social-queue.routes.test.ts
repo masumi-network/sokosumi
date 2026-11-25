@@ -59,6 +59,16 @@ const SESSION_AUTH: AuthenticationContext = {
   authenticationMethod: "session",
 };
 
+// ADR 0077: a person's API key, OAuth or MCP token is an agent, like a Coworker.
+const AGENT_CREDENTIALS = [
+  ["user API key", { authenticationMethod: "api_key" }],
+  [
+    "third-party OAuth token",
+    { authenticationMethod: "oauth", oauthClientId: "c" },
+  ],
+  ["MCP token", { authenticationMethod: "oauth" }],
+] as const;
+
 const WORKSPACE_CONTEXT: WorkspaceContext = {
   workspaceId: WORKSPACE_ID,
   userId: USER_ID,
@@ -235,10 +245,51 @@ describe("Project social queue routes", () => {
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
       coworkerId: undefined,
+      agent: false,
       postId: POST_ID,
       socialConnectionId: undefined,
       revision: 0,
     });
+  });
+
+  it.each(AGENT_CREDENTIALS)(
+    "lets an agent on a %s queue a post for approval and change the slots",
+    async (_name, credential) => {
+      const app = createApp({ ...SESSION_AUTH, ...credential });
+      const queued = await app.request(
+        `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/queue`,
+        json("POST", { revision: 0 }),
+      );
+      expect(queued.status).toBe(200);
+      expect(queueSocialPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: USER_ID, agent: true }),
+      );
+      expect((await queued.json()).data).toMatchObject({
+        canPublishNow: false,
+        canApprove: false,
+      });
+      const replaced = await app.request(
+        `http://localhost/${PROJECT_ID}/social-queue-slots`,
+        json("PUT", { timezone: "UTC", slots: [] }),
+      );
+      expect(replaced.status).toBe(200);
+    },
+  );
+
+  it("keeps a Soko Bot out of the queue", async () => {
+    const response = await createApp({
+      actor: "sokoBot",
+      scope: "personal",
+      sokoBotId: "bot",
+      userId: USER_ID,
+      organizationId: null,
+      workspaceId: WORKSPACE_ID,
+    }).request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/queue`,
+      json("POST", { revision: 0 }),
+    );
+    expect(response.status).toBe(403);
+    expect(queueSocialPostMock).not.toHaveBeenCalled();
   });
 
   it("rejects queueing without authentication", async () => {

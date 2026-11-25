@@ -22,17 +22,24 @@ import {
 vi.mock("@/lib/db/prisma", () => {
   const fail = () => Promise.reject(new Error("database reached"));
   const model = new Proxy({}, { get: () => fail });
+  const handler = (transaction: () => object): ProxyHandler<object> => ({
+    get: (_, key) =>
+      key === "$transaction"
+        ? (run: unknown) =>
+            typeof run === "function" ? run(transaction()) : Promise.all([])
+        : key === "then" || key === "oauthResource"
+          ? undefined
+          : model,
+  });
+  // As in Prisma, a transaction gets its own client: a service that opens a
+  // transaction when `tx === prisma` must not recurse into another one.
+  const tx: object = new Proxy(
+    {},
+    handler(() => tx),
+  );
   const client: object = new Proxy(
     {},
-    {
-      get: (_, key) =>
-        key === "$transaction"
-          ? (run: unknown) =>
-              typeof run === "function" ? run(client) : Promise.all([])
-          : key === "then" || key === "oauthResource"
-            ? undefined
-            : model,
-    },
+    handler(() => tx),
   );
   return { default: client };
 });
@@ -154,25 +161,6 @@ const HUMAN_ONLY_WRITES: readonly [
   ["POST", `${P}/ads/connections/initiate`, { provider: "google_ads" }],
   ["POST", `${P}/ads/connections/finalize`, { connectionId: "ca_1" }],
   ["DELETE", `${P}/ads/connections/${ID}`],
-  ["POST", `${P}/ads/accounts/${ID}/campaigns`, CAMPAIGN],
-  [
-    "PUT",
-    `${P}/ads/accounts/${ID}/campaigns/123`,
-    {
-      ...CAMPAIGN,
-      google: {
-        type: "SEARCH",
-        startDate: "2030-10-01",
-        locationIds: ["2276"],
-        languageIds: ["1001"],
-        finalUrl: "https://example.com/spring",
-        keywords: [{ text: "running shoes", matchType: "BROAD" }],
-        headlines: ["One", "Two", "Three"],
-        descriptions: ["First description", "Second description"],
-      },
-    },
-  ],
-  ["PATCH", `${P}/ads/accounts/${ID}/campaigns/123`, { status: "PAUSED" }],
   [
     "PUT",
     `${P}/ads/market`,
@@ -195,7 +183,6 @@ const HUMAN_ONLY_WRITES: readonly [
   ["PUT", `${P}/image-studio/brand-kit/look`, { look: null, lookRevision: 0 }],
   ["POST", `${P}/image-studio/brand-kit/logo`, logoUpload()],
   ["POST", `${P}/image-studio/brand-kit/logo/website`, {}],
-  ["POST", `${P}/image-studio/jobs`, { prompt: "A lamp", idempotencyKey: KEY }],
   ["PUT", `${P}/image-studio/products`, { products: [], revision: 0 }],
   ["POST", `${P}/image-studio/products/import`, { url: "https://example.com" }],
   [
@@ -203,6 +190,77 @@ const HUMAN_ONLY_WRITES: readonly [
     `${P}/image-studio/products/photo`,
     { name: "Lamp", imageUrl: "https://example.com/lamp.png" },
   ],
+  ["POST", `${P}/image-studio/talking-video-scripts`, {}],
+  [
+    "POST",
+    `${P}/image-studio/assets/${ID}/events`,
+    { type: "viewed_lightbox" },
+  ],
+  ["PUT", `${P}/image-studio/assets/${ID}/feedback`, { thumb: 1 }],
+  ["POST", `${P}/image-studio/assets/${ID}/hide`, {}],
+  ["PUT", `${P}/image-studio/assets/${ID}/headline`, { text: "Hello" }],
+  ["POST", `${P}/image-studio/assets/${ID}/caption`, {}],
+  [
+    "POST",
+    `${P}/social-connections/initiate`,
+    { action: "connect", provider: "linkedin" },
+  ],
+  ["POST", `${P}/social-connections/finalize`, { connectionId: "ca_1" }],
+  ["DELETE", `${P}/social-connections/${ID}`],
+  ["POST", `${P}/social-posts/${ID}/publish`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/approve`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/reject`, { revision: 1 }],
+  [
+    "POST",
+    `${P}/social-posts/${ID}/thread/resume`,
+    { revision: 1, confirmedNotPosted: true },
+  ],
+];
+
+// SOKD-383: an agent drafts, plans and cancels Social posts (ADR 0077); the
+// post waits for a person's approval.
+const OPENED_WRITES: [string, string, object][] = [
+  ["POST", `${P}/social-connections/${ID}/statistics/refresh`, {}],
+  ["POST", `${P}/social-posts`, { text: "Hello" }],
+  ["PATCH", `${P}/social-posts/${ID}`, { revision: 1 }],
+  [
+    "POST",
+    `${P}/social-posts/${ID}/schedule`,
+    { revision: 1, scheduledAt: "2030-01-01T00:00:00.000Z" },
+  ],
+  ["POST", `${P}/social-posts/${ID}/queue`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/cancel`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/duplicate`, {}],
+  ["POST", `${P}/social-posts/${ID}/statistics/refresh`, {}],
+  ["PUT", `${P}/social-queue-slots`, { timezone: "UTC", slots: [] }],
+  ["POST", `${P}/social-account-posts/${ID}/recycle`, {}],
+  // SOKD-384: an agent creates a paused campaign, pauses it, and changes
+  // or edits it only while paused; a person resumes it (below).
+  ["POST", `${P}/ads/accounts/${ID}/campaigns`, CAMPAIGN],
+  [
+    "PUT",
+    `${P}/ads/accounts/${ID}/campaigns/123`,
+    {
+      ...CAMPAIGN,
+      google: {
+        type: "SEARCH",
+        startDate: "2030-10-01",
+        locationIds: ["2276"],
+        languageIds: ["1001"],
+        finalUrl: "https://example.com/spring",
+        keywords: [{ text: "running shoes", matchType: "BROAD" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First description", "Second description"],
+      },
+    },
+  ],
+  ["PATCH", `${P}/ads/accounts/${ID}/campaigns/123`, { status: "PAUSED" }],
+];
+
+// ADR 0077 (SOKD-385): credits are the cap, so an agent starts and cancels
+// Studio generations. A photo of a real person stays a person's step.
+const AGENT_GENERATIONS: [string, string, object][] = [
+  ["POST", `${P}/image-studio/jobs`, { prompt: "A lamp", idempotencyKey: KEY }],
   [
     "POST",
     `${P}/image-studio/video-jobs`,
@@ -222,47 +280,13 @@ const HUMAN_ONLY_WRITES: readonly [
     `${P}/image-studio/short-video-jobs`,
     { format: "voiceover", script: SCRIPT, idempotencyKey: KEY },
   ],
-  ["POST", `${P}/image-studio/talking-video-scripts`, {}],
   ["POST", `${P}/image-studio/jobs/${ID}/cancel`, {}],
-  [
-    "POST",
-    `${P}/image-studio/assets/${ID}/events`,
-    { type: "viewed_lightbox" },
-  ],
-  ["PUT", `${P}/image-studio/assets/${ID}/feedback`, { thumb: 1 }],
-  ["POST", `${P}/image-studio/assets/${ID}/hide`, {}],
-  ["PUT", `${P}/image-studio/assets/${ID}/headline`, { text: "Hello" }],
-  ["POST", `${P}/image-studio/assets/${ID}/caption`, {}],
-  [
-    "POST",
-    `${P}/social-connections/initiate`,
-    { action: "connect", provider: "linkedin" },
-  ],
-  ["POST", `${P}/social-connections/finalize`, { connectionId: "ca_1" }],
-  ["DELETE", `${P}/social-connections/${ID}`],
-  ["POST", `${P}/social-connections/${ID}/statistics/refresh`, {}],
-  ["POST", `${P}/social-posts`, { text: "Hello" }],
-  ["PATCH", `${P}/social-posts/${ID}`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/publish`, { revision: 1 }],
-  [
-    "POST",
-    `${P}/social-posts/${ID}/schedule`,
-    { revision: 1, scheduledAt: "2030-01-01T00:00:00.000Z" },
-  ],
-  ["POST", `${P}/social-posts/${ID}/queue`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/approve`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/reject`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/cancel`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/duplicate`, {}],
-  [
-    "POST",
-    `${P}/social-posts/${ID}/thread/resume`,
-    { revision: 1, confirmedNotPosted: true },
-  ],
-  ["POST", `${P}/social-posts/${ID}/statistics/refresh`, {}],
-  ["PUT", `${P}/social-queue-slots`, { timezone: "UTC", slots: [] }],
-  ["POST", `${P}/social-account-posts/${ID}/recycle`, {}],
 ];
+const PHOTO_PRESENTER = {
+  script: SCRIPT,
+  presenter: { kind: "file", fileId: ID, consent: true },
+  idempotencyKey: KEY,
+};
 
 async function call(
   method: string,
@@ -302,6 +326,11 @@ describe("as a Soko Bot", () => {
 
     expect(response.status).toBe(403);
   });
+  it.each(AGENT_GENERATIONS)("is refused %s %s", async (method, path, body) => {
+    const response = await call(method, path, sokoBot, body);
+
+    expect(response.status).toBe(403);
+  });
 });
 
 describe.each(CALLERS)("as %s", (_, authContext) => {
@@ -321,9 +350,57 @@ describe.each(CALLERS)("as %s", (_, authContext) => {
     expect(response.status).toBe(403);
   });
 
+  it.each(OPENED_WRITES)("writes %s %s", async (method, path, body) => {
+    const response = await call(method, path, authContext, body);
+
+    expect(
+      response.status,
+      `the guard should let the caller in: ${await response.text()}`,
+    ).not.toBe(403);
+  });
+
   it.each(HUMAN_ONLY_WRITES)("is refused %s %s", async (method, path, body) => {
     const response = await call(method, path, authContext, body);
 
     expect(response.status).toBe(403);
+  });
+  it.each(AGENT_GENERATIONS)(
+    "starts or cancels %s %s",
+    async (method, path, body) => {
+      const response = await call(method, path, authContext, body);
+
+      expect(
+        response.status,
+        `the guard should let the caller in: ${await response.text()}`,
+      ).not.toBe(403);
+    },
+  );
+
+  it("is a person's step to resume an ad campaign", async () => {
+    const response = await call(
+      "PATCH",
+      `${P}/ads/accounts/${ID}/campaigns/123`,
+      authContext,
+      { status: "ACTIVE" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      kind: "person_approval_required",
+    });
+  });
+
+  it("is a person's step to start a talking video of a real person's photo", async () => {
+    const response = await call(
+      "POST",
+      `${P}/image-studio/talking-video-jobs`,
+      authContext,
+      PHOTO_PRESENTER,
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      kind: "person_approval_required",
+    });
   });
 });

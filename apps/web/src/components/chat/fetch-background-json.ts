@@ -56,10 +56,10 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
   if (signal.aborted) return Promise.reject(signal.reason);
   return new Promise((resolve, reject) => {
     const onAbort = () => {
-      window.clearTimeout(timer);
+      clearTimeout(timer);
       reject(signal.reason);
     };
-    const timer = window.setTimeout(() => {
+    const timer = setTimeout(() => {
       signal.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
@@ -75,8 +75,11 @@ export async function fetchBackgroundJson(
   signal?: AbortSignal,
 ): Promise<unknown> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  const cancel = () => controller.abort();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const cancel = () => {
+    clearTimeout(timeout);
+    controller.abort();
+  };
   if (signal?.aborted) cancel();
   signal?.addEventListener("abort", cancel, { once: true });
   try {
@@ -86,13 +89,25 @@ export async function fetchBackgroundJson(
       // before the request is even made, which would turn every background
       // read into a silent four-second failure.
       const attemptController = new AbortController();
-      const abortAttempt = () =>
+      let attemptTimer: ReturnType<typeof setTimeout> | undefined;
+      const abortAttempt = () => {
+        if (attemptTimer !== undefined) {
+          clearTimeout(attemptTimer);
+          attemptTimer = undefined;
+        }
         attemptController.abort(controller.signal.reason);
-      controller.signal.addEventListener("abort", abortAttempt, { once: true });
-      const attemptTimer = window.setTimeout(
-        () => attemptController.abort(),
-        ATTEMPT_STALL_TIMEOUT_MS,
-      );
+      };
+      if (controller.signal.aborted) {
+        abortAttempt();
+      } else {
+        controller.signal.addEventListener("abort", abortAttempt, {
+          once: true,
+        });
+        attemptTimer = setTimeout(
+          () => attemptController.abort(),
+          ATTEMPT_STALL_TIMEOUT_MS,
+        );
+      }
       let stalled: boolean;
       try {
         const response = await fetch(url, {
@@ -149,7 +164,7 @@ export async function fetchBackgroundJson(
         // too, and `wait` below turns it into `null` on the spot.
         stalled = true;
       } finally {
-        window.clearTimeout(attemptTimer);
+        clearTimeout(attemptTimer);
         controller.signal.removeEventListener("abort", abortAttempt);
       }
 
@@ -163,7 +178,7 @@ export async function fetchBackgroundJson(
   } catch {
     return null;
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
     signal?.removeEventListener("abort", cancel);
   }
 }

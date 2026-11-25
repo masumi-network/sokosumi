@@ -52,6 +52,36 @@ it("drops the topics note once the plan is approved", () => {
   expect(html).not.toContain("ob-entry pending");
 });
 
+// cmo-v22: the calendar holds the strategy's example posts until Core writes the month.
+it("calls a cmo-v22 calendar example posts, before payment and while Core plans", () => {
+  const examples: Strategy = {
+    ...withMedia,
+    monthWriter: { state: "examples", attempts: 0 },
+  };
+  const before = renderToStaticMarkup(
+    <MonthPanel strategy={examples} onOpen={() => {}} pending />,
+  );
+  expect(before).toContain("These are example posts.");
+  expect(before).toContain(
+    "Once you subscribe, I plan every post your plan makes",
+  );
+  expect(before).not.toContain("These are the topics.");
+  const planning = renderToStaticMarkup(
+    <MonthPanel
+      strategy={{ ...examples, monthWriter: { state: "writing", attempts: 1 } }}
+      onOpen={() => {}}
+    />,
+  );
+  expect(planning).toContain("planning every post your plan makes");
+  const written = renderToStaticMarkup(
+    <MonthPanel
+      strategy={{ ...examples, monthWriter: { state: "written", attempts: 1 } }}
+      onOpen={() => {}}
+    />,
+  );
+  expect(written).not.toContain("example posts");
+});
+
 it("shows a short video and its copies as one card with every network", () => {
   const video = {
     date: "2026-10-08",

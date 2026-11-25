@@ -1,13 +1,13 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import {
   NuqsTestingAdapter,
   withNuqsTestingAdapter,
 } from "nuqs/adapters/testing";
-import { createElement, type ReactNode, StrictMode } from "react";
+import { Activity, createElement, type ReactNode, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StudioState } from "./types";
-import { useStudioState } from "./use-studio-state";
+import { type StudioStateHook, useStudioState } from "./use-studio-state";
 
 /**
  * The rule these tests exist for: a generation finishing must not take the
@@ -844,5 +844,134 @@ describe("URL-owned studio sort", () => {
       "newest-fresh",
       "a1",
     ]);
+  });
+
+  it("still applies a valid refresh result after a concurrent poll returns 503", async () => {
+    let resolveFirst!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onSelectionChange = vi.fn();
+
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+          onSelectionChange,
+        }),
+      { wrapper: nuqsWrapper() },
+    );
+
+    let firstRefresh!: Promise<void>;
+    act(() => {
+      firstRefresh = result.current.refresh();
+    });
+
+    // A concurrent poll starts later and fails with 503 before the first settles.
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.error).toBe("refresh_failed");
+
+    await act(async () => {
+      resolveFirst(new Response(JSON.stringify(WITH_RESULT), { status: 200 }));
+      await firstRefresh;
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.selectedAsset?.id).toBe("a2");
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "a2",
+      "a1",
+    ]);
+    expect(onSelectionChange).toHaveBeenCalledWith("a2");
+  });
+
+  it("keeps Best sort rows and clears isRefreshing when Best settles while hidden under Activity", async () => {
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    let latestStudio!: StudioStateHook;
+    function StudioHarness() {
+      latestStudio = useStudioState({
+        projectId: "project-1",
+        initialState: INITIAL,
+        initialSelectedAssetId: null,
+      });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(NuqsTestingAdapter, {
+        searchParams: "?sort=best",
+        hasMemory: true,
+        children: createElement(Activity, {
+          mode: "visible",
+          children: createElement(StudioHarness),
+        }),
+      }),
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(latestStudio.isRefreshing).toBe(true);
+
+    act(() => {
+      rerender(
+        createElement(NuqsTestingAdapter, {
+          searchParams: "?sort=best",
+          hasMemory: true,
+          children: createElement(Activity, {
+            mode: "hidden",
+            children: createElement(StudioHarness),
+          }),
+        }),
+      );
+    });
+
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [asset("best-1", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    act(() => {
+      rerender(
+        createElement(NuqsTestingAdapter, {
+          searchParams: "?sort=best",
+          hasMemory: true,
+          children: createElement(Activity, {
+            mode: "visible",
+            children: createElement(StudioHarness),
+          }),
+        }),
+      );
+    });
+
+    expect(latestStudio.state.assets.map(({ id }) => id)).toEqual([
+      "best-1",
+      "a1",
+    ]);
+    expect(latestStudio.isRefreshing).toBe(false);
   });
 });

@@ -480,3 +480,21 @@ export const contactCompanyDetailSchema = z
     ),
   })
   .openapi("ContactCompanyDetail");
+
+export const contactLinkedInImportInputSchema = z
+  .object({
+    /** The text of LinkedIn's Connections.csv export, at most 5 MB. */
+    csv: z.string().min(1).max(5_000_000),
+  })
+  .openapi("ContactLinkedInImportInput");
+
+export const contactLinkedInImportResultSchema = z
+  .object({
+    /** Rows that named a LinkedIn profile. */
+    connections: z.int(),
+    created: z.int(),
+    updated: z.int(),
+    /** The "LinkedIn connections" list every imported person is on. */
+    listId: z.uuid(),
+  })
+  .openapi("ContactLinkedInImportResult");

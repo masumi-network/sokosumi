@@ -1,5 +1,6 @@
 import { TaskFileOrigin, TaskFileStatus, TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 
 import {
   buildCoworkerTaskAccessSql,
@@ -53,7 +54,7 @@ function buildProjectTaskFilters(params: {
     ? buildCoworkerTaskAccessSql(params.coworkerAccess)
     : PrismaRaw.empty;
   const sokoBotFilter = params.assigneeSokoBotId
-    ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`
+    ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::${sharedType("TaskStatus")}`
     : PrismaRaw.empty;
   const visibilityOwnerUserId =
     params.sokoBotOwnerUserId ??
@@ -65,14 +66,14 @@ function buildProjectTaskFilters(params: {
     : PrismaRaw.empty;
 
   const baseWhere = PrismaRaw.sql`
-    FROM task t
+    FROM ${sharedTable("task")} t
     INNER JOIN (
       SELECT
         tf."taskId",
         MAX(tf."updatedAt") AS "latestFileUpdatedAt"
-      FROM task_file tf
-      WHERE tf.status = ${TaskFileStatus.READY}::"TaskFileStatus"
-        AND tf.origin = ${TaskFileOrigin.TASK_OUTPUT}::"TaskFileOrigin"
+      FROM ${sharedTable("task_file")} tf
+      WHERE tf.status = ${TaskFileStatus.READY}::${sharedType("TaskFileStatus")}
+        AND tf.origin = ${TaskFileOrigin.TASK_OUTPUT}::${sharedType("TaskFileOrigin")}
         AND tf."fileUrl" IS NOT NULL
       GROUP BY tf."taskId"
     ) lf ON lf."taskId" = t.id

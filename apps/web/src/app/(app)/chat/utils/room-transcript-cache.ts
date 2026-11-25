@@ -96,11 +96,15 @@ function normalizeTopLevelTranscript(
 export class RoomTranscriptCache {
   readonly prefix: ReturnType<typeof chatQueryKeys.transcripts>;
   private valid = true;
+  private controller = new AbortController();
   private readonly revoked = new Set<string>();
   /** Whether the cache was cleared before, so what read it needs a repaint. */
   activate() {
     const cleared = !this.valid;
     this.valid = true;
+    if (this.controller.signal.aborted) {
+      this.controller = new AbortController();
+    }
     return cleared;
   }
   available(roomId: string) {
@@ -407,6 +411,7 @@ export class RoomTranscriptCache {
   }
   clear() {
     this.valid = false;
+    this.controller.abort();
     this.reads.clear();
     this.prefetched.clear();
     this.prefetchedUnread.clear();
@@ -424,13 +429,17 @@ export class RoomTranscriptCache {
     if (existing) return existing;
     const prefetched = options ? undefined : this.prefetched.get(roomId);
     if (prefetched) this.prefetched.delete(roomId);
+    const signal = this.controller.signal;
     // A prefetched page is only as new as the transcript it was started
     // against. A failed one reads again, now with the room's access handling.
     const promise = (
       prefetched &&
       prefetched.revision === revision &&
       this.fitsOpen(prefetched.at)
-        ? prefetched.page.then((page) => page ?? this.fetch(roomId, options))
+        ? prefetched.page.then(
+            (page) =>
+              page ?? (signal.aborted ? null : this.fetch(roomId, options)),
+          )
         : this.fetch(roomId, options)
     ).finally(() => {
       if (this.reads.get(key) === promise) this.reads.delete(key);
@@ -450,14 +459,19 @@ export class RoomTranscriptCache {
   ) {
     if (chatReadThrottleResumeInMs() > 0) return Promise.resolve(null);
     const lifetime = this.get(roomId)?.lifetime;
-    return fetchRoomMessages(roomId, null, options, (status) => {
-      if (!lifetime || !this.current(roomId, lifetime)) return;
-      if (status === 401) {
-        window.dispatchEvent(new Event("chat-session-ended"));
-      } else {
-        notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
-      }
-    });
+    return fetchRoomMessages(
+      roomId,
+      null,
+      { ...options, signal: this.controller.signal },
+      (status) => {
+        if (!lifetime || !this.current(roomId, lifetime)) return;
+        if (status === 401) {
+          window.dispatchEvent(new Event("chat-session-ended"));
+        } else {
+          notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
+        }
+      },
+    );
   }
 
   /**

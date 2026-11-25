@@ -7,8 +7,14 @@ import {
   parseRequeueEmptyCompanyLookupsArgs,
   requeueEmptyCompanyLookups,
 } from "../src/helpers/requeue-empty-company-lookups.js";
+import {
+  configureSqlTables,
+  sqlTableLayoutFromEnv,
+} from "../src/sql-tables.js";
 
 loadEnv({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
+// Raw SQL names the schemas the environment names, as Core does.
+configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
 async function main() {
   const { before, apply } = parseRequeueEmptyCompanyLookupsArgs(

@@ -34,6 +34,7 @@ import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.sche
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
 import { expectCoreLog } from "@/test/core-log";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import {
   focusedRankingsReport,
   focusedReport,
@@ -250,6 +251,7 @@ describe.skipIf(!enabled)(
         });
         const vars = {
           isAuthenticated: true,
+          networkScope: testNetworkScope(),
           authContext: {
             actor: "user" as const,
             userId,
@@ -590,6 +592,7 @@ describe.skipIf(!enabled)(
     it("refuses generic schedule creation, conversion and resume for a removed audit", async () => {
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,
@@ -677,6 +680,7 @@ describe.skipIf(!enabled)(
       });
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,
@@ -809,6 +813,7 @@ describe.skipIf(!enabled)(
       try {
         const vars = {
           isAuthenticated: true,
+          networkScope: testNetworkScope(),
           authContext: {
             actor: "user" as const,
             userId,
@@ -1099,6 +1104,7 @@ describe.skipIf(!enabled)(
       });
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,
@@ -1299,6 +1305,7 @@ describe.skipIf(!enabled)(
       });
       const vars = {
         isAuthenticated: true,
+        networkScope: testNetworkScope(),
         authContext: {
           actor: "user" as const,
           userId,

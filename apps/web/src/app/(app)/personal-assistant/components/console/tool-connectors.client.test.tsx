@@ -530,6 +530,67 @@ describe("ToolConnectors", () => {
     }
   });
 
+  it("shows the full list on the same frame when search is cleared while typing still debounces", async () => {
+    vi.useFakeTimers();
+    try {
+      renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByText("slack")).toBeTruthy();
+
+      const input = screen.getByRole("searchbox");
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(
+        screen.getByRole("button", { name: "Connect figma" }),
+      ).toBeTruthy();
+      expect(screen.queryByText("slack")).toBeNull();
+
+      // Clearing shows the full list immediately without waiting 250ms.
+      fireEvent.change(input, { target: { value: "" } });
+      expect(screen.getByText("slack")).toBeTruthy();
+      expect(screen.getAllByRole("listitem")).toHaveLength(7);
+      expect(screen.queryByText("figma")).toBeNull();
+
+      // Re-typing the cleared query still waits out the 250ms debounce.
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+      expect(screen.queryByText("figma")).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(
+        screen.getByRole("button", { name: "Connect figma" }),
+      ).toBeTruthy();
+
+      // Clearing again, then typing a new query still debounces the search call.
+      fireEvent.change(input, { target: { value: "" } });
+      expect(screen.getByText("slack")).toBeTruthy();
+      searchCatalog.mockClear();
+      fireEvent.change(input, { target: { value: "lin" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(searchCatalog).toHaveBeenCalledTimes(1);
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "lin" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not scroll again on an identical catalog refetch with a newer dataUpdatedAt", async () => {
     const client = new QueryClient();
     const scrollSpy = vi.fn();

@@ -11,10 +11,10 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { EmptyState } from "@/components/common/empty-state";
 import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
 import DataTable from "@/components/data-table/data-table";
-import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
 import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useNewsletterSearchCancel } from "@/hooks/effects/use-newsletter-search-cancel";
 import { cn } from "@/lib/utils";
 import { AddFromContactsDialog } from "./add-from-contacts-dialog";
 import { AddSubscriberDialog } from "./add-subscriber-dialog";
@@ -68,6 +71,22 @@ export function Subscribers({
   const [query, setQuery] = useQueryStates(subscriberSearchParams, {
     shallow: false,
     startTransition,
+  });
+  const debouncedSearch = useDebouncedCallback((search: string) => {
+    setPendingAction("search");
+    void setQuery({ search, cursor: null });
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+  const navKey = `${projectId}\0${query.search}\0${query.status ?? ""}\0${query.cursor ?? ""}`;
+  const [prevNavKey, setPrevNavKey] = useState(navKey);
+  const [searchValue, setSearchValue] = useState(query.search);
+  if (prevNavKey !== navKey) {
+    setPrevNavKey(navKey);
+    setSearchValue(query.search);
+  }
+  useNewsletterSearchCancel({ navKey, debouncedSearch });
+  useEventListener("window", "popstate", () => {
+    debouncedSearch.cancel();
+    setSearchValue(query.search);
   });
   const [dialog, setDialog] = useState<"add" | "import" | "contacts" | null>(
     null,
@@ -192,16 +211,19 @@ export function Subscribers({
           <PageSearchField
             id="subscriber-search"
             inHeader
-            value={query.search}
+            value={searchValue}
             aria-label={t("search")}
             placeholder={t("searchPlaceholder")}
             maxLength={254}
             onValueChange={(search) => {
-              setPendingAction("search");
-              void setQuery(
-                { search, cursor: null },
-                pageSearchUrlUpdates(search),
-              );
+              setSearchValue(search);
+              if (!search) {
+                debouncedSearch.cancel();
+                setPendingAction("search");
+                void setQuery({ search: "", cursor: null });
+                return;
+              }
+              debouncedSearch(search);
             }}
           />
           {total > 0 ? actions : null}
@@ -229,6 +251,8 @@ export function Subscribers({
             value={query.status ?? "all"}
             disabled={pending}
             onValueChange={(value) => {
+              debouncedSearch.cancel();
+              setSearchValue(query.search);
               setPendingAction("status");
               void setQuery({
                 status: STATUSES.find((status) => status === value) ?? null,
@@ -259,6 +283,8 @@ export function Subscribers({
             disabled={pending}
             loading={pending && pendingAction === "clear"}
             onClick={() => {
+              debouncedSearch.cancel();
+              setSearchValue("");
               setPendingAction("clear");
               void setQuery({ search: "", status: null, cursor: null });
             }}
@@ -362,6 +388,8 @@ export function Subscribers({
                 disabled={!pagination.cursor || pending}
                 loading={pending && pendingAction === "first"}
                 onClick={() => {
+                  debouncedSearch.cancel();
+                  setSearchValue(query.search);
                   setPendingAction("first");
                   void setQuery({ cursor: null });
                 }}
@@ -373,6 +401,8 @@ export function Subscribers({
                 disabled={!pagination.nextCursor || pending}
                 loading={pending && pendingAction === "next"}
                 onClick={() => {
+                  debouncedSearch.cancel();
+                  setSearchValue(query.search);
                   setPendingAction("next");
                   void setQuery({ cursor: pagination.nextCursor });
                 }}

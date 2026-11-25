@@ -1,0 +1,41 @@
+@import "tailwindcss" source("../");
+@import "./tokens.css";
+
+/*
+ * Each colour reads the host's MCP Apps style variable first and falls back
+ * to Sokosumi's token. Iris has no host variable, so the primary stays ours.
+ */
+@theme inline {
+  --color-background: var(--color-background-primary, var(--background));
+  --color-foreground: var(--color-text-primary, var(--foreground));
+  --color-accent: var(--color-background-secondary, var(--accent));
+  --color-muted-foreground: var(
+    --color-text-secondary,
+    var(--muted-foreground)
+  );
+  --color-border: var(--color-border-primary, var(--border));
+  --color-ring: var(--color-ring-primary, var(--ring));
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --radius-md: var(--border-radius-md, calc(var(--radius) - 2px));
+}
+
+/* A host's `--font-sans` style variable, set on <html>, overrides this one. */
+@theme {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground text-sm antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}

@@ -197,6 +197,19 @@ describe("social account statistics routes", () => {
     expect(mocks.list).toHaveBeenCalled();
     expect(mocks.schedule).toHaveBeenCalled();
   });
+  // ADR 0077: a person's API key, OAuth or MCP token may refresh, as a Coworker may.
+  it.each([
+    { authenticationMethod: "api_key" as const },
+    { authenticationMethod: "oauth" as const, oauthClientId: "c" },
+    { authenticationMethod: "oauth" as const },
+  ])("refreshes for an agent on %o", async (credential) => {
+    const response = await createApp({ ...auth, ...credential }).request(
+      `http://localhost/${projectId}/social-connections/${connectionId}/statistics/refresh`,
+      refreshRequest(),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.schedule).toHaveBeenCalled();
+  });
   it("allows a delegated Coworker and rejects a bare Coworker", async () => {
     const actor: AuthenticationContext = {
       actor: "coworker",

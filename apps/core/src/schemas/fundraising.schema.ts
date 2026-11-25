@@ -65,6 +65,9 @@ export const fundraisingProspectSchema = z
     committedUsd: z.int().nullable(),
     notes: z.string().nullable(),
     source: z.string().nullable(),
+    /** The last outreach draft put in a teammate's mailbox; Sokosumi never sends it. */
+    lastDraftAt: dateTimeSchema.nullable(),
+    lastDraftSubject: z.string().nullable(),
     dataRoom: z.union([fundraisingDataRoomVisitSchema, z.null()]),
   })
   .openapi("FundraisingProspect");
@@ -78,6 +81,11 @@ export const fundraisingPipelineSchema = z
     ),
     prospects: z.array(fundraisingProspectSchema),
     research: fundraisingResearchSchema,
+    /** The caller's connected mailbox for drafts, or null. */
+    mailbox: z.union([
+      z.object({ provider: z.string(), botId: z.uuid() }),
+      z.null(),
+    ]),
   })
   .openapi("FundraisingPipeline");
 
@@ -128,3 +136,102 @@ export const fundraisingSuggestionIdsSchema = z
   .openapi("FundraisingSuggestionIds");
 
 export type FundraisingResearchDto = z.input<typeof fundraisingResearchSchema>;
+
+export const fundraisingPortfolioCompanySchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    website: z.string().nullable(),
+    round: z.string().nullable(),
+    date: z.string().nullable(),
+    amountUsd: z.int().nullable(),
+    sourceUrl: z.string(),
+    fetchedAt: dateTimeSchema,
+  })
+  .openapi("FundraisingPortfolioCompany");
+
+export const FUNDRAISING_PATH_KINDS = [
+  "direct",
+  "linkedin",
+  "fund",
+  "portfolio",
+] as const;
+
+/** One way to reach an investor, strongest first. */
+export const fundraisingPathSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_PATH_KINDS).openapi("FundraisingPathKind"),
+    /** The teammate who holds the relationship; null when nobody has been in touch. */
+    via: z.union([contactPersonSchema, z.null()]),
+    /** The teammate is connected to the person on LinkedIn (from an import). */
+    linkedIn: z.boolean(),
+    /** The contact the path runs through; null for a direct path. */
+    through: z.union([
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+        role: z.string().nullable(),
+        organization: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+        email: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** The fund, or the portfolio company the path runs through. */
+    company: z.union([
+      z.object({
+        name: z.string(),
+        round: z.string().nullable(),
+        date: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** 0 to 100: how much to trust this path. */
+    strength: z.int(),
+    touches: z.int(),
+    lastTouchAt: dateTimeSchema.nullable(),
+  })
+  .openapi("FundraisingPath");
+
+export const fundraisingPathsSchema = z
+  .object({
+    portfolio: z.array(fundraisingPortfolioCompanySchema),
+    researchedAt: dateTimeSchema.nullable(),
+    /** What one portfolio research run costs. */
+    researchUsd: z.number(),
+    paths: z.array(fundraisingPathSchema),
+    research: fundraisingResearchSchema,
+  })
+  .openapi("FundraisingPaths");
+
+export type FundraisingPathDto = z.input<typeof fundraisingPathSchema>;
+export type FundraisingPathsDto = z.input<typeof fundraisingPathsSchema>;
+
+export const FUNDRAISING_DRAFT_KINDS = ["intro", "follow_up"] as const;
+
+export const fundraisingDraftInputSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_DRAFT_KINDS),
+    /** Ask this contact for an introduction instead of writing to the investor. */
+    viaContactId: z.uuid().optional(),
+    /** Let the investor into this data room and put its link in the mail. */
+    inviteToRoomId: z.uuid().optional(),
+    /** Anything the mail should mention. */
+    note: z.string().trim().max(1000).optional(),
+  })
+  .openapi("FundraisingDraftInput");
+
+export const fundraisingDraftResultSchema = z
+  .object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+    /** The mailbox's draft id. */
+    draftId: z.string(),
+    provider: z.string(),
+    roomLink: z.string().nullable(),
+    prospect: fundraisingProspectSchema,
+  })
+  .openapi("FundraisingDraftResult");
+
+export type FundraisingDraftInput = z.infer<typeof fundraisingDraftInputSchema>;

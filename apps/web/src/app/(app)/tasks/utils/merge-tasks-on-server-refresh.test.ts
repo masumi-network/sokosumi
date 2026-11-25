@@ -5,7 +5,11 @@ import { mergeTasksOnServerRefresh } from "./merge-tasks-on-server-refresh";
 
 function buildTask(
   id: string,
-  overrides: Partial<{ status: TaskStatus; name: string }> = {},
+  overrides: Partial<{
+    status: TaskStatus;
+    name: string;
+    columnId: "backlog" | "todo" | "in-progress" | "input-required" | "done";
+  }> = {},
 ) {
   return {
     id,
@@ -22,7 +26,7 @@ function buildTask(
     jobsCount: 0,
     commentsCount: 0,
     participants: [],
-    columnId: "todo" as const,
+    columnId: overrides.columnId ?? ("todo" as const),
     events: [],
     agents: [],
   };
@@ -93,5 +97,53 @@ describe("mergeTasksOnServerRefresh", () => {
     expect(next).toHaveLength(1);
     expect(next[0]?.status).toBe(TaskStatus.RUNNING);
     expect(next[0]?.name).toBe("Local");
+  });
+
+  it("drops client-only rows in columns the server reports complete while keeping rows in incomplete columns", () => {
+    const prev = [
+      buildTask("done-1", { columnId: "done" }),
+      buildTask("done-archived-in-other-tab", { columnId: "done" }),
+      buildTask("todo-1", { columnId: "todo" }),
+      buildTask("todo-loaded", { columnId: "todo" }),
+    ];
+    const serverTasks = [
+      buildTask("done-1", { columnId: "done" }),
+      buildTask("todo-1", { columnId: "todo" }),
+    ];
+
+    const next = mergeTasksOnServerRefresh({
+      prev,
+      serverTasks,
+      pendingMoveTaskIds: new Set(),
+      keepLocalOnlyTasks: true,
+      completeColumnIds: new Set(["done"]),
+    });
+
+    expect(next.map((task) => task.id)).toEqual([
+      "done-1",
+      "todo-1",
+      "todo-loaded",
+    ]);
+  });
+
+  it("keeps a pending drag move even when its target column is complete on the server", () => {
+    const prev = [
+      buildTask("todo-1", { columnId: "todo" }),
+      buildTask("dragged-from-page-2", { columnId: "todo" }),
+    ];
+    const serverTasks = [buildTask("todo-1", { columnId: "todo" })];
+
+    const next = mergeTasksOnServerRefresh({
+      prev,
+      serverTasks,
+      pendingMoveTaskIds: new Set(["dragged-from-page-2"]),
+      keepLocalOnlyTasks: true,
+      completeColumnIds: new Set(["todo"]),
+    });
+
+    expect(next.map((task) => task.id)).toEqual([
+      "todo-1",
+      "dragged-from-page-2",
+    ]);
   });
 });

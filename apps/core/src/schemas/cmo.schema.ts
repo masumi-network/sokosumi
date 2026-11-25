@@ -118,9 +118,17 @@ export const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
 export const cmoProductionSchema = z
   .object({
     state: z
-      .enum(["waiting", "starting", "running", "ready", "stuck", "blocked"])
+      .enum([
+        "waiting",
+        "planning",
+        "starting",
+        "running",
+        "ready",
+        "stuck",
+        "blocked",
+      ])
       .describe(
-        "starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.",
+        "planning: paid, and Core is writing the month's calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.",
       ),
     ready: z.number().int(),
     total: z.number().int(),
@@ -168,6 +176,17 @@ export const cmoProductionSchema = z
       .union([z.string(), z.null()])
       .describe(
         "When a stuck month's next production run starts. Null unless state is stuck.",
+      ),
+    floor: z
+      .union([
+        z.object({
+          promised: z.number().int(),
+          made: z.number().int(),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.",
       ),
   })
   .openapi("CmoProduction");

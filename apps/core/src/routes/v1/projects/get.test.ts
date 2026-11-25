@@ -331,8 +331,11 @@ describe("GET /projects", () => {
   // ADR 0036: Open drops the reader's Hidden projects, Hidden lists only
   // those, and Closed ignores Hides so a Closed and Hidden project lists there.
   it.each([
-    ["open", "NOT EXISTS (SELECT 1 FROM project_hide h"],
-    ["hidden", 'p."closedAt" IS NULL AND EXISTS (SELECT 1 FROM project_hide h'],
+    ["open", 'NOT EXISTS (SELECT 1 FROM "public"."project_hide" h'],
+    [
+      "hidden",
+      'p."closedAt" IS NULL AND EXISTS (SELECT 1 FROM "public"."project_hide" h',
+    ],
   ] as const)(
     "splits the page and the total to %s by the reader's own Hides",
     async (state, predicate) => {

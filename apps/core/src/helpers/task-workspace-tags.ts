@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
@@ -49,12 +50,12 @@ export async function setTaskWorkspaceTags(
     // Hold the labels until commit so an archive or merge cannot race a new
     // assignment. An archived label may remain on a Task that already had it.
     const allowed = await tx.$queryRaw<{ id: string }[]>`
-      SELECT label.id FROM "workspace_label" label
+      SELECT label.id FROM ${sharedTable("workspace_label")} label
       WHERE label.id = ANY(${labelIds}::uuid[])
         AND label."workspaceId" = ${workspaceId}::uuid
         AND label.kind = 'TAG' AND label."mergedIntoId" IS NULL
         AND (label."archivedAt" IS NULL OR EXISTS (
-          SELECT 1 FROM "task_workspace_tag" assignment
+          SELECT 1 FROM ${sharedTable("task_workspace_tag")} assignment
           WHERE assignment."taskId" = ${taskId} AND assignment."labelId" = label.id
         ))
       ORDER BY label.id FOR SHARE
@@ -118,16 +119,16 @@ export async function applyJevWorkspaceTags(
   const candidates = await tx.$queryRaw<
     { id: string; vocabularyVersion: number }[]
   >`
-    SELECT label.id, label."vocabularyVersion" FROM "workspace_label" label
+    SELECT label.id, label."vocabularyVersion" FROM ${sharedTable("workspace_label")} label
     WHERE label.id = ANY(${suggestions.map(({ id }) => id)}::uuid[])
       AND label."workspaceId" = ${workspaceId}::uuid AND label.kind = 'TAG'
       AND label."mergedIntoId" IS NULL AND label."archivedAt" IS NULL
       AND NOT EXISTS (
-        SELECT 1 FROM "task_workspace_tag" applied
+        SELECT 1 FROM ${sharedTable("task_workspace_tag")} applied
         WHERE applied."taskId" = ${taskId} AND applied."labelId" = label.id
       )
       AND NOT EXISTS (
-        SELECT 1 FROM "task_workspace_tag_decision" decision
+        SELECT 1 FROM ${sharedTable("task_workspace_tag_decision")} decision
         WHERE decision."taskId" = ${taskId} AND decision."labelId" = label.id
       )
     ORDER BY label.id FOR SHARE OF label

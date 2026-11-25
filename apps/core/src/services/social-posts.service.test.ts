@@ -4149,6 +4149,8 @@ describe("social posts service", () => {
   it.each([
     ["Coworker", { coworkerId: "cow_123" }],
     ["Soko Bot", { sokoBotId: "55555555-5555-4555-8555-555555555555" }],
+    // ADR 0077: a person's API key, OAuth or MCP token.
+    ["user-credential agent", { agent: true }],
   ])("holds a %s draft for approval", async (_actor, creator) => {
     const { createSocialPost } = await loadService();
     await createSocialPost({
@@ -4467,6 +4469,82 @@ describe("social posts service", () => {
         text: "Edited",
       });
       expect(writtenStatus()).toBeUndefined();
+    });
+  });
+
+  // ADR 0077: a person's API key, OAuth or MCP token is an agent.
+  describe("an agent on a person's credential", () => {
+    const scope = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      agent: true,
+    };
+    const writtenStatus = () =>
+      socialPostUpdateManyMock.mock.calls.at(-1)?.[0].data.status;
+
+    it("holds a scheduled post for approval and credits the person", async () => {
+      const { createSocialPost } = await loadService();
+      await createSocialPost({
+        ...scope,
+        text: "Hello",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: FUTURE,
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: USER_ID,
+            creatorCoworkerId: null,
+            scheduledByUserId: USER_ID,
+            scheduledByCoworkerId: null,
+          }),
+        }),
+      );
+    });
+
+    it("holds a copy for approval", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status: "PUBLISHED",
+        publishedAt: NOW,
+      });
+      const { duplicateSocialPost } = await loadService();
+      await duplicateSocialPost({ ...scope, postId: POST_ID });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: USER_ID,
+          }),
+        }),
+      );
+    });
+
+    it("schedules a person's draft as Needs approval", async () => {
+      const { scheduleSocialPost } = await loadService();
+      await scheduleSocialPost({
+        ...scope,
+        postId: POST_ID,
+        revision: draftPost.revision,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: FUTURE,
+      });
+      expect(writtenStatus()).toBe("NEEDS_APPROVAL");
+    });
+
+    it("edits a Scheduled post into Needs approval", async () => {
+      socialPostFindFirstMock.mockResolvedValue(scheduledPost);
+      const { updateSocialPost } = await loadService();
+      await updateSocialPost({
+        ...scope,
+        postId: POST_ID,
+        revision: scheduledPost.revision,
+        text: "Edited",
+      });
+      expect(writtenStatus()).toBe("NEEDS_APPROVAL");
     });
   });
 

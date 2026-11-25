@@ -75,6 +75,12 @@ export const PLANNING_PHASES = [
   { kinds: ["strategy"], label: "Four weeks, day by day" },
 ] as const;
 
+/** cmo-v22: the plan and its example posts; the month comes after payment. */
+export const EXAMPLE_PLANNING_PHASES = [
+  { kinds: ["other"], label: "Your channels" },
+  { kinds: ["strategy"], label: "A few example posts" },
+] as const;
+
 /**
  * The work's steps as a checklist. A phase is done once a later one has
  * started, even when Cuso skipped it (no channels to check), so no step

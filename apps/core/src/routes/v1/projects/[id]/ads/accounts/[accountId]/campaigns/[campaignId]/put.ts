@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   editAdCampaignRequestSchema,
@@ -20,7 +20,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "put",
     path: "/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
     description:
-      "Edit a Google campaign: its name, daily budget (decimal in the account currency) and the whole google spec (the same fields as a create; Display images may also be `{assetId, role}` to keep an image of the ad). Only what differs from the campaign is changed, in one atomic call; nothing differs, nothing is sent (still 204). Only a campaign that is editable (`campaign.editable` in the details) can be edited here (409), `google.type` must be the campaign's type (422), an omitted startDate keeps the start date, which cannot change once the campaign started (422), and an omitted endDate removes the end date, and a kept image must be one of the ad's images (422). A shared budget cannot change its amount (422). A Google validation or policy failure is returned as 422 with Google's message. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. New Display images must belong to the active Workspace's Drive. Requires an interactive user session in the Project's Workspace.",
+      "Edit a Google campaign: its name, daily budget (decimal in the account currency) and the whole google spec (the same fields as a create; Display images may also be `{assetId, role}` to keep an image of the ad). Only what differs from the campaign is changed, in one atomic call; nothing differs, nothing is sent (still 204). Only a campaign that is editable (`campaign.editable` in the details) can be edited here (409), `google.type` must be the campaign's type (422), an omitted startDate keeps the start date, which cannot change once the campaign started (422), and an omitted endDate removes the end date, and a kept image must be one of the ad's images (422). A shared budget cannot change its amount (422). A Google validation or policy failure is returned as 422 with Google's message. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. New Display images must belong to the active Workspace's Drive. Open to a person and to an agent (user API key, OAuth or MCP token) in the Project's Workspace; Coworker keys get 403. An agent edits only a paused campaign (409 otherwise, ADR 0077).",
     tags: ["Projects"],
     request: {
       params: projectAdCampaignParamsSchema,
@@ -47,7 +47,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId, campaignId } = c.req.valid("param");
     const { name, dailyBudget, google } = c.req.valid("json");
@@ -63,6 +63,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         name,
         dailyBudget,
         google,
+        // ADR 0077: any credential but a browser session is an agent.
+        onlyWhilePaused: userContext.authenticationMethod !== "session",
       });
       return empty(c);
     } catch (error) {

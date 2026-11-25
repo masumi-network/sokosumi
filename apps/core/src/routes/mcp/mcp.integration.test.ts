@@ -8,6 +8,7 @@ import type { McpTokenVerification } from "@/lib/sokosumi-mcp/auth";
 import {
   DEFAULT_TOOLSETS,
   MCP_TOOLS,
+  MCP_TOOLSETS,
   toolsetOf,
 } from "@/lib/sokosumi-mcp/tools";
 
@@ -83,7 +84,10 @@ afterEach(async () => {
 
 describe("Sokosumi MCP server", () => {
   it("serves its tools to a signed-in MCP client", async () => {
-    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=workspaces,users,tasks",
+    );
 
     expect(client.serverInfo).toMatchObject({ name: "sokosumi" });
     expect(client.instructions).toContain("workspaces_list");
@@ -133,30 +137,20 @@ describe("Sokosumi MCP server", () => {
     expect(defaults.length).toBeLessThan(80);
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
-    expect(await listed("?toolsets=vendors,organizations")).toEqual([
-      "vendors_me",
-      "vendors_create",
-      "vendors_list",
-      "vendors_update",
-      "vendors_logo_cleanup",
-      "vendors_members",
-      "vendors_update_member",
-      "vendors_remove_member",
-      "vendors_invites",
-      "vendors_invite",
-      "vendors_revoke_invite",
-      "vendors_my_invites",
-      "vendors_accept_invite",
-      "vendors_decline_invite",
-      "vendors_assignments",
-      "vendors_assign",
-      "vendors_unassign",
-      "organizations_list",
-      "organizations_seat",
-    ]);
+    expect(await listed("?toolsets=vendors,organizations")).toEqual(
+      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
+        ["vendors", "organizations"].includes(toolsetOf(name)),
+      ),
+    );
+
+    const drive = await connect(auth, "?toolsets=drive");
+    expect(drive.instructions).toContain(
+      "Drive tools other than tables take `scope`",
+    );
 
     const client = await connect(auth, "?toolsets=tasks");
     expect(client.instructions).toContain("Toolsets on: tasks.");
+    expect(client.instructions).not.toContain("Drive tools");
     expect(client.instructions).toContain(
       "Other tasks tools take a Task's `id`",
     );
@@ -167,7 +161,10 @@ describe("Sokosumi MCP server", () => {
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {
-    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=tasks,agents,projects,seo",
+    );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
       (tool) => tool.name,
@@ -178,19 +175,84 @@ describe("Sokosumi MCP server", () => {
       "tasks_resume_schedule",
       "tasks_run_schedule",
       "agents_hire",
+      // ADR 0077: Image Studio starts spend credits; cancel does not.
+      "projects_image_studio_generate",
+      "projects_image_studio_video",
+      "projects_image_studio_short_video",
+      "projects_image_studio_talking_video",
+      "projects_competitor_checks",
+      "projects_check_competitors",
+      "seo_audit_ask",
+      "seo_audit_analyze",
+      "seo_audit_create_monitor",
+      "seo_project_analyze",
+      "seo_project_create_monitor",
     ]);
-    const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
-    expect(warned.map((tool) => tool.name)).toEqual(spending);
-    for (const tool of warned) {
+    // Open-world: tools that spend credits, plus the ad tools (next test).
+    const openWorld = tools.filter((tool) => tool.annotations?.openWorldHint);
+    expect(openWorld.map((tool) => tool.name)).toEqual(
+      MCP_TOOLS.filter((tool) => tool.spendsCredits || tool.openWorld).map(
+        (tool) => tool.name,
+      ),
+    );
+    for (const tool of tools.filter((tool) => spending.includes(tool.name))) {
       expect(tool.description).toMatch(/^Spends workspace credits\./);
+      const operation =
+        MCP_TOOLS.find(({ name }) => name === tool.name)?.operation ?? "";
       expect(tool.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
-        idempotentHint: false,
+        // A spending PUT (projects_competitor_checks) is safe to repeat.
+        idempotentHint: operation.startsWith("PUT "),
         openWorldHint: true,
       });
     }
   });
+
+  it("marks the ad campaign tools open-world and destructive", async () => {
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=projects",
+    );
+    const { tools } = await client.listTools();
+    const outside = MCP_TOOLS.filter((tool) => tool.openWorld).map(
+      (tool) => tool.name,
+    );
+
+    expect(outside).toEqual([
+      "projects_ads_campaign_create",
+      "projects_ads_campaign_update",
+      "projects_ads_campaign_edit",
+    ]);
+    const ads = tools.filter((tool) => outside.includes(tool.name));
+    expect(ads.map((tool) => tool.name)).toEqual(outside);
+    for (const tool of ads) {
+      expect(tool.description).toMatch(
+        /^Can lead to ad spend once a person resumes the campaign\./,
+      );
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      });
+    }
+  }, 15_000);
+
+  it("keeps SEO off by default and lists it on request", async () => {
+    expect(DEFAULT_TOOLSETS).not.toContain("seo");
+
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=seo",
+    );
+    const { tools } = await client.listTools();
+    expect(client.instructions).toContain("Toolsets on: seo.");
+    expect(tools.map((tool) => tool.name)).toEqual(
+      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
+        name.startsWith("seo_"),
+      ),
+    );
+  }, 15_000);
 
   it("refuses an unknown toolset by name", async () => {
     await expect(
@@ -207,14 +269,13 @@ describe("Sokosumi MCP server", () => {
     });
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      message:
-        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, developer, organizations, image-studio, projects.',
+      message: `Unknown toolset "nope". Toolsets: ${MCP_TOOLSETS.join(", ")}.`,
     });
   });
 
   it("answers a 2026-07-28 request with JSON, and opens no subscription stream", async () => {
     const post = (method: string, params: Record<string, unknown>) =>
-      app.request(`${CORE}/mcp`, {
+      app.request(`${CORE}/mcp?toolsets=users`, {
         method: "POST",
         headers: {
           Authorization: "Bearer mcp-token",

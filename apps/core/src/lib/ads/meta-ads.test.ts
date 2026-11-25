@@ -421,9 +421,43 @@ describe("updateMetaCampaign", () => {
       toolSlug: "METAADS_GET_OBJECT",
       arguments: {
         object_id: "10",
-        fields: ["id", "account_id", "objective", "daily_budget"],
+        fields: ["id", "account_id", "objective", "daily_budget", "status"],
       },
     });
+  });
+
+  it.each(["ACTIVE", undefined])(
+    "returns 409 without writing when onlyWhilePaused and the status is %s",
+    async (status) => {
+      executeToolMock.mockResolvedValue(campaignObject({ status }));
+      await expect(
+        updateMetaCampaign({
+          ...update,
+          dailyBudget: 9,
+          onlyWhilePaused: true,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: "An agent changes a campaign only while it is paused",
+      });
+      expect(writes()).toEqual([]);
+    },
+  );
+
+  it("changes the budget of a paused campaign when onlyWhilePaused", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "METAADS_GET_OBJECT"
+        ? campaignObject({ status: "PAUSED" })
+        : saved,
+    );
+    await updateMetaCampaign({
+      ...update,
+      dailyBudget: 9,
+      onlyWhilePaused: true,
+    });
+    expect(writes().map((call) => call.arguments)).toEqual([
+      { campaign_id: "10", daily_budget: 9 },
+    ]);
   });
 
   it("sets the status", async () => {

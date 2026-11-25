@@ -91,6 +91,10 @@ async function lockSql(
 ) {
   query.mockClear();
   await client.lock.findFirst({ where: { key: "k" } });
+  return firstSql(query);
+}
+
+function firstSql(query: ReturnType<typeof vi.spyOn>) {
   const calls: unknown[][] = query.mock.calls;
   const config = calls[0]?.[0] as string | { text: string } | undefined;
   return typeof config === "string" ? config : config?.text;
@@ -195,6 +199,31 @@ describe("Core database clients", () => {
     }
   });
 
+  it("sends the credit costs read as the same query through the Mainnet client as through the default client, on today's layout", async () => {
+    const { default: prisma, networkPrisma, query } = await loadClients();
+
+    const sent = [];
+    for (const client of [prisma, networkPrisma("mainnet")]) {
+      query.mockClear();
+      await client.creditCost.findMany();
+      const calls: unknown[][] = query.mock.calls;
+      sent.push(
+        calls.map(([config]) => {
+          // Without `types`: each adapter passes its own parser functions.
+          const { types: _types, ...rest } = config as { types: unknown };
+          return rest;
+        }),
+      );
+    }
+
+    expect(sent[0]).toEqual([
+      expect.objectContaining({
+        text: expect.stringContaining('FROM "public"."CreditCost"'),
+      }),
+    ]);
+    expect(sent[1]).toEqual(sent[0]);
+  });
+
   it.each([
     ["today's layout", {}],
     [
@@ -235,6 +264,51 @@ describe("Core database clients", () => {
     expect(await lockSql(networkPrisma("preprod"), query)).toContain(
       '"preprod"."Lock"',
     );
+  });
+
+  it.each([
+    ["unset names", {}],
+    [
+      "blank names",
+      {
+        DATABASE_SCHEMA_SHARED: "",
+        DATABASE_SCHEMA_MAINNET: "",
+        DATABASE_SCHEMA_PREPROD: "",
+        NETWORK_PREPROD_ENABLED: "",
+      },
+    ],
+  ])(
+    "configures the database package's raw SQL for public, Preprod off, with %s",
+    async (_, env) => {
+      await loadClients(env);
+      const { netTable, sharedTable } = await import(
+        "@sokosumi/database/sql-tables"
+      );
+
+      expect(sharedTable("user").sql).toBe('"public"."user"');
+      expect(netTable("mainnet", "Job").sql).toBe('"public"."Job"');
+      expect(() => netTable("preprod", "Job")).toThrow("Preprod is off");
+    },
+  );
+
+  it("configures the database package's raw SQL for the schemas the environment names", async () => {
+    const { default: prisma, query } = await loadClients(PREPROD_ON);
+    const { netTable, sharedTable } = await import(
+      "@sokosumi/database/sql-tables"
+    );
+    const { requeueEmptyCompanyLookups } = await import(
+      "@sokosumi/database/helpers"
+    );
+
+    expect(sharedTable("user").sql).toBe('"shared"."user"');
+    expect(netTable("mainnet", "Job").sql).toBe('"mainnet"."Job"');
+    expect(netTable("preprod", "Job").sql).toBe('"preprod"."Job"');
+    query.mockClear();
+    await requeueEmptyCompanyLookups(prisma, {
+      before: new Date("2026-01-01T00:00:00Z"),
+      apply: true,
+    });
+    expect(firstSql(query)).toContain('UPDATE "shared"."contact_company"');
   });
 
   it("reports an idle pool error once, though three clients use the pool", async () => {

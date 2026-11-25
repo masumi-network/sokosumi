@@ -1,10 +1,16 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { describe, expect, it } from "vitest";
 
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
+import {
+  GENERATE_COMMAND,
+  renderSqlTableNames,
+  SQL_TABLE_NAMES_FILE,
+} from "../scripts/generate-sql-table-names.js";
 import { Prisma, PrismaClient } from "./generated/prisma/client.js";
 import { $Enums } from "./index.js";
 
@@ -74,6 +80,13 @@ describe("prisma/network-tables.json", () => {
       (model) => !(model in network) && !(model in shared),
     );
     expect(unplaced, "add each new model to one list").toEqual([]);
+  });
+
+  it("is what src/sql-table-names.ts types the SQL helpers with", () => {
+    expect(
+      readFileSync(SQL_TABLE_NAMES_FILE, "utf8"),
+      `src/sql-table-names.ts is out of date: run ${GENERATE_COMMAND}`,
+    ).toBe(renderSqlTableNames(networkTables));
   });
 
   it("places no model in both lists", () => {

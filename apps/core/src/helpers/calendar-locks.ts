@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { conflict } from "@/helpers/error";
 
@@ -15,7 +16,7 @@ async function lockCalendarActor(
 ): Promise<boolean> {
   const user = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id
-    FROM "user"
+    FROM ${sharedTable("user")}
     WHERE id = ${userId}
     FOR KEY SHARE
   `;
@@ -34,7 +35,7 @@ export async function lockCalendarScope(
 
   const workspace = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id
-    FROM "workspace"
+    FROM ${sharedTable("workspace")}
     WHERE id = ${workspaceId}::uuid
     FOR UPDATE
   `;
@@ -46,7 +47,7 @@ export async function lockCalendarScope(
   for (const projectId of uniqueProjectIds) {
     const project = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id
-      FROM "project"
+      FROM ${sharedTable("project")}
       WHERE id = ${projectId}::uuid
         AND "workspaceId" = ${workspaceId}::uuid
       FOR UPDATE
@@ -72,7 +73,7 @@ export async function lockTaskRows(
   if (uniqueTaskIds.length === 0) return true;
   const tasks = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id
-    FROM "task"
+    FROM ${sharedTable("task")}
     WHERE id = ANY(${uniqueTaskIds}::text[])
     ORDER BY id COLLATE "C"
     FOR UPDATE

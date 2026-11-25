@@ -4,7 +4,9 @@ Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedul
 
 Social scheduling is public for X, YouTube, LinkedIn, Instagram, and Facebook. Every workspace, including `utxo`, gets the same enabled providers: `socialProvidersForWorkspace` in [`packages/utils/src/social-post.ts`](../../packages/utils/src/social-post.ts) returns `SOCIAL_PUBLIC_PROVIDERS`. TikTok and other platforms show Coming soon and cannot be connected or used to create, edit, schedule, approve, publish, duplicate, or recycle posts. Existing posts on unavailable providers remain readable and fail when due with the coming-soon reason without contacting the platform. Ads remains `utxo`-only.
 
-Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Organization-Id` for an organization workspace. The contextual user must belong to that workspace. Core applies the same delegated-user binding used for delegated Tasks: a granted vendor workspace grant or a baseline assigned/same-vendor task relationship. Denied/revoked grants reject access. Bare Coworker keys, human API keys, OAuth tokens, Soko Bot, and orchestrator actors do not gain this access.
+Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Organization-Id` for an organization workspace. The contextual user must belong to that workspace. Core applies the same delegated-user binding used for delegated Tasks: a granted vendor workspace grant or a baseline assigned/same-vendor task relationship. Denied/revoked grants reject access. Bare Coworker keys, Soko Bot, and orchestrator actors do not gain this access.
+
+A person's API key, OAuth token or MCP token reaches the same routes with no context headers, as an agent: everything it creates, duplicates, edits, schedules or queues lands as `NEEDS_APPROVAL` too ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). The CLI (`sokosumi projects social-post-*`) and the MCP `projects` toolset call them.
 
 1. List the Project's connected accounts using `GET /v1/projects/{id}/social-connections`; choose an active connection whose provider is enabled for the Project's workspace. Workspace reads (`GET /v1/users/me/workspaces`) include `enabledSocialProviders`.
 2. Create a post awaiting approval using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
@@ -22,7 +24,7 @@ Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, P
 
 Posts and duplicates created by a Coworker or Soko Bot always land as `NEEDS_APPROVAL` and never publish until a person approves them. A Coworker's edit, schedule or queue of any post, including a person's draft or Scheduled post, sends it back to `NEEDS_APPROVAL` too. Setting a planned time while a post still needs approval keeps that status.
 
-A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. The chat card also offers Reject when permitted; it uses Core's reject action to cancel the pending post. Project Social emphasizes Approve and Cancel. Agents never approve or reject posts.
+A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. The chat card also offers Reject when permitted; it uses Core's reject action to cancel the pending post. Project Social emphasizes Approve and Cancel. Agents never approve or reject posts: approve, reject, Publish now and thread resume answer 403 `person_approval_required` with the post's Web link (`webUrl`) to anything but a browser session.
 
 ## Published post statistics
 

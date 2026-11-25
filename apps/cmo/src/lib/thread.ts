@@ -95,7 +95,10 @@ export function buildThread(
   const production = overview.updates.filter(
     (update) => update.kind === "production",
   );
-  if (approvedAt && overview.production.total > 0) {
+  if (
+    approvedAt &&
+    (overview.production.total > 0 || overview.production.state === "planning")
+  ) {
     const latest = production.map((update) => iso(update.at) ?? created).sort();
     items.push({ kind: "production", at: latest.at(-1) ?? approvedAt });
   }
@@ -213,6 +216,7 @@ export function cusoPose(
   if (overview.work?.kind === "research") return "reading";
   if (
     overview.production.state === "running" ||
+    overview.production.state === "planning" ||
     overview.work?.status === "running"
   ) {
     return "thinking";

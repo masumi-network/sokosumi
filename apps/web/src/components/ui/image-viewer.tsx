@@ -111,16 +111,31 @@ function printImage(src: string, alt: string): void {
   image.alt = alt;
   doc.body.appendChild(image);
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cleaned = false;
+
   function cleanup(): void {
+    if (cleaned) return;
+    cleaned = true;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    iframe.onload = null;
     iframe.remove();
   }
 
   iframe.onload = () => {
+    if (cleaned) return;
+    const contentWindow = iframe.contentWindow;
+    contentWindow?.addEventListener("afterprint", cleanup, { once: true });
     try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+      contentWindow?.focus();
+      contentWindow?.print();
     } finally {
-      window.setTimeout(cleanup, 500);
+      if (!cleaned) {
+        timer = setTimeout(cleanup, 500);
+      }
     }
   };
 }

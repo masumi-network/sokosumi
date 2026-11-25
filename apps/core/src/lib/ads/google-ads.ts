@@ -27,6 +27,7 @@ import {
   type AdCampaignStatus,
   type AdCampaignUpdate,
   type AdRange,
+  AGENT_PAUSED_ONLY_MESSAGE,
   buildAdCampaign,
   currencyFractionDigits,
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
@@ -251,7 +252,10 @@ export async function listGoogleCampaigns(
 }
 
 const campaignLookupRowSchema = z.object({
-  campaign: z.object({ campaignBudget: z.string().min(1) }),
+  campaign: z.object({
+    campaignBudget: z.string().min(1),
+    status: z.string().nullish(),
+  }),
   campaignBudget: z.object({ explicitlyShared: z.boolean().nullish() }),
 });
 
@@ -286,7 +290,7 @@ async function lookUpGoogleCampaign(
 ) {
   requireCampaignId(campaignId);
   // The id is digits only, so the query cannot be altered by it.
-  const query = `SELECT campaign.id, campaign.campaign_budget, campaign_budget.explicitly_shared FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
+  const query = `SELECT campaign.id, campaign.status, campaign.campaign_budget, campaign_budget.explicitly_shared FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
   const [row] = parseToolRows(
     requireToolRows(
       await execute(SEARCH_STREAM_GAQL, { customer_id: customerId, query }),
@@ -315,7 +319,14 @@ export async function updateGoogleCampaign(
   input: AdsConnectedAccount &
     AdCampaignUpdate & { customerId: string; campaignId: string },
 ): Promise<void> {
-  const { customerId, campaignId, status, dailyBudget, ...connected } = input;
+  const {
+    customerId,
+    campaignId,
+    status,
+    dailyBudget,
+    onlyWhilePaused,
+    ...connected
+  } = input;
 
   await withAdsToolSession(
     {
@@ -329,6 +340,9 @@ export async function updateGoogleCampaign(
     },
     async (execute) => {
       const row = await lookUpGoogleCampaign(execute, customerId, campaignId);
+      if (onlyWhilePaused && row.campaign.status !== "PAUSED") {
+        throw conflict(AGENT_PAUSED_ONLY_MESSAGE);
+      }
       if (dailyBudget !== undefined && row.campaignBudget.explicitlyShared) {
         throw conflict(SHARED_BUDGET_MESSAGE);
       }
@@ -2451,8 +2465,15 @@ export async function editGoogleCampaign(
   input: AdsConnectedAccount &
     GoogleCampaignEdit & { customerId: string; campaignId: string },
 ): Promise<void> {
-  const { customerId, campaignId, name, dailyBudget, google, ...connected } =
-    input;
+  const {
+    customerId,
+    campaignId,
+    name,
+    dailyBudget,
+    google,
+    onlyWhilePaused,
+    ...connected
+  } = input;
   requireCampaignId(campaignId);
 
   await withAdsToolSession(
@@ -2464,6 +2485,9 @@ export async function editGoogleCampaign(
     async (execute) => {
       const request = { name, dailyBudget, google };
       const rows = await readDetailRows(execute, customerId, campaignId, {});
+      if (onlyWhilePaused && rows.head.campaign.status !== "PAUSED") {
+        throw conflict(AGENT_PAUSED_ONLY_MESSAGE);
+      }
       const target = refuseEdit(rows, request);
       const { ids: imageIds, wroteAssets } = await uploadNewImages(
         execute,

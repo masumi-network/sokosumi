@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -79,8 +80,9 @@ function createTransaction() {
   };
 }
 
-function queryText(call: unknown[]): string {
-  return (call[0] as TemplateStringsArray).join("?");
+function capturedQuery(call: unknown[]) {
+  const [strings, ...values] = call;
+  return PrismaRaw.sql(strings as TemplateStringsArray, ...values);
 }
 
 describe("calendar erasure", () => {
@@ -95,10 +97,11 @@ describe("calendar erasure", () => {
       lockCalendarErasureUser({ $queryRaw: queryRaw } as never, "user-1"),
     ).resolves.toBe(true);
 
-    expect(queryText(queryRaw.mock.calls[0])).toMatch(
-      /FROM "user"[\s\S]*WHERE id = \?[\s\S]*FOR UPDATE/,
+    const query = capturedQuery(queryRaw.mock.calls[0]);
+    expect(query.sql).toMatch(
+      /FROM "public"."user"[\s\S]*WHERE id = \?[\s\S]*FOR UPDATE/,
     );
-    expect(queryRaw.mock.calls[0]?.slice(1)).toEqual(["user-1"]);
+    expect(query.values).toEqual(["user-1"]);
   });
 
   it("locks workspace calendar data in canonical parent-to-child order", async () => {
@@ -111,24 +114,25 @@ describe("calendar erasure", () => {
     await lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID);
 
     expect(queryRaw).toHaveBeenCalledTimes(7);
-    expect(queryRaw.mock.calls.map(queryText)).toEqual([
-      expect.stringMatching(/FROM "workspace"[\s\S]*FOR UPDATE/),
-      expect.stringMatching(/FROM "project"[\s\S]*FOR UPDATE/),
-      expect.stringMatching(/FROM "task"[\s\S]*FOR UPDATE/),
+    const queries = queryRaw.mock.calls.map(capturedQuery);
+    expect(queries.map((query) => query.sql)).toEqual([
+      expect.stringMatching(/FROM "public"."workspace"[\s\S]*FOR UPDATE/),
+      expect.stringMatching(/FROM "public"."project"[\s\S]*FOR UPDATE/),
+      expect.stringMatching(/FROM "public"."task"[\s\S]*FOR UPDATE/),
       expect.stringMatching(
-        /FROM "task_schedule_run" AS run[\s\S]*FOR UPDATE OF run/,
+        /FROM "public"."task_schedule_run" AS run[\s\S]*FOR UPDATE OF run/,
       ),
-      expect.stringMatching(/FROM "task_schedule"\s[\s\S]*FOR UPDATE/),
+      expect.stringMatching(/FROM "public"."task_schedule"\s[\s\S]*FOR UPDATE/),
       expect.stringMatching(
-        /FROM "task_link" AS link[\s\S]*FOR UPDATE OF link/,
+        /FROM "public"."task_link" AS link[\s\S]*FOR UPDATE OF link/,
       ),
       expect.stringMatching(
-        /FROM "task_x402_payment" AS payment[\s\S]*FOR UPDATE OF payment/,
+        /FROM "public"."task_x402_payment" AS payment[\s\S]*FOR UPDATE OF payment/,
       ),
     ]);
-    expect(
-      queryRaw.mock.calls.every((call) => call.slice(1).includes(WORKSPACE_ID)),
-    ).toBe(true);
+    expect(queries.every((query) => query.values.includes(WORKSPACE_ID))).toBe(
+      true,
+    );
     expect(queryRaw.mock.invocationCallOrder[6]).toBeLessThan(
       taskX402PaymentFindFirst.mock.invocationCallOrder[0] ?? Infinity,
     );
