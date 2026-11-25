@@ -35,6 +35,7 @@ import {
   useOrganizationMembers,
   useProspectUpdate,
 } from "../use-fundraising";
+import { FindInvestors } from "./find-investors";
 import { OwnerSelect, StageSelect } from "./prospect-controls";
 import { ProspectSheet } from "./prospect-sheet";
 
@@ -160,6 +161,8 @@ export function FundraisingBoard({
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
+
+      <FindInvestors pipeline={pipeline} />
 
       {pipeline.prospects.length === 0 ? (
         <Empty title={t("emptyTitle")} body={t("empty")}>
