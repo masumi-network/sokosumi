@@ -5,30 +5,12 @@ import type {
 } from "@sokosumi/core-client";
 import {
   normalizeWebsiteUrl,
-  SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
-  seoCreditsForCents,
   seoFullAuditPrice,
   seoMaxCredits,
 } from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import type { SeoAnalysisLimits } from "./seo-analysis-summary";
-
-const CENTS_PER_DOLLAR = 100;
-const LOW_EXAMPLE_USD = 4;
-const HIGH_EXAMPLE_USD = 10;
-export const SEO_AUDIT_PRICE_EXAMPLE = {
-  lowCost: LOW_EXAMPLE_USD,
-  lowCharge: Math.max(
-    SEO_FULL_AUDIT_CREDITS,
-    seoCreditsForCents(LOW_EXAMPLE_USD * CENTS_PER_DOLLAR),
-  ),
-  highCost: HIGH_EXAMPLE_USD,
-  highCharge: Math.max(
-    SEO_FULL_AUDIT_CREDITS,
-    seoCreditsForCents(HIGH_EXAMPLE_USD * CENTS_PER_DOLLAR),
-  ),
-};
 
 /**
  * The target page of a keyword's choice. A keyword tracked from its check has no stored choice

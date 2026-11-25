@@ -265,7 +265,7 @@ describe("Search Console audit launch", () => {
         screen.getByRole("dialog", { name: "Search Console coverage" }),
       ).toHaveAccessibleDescription(
         monitor
-          ? /At least 750 credits per successful run/
+          ? /Approximately 750 credits per run/
           : /Approximately 750 credits/,
       );
       expect(screen.queryByText(/private account diagnostic/)).toBeNull();
@@ -479,16 +479,16 @@ describe("full-audit price terms", () => {
     expect(body).not.toHaveProperty("fullAuditCredits");
   });
 
-  it("approves the same terms per run for a schedule of full audits", async () => {
+  it("approves the same terms per run for a schedule of full audits, with the estimate only", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace(), true);
-    // The terms show with the fields closed: the one submit is the consent, so no extra checkbox.
-    expect(dialog).toHaveTextContent(
-      "After each successful run, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum per run is 750 credits. There is no maximum.",
-    );
+    // The estimate by the button is the one price line: the cost terms and their markup stay internal.
     expect(
-      within(dialog).getByText("At least 750 credits per successful run"),
+      within(dialog).getByText("Approximately 750 credits per run"),
     ).toBeVisible();
+    expect(dialog).not.toHaveTextContent(
+      /api costs|50 ?%|there is no maximum|for example, usd|AI Gateway/i,
+    );
     expect(within(dialog).queryByText(/Up to/)).toBeNull();
     await user.click(
       within(dialog).getByRole("button", {
