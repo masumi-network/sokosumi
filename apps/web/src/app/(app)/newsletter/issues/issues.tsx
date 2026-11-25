@@ -10,8 +10,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { EmptyState } from "@/components/common/empty-state";
-import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
 import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";
 import { newsletterHref } from "../newsletter-tabs";
 import { DraftIssueButton } from "./draft-issue-dialog";
@@ -55,6 +56,18 @@ export function Issues({
     shallow: false,
     startTransition,
   });
+  const debouncedSearch = useDebouncedCallback((q: string) => {
+    setPendingPage(null);
+    void setQuery({ q, cursor: null });
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+  const navKey = `${projectId}\0${query.q}\0${query.cursor ?? ""}`;
+  const [prevNavKey, setPrevNavKey] = useState(navKey);
+  const [searchValue, setSearchValue] = useState(query.q);
+  if (prevNavKey !== navKey) {
+    setPrevNavKey(navKey);
+    setSearchValue(query.q);
+    debouncedSearch.cancel();
+  }
   const searching = Boolean(query.q.trim());
   const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
@@ -84,12 +97,18 @@ export function Issues({
         <PageSearchActions>
           <PageSearchField
             inHeader
-            value={query.q}
+            value={searchValue}
             placeholder={tSearch("issues")}
             maxLength={ISSUE_SEARCH_MAX_LENGTH}
             onValueChange={(q) => {
-              setPendingPage(null);
-              void setQuery({ q, cursor: null }, pageSearchUrlUpdates(q));
+              setSearchValue(q);
+              if (!q) {
+                debouncedSearch.cancel();
+                setPendingPage(null);
+                void setQuery({ q: "", cursor: null });
+                return;
+              }
+              debouncedSearch(q);
             }}
           />
           {issues.length || searching ? newIssue : null}
@@ -178,6 +197,8 @@ export function Issues({
               disabled={!pagination.cursor || pending}
               loading={pending && pendingPage === "first"}
               onClick={() => {
+                debouncedSearch.cancel();
+                setSearchValue(query.q);
                 setPendingPage("first");
                 void setQuery({ cursor: null });
               }}
@@ -189,6 +210,8 @@ export function Issues({
               disabled={!pagination.nextCursor || pending}
               loading={pending && pendingPage === "next"}
               onClick={() => {
+                debouncedSearch.cancel();
+                setSearchValue(query.q);
                 setPendingPage("next");
                 void setQuery({ cursor: pagination.nextCursor });
               }}

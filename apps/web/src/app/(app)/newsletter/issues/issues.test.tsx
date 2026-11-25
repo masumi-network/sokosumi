@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getEnvPublicConfig } from "@/config/env.public";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -47,6 +48,7 @@ function renderIssues(
   issues: NewsletterIssue[] = [NEWSLETTER_ISSUE],
   pagination = PAGINATION,
   locale: "en" | "de" | "es" = "en",
+  searchParams = "",
 ) {
   return render(
     <NextIntlClientProvider
@@ -57,7 +59,11 @@ function renderIssues(
         dateTime: { dateTime: { dateStyle: "medium", timeStyle: "short" } },
       }}
     >
-      <NuqsTestingAdapter onUrlUpdate={mocks.url} hasMemory>
+      <NuqsTestingAdapter
+        searchParams={searchParams}
+        onUrlUpdate={mocks.url}
+        hasMemory
+      >
         <Issues
           projectId={NEWSLETTER_PROJECT_ID}
           issues={issues}
@@ -313,5 +319,51 @@ describe("newsletter issues list", () => {
         }),
       ),
     );
+  });
+
+  it("searches as the reader types and resets the cursor in one URL update", async () => {
+    const user = userEvent.setup();
+    renderIssues([NEWSLETTER_ISSUE], PAGINATION, "en", "?cursor=i1");
+    const searchbox = screen.getByRole("searchbox");
+    await user.type(searchbox, "launch");
+    expect(searchbox).toHaveValue("launch");
+    await waitFor(() => expect(mocks.url).toHaveBeenCalledTimes(1));
+    const params: URLSearchParams = mocks.url.mock.lastCall?.[0].searchParams;
+    expect(params.get("q")).toBe("launch");
+    expect(params.has("cursor")).toBe(false);
+  });
+
+  it("cancels a pending debounced search when a competing action runs", async () => {
+    const user = userEvent.setup();
+    renderIssues(
+      [NEWSLETTER_ISSUE],
+      {
+        ...PAGINATION,
+        nextCursor: NEWSLETTER_ISSUE.id,
+        total: 30,
+      },
+      "en",
+      "?cursor=i1",
+    );
+    const searchbox = screen.getByRole("searchbox");
+    await user.type(searchbox, "launch");
+    expect(searchbox).toHaveValue("launch");
+    expect(mocks.url).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: COPY.nextPage }));
+    await waitFor(() => expect(mocks.url).toHaveBeenCalledTimes(1));
+    expect(mocks.url.mock.lastCall?.[0].searchParams.get("cursor")).toBe(
+      NEWSLETTER_ISSUE.id,
+    );
+    expect(mocks.url.mock.lastCall?.[0].searchParams.has("q")).toBe(false);
+    expect(searchbox).toHaveValue("");
+
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
+      ),
+    );
+    expect(mocks.url).toHaveBeenCalledTimes(1);
   });
 });

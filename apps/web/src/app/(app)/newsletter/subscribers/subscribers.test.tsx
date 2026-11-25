@@ -17,6 +17,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getEnvPublicConfig } from "@/config/env.public";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -257,16 +258,37 @@ describe("newsletter subscribers", () => {
   it("searches as the reader types and resets the cursor", async () => {
     const user = userEvent.setup();
     renderSubscribers({ searchParams: "?cursor=s1&status=ACTIVE" });
-    await user.type(screen.getByRole("searchbox"), "example.com");
-    await waitFor(() =>
-      expect(mocks.url.mock.lastCall?.[0].searchParams.get("search")).toBe(
-        "example.com",
-      ),
-    );
+    const searchbox = screen.getByRole("searchbox");
+    await user.type(searchbox, "example.com");
+    expect(searchbox).toHaveValue("example.com");
+    await waitFor(() => expect(mocks.url).toHaveBeenCalledTimes(1));
     const params: URLSearchParams = mocks.url.mock.lastCall?.[0].searchParams;
     expect(params.get("search")).toBe("example.com");
     expect(params.get("status")).toBe("ACTIVE");
     expect(params.has("cursor")).toBe(false);
+  });
+
+  it("cancels a pending debounced search when a competing action runs", async () => {
+    const user = userEvent.setup();
+    renderSubscribers({ searchParams: "?cursor=s1&status=ACTIVE" });
+    const searchbox = screen.getByRole("searchbox");
+    await user.type(searchbox, "ada");
+    expect(searchbox).toHaveValue("ada");
+    expect(mocks.url).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: COPY.nextPage }));
+    await waitFor(() => expect(mocks.url).toHaveBeenCalledTimes(1));
+    expect(mocks.url.mock.lastCall?.[0].searchParams.get("cursor")).toBe("s2");
+    expect(mocks.url.mock.lastCall?.[0].searchParams.has("search")).toBe(false);
+    expect(searchbox).toHaveValue("");
+
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
+      ),
+    );
+    expect(mocks.url).toHaveBeenCalledTimes(1);
   });
 
   it("links the subscriber's current contact name and the newsletter's list to Contacts", () => {
