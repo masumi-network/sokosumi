@@ -31,6 +31,7 @@ import {
 } from "@/app/chat/utils/transcript-viewport-model";
 import { Button } from "@/components/ui/button";
 import { useAbortController } from "@/hooks/effects/use-abort-controller";
+import { useListHighlightCleanup } from "@/hooks/effects/use-list-highlight-cleanup";
 import {
   LANDING_FRAMES,
   openingIndex,
@@ -217,8 +218,10 @@ export function TranscriptViewport({
   const hold = held !== false || holdOffBottom;
   const holdRef = useRef(hold);
   holdRef.current = hold;
-  // Unmount ends a landing still polling for its row.
+  // Unmount ends a landing still polling for its row, and drops any highlight
+  // hold so its timer and window scroll listeners do not outlive the room.
   const landingAbort = useAbortController();
+  useListHighlightCleanup(list);
 
   // Where the list starts inside the scroller: the shell pads above it, and
   // pushes a short list to the bottom. The virtualizer needs that offset so

@@ -47,6 +47,7 @@ const highlightListMessageMock = vi.hoisted(() =>
 );
 
 vi.mock("@/app/chat/utils/room-message-highlight", () => ({
+  clearListHighlight: vi.fn(),
   highlightListMessage: (list: string, messageId: string) =>
     highlightListMessageMock(list, messageId),
 }));

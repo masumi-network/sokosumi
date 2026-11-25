@@ -8,6 +8,7 @@ import {
   CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
 import {
+  clearListHighlight,
   highlightListMessage,
   ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE,
   ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS,
@@ -59,6 +60,8 @@ function touchDragOver(element: HTMLElement): void {
 
 describe("room message highlight", () => {
   afterEach(() => {
+    clearListHighlight(CHAT_MESSAGE_LIST_ROOM);
+    clearListHighlight(CHAT_MESSAGE_LIST_THREAD);
     document.body.innerHTML = "";
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -394,6 +397,39 @@ describe("room message highlight", () => {
 
     expect(reply.dataset.searchLanded).toBe("true");
     expect(parent.dataset.searchLanded).toBe("true");
+  });
+
+  it("clears a list's highlight, timer, and listeners even after its container leaves the document", () => {
+    vi.useFakeTimers();
+    const removed = vi.spyOn(window, "removeEventListener");
+    const parent = row("msg-70", CHAT_MESSAGE_LIST_ROOM);
+    const reply = row("msg-71", CHAT_MESSAGE_LIST_THREAD);
+
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-70");
+    highlightListMessage(CHAT_MESSAGE_LIST_THREAD, "msg-71");
+
+    // React removes DOM nodes before passive unmount cleanup runs.
+    document.body.innerHTML = "";
+    clearListHighlight(CHAT_MESSAGE_LIST_ROOM);
+
+    expect(parent.dataset.searchLanded).toBeUndefined();
+    expect(reply.dataset.searchLanded).toBe("true");
+    expect(removed).toHaveBeenCalledWith("wheel", expect.any(Function), {
+      capture: true,
+    });
+    expect(removed).toHaveBeenCalledWith("touchmove", expect.any(Function), {
+      capture: true,
+    });
+
+    clearListHighlight(CHAT_MESSAGE_LIST_THREAD);
+    const originalWindow = globalThis.window;
+    // @ts-expect-error simulates happy-dom teardown deleting window.
+    delete globalThis.window;
+    try {
+      vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS + 100);
+    } finally {
+      globalThis.window = originalWindow;
+    }
   });
 
   /**

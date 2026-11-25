@@ -215,3 +215,16 @@ export function highlightListMessage(list: string, messageId: string): boolean {
     messageId,
   );
 }
+
+/**
+ * Drop any active landing mark for the named list, clearing its timer and
+ * window scroll listeners even if the list element has already left the
+ * document (such as during React passive unmount cleanup).
+ */
+export function clearListHighlight(list: string): void {
+  for (const element of [...activeHighlights.keys()]) {
+    if (element.getAttribute(CHAT_MESSAGE_LIST_ATTRIBUTE) === list) {
+      clearHighlight(element);
+    }
+  }
+}

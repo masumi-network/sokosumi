@@ -20,6 +20,7 @@ import {
   CLIENT_MESSAGE_ID_METADATA_KEY,
   outboundLocalMessageId,
 } from "@/app/chat/utils/outbound-room-message";
+import { ROOM_MESSAGE_HIGHLIGHT_MS } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 
 import {
@@ -516,6 +517,48 @@ describe("TranscriptViewport", () => {
     expect(
       container.querySelector(`[data-message-id="${target}"]`),
     ).toHaveAttribute("data-search-landed", "true");
+  });
+
+  it("clears an active landing highlight and its timer when the viewport unmounts", async () => {
+    const removed = vi.spyOn(window, "removeEventListener");
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, unmount } = render(
+      <Harness rows={rows(500)} handle={handle} />,
+    );
+    await settle(container);
+    const target = mountedIds(container).at(-3);
+    if (!target) {
+      throw new Error("expected a mounted row to land on");
+    }
+
+    act(() => {
+      handle.current?.landOnMessage(target);
+    });
+    await settle(container);
+
+    const marked = container.querySelector<HTMLElement>(
+      `[data-message-id="${target}"]`,
+    );
+    expect(marked).toHaveAttribute("data-search-landed", "true");
+
+    unmount();
+
+    const originalWindow = globalThis.window;
+    // @ts-expect-error simulates happy-dom teardown deleting window before the hold expires.
+    delete globalThis.window;
+    try {
+      vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS + 100);
+    } finally {
+      globalThis.window = originalWindow;
+    }
+
+    expect(marked?.dataset.searchLanded).toBeUndefined();
+    expect(removed).toHaveBeenCalledWith("wheel", expect.any(Function), {
+      capture: true,
+    });
+    expect(removed).toHaveBeenCalledWith("touchmove", expect.any(Function), {
+      capture: true,
+    });
   });
 
   it("reports a message the room has not loaded", async () => {
