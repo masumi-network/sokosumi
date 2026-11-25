@@ -1,6 +1,7 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 import type { UIMessage } from "ai";
+import { Activity } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -397,32 +398,74 @@ describe("useCoworkerDirectRoomStream stale finish settlement", () => {
     expect(hook.result.current.streamOverlayMessages).toEqual([]);
   });
 
-  it("ignores aborted finish callbacks so leaving mid-stream keeps the stored parent for re-entry", async () => {
-    const onStreamSettled = vi.fn(async () => true);
+  it("clears overlay and stored parent when a finish refresh settles after an Activity hide/reveal on the same room", async () => {
+    const refresh = Promise.withResolvers<boolean>();
+    const onStreamSettled = vi.fn(() => refresh.promise);
+    let latest: ReturnType<typeof useCoworkerDirectRoomStream> | null = null;
 
-    const hook = renderHook(() =>
-      useCoworkerDirectRoomStream({
+    function Probe() {
+      latest = useCoworkerDirectRoomStream({
         room: roomA,
         enabled: true,
         currentUserId: "user-1",
         organizationSlug: null,
         onStreamSettled,
-      }),
+      });
+      return null;
+    }
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
     );
     const handle = chatMock.handles[0]!;
+    expect(chatMock.resumeStream).toHaveBeenCalledTimes(1);
 
     act(() => {
-      hook.result.current.sendStreamMessage("Thread reply", {
-        parentMessageId: "parent-2",
+      latest!.sendStreamMessage("Thread reply", {
+        parentMessageId: "parent-1",
       });
+      handle.setMessages([
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "text", text: "Thread reply" }],
+        },
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Finished answer" }],
+        },
+      ]);
     });
+
+    // Finish refresh is in flight when the app shell hides with Activity.
+    const finishPromise = handle.finish({ isError: false });
+    expect(onStreamSettled).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Activity mode="hidden">
+        <Probe />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+
+    // Reveal triggers resumeStream (204 / no active stream) on the same Chat.
+    expect(chatMock.resumeStream).toHaveBeenCalledTimes(2);
+    expect(chatMock.handles).toHaveLength(1);
 
     await act(async () => {
-      await handle.finish({ isError: false, isAbort: true });
+      refresh.resolve(true);
+      await finishPromise;
     });
 
-    expect(onStreamSettled).not.toHaveBeenCalled();
-    expect(readStoredStreamParentMessageId("room-a")).toBe("parent-2");
-    expect(hook.result.current.activeStreamParentMessageId).toBe("parent-2");
+    expect(readStoredStreamParentMessageId("room-a")).toBeNull();
+    expect(latest!.activeStreamParentMessageId).toBeNull();
+    expect(latest!.streamOverlayMessages).toEqual([]);
   });
 });

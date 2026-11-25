@@ -25,6 +25,10 @@ import { fireGTMEvent } from "@/lib/gtm-events";
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 
+// Latest active visit/turn token per room across remounts so an unmounted visit
+// cannot clear a newer mount's stored parent while same-Chat Activity hide/reveal keeps ownership.
+const latestTurnByRoomId = new Map<string, { roomId: string }>();
+
 /** Empty coworker shell shown while resume SSE is active but messages empty. */
 export const RESUME_PENDING_STREAM_MESSAGE_ID = "stream:resume-pending";
 
@@ -399,11 +403,12 @@ export function useCoworkerDirectRoomStream({
       overlayCreatedAtByMessageIdRef.current.clear();
       return;
     }
-    activeTurnRef.current = { roomId };
+    if (activeTurnRef.current?.roomId !== roomId) {
+      const nextTurn = { roomId };
+      activeTurnRef.current = nextTurn;
+      latestTurnByRoomId.set(roomId, nextTurn);
+    }
     setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
-    return () => {
-      activeTurnRef.current = null;
-    };
   }, [roomId]);
 
   const transport = useMemo(
@@ -474,10 +479,7 @@ export function useCoworkerDirectRoomStream({
       }
       toast.error(reason);
     },
-    async onFinish({ isError, isAbort }) {
-      if (isAbort) {
-        return;
-      }
+    async onFinish({ isError }) {
       const settledRoomId = roomIdRef.current;
       const settledTurn = activeTurnRef.current;
       if (
@@ -500,7 +502,8 @@ export function useCoworkerDirectRoomStream({
       if (
         settled &&
         roomIdRef.current === settledRoomId &&
-        activeTurnRef.current === settledTurn
+        activeTurnRef.current === settledTurn &&
+        latestTurnByRoomId.get(settledRoomId) === settledTurn
       ) {
         writeStoredStreamParentMessageId(settledRoomId, null);
         setMessages([]);
@@ -629,7 +632,9 @@ export function useCoworkerDirectRoomStream({
       }
       // Shared useChat instance — clear leftover turns so a failed settle cannot
       // retag prior top-level UI messages with a new thread parentMessageId.
-      activeTurnRef.current = { roomId };
+      const nextTurn = { roomId };
+      activeTurnRef.current = nextTurn;
+      latestTurnByRoomId.set(roomId, nextTurn);
       setMessages([]);
       setFailure(null);
       setStreamParentMessageId(parentMessageId);
@@ -650,7 +655,9 @@ export function useCoworkerDirectRoomStream({
     if (!roomId || failureRef.current?.roomId !== roomId) {
       return;
     }
-    activeTurnRef.current = { roomId };
+    const nextTurn = { roomId };
+    activeTurnRef.current = nextTurn;
+    latestTurnByRoomId.set(roomId, nextTurn);
     failureRef.current = null;
     setFailure(null);
     writeStoredStreamParentMessageId(roomId, streamParentMessageId);
