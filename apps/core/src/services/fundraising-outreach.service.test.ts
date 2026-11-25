@@ -163,7 +163,6 @@ describe("draftOutreach", () => {
       investor: { name: "Ann Partner", firm: "Ann Capital" },
       raise: {
         company: "Masumi",
-        legalName: "Masumi AG",
         round: "Seed Round 2026",
         about: "We make agent payments work.",
         roomLink: "https://app.example.com/share/rooms/tok",

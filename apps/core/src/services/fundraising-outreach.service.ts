@@ -46,7 +46,7 @@ const FOLLOW_UP_DAYS = 7;
 
 const COMPOSE_SYSTEM = `You write short, personal fundraising emails for a founder who is raising a round.
 Plain text, no markdown, no "I hope this finds you well", no flattery, no buzzwords. Under 130 words. Write in the first person as the sender.
-Every mail is about the raise in "raise": say in one line what the company does and what is being raised, from those facts only. Call the company by raise.company, its everyday name; the legal name and legal form stay out unless no everyday name is given. End with one clear ask that has a time frame, such as a 20 minute call this week or next.
+Every mail is about the raise in "raise": say in one line what the company does and what is being raised, from those facts only. Call the company by raise.company, its everyday name; no legal form. End with one clear ask that has a time frame, such as a 20 minute call this week or next.
 kind "intro": a first mail to the investor; or, when "via" is given, a mail to that mutual contact asking for an introduction to the investor (address the contact, not the investor, and keep the part they can forward to three lines).
 kind "follow_up": a follow-up after earlier contact: name the last touch concretely from lastTouches (when and what it was about), then move the raise one step; do not repeat the pitch.
 When a data room link is given, mention it once as the place with the deck and numbers.
@@ -179,14 +179,12 @@ async function raiseFacts(
     roomRow
       ? prisma.dataRoom.findUnique({
           where: { id: roomRow.id },
-          select: { welcomeNote: true, company: true },
+          select: { welcomeNote: true },
         })
       : null,
   ]);
-  const company = room?.company as { legalName?: string } | null;
   return {
     company: organization?.name ?? null,
-    legalName: company?.legalName ?? null,
     round: roomRow ? roomRow.title : null,
     about: room?.welcomeNote?.slice(0, 800) ?? null,
     dataRoom: roomRow ? roomRow.title : null,

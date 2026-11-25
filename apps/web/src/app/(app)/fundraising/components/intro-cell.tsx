@@ -24,9 +24,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useSession } from "@/lib/auth/auth.client";
 import { fundraisingService } from "@/lib/services/fundraising.client";
 import { type IntroAction, introAction } from "../fundraising-view";
+import { useMeId } from "../me-context";
 import {
   FUNDRAISING_KEY,
   useFundraisingOrganization,
@@ -61,7 +61,7 @@ export function IntroCell({
 }) {
   const t = useTranslations("App.Fundraising.intro");
   const format = useFormatter();
-  const me = useSession().data?.user.id ?? null;
+  const me = useMeId();
   const update = useProspectUpdate();
   const [ask, setAsk] = useState<AskRequest | null>(null);
   const action = introAction(prospect, me);

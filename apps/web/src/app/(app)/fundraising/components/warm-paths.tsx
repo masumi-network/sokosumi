@@ -17,11 +17,11 @@ import {
 } from "@/app/contacts/components/contact-visuals";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
-import { useSession } from "@/lib/auth/auth.client";
 import { fundraisingService } from "@/lib/services/fundraising.client";
 import { cn } from "@/lib/utils";
 import { useScopedQuery } from "@/queries/scoped-queries";
 import { pathConnector } from "../fundraising-view";
+import { useMeId } from "../me-context";
 import {
   useFundraisingOrganization,
   useProspectUpdate,
@@ -58,7 +58,7 @@ export function WarmPaths({
   pipeline: FundraisingPipeline;
 }) {
   const t = useTranslations("App.Fundraising.paths");
-  const me = useSession().data?.user.id ?? null;
+  const me = useMeId();
   const selfOf = (path: FundraisingPath) =>
     path.via && path.via.id !== me ? "no" : "yes";
   const whoOf = (path: FundraisingPath) => path.via?.name ?? "";
