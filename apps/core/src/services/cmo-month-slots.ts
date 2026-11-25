@@ -39,9 +39,9 @@ export interface CmoMonthSlot {
 
 /** A month is four weeks: what a plan's rates are counted over. */
 export const CMO_MONTH_DAYS = 28;
-/** Talking videos a month at each plan: each costs about eight short videos. */
+/** Talking videos a month at each plan (owner, 2026-11-25: four on every plan). */
 export const CMO_MONTH_TALKING_VIDEOS: Record<CmoVolumeLevel, number> = {
-  steady: 2,
+  steady: 4,
   active: 4,
   all_in: 4,
 };
