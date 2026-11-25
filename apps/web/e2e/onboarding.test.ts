@@ -220,10 +220,21 @@ for (const { name, ...viewport } of PROJECTS) {
           (frame?.x ?? 0) + (frame?.width ?? 0),
         );
       assert.equal(sticking, 0, "no studio control sticks out of its frame");
+      // The big preview is now above the screen; a small live one beside Back
+      // and Create shows each pick, and leaves with the fold.
+      const mini = create.locator("xpath=..").locator("img");
+      await mini.waitFor();
+      const before = await mini.getAttribute("src");
       const headwear = page.getByRole("radiogroup", { name: "Headwear" });
       await headwear.getByRole("radio", { name: "Crown" }).click();
+      await page.waitForFunction(
+        ([el, src]) => (el as HTMLImageElement).src !== src,
+        [await mini.elementHandle(), before] as const,
+      );
       await more.click();
+      await mini.waitFor({ state: "detached" });
       await more.click();
+      await mini.waitFor();
       assert.equal(
         await headwear
           .getByRole("radio", { name: "Crown" })
@@ -272,6 +283,15 @@ for (const { name, ...viewport } of PROJECTS) {
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });
+      // They picked Personal, so the switcher says Personal, not their name.
+      const showSidebar = saved.getByRole("button", { name: "Show sidebar" });
+      if (await showSidebar.isVisible()) await showSidebar.click();
+      await saved
+        .getByRole("button", { name: "Personal", exact: true })
+        .click();
+      await saved
+        .getByRole("menuitem", { name: /^Personal\b.*Just you$/ })
+        .waitFor();
       await context.close();
       assert.deepEqual(errors, []);
     });
