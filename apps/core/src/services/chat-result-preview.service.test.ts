@@ -370,8 +370,10 @@ describe("authorized chat results", () => {
       ],
       "owner",
     );
+    // The card keeps what it showed when saved, as a sentence, not the raw plan.
     expect(hydrated).toMatchObject({
-      summary: "Full SEO audit of 2 selected pages:",
+      summary:
+        "SEO monitor. Review its saved plan before the next scheduled run.",
     });
   });
   it("reads scheduled posts through project access outside the Ads beta", async () => {

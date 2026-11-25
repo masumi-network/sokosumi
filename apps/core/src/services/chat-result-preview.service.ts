@@ -1059,7 +1059,7 @@ export async function hydrateChatResultSnapshots(
             ? { sourceHref: current.data.sourceHref }
             : // Cards saved before the plan sentence held the raw seo_monitor line.
               snapshot.data.kind === "task_schedule"
-              ? { summary: current.data.summary }
+              ? { summary: seoMonitorDescriptionForUser(snapshot.data.summary) }
               : {}),
           // A report the owner reverted says so on its card.
           ...(snapshot.data.kind === "cmo_report"
