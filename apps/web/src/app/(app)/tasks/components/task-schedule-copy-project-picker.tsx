@@ -4,7 +4,7 @@ import type { ProjectListItem } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { useDebounce } from "use-debounce";
+import { useDebouncedCallback } from "use-debounce";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -21,6 +21,14 @@ import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 /** Open first, then the viewer's Hidden ones: both take new schedules. */
 const DESTINATION_STATES = ["open", "hidden"] as const;
 const PROJECT_PICKER_SEARCH_DEBOUNCE_MS = 250;
+
+let nextOpeningId = 0;
+
+type ProjectPickerScope = readonly [
+  workspaceId: string,
+  organizationId: string | null,
+  viewerId: string | null,
+];
 
 /** Where the next page comes from; `null` once every state is read. */
 type PageCursor = {
@@ -55,15 +63,30 @@ async function loadDestinations(
   from: NonNullable<PageCursor>,
   query: string,
   currentProjectId: string | null,
+  scope: ProjectPickerScope,
+  signal: AbortSignal,
 ): Promise<{ projects: ProjectListItem[]; next: PageCursor }> {
+  const [expectedWorkspaceId, expectedOrganizationId, expectedViewerId] = scope;
   let next: PageCursor = from;
   const projects: ProjectListItem[] = [];
   while (next && (projects.length === 0 || next.cursor === null)) {
+    signal.throwIfAborted();
     const page = await loadMoreProjects({
       cursor: next.cursor,
       query: query || undefined,
       state: DESTINATION_STATES[next.stateIndex],
+      expectedOrganizationId,
+      ...(expectedViewerId ? { expectedViewerId } : {}),
     });
+    signal.throwIfAborted();
+    if (
+      page.projects.some(
+        (project) =>
+          project.workspaceId && project.workspaceId !== expectedWorkspaceId,
+      )
+    ) {
+      throw new Error("Active workspace changed");
+    }
     projects.push(
       ...page.projects.filter((project) =>
         isCopyDestination(project, currentProjectId),
@@ -81,19 +104,39 @@ async function loadDestinations(
 /** First step of "Copy to another Project": choose where the copy goes. */
 export function TaskScheduleCopyProjectPicker({
   workspaceId,
+  organizationId,
+  viewerId = null,
   currentProjectId,
   onSelect,
   onClose,
 }: {
   workspaceId: string;
+  organizationId: string | null;
+  viewerId?: string | null;
   currentProjectId: string | null;
   onSelect: (project: ProjectFilterOption) => void;
   onClose: () => void;
 }) {
   const t = useTranslations("App.Tasks.Schedules.Actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
+  const [openingId] = useState(() => ++nextOpeningId);
   const [search, setSearch] = useState("");
-  const [query] = useDebounce(search.trim(), PROJECT_PICKER_SEARCH_DEBOUNCE_MS);
+  const [query, setQuery] = useState("");
+  const debouncedSetQuery = useDebouncedCallback((value: string) => {
+    setQuery(value);
+  }, PROJECT_PICKER_SEARCH_DEBOUNCE_MS);
+  const scope: ProjectPickerScope = [workspaceId, organizationId, viewerId];
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    const trimmed = value.trim();
+    if (!trimmed) {
+      debouncedSetQuery.cancel();
+      setQuery("");
+      return;
+    }
+    debouncedSetQuery(trimmed);
+  }
 
   const {
     data,
@@ -104,16 +147,26 @@ export function TaskScheduleCopyProjectPicker({
     isFetchingNextPage,
     fetchNextPage,
   } = useScopedInfiniteQuery({
-    scope: workspaceId,
+    scope,
     queryKey: [
       "task-schedule-copy-project-picker",
+      openingId,
       { query, currentProjectId },
     ],
     initialPageParam: INITIAL_PAGE_CURSOR,
-    queryFn: ({ pageParam }) =>
-      loadDestinations(pageParam, query, currentProjectId),
+    queryFn: ({ pageParam, signal, queryKey }) => {
+      const [queryScope] = queryKey;
+      return loadDestinations(
+        pageParam,
+        query,
+        currentProjectId,
+        queryScope,
+        signal,
+      );
+    },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     staleTime: 0,
+    gcTime: 0,
   });
 
   const projects = data?.pages.flatMap((page) => page.projects) ?? [];
@@ -152,7 +205,7 @@ export function TaskScheduleCopyProjectPicker({
       <CommandInput
         placeholder={tNewTask("projectSearchPlaceholder")}
         value={search}
-        onValueChange={setSearch}
+        onValueChange={handleSearchChange}
       />
       <CommandList>
         {status ? (

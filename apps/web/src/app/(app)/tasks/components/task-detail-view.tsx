@@ -573,6 +573,7 @@ async function TaskDetailActionsSlot({
       )}
       initialDesignMdAttachment={initialDesignMdAttachment}
       workspaceId={task.workspace.id}
+      viewerId={session?.user.id ?? null}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}

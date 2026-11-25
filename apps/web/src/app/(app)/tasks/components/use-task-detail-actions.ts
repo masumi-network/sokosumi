@@ -83,6 +83,7 @@ export interface TaskDetailActionsProps {
   actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
   workspaceId?: string;
+  viewerId?: string | null;
   currentOrganizationId?: string | null;
   organizations?: MemberWithOrganization[];
   hasPersonalWorkspace?: boolean;
@@ -128,6 +129,7 @@ export function useTaskDetailActions({
   actionsMenuLabel,
   labels,
   workspaceId,
+  viewerId,
   currentOrganizationId,
   organizations,
   hasPersonalWorkspace = false,
@@ -522,6 +524,7 @@ export function useTaskDetailActions({
     actionsMenuLabel,
     labels,
     workspaceId,
+    viewerId,
     currentOrganizationId,
     organizations,
     hasPersonalWorkspace,

@@ -53,7 +53,10 @@ let queryClient = new QueryClient();
 function picker(
   open: boolean,
   onCloseAutoFocus: (event: Event) => void,
-  { workspaceId = "ws-1" }: { workspaceId?: string } = {},
+  {
+    workspaceId = "ws-1",
+    viewerId = "user-1",
+  }: { workspaceId?: string; viewerId?: string | null } = {},
 ) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -61,6 +64,7 @@ function picker(
       <TaskLinkTaskPickerDialog
         taskId="task-1"
         workspaceId={workspaceId}
+        viewerId={viewerId}
         open={open}
         onOpenChange={() => {}}
         selectedOption={open ? option : null}
@@ -256,5 +260,84 @@ describe("TaskLinkTaskPickerDialog", () => {
     expect(
       await screen.findByRole("option", { name: "Workspace B task" }),
     ).toBeInTheDocument();
+  });
+
+  it("starts each opening from a fresh first page and never offers stale rows when the fresh read fails", async () => {
+    const reopenFirstPage =
+      Promise.withResolvers<ReturnType<typeof tasksPage>>();
+    getTasksMock
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-old-1", "Old task 1")], "cursor-1"),
+      )
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-old-2", "Old task 2")], null),
+      )
+      .mockReturnValueOnce(reopenFirstPage.promise);
+
+    const user = userEvent.setup();
+    const { rerender } = render(picker(true, () => {}));
+
+    await screen.findByRole("option", { name: "Old task 1" });
+    await user.click(
+      screen.getByRole("option", { name: "taskPickerLoadMore" }),
+    );
+    await screen.findByRole("option", { name: "Old task 2" });
+
+    // Close and reopen: must not render previous opening's rows or refetch page 2.
+    rerender(picker(false, () => {}));
+    rerender(picker(true, () => {}));
+
+    expect(await screen.findByText("taskPickerLoading")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Old task 1" })).toBeNull();
+    expect(screen.queryByRole("option", { name: "Old task 2" })).toBeNull();
+
+    await act(async () => {
+      reopenFirstPage.reject(new Error("fresh read failed"));
+      await reopenFirstPage.promise.catch(() => {});
+    });
+
+    expect(await screen.findByText("taskPickerError")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Old task 1" })).toBeNull();
+    expect(screen.queryByRole("option", { name: "Old task 2" })).toBeNull();
+    expect(getTasksMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("isolates results per viewerId and rejects tasks from another workspace", async () => {
+    const userTwoLoad = Promise.withResolvers<ReturnType<typeof tasksPage>>();
+    getTasksMock
+      .mockResolvedValueOnce(
+        tasksPage([
+          { ...taskItem("task-u1", "User 1 task"), workspaceId: "ws-1" },
+        ]),
+      )
+      .mockReturnValueOnce(userTwoLoad.promise);
+
+    const { rerender } = render(
+      picker(true, () => {}, { workspaceId: "ws-1", viewerId: "user-1" }),
+    );
+    expect(
+      await screen.findByRole("option", { name: "User 1 task" }),
+    ).toBeInTheDocument();
+
+    rerender(
+      picker(true, () => {}, { workspaceId: "ws-1", viewerId: "user-2" }),
+    );
+    expect(await screen.findByText("taskPickerLoading")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "User 1 task" })).toBeNull();
+
+    await act(async () => {
+      userTwoLoad.resolve(
+        tasksPage([
+          {
+            ...taskItem("task-wrong-ws", "Wrong ws task"),
+            workspaceId: "ws-other",
+          },
+        ]),
+      );
+      await userTwoLoad.promise;
+    });
+
+    expect(await screen.findByText("taskPickerError")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Wrong ws task" })).toBeNull();
   });
 });

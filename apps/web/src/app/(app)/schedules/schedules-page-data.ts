@@ -61,6 +61,7 @@ async function readSchedulesPageData(
 
   return {
     activeOrganizationId,
+    viewerId: session?.user.id ?? null,
     projectOptions,
     assigneeOptions,
     canCreate,

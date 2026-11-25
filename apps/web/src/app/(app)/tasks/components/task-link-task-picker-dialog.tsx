@@ -28,6 +28,13 @@ import {
 const TASK_PICKER_PAGE_SIZE = 20;
 const TASK_PICKER_SEARCH_DEBOUNCE_MS = 250;
 
+let nextOpeningId = 0;
+
+type TaskLinkPickerScope = readonly [
+  workspaceId: string,
+  viewerId: string | null,
+];
+
 /** What a picked Task is for: a link relation, or a sub-task move. */
 export interface TaskPickerOption {
   id: string;
@@ -48,6 +55,7 @@ export interface TaskLinkActionOption extends TaskPickerOption {
 interface TaskLinkTaskPickerDialogProps<TOption extends TaskPickerOption> {
   taskId: string;
   workspaceId: string;
+  viewerId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOption: TOption | null;
@@ -91,18 +99,21 @@ export function TaskLinkTaskPickerDialog<TOption extends TaskPickerOption>({
 function TaskPickerBody<TOption extends TaskPickerOption>({
   taskId,
   workspaceId,
+  viewerId = null,
   selectedOption,
   isLinkPending,
   onSelectTask,
   excludeTaskIds = [],
 }: TaskPickerBodyProps<TOption>) {
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
+  const [openingId] = useState(() => ++nextOpeningId);
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
   const [debouncedTaskPickerQuery] = useDebounce(
     taskPickerQuery.trim(),
     TASK_PICKER_SEARCH_DEBOUNCE_MS,
   );
   const includeSubtasks = Boolean(selectedOption?.includeSubtasks);
+  const scope: TaskLinkPickerScope = [workspaceId, viewerId];
 
   const {
     data,
@@ -114,19 +125,34 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
     isFetchNextPageError,
     fetchNextPage,
   } = useScopedInfiniteQuery({
-    scope: workspaceId,
+    scope,
     queryKey: [
       "task-link-picker",
+      openingId,
       { q: debouncedTaskPickerQuery, includeSubtasks },
     ],
     initialPageParam: null as string | null,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal, queryKey }) => {
+      signal.throwIfAborted();
+      const [[expectedWorkspaceId, expectedViewerId]] = queryKey;
       const response = (await coreClient.getTasks({
         q: debouncedTaskPickerQuery || undefined,
         cursor: pageParam ?? undefined,
         limit: TASK_PICKER_PAGE_SIZE,
         ...(includeSubtasks ? { includeSubtasks: "true" as const } : {}),
       })) as GetTasksResponse;
+      signal.throwIfAborted();
+      if (
+        response.data.some(
+          (task) =>
+            (task.workspaceId && task.workspaceId !== expectedWorkspaceId) ||
+            (expectedViewerId &&
+              task.ownerId &&
+              task.ownerId !== expectedViewerId),
+        )
+      ) {
+        throw new Error("Active workspace changed");
+      }
 
       return {
         tasks: response.data.map(mapTaskListItemToTaskPickerTask),
@@ -135,6 +161,7 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 0,
+    gcTime: 0,
   });
 
   const taskPickerResults = (data?.pages ?? [])

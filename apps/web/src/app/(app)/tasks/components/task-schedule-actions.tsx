@@ -58,6 +58,8 @@ interface TaskScheduleActionsProps {
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   canCreatePrivate: boolean;
+  /** Signed-in viewer id, used to scope project picker reads per member. */
+  viewerId?: string | null;
   /**
    * Delete of a schedule with no Owner. Organization owner or admin only;
    * everyone else keeps pause, resume, end, and edit.
@@ -90,6 +92,7 @@ export function TaskScheduleActions({
   coworkerOptions,
   projectOptions,
   canCreatePrivate,
+  viewerId = null,
   canDeleteUnowned = false,
   onChanged,
   onStateChanging,
@@ -358,6 +361,8 @@ export function TaskScheduleActions({
       {schedule.canEditPlan && copy === "pick" ? (
         <TaskScheduleCopyProjectPicker
           workspaceId={schedule.workspaceId}
+          organizationId={schedule.organizationId}
+          viewerId={viewerId}
           currentProjectId={schedule.projectId}
           onSelect={(project) => setCopy({ projectId: project.id, project })}
           onClose={() => setCopy(null)}

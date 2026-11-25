@@ -30,6 +30,7 @@ export async function SchedulesPageContent({
   const state = parseTaskScheduleStateFilter(params.scheduleState);
   const {
     activeOrganizationId,
+    viewerId,
     projectOptions,
     assigneeOptions,
     canCreate,
@@ -60,6 +61,7 @@ export async function SchedulesPageContent({
         selectedState={state}
         canCreate={canCreate}
         canCreatePrivate={activeOrganizationId !== null}
+        viewerId={viewerId}
         canDeleteUnowned={canDeleteUnowned}
       />
     </div>

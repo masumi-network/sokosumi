@@ -185,6 +185,7 @@ async function TaskScheduleDetailContent({
                     coworkerOptions={assigneeOptions.selectableOptions}
                     projectOptions={projectOptions}
                     canCreatePrivate={activeOrganizationId !== null}
+                    viewerId={session.user.id}
                     canDeleteUnowned={viewerIsOrganizationOwnerOrAdmin(
                       activeOrganizationId,
                       members,
