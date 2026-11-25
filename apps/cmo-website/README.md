@@ -8,14 +8,17 @@ Deployed by the Vercel project `cmo-xyz` to https://www.cmo.xyz from
 
 ## Run it
 
-No build step. Serve the folder:
+No build step. Vercel serves `public/` and the function in `api/`. Serve it:
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8000 --directory public
 # then open http://localhost:8000
 ```
 
 ## Files
+
+Site files live in `public/`; `api/`, `legal/` and `scripts/` sit beside it and
+are not served.
 
 - `index.html`: the page. Sections: nav, hero, marquee, "A month with Cuso"
   (five steps with example strategy, posts, ad, schedule and weekly check),
@@ -80,7 +83,7 @@ node --test scripts/test-cookie-consent.mjs
 
 The EU representative is listed by name and email. VAT information is
 omitted because Sumico has no VAT ID. Before publication, require the
-rendered pages and company facts to pass:
+rendered pages in `public/` and company facts to pass:
 
 ```bash
 python3 scripts/render-legal.py --check --release-check

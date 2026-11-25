@@ -3,7 +3,7 @@
   "framework": null,
   "installCommand": "",
   "buildCommand": "",
-  "outputDirectory": ".",
+  "outputDirectory": "public",
   "ignoreCommand": "node ../../scripts/ci/vercel-ignore.mjs cmo-website",
   "git": {
     "deploymentEnabled": {
