@@ -2103,8 +2103,92 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-checkout > .legal-notice {
+.ob-checkout > .legal-notice,
+.ob-credits-buy {
   text-align: center;
+}
+
+/* One customer in their own words: calm, under the plans. */
+.ob-quote {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 0 0 0 16px;
+  border-left: var(--line-width) solid var(--line);
+}
+
+.ob-quote blockquote {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  text-wrap: pretty;
+}
+
+.ob-quote figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.ob-quote figcaption > span:last-child {
+  display: grid;
+}
+
+.ob-quote-name {
+  font-weight: 600;
+}
+
+.ob-quote-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--strip);
+  color: var(--strip-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-start {
+  width: 100%;
+}
+
+/* On a phone the Start button stays on screen above the plans, clear of the
+   home indicator; in the flow it rests in its own place, so nothing jumps. */
+@media (max-width: 599px) {
+  .ob-start {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--background);
+  }
+}
+
+/* What makes saying yes safe, right under the button. */
+.ob-assure {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-assure li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ob-plan-options {

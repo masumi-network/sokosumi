@@ -127,7 +127,7 @@ describe("CheckoutStep", () => {
     expect(cards()[1]).toContain("$500");
     expect(cards()[2]).toContain("$1,000");
     expect(text()).not.toContain("(monthly)");
-    expect(text()).not.toContain("$2,000");
+    expect(text()).not.toContain("billed yearly");
   });
 
   it("says what each plan posts as the landing page does, and the team check on the top plan only", async () => {
@@ -234,7 +234,9 @@ describe("CheckoutStep", () => {
 
   it("shows the yearly saving and the yearly price per month", async () => {
     await render();
-    expect(container.querySelector(".ob-save")?.textContent).toBe("Save 17%");
+    expect(container.querySelector(".ob-save")?.textContent).toBe(
+      "2 months free",
+    );
     await press("Yearly");
     expect(button("Yearly").getAttribute("aria-pressed")).toBe("true");
     expect(cards()[0]).toContain("$200");
@@ -276,6 +278,47 @@ describe("CheckoutStep", () => {
     expect(text()).not.toMatch(/most popular|most picked/i);
   });
 
+  it("says each plan's yearly saving in dollars, from the real prices", async () => {
+    await render();
+    expect(cards()[0]).toContain("You save $400 a year");
+    expect(cards()[1]).toContain("You save $1,000 a year");
+    expect(cards()[2]).toContain("You save $2,000 a year");
+    await press("Monthly");
+    expect(cards()[2]).toContain("Yearly saves $2,000");
+  });
+
+  it("falls back to a percent when the yearly prices are not whole free months", async () => {
+    await render({
+      plans: cmoPlans.map((plan) =>
+        plan.interval === "year"
+          ? { ...plan, priceAmount: Math.round(plan.priceAmount * 1.05) }
+          : plan,
+      ),
+    });
+    expect(container.querySelector(".ob-save")?.textContent).toBe("Save 13%");
+  });
+
+  it("puts the quote, the guarantee and Cancel any time by the button, said once", async () => {
+    await render();
+    expect(container.querySelector(".ob-quote blockquote")?.textContent).toBe(
+      "“CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.”",
+    );
+    expect(
+      container.querySelector(".ob-quote figcaption")?.textContent,
+    ).toContain("Florian HallerCEO, Serviceplan Group");
+    const assure = container.querySelector(".ob-assure")?.textContent ?? "";
+    expect(assure).toContain("Cancel any time.");
+    expect(assure).toContain("Not happy in the first 14 days? Full refund.");
+    expect(text().split("Cancel any time").length - 1).toBe(1);
+  });
+
+  it("says what credits buy in prices, not a count of what a plan makes", async () => {
+    await render();
+    expect(container.querySelector(".ob-credits-buy")?.textContent).toBe(
+      "Credits pay for everything Cuso makes: a picture costs 1 credit, a short video about 10 to 20.",
+    );
+  });
+
   it("sends the person to Polar with the interval and the plan they picked", async () => {
     const onCheckout = vi.fn(async () => ({
       url: "https://polar.sh/checkout/c_1",
@@ -299,7 +342,7 @@ describe("CheckoutStep", () => {
   it("keeps the fine print to one line", async () => {
     await render();
     const legal = container.querySelector(".legal-notice");
-    expect(legal?.textContent).toContain("Cancel any time.");
+    expect(legal?.textContent).not.toContain("Cancel any time.");
     expect(
       [...(legal?.querySelectorAll("a") ?? [])].map((link) => link.textContent),
     ).toEqual(["Terms", "Privacy", "DPA", "Imprint"]);
