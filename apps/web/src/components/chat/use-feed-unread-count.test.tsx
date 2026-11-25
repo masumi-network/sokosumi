@@ -23,8 +23,28 @@ vi.mock("@/components/chat/use-show-room-unread-count", () => ({
   useShowRoomUnreadCount: () => true,
 }));
 
-function room(unreadCount: number): ChatRoom {
-  return { id: "room-1", unreadCount } as ChatRoom;
+function room(unreadCount: number, unreadNeedsYouCount = 0): ChatRoom {
+  return { id: "room-1", unreadCount, unreadNeedsYouCount } as ChatRoom;
+}
+
+function renderCount() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: 60 * 1000 } },
+  });
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  return renderHook(
+    () =>
+      useFeedUnreadCount({ currentUserId: "user-1", organizationId: "org-1" }),
+    { wrapper },
+  );
+}
+
+async function advance(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
 }
 
 describe("useFeedUnreadCount", () => {
@@ -36,35 +56,16 @@ describe("useFeedUnreadCount", () => {
     vi.useRealTimers();
   });
 
-  it("reads the count again once the reader reads a room, after the burst settles", async () => {
+  it("reads the count again once after the rooms' unread changes", async () => {
     fetchChatFeedMock
       .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 1 })
       .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 0 });
-    liveRooms.current = null;
-    const client = new QueryClient({
-      defaultOptions: { queries: { staleTime: 60 * 1000 } },
-    });
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    );
-    const { result, rerender } = renderHook(
-      () =>
-        useFeedUnreadCount({
-          currentUserId: "user-1",
-          organizationId: "org-1",
-        }),
-      { wrapper },
-    );
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    expect(result.current.unreadCount).toBe(1);
-    // The first rooms to load are not a change: no second read follows.
     liveRooms.current = [room(1)];
-    rerender();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(FEED_COUNT_REFRESH_DELAY_MS);
-    });
+    const { result, rerender } = renderCount();
+    await advance(0);
+    expect(result.current.unreadCount).toBe(1);
+    // Rooms present at mount are not a change.
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
 
     liveRooms.current = [room(0)];
@@ -72,10 +73,38 @@ describe("useFeedUnreadCount", () => {
     // Renders inside the wait do not restart or drop it.
     rerender();
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(FEED_COUNT_REFRESH_DELAY_MS);
-    });
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
     expect(result.current.unreadCount).toBe(0);
+  });
+
+  it("reads again when rooms load after the count", async () => {
+    fetchChatFeedMock
+      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 0 })
+      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 1 });
+    liveRooms.current = null;
+    const { result, rerender } = renderCount();
+    await advance(0);
+    // A Direct lands before the rooms load: they arrive already unread.
+    liveRooms.current = [room(1)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
+    expect(result.current.unreadCount).toBe(1);
+  });
+
+  it("reads again when only needs-you changes", async () => {
+    fetchChatFeedMock
+      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 0 })
+      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 1 });
+    liveRooms.current = [room(1)];
+    const { result, rerender } = renderCount();
+    await advance(0);
+    // A question tagged for the reader on a message already unread.
+    liveRooms.current = [room(1, 1)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
+    expect(result.current.unreadCount).toBe(1);
   });
 });

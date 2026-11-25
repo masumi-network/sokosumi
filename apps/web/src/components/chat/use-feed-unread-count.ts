@@ -48,19 +48,22 @@ export function useFeedUnreadCount({
 
   const roomsUnread =
     useLiveChatRooms()
-      ?.map((room) => `${room.id}:${room.unreadCount}`)
+      ?.map(
+        (room) =>
+          `${room.id}:${room.unreadCount}:${room.unreadNeedsYouCount ?? 0}`,
+      )
       .join(",") ?? null;
-  // The rooms' unread last seen, and whether a change waits for its read. The
-  // first rooms the reader sees are not a change: the query has just read the
-  // count. A change inside the wait needs no wait of its own: the read at its
-  // end sees it.
+  // The rooms' unread last seen, and whether a change waits for its read.
+  // Needs-you is part of it: a signal tagged on a message already unread makes
+  // it a Feed message without changing the room's unread. Rooms present at
+  // mount are not a change, the query reads with them; rooms that load later
+  // are, as a message can land between the two reads. A change inside the
+  // wait needs no wait of its own: the read at its end sees it.
   const [seenRoomsUnread, setSeenRoomsUnread] = useState(roomsUnread);
   const [refreshDue, setRefreshDue] = useState(false);
   if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
     setSeenRoomsUnread(roomsUnread);
-    if (seenRoomsUnread !== null) {
-      setRefreshDue(true);
-    }
+    setRefreshDue(true);
   }
   useTimeout(
     () => {
