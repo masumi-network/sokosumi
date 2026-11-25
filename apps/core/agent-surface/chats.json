@@ -74,7 +74,8 @@
     },
     "DELETE /chats/rooms/{id}": {
       "cli": "chats delete-room",
-      "mcp": "chats_delete_room"
+      "mcp": false,
+      "reason": "Permanent deletion: a person runs it from the CLI or Web."
     },
     "POST /chats/rooms/{id}/archive": {
       "cli": "chats archive-room",

@@ -1007,7 +1007,6 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   chats_pinned: { id: "room-1" },
   chats_get_room: { id: "room-1" },
   chats_update_room: { id: "room-1", body: { topic: "Launch week" } },
-  chats_delete_room: { id: "room-1" },
   chats_archive_room: { id: "room-1" },
   chats_restore_room: { id: "room-1" },
   chats_room_invitations: { id: "room-1" },

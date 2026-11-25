@@ -2533,12 +2533,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
-    name: "chats_delete_room",
-    operation: "DELETE /chats/rooms/{id}",
-    description:
-      "Permanently delete an archived Channel with all its messages. Organization owner or admin only. This cannot be undone; archive with chats_archive_room instead unless the person asks for deletion.",
-  },
-  {
     name: "chats_archive_room",
     operation: "POST /chats/rooms/{id}/archive",
     description:
