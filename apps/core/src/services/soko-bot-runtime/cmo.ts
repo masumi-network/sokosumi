@@ -396,12 +396,12 @@ export async function reviewCmoPlan(
     problems.push(...fit.problems);
     await chargeCheck(input, SOKO_BOT_JEV_MODEL, fit.costUsd);
   }
-  const bot = plan.planSent
-    ? await prisma.sokoBot.findUnique({
-        where: { id: authorized.turn.sokoBotId },
-        select: { projectId: true },
-      })
-    : null;
+  // Every save, a patch or the calendar too: the rules read the plan as
+  // saved, so a patch cannot drop a fix the last review asked for.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: authorized.turn.sokoBotId },
+    select: { projectId: true },
+  });
   const brain = bot?.projectId
     ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
     : null;

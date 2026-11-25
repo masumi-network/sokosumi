@@ -4,6 +4,7 @@
     "url": "https://utxo.ag/",
     "goal": "More leads",
     "main": "coworker",
+    "brain": "software|co-?worker",
     "avoid": "lead.research|prospect|dossier",
     "why": "trap: a side product shares the goal's word",
     "contentLanguage": "english",
