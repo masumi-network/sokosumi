@@ -95,6 +95,7 @@ model ProjectSeoObservation {
   payload      Json
   observedAt   DateTime
   createdAt    DateTime  @default(now())
+  rankPoints   ProjectSeoRankPoint[]
 
   @@unique([projectId, sourceKey])
   @@unique([auditId, sourceKey])
@@ -102,6 +103,27 @@ model ProjectSeoObservation {
   @@index([auditId, ownerId, observedAt])
   @@index([sourceTaskId])
   @@map("project_seo_observation")
+}
+
+/// One paid position read of a keyword, copied out of its result at import. The rank history reads these rows
+/// and not the result payloads: a full audit's payload is too heavy to load once per history point.
+model ProjectSeoRankPoint {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  observationId  String                @db.Uuid
+  observation    ProjectSeoObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the keyword identity (keyword, page, device, reason, Market): fixed length for the index.
+  key            String
+  observedAt     DateTime
+  /// The payload takes any number here, so the column does too: a point must never fail an import.
+  position       Float?
+  /// "ranked" or "not_in_range". A failed read is no point.
+  positionStatus String
+  checkedResults Int?
+  device         String?
+
+  @@unique([observationId, key])
+  @@index([key, observedAt])
+  @@map("project_seo_rank_point")
 }
 
 model ProjectSeoKeyword {

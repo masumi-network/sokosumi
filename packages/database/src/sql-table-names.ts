@@ -140,6 +140,7 @@ export type SharedTableName =
   | "project_seo_keyword"
   | "project_seo_observation"
   | "project_seo_page"
+  | "project_seo_rank_point"
   | "project_seo_research"
   | "project_seo_scope"
   | "project_seo_suggestion"

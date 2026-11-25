@@ -191,6 +191,7 @@
     "ProjectSeoKeyword": "project_seo_keyword",
     "ProjectSeoObservation": "project_seo_observation",
     "ProjectSeoPage": "project_seo_page",
+    "ProjectSeoRankPoint": "project_seo_rank_point",
     "ProjectSeoResearch": "project_seo_research",
     "ProjectSeoScope": "project_seo_scope",
     "ProjectSeoSuggestion": "project_seo_suggestion",
