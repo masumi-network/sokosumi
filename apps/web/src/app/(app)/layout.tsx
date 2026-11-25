@@ -10,6 +10,7 @@ import { APP_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { AppShellLoadingFrame } from "./components/app-shell-loading-frame";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import AuthenticatedAppFrame from "./components/authenticated-app-frame";
+import { SidebarPanelProvider } from "./components/sidebar/components/sidebar-context-panel";
 import { SidebarBootScript } from "./components/sidebar-boot-script";
 
 interface AppLayoutProps {
@@ -43,15 +44,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
             // Instant Nav.
             defaultOpen
             data-app-shell
-            className="flex max-w-svw overflow-clip"
+            className="flex max-w-svw overflow-clip [--app-rail-width:calc(var(--spacing)*18)]"
           >
             {/* AuthenticatedAppFrame owns the session + workspace gate; the
               shell skeleton is the only fallback, so no blank frame. */}
-            <Suspense
-              fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
-            >
-              <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
-            </Suspense>
+            <SidebarPanelProvider>
+              <Suspense
+                fallback={
+                  <AppShellLoadingFrame>{children}</AppShellLoadingFrame>
+                }
+              >
+                <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
+              </Suspense>
+            </SidebarPanelProvider>
           </SidebarProvider>
         </AuthSessionGuard>
       </QueryProvider>

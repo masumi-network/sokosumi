@@ -2,6 +2,12 @@ import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+let pathname = "/";
+vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -56,7 +62,8 @@ function tokens(element: Element | null | undefined): string[] {
   return (element?.className ?? "").split(/\s+/).filter(Boolean);
 }
 
-function renderSidebar() {
+function renderSidebar(path = "/") {
+  pathname = path;
   return render(
     <SidebarProvider defaultOpen>
       <Sidebar
@@ -123,14 +130,13 @@ function follows(first: Element, second: Element): boolean {
 }
 
 describe("Sidebar project scope", () => {
-  it("titles the nav with the project scope, directly under Soko Bot", () => {
+  it("shows project scope above the Work links and hides Chats", () => {
     renderSidebar();
 
-    const sokoBot = screen.getByRole("link", { name: "sokoBot" });
+    expect(screen.queryByRole("link", { name: "sokoBot" })).toBeNull();
     const title = screen.getByRole("button", { name: "projectTitle" });
     const nav = screen.getByRole("navigation", { name: "menuItems" });
 
-    expect(follows(sokoBot, title)).toBe(true);
     expect(follows(title, nav)).toBe(true);
   });
 
@@ -142,7 +148,7 @@ describe("Sidebar project scope", () => {
     const scoped = screen.getByRole("navigation", {
       name: "menuItems",
     }).parentElement;
-    const chatList = screen.getByRole("navigation", { name: "chatList" });
+    const chatList = document.querySelector('[aria-label="chatList"]');
 
     expect(tokens(scoped)).toEqual(
       expect.arrayContaining(["max-md:border-s", "border-sidebar-border"]),
@@ -153,20 +159,11 @@ describe("Sidebar project scope", () => {
     ).toBe(false);
   });
 
-  // The chat area is headed like the nav groups (its Chats heading lives in
-  // the list), so no rule cuts the sidebar in two between them.
-  it("runs the nav straight into the chat area, with no rule between", () => {
-    const { container } = renderSidebar();
-    const scoped = screen.getByRole("navigation", {
-      name: "menuItems",
-    }).parentElement;
-    const chatList = screen.getByRole("navigation", { name: "chatList" });
+  it("shows the existing chat list and assistant links in Chats", () => {
+    renderSidebar("/chat/example");
 
-    expect(
-      container.querySelector(
-        '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
-      ),
-    ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(chatList);
+    expect(screen.getByRole("navigation", { name: "chatList" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "sokoBot" })).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: "menuItems" })).toBeNull();
   });
 });

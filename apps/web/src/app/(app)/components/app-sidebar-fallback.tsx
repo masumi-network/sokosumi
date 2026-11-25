@@ -7,8 +7,10 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
+import { GlobalRail } from "./sidebar/components/global-rail.client";
 import MenuItems from "./sidebar/components/menu-items";
 import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
+import { SidebarContextPanel } from "./sidebar/components/sidebar-context-panel";
 import SidebarLogo from "./sidebar/components/sidebar-logo.client";
 import { SidebarAccountChipFallback } from "./sidebar-deferred-account";
 
@@ -26,7 +28,10 @@ import { SidebarAccountChipFallback } from "./sidebar-deferred-account";
  */
 export function AppSidebarFallback() {
   return (
-    <Sidebar>
+    <Sidebar
+      mobileTriggerId="app-sidebar-toggle"
+      className="md:left-(--app-rail-width) md:group-data-[collapsible=offcanvas]:left-[calc(var(--app-rail-width)-var(--sidebar-width))]"
+    >
       {/* Mirrors `Sidebar`'s own header so the hairline lands on the same
           line across the shell/sidebar swap: the switcher at the start, then
           Search and New task. All three need what this frame has not loaded
@@ -52,6 +57,7 @@ export function AppSidebarFallback() {
           </div>
         </div>
       </SidebarHeader>
+      <GlobalRail mobile />
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex w-full flex-col gap-0">
           {/* Soko Bot's nav and the Ads row are beta-gated on membership
@@ -61,11 +67,12 @@ export function AppSidebarFallback() {
           {/* The project title's scope is session-backed, so it is a
               placeholder in the title's shape, and the line the groups hang
               from has something to start under. */}
-          <SidebarProjectScopeSkeleton />
-          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
-            <MenuItems />
-          </div>
-          <SidebarChatListSkeleton />
+          <SidebarContextPanel chats={<SidebarChatListSkeleton />}>
+            <SidebarProjectScopeSkeleton />
+            <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+              <MenuItems />
+            </div>
+          </SidebarContextPanel>
         </div>
       </SidebarContent>
       {/* Hairline twin of the header's, matching `Sidebar`'s own footer: it

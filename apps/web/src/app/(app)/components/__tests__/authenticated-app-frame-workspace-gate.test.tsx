@@ -338,3 +338,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     },
   );
 });
+
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));

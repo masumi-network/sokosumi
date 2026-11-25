@@ -227,6 +227,7 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  mobileTriggerId,
   className,
   children,
   ...props
@@ -234,8 +235,11 @@ function Sidebar({
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "none";
+  mobileTriggerId?: string;
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+
+  const mobileOpener = React.useRef<HTMLElement | null>(null);
 
   if (collapsible === "none") {
     return (
@@ -266,6 +270,19 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          onOpenAutoFocus={() => {
+            const active = document.activeElement;
+            mobileOpener.current =
+              active instanceof HTMLElement && active.matches("button")
+                ? active
+                : null;
+          }}
+          onCloseAutoFocus={() => {
+            mobileOpener.current?.focus();
+            if (document.activeElement !== mobileOpener.current && mobileTriggerId) {
+              document.getElementById(mobileTriggerId)?.focus();
+            }
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>
