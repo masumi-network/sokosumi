@@ -870,14 +870,25 @@ describe("fork preview comment", () => {
     ]);
   });
 
-  it("drops the row of a project that was renamed", () => {
-    const previous = forkPreviewCommentBody([web], STALE_SHA).replace(
-      "`sokosumi-app-mainnet`",
+  it("replaces a renamed project's row only when that project deploys", () => {
+    const cmo = {
+      name: "cmo-app",
+      alias: ["cmo-app-git-preview-fork-pr-12.preview.cmo.xyz"],
+      readyState: "READY",
+    };
+    const previous = forkPreviewCommentBody([cmo], STALE_SHA).replace(
+      "`cmo-app`",
       "`sokosumi-cmo`",
     );
-    const body = forkPreviewCommentBody([preprod], FORK_SHA, previous);
-    assert.ok(!body.includes("`sokosumi-cmo`"));
-    assert.ok(body.includes("`sokosumi-app-preprod`"));
+    const preprodOnly = forkPreviewCommentBody([preprod], FORK_SHA, previous);
+    assert.ok(preprodOnly.includes("`sokosumi-cmo`"));
+    const redeployed = forkPreviewCommentBody([cmo], FORK_SHA, previous);
+    assert.ok(!redeployed.includes("`sokosumi-cmo`"));
+    assert.ok(
+      redeployed.includes(
+        `| \`cmo-app\` | https://${cmo.alias[0]} | READY | ${FORK_SHA} |`,
+      ),
+    );
   });
 
   function github(pages) {
