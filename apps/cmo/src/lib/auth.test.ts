@@ -501,7 +501,7 @@ describe("CMO auth handler", () => {
     const response = await followLink(
       jar,
       "/signup",
-      "?url=nmkr.io&ref=a&ref=b&seats=3",
+      "?url=nmkr.io&ref=a&ref=b&seats=3&_gl=1*abc*_ga*MTIz",
     );
 
     const authorize = new URL(response.headers.get("location") ?? "");
