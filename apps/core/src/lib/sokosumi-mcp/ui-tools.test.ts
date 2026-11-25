@@ -36,6 +36,18 @@ describe("MCP_UI_TOOLS", () => {
     );
   });
 
+  it("shows the hire form on agents_input_schema, which spends nothing itself", () => {
+    const hire = MCP_UI_TOOLS.find((tool) => tool.name === "agents_show_hire");
+    const twin = MCP_TOOLS.find((tool) => tool.name === hire?.data);
+
+    expect(hire).toMatchObject({
+      data: "agents_input_schema",
+      ui: "agents-hire",
+    });
+    expect(twin?.spendsCredits).toBeFalsy();
+    expect(hire?.description).toContain("capped at the price shown");
+  });
+
   it("ships no tool for the placeholder view", () => {
     expect(MCP_UI_TOOLS.map((tool) => tool.ui)).not.toContain("hello");
   });

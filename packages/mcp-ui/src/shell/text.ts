@@ -85,3 +85,14 @@ export function isUnderBase(url: string, base: string | undefined): boolean {
     return false;
   }
 }
+
+/**
+ * Whether `value` is a plain reference (an id, identifier or slug) that a
+ * view may put in a fixed `ui/message` or model-context template: never
+ * record text (ADR 0083).
+ */
+export function isPlainReference(value: unknown): value is string {
+  return (
+    typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(value)
+  );
+}

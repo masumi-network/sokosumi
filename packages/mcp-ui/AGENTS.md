@@ -27,6 +27,8 @@
 - `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments.
 - `displayModes` declares the modes a view supports, such as `fullscreen`; `context.displayMode` and `context.availableDisplayModes` come from the host.
 - A theme-only host-context change keeps the style variables the host sent before: `light-dark()` values follow the new theme, fixed colours do not (SOKD-417). Check it with the harness's `&styles=fixed&retheme`.
+- `context.input` holds the tool call's arguments, such as the agent id the hire form calls tools with.
+- `SchemaForm` (`src/shell/SchemaForm.tsx`) renders an agent's input schema (`input_data` or `input_groups`) as fields with inline errors, and returns Core's `inputData` (options as indices, as on Web). File fields send people to Sokosumi. Hosts sandbox views without `allow-forms`, so a `<form>` never submits: the button and Enter run the check instead.
 - Theme: the host's `theme` and MCP Apps style variables (`--color-background-primary`, `--color-text-primary`, ...) win; `tokens.css` holds Sokosumi's fallbacks, copied from `apps/web/src/app/globals.css`. `tokens.test.ts` fails when they drift. Change a value in Web first, then here.
 - Size: the App reports its height to the host (`autoResize`).
 - Text: every string goes through `t()` from `messages/en.json`. Dates go through `formatDateTime`, which uses the host's locale and time zone.
@@ -49,4 +51,4 @@
 | `pnpm --filter @sokosumi/mcp-ui harness`     | Host harness at `http://localhost:5173/?view=hello&fixture=default&theme=dark` |
 | `pnpm --filter @sokosumi/mcp-ui screenshots` | Playwright screenshots, light and dark, 320/402/768px, into `screenshots/`     |
 
-The harness and the screenshots read `dist/`, so build first. Fixtures live in `harness/fixtures.ts`; add one per state a view has. A fixture's `host` sets host context such as `displayMode`; the `default` and `fullscreen` fixtures are shot at every width. Set `PLAYWRIGHT_CHANNEL=chrome` when Playwright's own browser is not downloaded.
+The harness and the screenshots read `dist/`, so build first. Fixtures live in `harness/fixtures.ts`; add one per state a view has. A fixture's `host` sets host context such as `displayMode`; the `default` and `fullscreen` fixtures, and any with `allWidths`, are shot at every width. `calls` answers the view's `tools/call` by tool name (a result, `"pending"` or `"fail"`; `false` offers no `serverTools`), and `play` fills fields and clicks buttons before the shot, for states such as confirm and submitting. Set `PLAYWRIGHT_CHANNEL=chrome` when Playwright's own browser is not downloaded.

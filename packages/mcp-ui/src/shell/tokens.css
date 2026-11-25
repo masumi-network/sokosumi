@@ -11,6 +11,8 @@
   --accent: #f5f5f5; /* Neutral 100 */
   --muted-foreground: #525252; /* Neutral 600 */
   --border: #e5e5e5; /* Neutral 200 */
+  --input: #737373; /* Neutral 500 */
+  --destructive: #0c0c0c; /* Neutral 950 */
   --ring: #0c0c0c; /* Neutral 950 */
   --primary: #ff51ff; /* Iris Flower */
   --primary-foreground: #0c0c0c; /* Neutral 950 */
@@ -24,6 +26,8 @@
   --accent: #262626; /* Neutral 800 */
   --muted-foreground: #a3a3a3; /* Neutral 400 */
   --border: #262626; /* Neutral 800 */
+  --input: #737373; /* Neutral 500 */
+  --destructive: #fafafa; /* Neutral 50 */
   --ring: #fafafa; /* Neutral 50 */
   --primary: #d141d1; /* Dark Iris */
   --primary-foreground: #0c0c0c; /* Neutral 950 */

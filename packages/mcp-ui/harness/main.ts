@@ -77,7 +77,12 @@ async function main() {
   const bridge = new AppBridge(
     null,
     { name: "sokosumi-harness", version: "1.0.0" },
-    { openLinks: {}, serverTools: {}, updateModelContext: { text: {} } },
+    {
+      openLinks: {},
+      ...(fixture.calls !== false && { serverTools: {} }),
+      updateModelContext: { text: {} },
+      message: { text: {} },
+    },
     { hostContext },
   );
   bridge.onsizechange = ({ height }) => {
@@ -99,11 +104,17 @@ async function main() {
     record(`ui/update-model-context ${JSON.stringify(content)}`);
     return {};
   };
-  // Refresh: the host runs the tool on the server; here it returns the fixture.
+  bridge.onmessage = async ({ content }) => {
+    record(`ui/message ${JSON.stringify(content)}`);
+    return {};
+  };
+  // The host runs the tool on the server; here it answers from the fixture.
   bridge.oncalltool = async ({ name, arguments: args }) => {
     record(`tools/call ${name} ${JSON.stringify(args)}`);
-    if (!fixture.result) throw new Error("The fixture has no result");
-    return fixture.result;
+    const answer = (fixture.calls || {})[name] ?? fixture.result;
+    if (answer === "pending") return new Promise<never>(() => {});
+    if (answer === "fail" || !answer) throw new Error(`Unknown tool: ${name}`);
+    return answer;
   };
   bridge.oninitialized = async () => {
     record(`ui/initialize ${viewId} / ${fixtureName} / ${theme}`);
