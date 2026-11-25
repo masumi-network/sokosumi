@@ -11910,7 +11910,7 @@
       "newTable": "Neue Tabelle",
       "openAsTable": "Als Tabelle öffnen",
       "loadingCsv": "CSV wird gelesen…",
-      "fileMissing": "Die Datei konnte nicht geöffnet werden. Sie wurde gelöscht.",
+      "fileMissing": "Die Datei konnte nicht geöffnet werden. Sie ist nicht mehr verfügbar.",
       "createDescription": "Mit einer leeren Tabelle beginnen oder eine CSV-Datei importieren.",
       "title": "Titel",
       "description": "Beschreibung",

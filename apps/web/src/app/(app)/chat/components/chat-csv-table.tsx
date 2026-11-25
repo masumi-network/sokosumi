@@ -1,20 +1,31 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 
 /**
  * Where a CSV from this room becomes a Table: the active workspace, which
- * Core creates the Table in. Not provided on a Room visit (ADR-0061), whose
- * files belong to another workspace.
+ * Core creates the Table in. `undefined` when the room is not that
+ * workspace's own (an External channel hosted elsewhere, a Room visit,
+ * ADR-0061), so its files never move to another workspace.
  */
-const ChatCsvTableContext = createContext<{
-  workspaceId: string | null;
-} | null>(null);
+const ChatCsvTableContext = createContext<string | null | undefined>(undefined);
 
-export const ChatCsvTableWorkspace = ChatCsvTableContext.Provider;
+export function ChatCsvTableWorkspace({
+  workspaceId,
+  children,
+}: {
+  workspaceId: string | null | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <ChatCsvTableContext.Provider value={workspaceId}>
+      {children}
+    </ChatCsvTableContext.Provider>
+  );
+}
 
 /**
  * "Open as Table" for a CSV attachment: the Files CSV import, read from the
@@ -27,11 +38,12 @@ export function ChatCsvTable({
   url: string;
   fileName: string;
 }) {
-  const destination = useContext(ChatCsvTableContext);
-  if (!destination || spreadsheetKind("", fileName) !== "csv") return null;
+  const workspaceId = useContext(ChatCsvTableContext);
+  if (workspaceId === undefined || spreadsheetKind("", fileName) !== "csv")
+    return null;
   return (
     <TableCreateDialog
-      workspaceId={destination.workspaceId}
+      workspaceId={workspaceId}
       csvFile={{ url, name: fileName }}
       labelled
     />

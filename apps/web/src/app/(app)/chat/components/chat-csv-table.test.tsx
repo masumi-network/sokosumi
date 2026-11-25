@@ -24,7 +24,7 @@ afterEach(cleanup);
 describe("ChatCsvTable", () => {
   it("opens a chat CSV in the Table import of the room's workspace", () => {
     render(
-      <ChatCsvTableWorkspace value={{ workspaceId: "org-1" }}>
+      <ChatCsvTableWorkspace workspaceId="org-1">
         <ChatCsvTable url={URL} fileName="leads.csv" />
       </ChatCsvTableWorkspace>,
     );
@@ -36,7 +36,7 @@ describe("ChatCsvTable", () => {
 
   it("keeps the personal workspace as the destination", () => {
     render(
-      <ChatCsvTableWorkspace value={{ workspaceId: null }}>
+      <ChatCsvTableWorkspace workspaceId={null}>
         <ChatCsvTable url={URL} fileName="leads.csv" />
       </ChatCsvTableWorkspace>,
     );
@@ -48,9 +48,18 @@ describe("ChatCsvTable", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("offers nothing where the room is not the active workspace's own", () => {
+    render(
+      <ChatCsvTableWorkspace workspaceId={undefined}>
+        <ChatCsvTable url={URL} fileName="leads.csv" />
+      </ChatCsvTableWorkspace>,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it("offers nothing for other files", () => {
     render(
-      <ChatCsvTableWorkspace value={{ workspaceId: "org-1" }}>
+      <ChatCsvTableWorkspace workspaceId="org-1">
         <ChatCsvTable url={URL.replace(".csv", ".pdf")} fileName="leads.pdf" />
       </ChatCsvTableWorkspace>,
     );

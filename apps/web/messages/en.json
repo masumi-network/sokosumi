@@ -11910,7 +11910,7 @@
       "newTable": "New table",
       "openAsTable": "Open as table",
       "loadingCsv": "Reading the CSV…",
-      "fileMissing": "Failed to open the file. It was deleted.",
+      "fileMissing": "Failed to open the file. It is no longer available.",
       "createDescription": "Start with a blank table or import a CSV file.",
       "title": "Title",
       "description": "Description",
