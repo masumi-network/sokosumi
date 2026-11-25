@@ -161,4 +161,40 @@ describe("useStudioSortRefresh", () => {
     );
     expect(refresh).toHaveBeenCalledTimes(2);
   });
+
+  it("refreshes again on newest -> best -> newest before best settles", () => {
+    const loadedSortRef: RefObject<StudioSort> = { current: "newest" };
+    // Never mutates loadedSortRef: simulates Best still pending or failing.
+    const refresh = vi.fn();
+
+    const { rerender } = render(
+      <Harness
+        projectId="project-1"
+        sort="newest"
+        loadedSortRef={loadedSortRef}
+        refresh={refresh}
+      />,
+    );
+    expect(refresh).not.toHaveBeenCalled();
+
+    rerender(
+      <Harness
+        projectId="project-1"
+        sort="best"
+        loadedSortRef={loadedSortRef}
+        refresh={refresh}
+      />,
+    );
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Harness
+        projectId="project-1"
+        sort="newest"
+        loadedSortRef={loadedSortRef}
+        refresh={refresh}
+      />,
+    );
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
 });

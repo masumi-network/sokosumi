@@ -721,4 +721,128 @@ describe("URL-owned studio sort", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[2]?.[0]).toContain("sort=best");
   });
+
+  it("refreshes newest on newest -> best -> newest while best is still pending", async () => {
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assets: [asset("newest-2", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    let searchParams = "";
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(NuqsTestingAdapter, {
+        searchParams,
+        hasMemory: true,
+        children,
+      });
+
+    const { result, rerender } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    searchParams = "?sort=best";
+    rerender();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("sort=best");
+
+    // Switch back to newest before the Best request settles.
+    searchParams = "";
+    rerender();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[0]).not.toContain("sort=best");
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+        "newest-2",
+        "a1",
+      ]),
+    );
+
+    // Late Best response is ignored.
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [asset("late-best", 3)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "newest-2",
+      "a1",
+    ]);
+  });
+
+  it("clears a failed best error when switching newest -> best (500) -> newest", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 500 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assets: [asset("newest-fresh", 2), asset("a1", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    let searchParams = "";
+    const Wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(NuqsTestingAdapter, {
+        searchParams,
+        hasMemory: true,
+        children,
+      });
+
+    const { result, rerender } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    searchParams = "?sort=best";
+    rerender();
+    await waitFor(() => expect(result.current.error).toBe("refresh_failed"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    searchParams = "";
+    rerender();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "newest-fresh",
+      "a1",
+    ]);
+  });
 });

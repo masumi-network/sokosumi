@@ -10,9 +10,10 @@ export const studioSortParser =
   parseAsStringLiteral(STUDIO_SORT_VALUES).withDefault("newest");
 
 /**
- * Reloads studio state when the URL-owned `sort` differs from the ordering
- * currently loaded for `projectId`, deduplicating in-flight runs (including
- * StrictMode double-effects) for the same `(projectId, sort)` pair.
+ * Reloads studio state when the URL-owned `sort` differs from the last
+ * requested ordering for `projectId` (seeded from `loadedSortRef` on mount or
+ * project switch), issuing one fetch per real transition while skipping the
+ * initial matching load and StrictMode replay.
  */
 export function useStudioSortRefresh(
   projectId: string | null,
@@ -21,20 +22,23 @@ export function useStudioSortRefresh(
   refresh: () => void | Promise<void>,
 ): void {
   const runRefresh = useEffectEvent(refresh);
-  const requestedKeyRef = useRef<string | null>(null);
+  const lastRequestedRef = useRef<{
+    projectId: string;
+    sort: StudioSort;
+  } | null>(null);
 
   useEffect(() => {
     if (!projectId) {
-      requestedKeyRef.current = null;
+      lastRequestedRef.current = null;
       return;
     }
-    if (sort === loadedSortRef.current) {
-      requestedKeyRef.current = null;
-      return;
-    }
-    const requestKey = `${projectId}:${sort}`;
-    if (requestedKeyRef.current === requestKey) return;
-    requestedKeyRef.current = requestKey;
+    const previous = lastRequestedRef.current;
+    const lastSort =
+      previous && previous.projectId === projectId
+        ? previous.sort
+        : loadedSortRef.current;
+    lastRequestedRef.current = { projectId, sort };
+    if (sort === lastSort) return;
     void runRefresh();
   }, [loadedSortRef, projectId, sort]);
 }
