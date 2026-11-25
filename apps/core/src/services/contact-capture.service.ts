@@ -168,8 +168,15 @@ export interface CaptureLimits {
   xIntervalMs: number;
   /** Followers change slowly: read from the newest once a day. */
   xFollowsIntervalMs: number;
-  /** Followers pages (1000 each) per run. */
+  /** DM events per page once the newest one is new. */
+  xDmPageSize: number;
+  /** Followers pages per run. */
   xFollowPages: number;
+  /**
+   * Followers per page. X bills each one returned, and a page the write
+   * budget ends inside is read again, so a page stays well under it.
+   */
+  xFollowPageSize: number;
   /** Re-read this much before `since`; capture is idempotent. */
   overlapMs: number;
   /** Pause between Composio calls, so a backfill never bursts. */
@@ -201,7 +208,9 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   xCallsPerRun: 12,
   xIntervalMs: 60 * 60 * 1_000,
   xFollowsIntervalMs: DAY_MS,
-  xFollowPages: 3,
+  xDmPageSize: 20,
+  xFollowPages: 4,
+  xFollowPageSize: 100,
   overlapMs: 10 * 60 * 1_000,
   callSpacingMs: 250,
   unsupportedPauseMs: DAY_MS,
@@ -216,6 +225,8 @@ interface SourceCursor {
   pageToken: string | null;
   /** Slack's forward pass resumes its conversation walk here. */
   forwardToken?: string | null;
+  /** The newest X DM event read; a run whose newest is still it reads no more. */
+  newestDmId?: string;
   /** When X followers were last read from the newest. */
   followsAt?: string;
   /** The followers page still to read; set until all were read. */
@@ -1469,10 +1480,11 @@ export class ContactCaptureService {
 
   /**
    * X keeps about 30 days of DMs, so there is no long backfill: every hour
-   * the newest pages back to `since` (the first run reads all it has). Once
-   * a day, followers become contacts, newest first: X bills every follower a
-   * page returns, so a long walk goes on a few pages a day, and after one
-   * full walk a walk ends at the first page it has nothing new on.
+   * the events newer than `since` (the first run reads all it has). X bills
+   * every event and user a page returns, so a quiet hour reads one event and
+   * no users. Once a day, followers become contacts, newest first, a few
+   * small pages a day, and after one full walk a walk ends at the first page
+   * it has nothing new on.
    */
   private async captureX(
     context: RunContext,
@@ -1511,7 +1523,7 @@ export class ContactCaptureService {
         cursor.backfillUntil !== null
           ? floor
           : new Date(since.getTime() - this.limits.overlapMs);
-      if (await this.readXDms(context, budget, me, from)) {
+      if (await this.readXDms(context, budget, me, from, cursor)) {
         cursor.since = now.toISOString();
         cursor.backfillUntil = null;
         cursor.pageToken = null;
@@ -1529,24 +1541,41 @@ export class ContactCaptureService {
     budget: { calls: number },
     me: XUser,
     from: Date,
+    cursor: SourceCursor,
   ): Promise<boolean> {
+    const dmEvents = (args: Record<string, unknown>) =>
+      this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
+        event_types: ["MessageCreate"],
+        dm_event_fields: [
+          "created_at",
+          "sender_id",
+          "dm_conversation_id",
+          "participant_ids",
+        ],
+        ...args,
+      });
+    // The newest event alone: when it is not new, nothing is.
+    const newest = parseXDmEvent(
+      parseXPage(await dmEvents({ max_results: 1 })).items[0],
+    );
+    if (
+      !newest ||
+      (newest.id && newest.id === cursor.newestDmId) ||
+      new Date(newest.createdAt) < from
+    ) {
+      if (newest?.id) cursor.newestDmId = newest.id;
+      return true;
+    }
     const events = [];
     const users = new Map<string, XUser>();
     let token: string | null = null;
     let reached = false;
     while (budget.calls > 0 && this.canRead(context)) {
       const page = parseXPage(
-        await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
-          event_types: ["MessageCreate"],
-          dm_event_fields: [
-            "created_at",
-            "sender_id",
-            "dm_conversation_id",
-            "participant_ids",
-          ],
+        await dmEvents({
           expansions: ["sender_id", "participant_ids"],
           user_fields: ["name", "username"],
-          max_results: 100,
+          max_results: this.limits.xDmPageSize,
           ...(token ? { pagination_token: token } : {}),
         }),
       );
@@ -1576,7 +1605,9 @@ export class ContactCaptureService {
       );
     }
     const outcome = await this.write(context, { candidates, skipped });
-    return reached && outcome.complete;
+    if (!reached || !outcome.complete) return false;
+    if (newest.id) cursor.newestDmId = newest.id;
+    return true;
   }
 
   /**
@@ -1617,7 +1648,7 @@ export class ContactCaptureService {
       const result = parseXPage(
         await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.followers, {
           id: me.id,
-          max_results: 1000,
+          max_results: this.limits.xFollowPageSize,
           user_fields: X_FOLLOWER_FIELDS,
           ...(token ? { pagination_token: token } : {}),
         }),

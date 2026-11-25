@@ -1021,6 +1021,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       at: string,
       participants?: string[],
     ) => ({
+      id: `${conversation}:${sender}:${at}`,
       event_type: "MessageCreate",
       dm_conversation_id: conversation,
       sender_id: sender,
@@ -1283,6 +1284,81 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       mocks.runIntegrationTool.mockClear();
       await service().captureWorkspace(xWorkspaceId, () => true);
       expect(mocks.runIntegrationTool).not.toHaveBeenCalled();
+    });
+
+    it("reads one DM event and no users in an hour with nothing new", async () => {
+      const quietOrganizationId = randomUUID();
+      const quietWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: quietOrganizationId,
+          name: "Capture X quiet",
+          slug: `capture-x-quiet-${quietOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: quietWorkspaceId, organizationId: quietOrganizationId },
+      });
+      await addBot(quietWorkspaceId, ["twitter"]);
+      const start = Date.now();
+      let clock = new Date(start);
+      let events = [
+        dm("100-200", "200", new Date(start - 60_000).toISOString()),
+        dm("100-200", "100", new Date(start - 120_000).toISOString()),
+      ];
+      const dmCalls: Record<string, unknown>[] = [];
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
+            throw new Error(`unexpected tool ${tool}`);
+          dmCalls.push(input);
+          return {
+            data: events.slice(0, input.max_results as number),
+            includes: { users: [ruth] },
+          };
+        },
+      );
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+          },
+        }).captureWorkspace(quietWorkspaceId, () => true);
+
+      await capture();
+      expect(
+        dmCalls.map((call) => [call.max_results, call.expansions]),
+      ).toEqual([
+        [1, undefined],
+        [20, ["sender_id", "participant_ids"]],
+      ]);
+
+      dmCalls.length = 0;
+      clock = new Date(start + 61 * 60 * 1000);
+      await capture();
+      expect(
+        dmCalls.map((call) => [call.max_results, call.expansions]),
+      ).toEqual([[1, undefined]]);
+
+      dmCalls.length = 0;
+      events = [
+        dm("100-200", "200", new Date(start + 90 * 60 * 1000).toISOString()),
+        ...events,
+      ];
+      clock = new Date(start + 122 * 60 * 1000);
+      await capture();
+      expect(dmCalls.map((call) => call.max_results)).toEqual([1, 20]);
     });
 
     it("reads followers a page a day, and after one full walk stops at the first page with nothing new", async () => {

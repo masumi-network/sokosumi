@@ -63,7 +63,8 @@ function sokosumiSignInBody(
       : undefined;
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
-    callbackURL: "/",
+    // The app sends GA4 sign_up or login once it sees the marker.
+    callbackURL: "/?signed_in=1",
     errorCallbackURL: "/",
     ...(additionalParams ? { additionalParams } : {}),
   };
@@ -486,6 +487,8 @@ export async function sokosumiSignInRedirect(
     const signUpContext: Record<string, string> = {};
     if (options.createAccount) {
       for (const [key, value] of new URL(request.url).searchParams) {
+        // GA4's cross-domain linker (`_gl`) is not part of the sign-up.
+        if (key === "_gl") continue;
         // Own keys only: `constructor` is inherited from Object.prototype.
         if (!Object.hasOwn(signUpContext, key)) signUpContext[key] = value;
       }
