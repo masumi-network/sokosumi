@@ -57,6 +57,13 @@ export const betterAuthUserAdditionalFields = {
     required: false,
     defaultValue: false,
   },
+  // Whether the person swapped the chat room list for the Feed. Off until they
+  // turn it on.
+  feedMode: {
+    type: "boolean",
+    required: false,
+    defaultValue: false,
+  },
   logo: {
     type: "string",
     required: false,

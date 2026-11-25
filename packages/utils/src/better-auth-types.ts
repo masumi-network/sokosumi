@@ -27,6 +27,7 @@ export interface SessionUser {
   hideRoomUnreadCount?: boolean | null;
   tagDirectMessages?: boolean | null;
   hideWeekFromStandup?: boolean | null;
+  feedMode?: boolean | null;
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;

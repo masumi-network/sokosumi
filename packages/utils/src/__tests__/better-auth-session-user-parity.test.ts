@@ -31,6 +31,7 @@ function buildSessionUserWithSchemaFields(
     hideRoomUnreadCount: false,
     tagDirectMessages: false,
     hideWeekFromStandup: false,
+    feedMode: false,
     logo: null,
     metadata: null,
     stripeCustomerId: null,
