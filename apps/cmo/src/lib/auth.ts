@@ -1,10 +1,6 @@
-import {
-  getUsersById,
-  type SignUpContext,
-  type User,
-} from "@sokosumi/core-client";
+import { getUsersById, type SignUpContext } from "@sokosumi/core-client";
 import { type Client, createClient } from "@sokosumi/core-client/client";
-import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
+import { OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import {
   APIError,
@@ -25,6 +21,7 @@ import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { unstable_rethrow } from "next/navigation";
 
 import { type CmoAuthConfig, readCmoAuthConfig } from "./auth-config";
+import { personName } from "./person-name";
 import { CMO_SIGN_IN_ERROR } from "./sign-in-errors";
 import { SIGNED_OUT_COOKIE } from "./signed-out";
 
@@ -146,14 +143,6 @@ const recordUnansweredRefreshes = {
     };
   },
 } satisfies BetterAuthPlugin;
-
-/** The person's full name, or their display name when Sokosumi has no parts. */
-function personName(user: User): string {
-  return (
-    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") ||
-    user.name.trim()
-  );
-}
 
 const coreClients = new Map<string, Client>();
 
