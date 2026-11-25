@@ -212,6 +212,26 @@ describe("useFeedUnreadCount", () => {
     expect(result.current.unreadCount).toBe(0);
   });
 
+  it("reads again when a change lands in the render that cleared the refresh", async () => {
+    fetchChatFeedMock
+      .mockResolvedValueOnce(feedCount(1))
+      .mockImplementationOnce(async () => {
+        // The next message arrives while the refresh starts its read.
+        liveRooms.current = [room(3)];
+        return feedCount(2);
+      })
+      .mockResolvedValueOnce(feedCount(3));
+    liveRooms.current = [room(1)];
+    const { result, rerender } = renderCount();
+    await advance(0);
+    liveRooms.current = [room(2)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(3);
+    expect(result.current.unreadCount).toBe(3);
+  });
+
   it("does not read again when rooms only change places", async () => {
     fetchChatFeedMock.mockResolvedValue(feedCount(1));
     const other = { ...room(0), id: "room-2" };

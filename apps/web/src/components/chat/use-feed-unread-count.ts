@@ -72,25 +72,28 @@ export function useFeedUnreadCount({
   // the two reads. A change inside the wait needs no wait of its own: the read
   // at its end sees it.
   const [seenRoomsUnread, setSeenRoomsUnread] = useState(roomsUnread);
-  const [waitsForRead, setWaitsForRead] = useState(0);
+  // Counts the timer's rounds. Each round re-arms the timer whenever a refresh
+  // is still due after it, also when a change lands in the same render that
+  // cleared the flag.
+  const [timerRound, setTimerRound] = useState(0);
   if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
     setSeenRoomsUnread(roomsUnread);
     setRefreshDue(true);
   }
   useTimeout(
     () => {
+      setTimerRound((round) => round + 1);
       // A running read may have read before the change, and an invalidation
       // can hand back that same read. Wait another round for it to finish,
       // then read again; never cancel it, or steady changes starve the count.
       if (queryClient.isFetching({ queryKey: countKey, exact: true }) > 0) {
-        setWaitsForRead((waits) => waits + 1);
         return;
       }
       setRefreshDue(false);
       void queryClient.invalidateQueries({ queryKey: countKey, exact: true });
     },
     refreshDue ? FEED_COUNT_REFRESH_DELAY_MS : null,
-    waitsForRead,
+    timerRound,
   );
 
   return { unreadCount: data ?? 0, showCount };
