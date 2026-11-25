@@ -16,7 +16,13 @@ import ts from "@typescript/typescript6";
 import { Client } from "pg";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
-const SOURCE_PATHS = ["packages/database/src", "apps/core/src/helpers"];
+const SOURCE_PATHS = [
+  "packages/database/src",
+  "apps/core/src/helpers",
+  "apps/core/src/routes/v1",
+  "apps/core/src/lib",
+  "apps/core/src/types",
+];
 const RAW = new Set(["$queryRaw", "$executeRaw"]);
 const UNSAFE = new Set(["$queryRawUnsafe", "$executeRawUnsafe"]);
 const PREPARABLE = new Set(
