@@ -64,6 +64,7 @@
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
+    "@sokosumi/mcp-ui": "workspace:*",
     "@sokosumi/net": "workspace:*",
     "@sokosumi/soko-bot": "workspace:*",
     "@sokosumi/utils": "workspace:*",

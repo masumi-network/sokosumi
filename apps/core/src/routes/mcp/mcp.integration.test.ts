@@ -1,8 +1,10 @@
 import { createMCPClient } from "@ai-sdk/mcp";
+import { MCP_UI } from "@sokosumi/mcp-ui";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getWebAppBaseUrl } from "@/config/env";
 import { errorHandler } from "@/helpers/error-handler";
 import type { McpTokenVerification } from "@/lib/sokosumi-mcp/auth";
 import {
@@ -11,6 +13,7 @@ import {
   MCP_TOOLSETS,
   toolsetOf,
 } from "@/lib/sokosumi-mcp/tools";
+import { MCP_UI_TOOLS, type McpUiTool } from "@/lib/sokosumi-mcp/ui-tools";
 
 import mcpRouter from "./index";
 
@@ -20,7 +23,25 @@ import mcpRouter from "./index";
  * challenge. Token verification and the database are the only fakes.
  */
 
-const { CORE, USER } = vi.hoisted(() => ({
+const { CORE, USER, FIXTURE_UI_TOOLS } = vi.hoisted(() => ({
+  /**
+   * No real view ships yet (SOKD-417 adds the Task board), so these UI tools
+   * render the package's placeholder `hello` view in this file only.
+   */
+  FIXTURE_UI_TOOLS: [
+    {
+      name: "users_show_profile",
+      data: "users_get",
+      ui: "hello",
+      description: "Show a user's profile.",
+    },
+    {
+      name: "tasks_show_task",
+      data: "tasks_get",
+      ui: "hello",
+      description: "Show a Task.",
+    },
+  ] satisfies McpUiTool[],
   CORE: "https://core.example.test",
   USER: {
     id: "user_mcp",
@@ -57,6 +78,14 @@ vi.mock("@/lib/sokosumi-mcp/auth", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: { user: { findUnique: async () => USER } },
 }));
+vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/sokosumi-mcp/ui-tools")>();
+  return {
+    ...actual,
+    MCP_UI_TOOLS: [...actual.MCP_UI_TOOLS, ...FIXTURE_UI_TOOLS],
+  };
+});
 
 const app = new Hono();
 app.use(requestId());
@@ -128,15 +157,22 @@ describe("Sokosumi MCP server", () => {
         (tool) => tool.name,
       );
 
+    const isDefault = (name: string) =>
+      (DEFAULT_TOOLSETS as readonly string[]).includes(toolsetOf(name));
     const defaults = await listed();
-    expect(defaults).toEqual(
-      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
-        (DEFAULT_TOOLSETS as readonly string[]).includes(toolsetOf(name)),
+    expect(defaults).toEqual([
+      ...MCP_TOOLS.map((tool) => tool.name).filter(isDefault),
+      // A UI tool sits in its data twin's toolset (ADR 0083).
+      ...MCP_UI_TOOLS.filter((tool) => isDefault(tool.data)).map(
+        (tool) => tool.name,
       ),
-    );
+    ]);
     // SOKD-410: feature toolsets keep the default small. Growing it is a
     // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
-    expect(defaults).toHaveLength(34);
+    // UI tools count: 34 data tools, no real UI tool yet, plus this file's
+    // fixture tasks_show_task.
+    expect(defaults).toHaveLength(34 + 1);
+    expect(defaults).toContain("tasks_show_task");
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
     expect(await listed("?toolsets=vendors,organizations")).toEqual(
@@ -168,6 +204,95 @@ describe("Sokosumi MCP server", () => {
       "Other tasks tools take a Task's `id`",
     );
     expect(files.instructions).toContain("Add the tasks toolset for them.");
+  }, 15_000);
+
+  it("serves a UI tool's view as a ui:// resource and returns its twin's result", async () => {
+    const auth = { Authorization: "Bearer mcp-token" };
+    const client = await connect(auth, "?toolsets=users");
+    expect(client.initializeResult.capabilities).toMatchObject({
+      resources: {},
+      extensions: { "io.modelcontextprotocol/ui": {} },
+    });
+    const { tools } = await client.listTools();
+    const twin = tools.find((tool) => tool.name === "users_get");
+    const show = tools.find((tool) => tool.name === "users_show_profile");
+
+    // The twin's schema and annotations, the row's description, the link.
+    expect(show).toEqual({
+      name: "users_show_profile",
+      description: "Show a user's profile.",
+      inputSchema: twin?.inputSchema,
+      annotations: twin?.annotations,
+      _meta: { ui: { resourceUri: MCP_UI.hello.uri } },
+    });
+    // UI tools sit in their twin's toolset only.
+    expect(tools.map((tool) => tool.name)).not.toContain("tasks_show_task");
+
+    const data = await client.callTool({
+      name: "users_get",
+      arguments: { id: "me" },
+    });
+    const ui = await client.callTool({
+      name: "users_show_profile",
+      arguments: { id: "me" },
+    });
+    expect(data.structuredContent).toMatchObject({ data: { id: USER.id } });
+    const { _meta: uiMeta, ...uiResult } = ui;
+    const { _meta: dataMeta, ...dataResult } = data;
+    expect(uiResult).toEqual(dataResult);
+    // The SDK's own `_meta` (server info) stays; the view's is added.
+    expect(uiMeta).toEqual({
+      ...dataMeta,
+      ui: { resourceUri: MCP_UI.hello.uri },
+      sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+    });
+
+    // A twin's error comes back the same, with the view still linked.
+    const missing = await client.callTool({
+      name: "users_show_profile",
+      arguments: {},
+    });
+    expect(missing).toMatchObject({
+      isError: true,
+      structuredContent: { status: 422, message: 'Missing argument "id".' },
+    });
+
+    expect((await client.listResources()).resources).toEqual([
+      {
+        uri: MCP_UI.hello.uri,
+        name: "hello",
+        mimeType: "text/html;profile=mcp-app",
+      },
+    ]);
+    expect(
+      (await client.readResource({ uri: MCP_UI.hello.uri })).contents,
+    ).toEqual([
+      {
+        uri: MCP_UI.hello.uri,
+        mimeType: "text/html;profile=mcp-app",
+        text: MCP_UI.hello.html,
+      },
+    ]);
+
+    // A conversation from before a deploy still renders: the id resolves.
+    const old = "ui://sokosumi/hello.00000000.html";
+    expect((await client.readResource({ uri: old })).contents).toEqual([
+      {
+        uri: old,
+        mimeType: "text/html;profile=mcp-app",
+        text: MCP_UI.hello.html,
+      },
+    ]);
+    await expect(
+      client.readResource({ uri: "ui://sokosumi/nope.00000000.html" }),
+    ).rejects.toThrow("Unknown view: ui://sokosumi/nope.00000000.html");
+
+    // No UI tool in these toolsets, so no view either.
+    const vendors = await connect(auth, "?toolsets=vendors");
+    expect((await vendors.listResources()).resources).toEqual([]);
+    await expect(
+      vendors.readResource({ uri: MCP_UI.hello.uri }),
+    ).rejects.toThrow(`Unknown view: ${MCP_UI.hello.uri}`);
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {
