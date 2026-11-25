@@ -90,7 +90,7 @@ describe.each([
         await page.waitForFunction(
           () => document.body.dataset.atEnd === "true",
         );
-        // The newest row's bottom below the scroller's, after the frames that
+        // The newest row's bottom below the composer's top, after the frames that
         // follow each step have painted. Positive: hidden behind the composer.
         const overhangs = await page.evaluate(async (sendTestId) => {
           const settle = async () => {
@@ -102,6 +102,9 @@ describe.each([
           const overhang = () => {
             const scroller =
               document.querySelector<HTMLElement>(".overflow-y-auto");
+            const composer = document.querySelector<HTMLElement>(
+              "[data-room-composer-fade]",
+            )?.nextElementSibling;
             const rows = [
               ...(scroller?.querySelectorAll<HTMLElement>("[data-index]") ??
                 []),
@@ -109,10 +112,10 @@ describe.each([
             const newest = rows.sort(
               (a, b) => Number(b.dataset.index) - Number(a.dataset.index),
             )[0];
-            return scroller && newest
+            return composer instanceof HTMLElement && newest
               ? Math.round(
                   newest.getBoundingClientRect().bottom -
-                    scroller.getBoundingClientRect().bottom,
+                    composer.getBoundingClientRect().top,
                 )
               : null;
           };
@@ -179,16 +182,19 @@ describe.each([
           const overhang = () => {
             const scroller =
               document.querySelector<HTMLElement>(".overflow-y-auto");
+            const composer = document.querySelector<HTMLElement>(
+              "[data-room-composer-fade]",
+            )?.nextElementSibling;
             const newest = [
               ...(scroller?.querySelectorAll<HTMLElement>("[data-index]") ??
                 []),
             ].sort(
               (a, b) => Number(b.dataset.index) - Number(a.dataset.index),
             )[0];
-            return scroller && newest
+            return composer instanceof HTMLElement && newest
               ? Math.round(
                   newest.getBoundingClientRect().bottom -
-                    scroller.getBoundingClientRect().bottom,
+                    composer.getBoundingClientRect().top,
                 )
               : null;
           };
@@ -241,9 +247,19 @@ it("keeps an iPhone reader near the end at their distance when the composer grow
     await page.addScriptTag({
       type: "module",
       content: `const { renderFollowPage } = await import(${JSON.stringify(PAGE_MODULE)});
-        renderFollowPage();`,
+        renderFollowPage({ messageCount: 30 });`,
     });
-    await page.waitForFunction(() => document.body.dataset.atEnd === "true");
+    await page.waitForFunction(() => {
+      const scroller = document.querySelector<HTMLElement>(".overflow-y-auto");
+      const row5 = scroller?.querySelector<HTMLElement>('[data-index="5"]');
+      return (
+        document.body.dataset.atEnd === "true" &&
+        scroller !== null &&
+        row5 != null &&
+        row5.getBoundingClientRect().bottom <=
+          scroller.getBoundingClientRect().top
+      );
+    });
     const distance = await page.evaluate(async () => {
       const frames = async (count: number) => {
         for (let frame = 0; frame < count; frame += 1)
@@ -262,6 +278,14 @@ it("keeps an iPhone reader near the end at their distance when the composer grow
       await frames(6);
       scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight - 100;
       await frames(6);
+      const row5 = scroller.querySelector<HTMLElement>('[data-index="5"]');
+      if (
+        !row5 ||
+        row5.getBoundingClientRect().bottom >
+          scroller.getBoundingClientRect().top
+      ) {
+        return null;
+      }
       // A finger is down: the virtualizer holds corrections until it lifts.
       scroller.dispatchEvent(new TouchEvent("touchstart"));
       click("grow-older");
