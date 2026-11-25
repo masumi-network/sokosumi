@@ -40,6 +40,94 @@ export type StartImpersonationBody = {
     reason: string;
 };
 
+export type FailureReview = {
+    window: {
+        since: string;
+        until: string;
+        previousSince: string;
+    };
+    sections: {
+        /**
+         * Soko Bot and Cuso turns that failed, were cancelled, or outlived their deadline still running (ORPHANED), by status, kind, version, error
+         */
+        turns: Array<FailureReviewGroup>;
+        /**
+         * Chat mentions that failed
+         */
+        mentions: Array<FailureReviewGroup>;
+        /**
+         * Replies held back because the claim check could not run, and CLARIFY reroutes with Jev's wanted route
+         */
+        replyChecks: Array<FailureReviewGroup>;
+        /**
+         * Tool calls that failed, by capability
+         */
+        toolCalls: Array<FailureReviewGroup>;
+        /**
+         * Publish attempts that did not succeed, and posts that ended FAILED or MISSED
+         */
+        posting: Array<FailureReviewGroup>;
+        /**
+         * Image and video jobs that failed
+         */
+        media: Array<FailureReviewGroup>;
+        /**
+         * Schedule runs that failed, and schedules a bot disabled or deleted
+         */
+        schedules: Array<FailureReviewGroup>;
+        /**
+         * Eval cases that failed or errored in runs of the window
+         */
+        evals: Array<FailureReviewGroup>;
+    };
+    /**
+     * Live Cusos whose approved month is stuck, blocked, unreadable or has failed pictures now
+     */
+    cmoMonths: Array<{
+        sokoBotId: string;
+        projectId: string;
+        projectName: string;
+        state: string;
+        ready: number;
+        total: number;
+        withoutPicture: number;
+        failedMedia: number;
+        retryAt: string | null;
+    }>;
+    /**
+     * Failures this report cannot see, and where they are
+     */
+    notCovered: Array<string>;
+};
+
+export type FailureReviewGroup = {
+    /**
+     * Stable cause: the parts that make the failure one class, joined by ' · '. Texts are first lines with quotes, URLs, emails, ids and numbers removed.
+     */
+    key: string;
+    /**
+     * Rows in the window
+     */
+    count: number;
+    /**
+     * Rows in the window of the same length before it
+     */
+    previousCount: number;
+    /**
+     * The newest rows of this cause, at most three
+     */
+    examples: Array<{
+        id: string;
+        at: string;
+        /**
+         * Ids that lead to the row's context
+         */
+        refs: {
+            [key: string]: string;
+        };
+    }>;
+};
+
 export type AdminSeoAlerts = {
     total: number;
     critical: number;
@@ -18587,6 +18675,82 @@ export type StartAdminImpersonationResponses = {
 };
 
 export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
+
+export type GetAdminFailureReviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        since?: Date;
+        until?: Date;
+    };
+    url: '/admin/failure-review';
+};
+
+export type GetAdminFailureReviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid window
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminFailureReviewError = GetAdminFailureReviewErrors[keyof GetAdminFailureReviewErrors];
+
+export type GetAdminFailureReviewResponses = {
+    /**
+     * The failure review
+     */
+    200: {
+        data: FailureReview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminFailureReviewResponse = GetAdminFailureReviewResponses[keyof GetAdminFailureReviewResponses];
 
 export type ListAdminSeoAlertsData = {
     body?: never;

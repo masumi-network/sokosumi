@@ -144,8 +144,10 @@ publicHoistPattern:
   - pg-pool
   - "@biomejs/biome"
 
-# Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
-# Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
-# Upstream: https://github.com/vitest-dev/vitest/issues/11144 (closed without the field; still missing on 5.1.1)
 patchedDependencies:
+  # Drop once happy-dom releases capricorn86/happy-dom#2536 (fixes #2532).
+  happy-dom@21.0.4: patches/happy-dom@21.0.4.patch
+  # Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
+  # Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
+  # Upstream: https://github.com/vitest-dev/vitest/issues/11144 (closed without the field; still missing on 5.1.1)
   vitest@5.1.1: patches/vitest@5.1.1.patch

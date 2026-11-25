@@ -18,6 +18,7 @@ import {
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useLayoutFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useTaskTagSuggestions } from "@/hooks/effects/use-task-tag-suggestions";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import type { useSession } from "@/lib/auth/auth.client";
 import {
@@ -33,7 +34,6 @@ import {
 import type { TaskFormLabels, TaskFormProps } from "./task-form-types";
 import { useTaskFormAttachments } from "./use-task-form-attachments";
 import { useTaskFormWorkspaceTags } from "./use-task-form-workspace-tags";
-import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 

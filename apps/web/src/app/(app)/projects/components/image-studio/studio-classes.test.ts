@@ -12,7 +12,9 @@ describe("studio column height", () => {
     expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).toContain(
       "max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]",
     );
-    expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).toContain("max-md:-m-4");
+    expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).toContain(
+      "max-md:-mx-4 max-md:-mb-4",
+    );
     expect(STUDIO_COLUMN_MOBILE_SHELL_CLASS).not.toContain("max-md:h-full");
   });
 
@@ -26,7 +28,7 @@ describe("studio column height", () => {
     expect(STUDIO_COLUMN_FEED_HEIGHT_CLASS).toContain(
       "md:h-[calc(100dvh-4rem-env(safe-area-inset-top))]",
     );
-    expect(STUDIO_COLUMN_FEED_HEIGHT_CLASS).toContain("md:-m-4");
+    expect(STUDIO_COLUMN_FEED_HEIGHT_CLASS).toContain("md:-mx-4 md:-mb-4");
   });
 
   it("uses the same composer gutter as chat", () => {
