@@ -561,3 +561,20 @@ describe("TaskCard mention mark", () => {
     expect(screen.getByLabelText(/mention/i)).toBeInTheDocument();
   });
 });
+
+describe("TaskCard search", () => {
+  it("shows the result text a search found, and nothing without one", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard
+        task={{ ...task, resultMatch: "…the launch plan costs 20…" }}
+      />,
+    );
+
+    expect(screen.getByText("inResult")).toBeInTheDocument();
+    expect(screen.getByText("…the launch plan costs 20…")).toBeInTheDocument();
+
+    rerender(<TaskCard task={task} />);
+    expect(screen.queryByText("inResult")).not.toBeInTheDocument();
+  });
+});

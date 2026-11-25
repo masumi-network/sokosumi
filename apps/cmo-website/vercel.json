@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "ignoreCommand": "node ../../scripts/ci/vercel-ignore.mjs cmo-website",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "**": false,
+      "main": true
+    }
+  }
+}

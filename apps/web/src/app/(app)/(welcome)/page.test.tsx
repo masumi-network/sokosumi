@@ -129,6 +129,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
+import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
 import { expectConsole } from "@sokosumi/utils/test-console";
 import WelcomePage, { generateMetadata } from "./page";
 
@@ -313,7 +314,7 @@ describe("WelcomePage", () => {
       }),
     );
     expect(needsYouPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ lead: undefined, quiet: true }),
+      expect.objectContaining({ leads: [], quiet: true }),
     );
     // The first page of projects is read next to the rows, not after them.
     expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
@@ -338,6 +339,117 @@ describe("WelcomePage", () => {
             title: "Plan my week",
             // The reader wrote it, to the bot.
             from: "App.Chat.Landing.SokoBotHome.youTo",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("lists the bot's reply to that chat once it answers", async () => {
+    listImportantMessages.mockResolvedValueOnce([]);
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    listMessages.mockResolvedValueOnce({
+      messages: [
+        {
+          id: "msg-1",
+          content: "Plan my week",
+          createdAt: new Date(),
+          deletedAt: null,
+          parentMessageId: null,
+          sender: { type: "user", user: { id: "user-1" } },
+        },
+        {
+          id: "msg-2",
+          content: "Here is your week.",
+          createdAt: new Date(),
+          deletedAt: null,
+          parentMessageId: null,
+          sender: { type: "sokoBot", sokoBot: { id: "bot-1" } },
+          metadata: { in_reply_to_message_id: "msg-1" },
+        },
+      ],
+    });
+    await renderPage();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chats: [
+          expect.objectContaining({
+            messageId: "msg-2",
+            title: "Here is your week.",
+            from: "App.Chat.Landing.SokoBotHome.replied",
+          }),
+        ],
+      }),
+    );
+  });
+
+  // The summary read returns null when Core fails it; Home still renders
+  // and only the day's section says so.
+  it("renders Home without the day's numbers when their read fails", async () => {
+    getActivitySummary.mockResolvedValueOnce(
+      null as unknown as { awaitingInput: number },
+    );
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ summary: null }),
+    );
+  });
+
+  it("puts the bot's unread welcome first in Needs you", async () => {
+    const at = new Date("2026-11-24T09:00:00Z");
+    listMessages.mockResolvedValueOnce({
+      messages: [
+        {
+          id: "welcome-1",
+          // Posted before the owner renamed themselves: the marker, not the
+          // text, makes it the welcome.
+          content: composeSokoBotIntroduction({
+            name: "Pip",
+            ownerName: "Alicia Old",
+          }),
+          metadata: { sokoBotIntroduction: true },
+          createdAt: at,
+          deletedAt: null,
+          parentMessageId: null,
+          sender: { type: "sokoBot", sokoBot: { id: "bot-1" } },
+        },
+      ],
+      nextCursor: null,
+      firstUnreadMessageId: "welcome-1",
+    });
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Pip",
+      status: "ERROR",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    lastFailure.mockReturnValue({ roomId: null, messageId: null });
+    await renderPage();
+    expect(needsYouPanel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        leads: [
+          {
+            title: "App.Chat.Landing.SokoBotHome.welcome",
+            detail: "App.Chat.Landing.SokoBotHome.openChat",
+            href: "/chat/rooms/room-1?message=welcome-1",
+            at,
+            kind: "message",
+          },
+          expect.objectContaining({
+            title: "App.Chat.Landing.SokoBotHome.failedWork",
           }),
         ],
       }),
@@ -411,11 +523,13 @@ describe("WelcomePage", () => {
       await renderPage();
       expect(needsYouPanel).toHaveBeenCalledWith(
         expect.objectContaining({
-          lead: {
-            title: "App.Chat.Landing.SokoBotHome.failedReply",
-            detail: "App.Chat.Landing.SokoBotHome.openChat",
-            href: `/chat/rooms/${roomId}?message=${messageId}`,
-          },
+          leads: [
+            {
+              title: "App.Chat.Landing.SokoBotHome.failedReply",
+              detail: "App.Chat.Landing.SokoBotHome.openChat",
+              href: `/chat/rooms/${roomId}?message=${messageId}`,
+            },
+          ],
         }),
       );
     });
@@ -426,11 +540,13 @@ describe("WelcomePage", () => {
       await renderPage();
       expect(needsYouPanel).toHaveBeenCalledWith(
         expect.objectContaining({
-          lead: {
-            title: "App.Chat.Landing.SokoBotHome.failedWork",
-            detail: "App.Chat.Landing.SokoBotHome.openBot",
-            href: "/personal-assistant",
-          },
+          leads: [
+            {
+              title: "App.Chat.Landing.SokoBotHome.failedWork",
+              detail: "App.Chat.Landing.SokoBotHome.openBot",
+              href: "/personal-assistant",
+            },
+          ],
         }),
       );
     });

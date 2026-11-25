@@ -20,7 +20,9 @@ import { toast } from "sonner";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import {
+  isTaskArchivePending,
   markTaskArchived,
+  settleTaskArchive,
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
@@ -35,6 +37,7 @@ import { useIsMobile } from "@/hooks/effects/use-mobile";
 import {
   createTaskLink,
   deleteTaskLink,
+  revalidateTasksAfterArchive,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
@@ -79,6 +82,7 @@ export interface TaskDetailActionsProps {
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
+  workspaceId?: string;
   currentOrganizationId?: string | null;
   organizations?: MemberWithOrganization[];
   hasPersonalWorkspace?: boolean;
@@ -123,6 +127,7 @@ export function useTaskDetailActions({
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
+  workspaceId,
   currentOrganizationId,
   organizations,
   hasPersonalWorkspace = false,
@@ -149,6 +154,7 @@ export function useTaskDetailActions({
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
+  const [isArchiving, setIsArchiving] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
@@ -390,14 +396,35 @@ export function useTaskDetailActions({
   // Leaves for the board at once and archives in the background: the board
   // already hides the task, and shows it again if the archive fails.
   const handleArchive = () => {
+    if (isTaskArchivePending(taskId)) return;
+    setIsArchiving(true);
     markTaskArchived(taskId);
     router.push("/tasks");
-    taskClientService.archive(taskId).catch((error: unknown) => {
-      console.error("Failed to archive task", error);
-      unmarkTaskArchived(taskId);
-      toast.error(labels.archiveError);
-      router.refresh();
-    });
+    taskClientService
+      .archive(taskId)
+      .then(() =>
+        // shortcut: holds an uncommitted navigation for one revalidation round trip (Next action queue); revisit if Next adds a client cache-invalidation API
+        revalidateTasksAfterArchive()
+          .then((revalidated) => {
+            settleTaskArchive(taskId);
+            setIsArchiving(false);
+            if (!revalidated) {
+              router.refresh();
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Failed to revalidate tasks after archive", error);
+            settleTaskArchive(taskId);
+            setIsArchiving(false);
+            router.refresh();
+          }),
+      )
+      .catch((error: unknown) => {
+        console.error("Failed to archive task", error);
+        unmarkTaskArchived(taskId);
+        setIsArchiving(false);
+        toast.error(labels.archiveError);
+      });
   };
 
   const resetMobileSections = () => {
@@ -481,6 +508,7 @@ export function useTaskDetailActions({
   // The gates above follow a status that Core has not confirmed yet, so
   // nothing here acts on it while a status write is open, here or in the panel.
   const actionsDisabled =
+    isArchiving ||
     isStatusPending ||
     isStatusChanging ||
     isLinkPending ||
@@ -493,6 +521,7 @@ export function useTaskDetailActions({
     coworkerOptions,
     actionsMenuLabel,
     labels,
+    workspaceId,
     currentOrganizationId,
     organizations,
     hasPersonalWorkspace,

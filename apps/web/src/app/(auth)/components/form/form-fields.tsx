@@ -33,18 +33,22 @@ interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
   namespace: AuthNamespace;
+  /** Labels above the fields, for a step that asks more than its header names. */
+  visibleLabels?: boolean;
 }
 
 /**
  * The fields of an auth step. Each step asks one or two things that its
  * header already names, so a field's name sits inside it as the placeholder,
  * centered with the button. The label stays for screen readers and password
- * managers.
+ * managers. A step that asks more (sign-up's names, password and code) shows
+ * the labels instead, since a placeholder goes at the first keystroke.
  */
 export function FormFields<T extends FieldValues>({
   form,
   formData,
   namespace,
+  visibleLabels = false,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
 
@@ -58,12 +62,19 @@ export function FormFields<T extends FieldValues>({
           render={({ field }) => (
             <FormItem>
               {formDataItem.labelKey && formDataItem.type !== "checkbox" ? (
-                <FormLabel className="sr-only">
+                <FormLabel
+                  className={visibleLabels ? "justify-center" : "sr-only"}
+                >
                   {t(formDataItem.labelKey)}
                 </FormLabel>
               ) : null}
               <FormControl>
-                <FormInput field={field} formDataItem={formDataItem} t={t} />
+                <FormInput
+                  field={field}
+                  formDataItem={formDataItem}
+                  t={t}
+                  placeholder={!visibleLabels}
+                />
               </FormControl>
               {formDataItem.descriptionKey ? (
                 <FormDescription className="text-center">
@@ -89,17 +100,20 @@ interface FormInputProps<T extends FieldValues>
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
+  /** Repeat the label inside the field; off when it shows above. */
+  placeholder: boolean;
 }
 
 function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
+  placeholder: withPlaceholder,
   ...controlProps
 }: FormInputProps<T>) {
   const { autoComplete, type, labelKey, name, disabled } = formDataItem;
   // The auth fields' placeholders repeat their labels.
-  const placeholder = labelKey && t(labelKey);
+  const placeholder = withPlaceholder && labelKey ? t(labelKey) : undefined;
 
   if (type === "checkbox") {
     const id = labelKey?.toString() ?? name.toString();

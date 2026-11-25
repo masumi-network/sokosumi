@@ -81,7 +81,7 @@ describe("oauthRequestBrand", () => {
 
   it.each([
     "https://app.cmo.xyz/api/auth/callback/sokosumi",
-    "https://sokosumi-cmo-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi",
+    "https://cmo-app-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi",
     "http://localhost:3110/api/auth/callback/sokosumi",
   ])("gives CMO.xyz its look for %s", (redirectUri) => {
     expect(oauthRequestBrand(query(redirectUri))).toBe("cmo");

@@ -40,7 +40,8 @@ function run(name, fragment, out = join(work, `${name}.png`), env = {}) {
 
 describe("template.html", () => {
   it("only uses tokens defined in globals.css", () => {
-    const read = (path) => readFileSync(join(import.meta.dirname, path), "utf8");
+    const read = (path) =>
+      readFileSync(join(import.meta.dirname, path), "utf8");
     const globals = read("../../../apps/web/src/app/globals.css");
     const used = read("template.html").matchAll(/var\(--([a-z0-9-]+)/g);
     const missing = [...new Set([...used].map((match) => match[1]))].filter(
@@ -88,27 +89,25 @@ describe("render.mjs", () => {
     assert.equal(result.status, 3, result.stderr);
   });
 
-  it(
-    "exits 3 offline on a machine without Inter",
-    { skip: !existsSync("/usr/share/fonts/truetype/dejavu") },
-    () => {
-      const fonts = join(work, "fonts.conf");
-      writeFileSync(
-        fonts,
-        `<?xml version="1.0"?><fontconfig><dir>/usr/share/fonts/truetype/dejavu</dir><cachedir>${join(work, "fc-cache")}</cachedir></fontconfig>`,
-      );
-      const result = run(
-        "no-inter",
-        pitch("Mention them.<br />They're in.") + mock(card("Hi")),
-        undefined,
-        {
-          FONTCONFIG_FILE: fonts,
-          HTTPS_PROXY: "http://127.0.0.1:9",
-          https_proxy: "http://127.0.0.1:9",
-        },
-      );
-      assert.equal(result.status, 3, result.stderr);
-      assert.match(result.stderr, /Inter did not load/);
-    },
-  );
+  it("exits 3 offline on a machine without Inter", {
+    skip: !existsSync("/usr/share/fonts/truetype/dejavu"),
+  }, () => {
+    const fonts = join(work, "fonts.conf");
+    writeFileSync(
+      fonts,
+      `<?xml version="1.0"?><fontconfig><dir>/usr/share/fonts/truetype/dejavu</dir><cachedir>${join(work, "fc-cache")}</cachedir></fontconfig>`,
+    );
+    const result = run(
+      "no-inter",
+      pitch("Mention them.<br />They're in.") + mock(card("Hi")),
+      undefined,
+      {
+        FONTCONFIG_FILE: fonts,
+        HTTPS_PROXY: "http://127.0.0.1:9",
+        https_proxy: "http://127.0.0.1:9",
+      },
+    );
+    assert.equal(result.status, 3, result.stderr);
+    assert.match(result.stderr, /Inter did not load/);
+  });
 });

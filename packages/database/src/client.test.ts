@@ -103,6 +103,35 @@ describe("createPrismaClient", () => {
     }
   });
 
+  it("names the given schema in model queries, public when none is given", async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    const query = vi
+      .spyOn(pool, "query")
+      .mockImplementation(() =>
+        Promise.resolve({ ...QUERY_RESULT, fields: [], rows: [] }),
+      );
+    const sqlFor = async (schema?: string) => {
+      query.mockClear();
+      const prisma = createPrismaClient(pool, schema ? { schema } : undefined);
+      try {
+        await prisma.lock.findFirst({ where: { key: "k" } });
+      } finally {
+        await prisma.$disconnect();
+      }
+      const calls: unknown[][] = query.mock.calls;
+      const config = calls[0]?.[0] as string | { text: string } | undefined;
+      return typeof config === "string" ? config : config?.text;
+    };
+    try {
+      const unnamed = await sqlFor();
+      expect(unnamed).toContain('"public"."Lock"');
+      expect(await sqlFor("public")).toBe(unnamed);
+      expect(await sqlFor("preprod")).toContain('"preprod"."Lock"');
+    } finally {
+      await pool.end();
+    }
+  });
+
   it("reports errors from a connection checked out by a transaction", async () => {
     const pool = new Pool({ connectionString: DATABASE_URL });
     const connection = Object.assign(new Client(), { release: vi.fn() });

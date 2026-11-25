@@ -459,6 +459,18 @@ describe("introduceSokoBot", () => {
     );
   });
 
+  // Home finds the welcome by this marker, not by its text: names change.
+  it("marks the introduction so readers can tell it from later bot posts", async () => {
+    await introduceSokoBot({
+      userId: "owner",
+      workspaceId: "ws-a",
+      roomId: "room-a",
+    });
+    expect(messageCreate.mock.calls[0]?.[0]?.data?.metadata).toEqual({
+      sokoBotIntroduction: true,
+    });
+  });
+
   it("names no owner when the bot is shared", async () => {
     sokoBotFindFirst.mockResolvedValue({
       id: "bot-a",

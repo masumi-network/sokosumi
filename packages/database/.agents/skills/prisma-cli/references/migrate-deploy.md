@@ -18,15 +18,15 @@ prisma migrate deploy
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--schema` | Custom path to your Prisma schema |
+| Option     | Description                            |
+| ---------- | -------------------------------------- |
+| `--schema` | Custom path to your Prisma schema      |
 | `--config` | Custom path to your Prisma config file |
 
 ## When to Use
 
 - Production deployments
-- Staging environments  
+- Staging environments
 - CI/CD pipelines
 - Any non-development environment
 
@@ -57,30 +57,33 @@ CMD npx prisma migrate deploy && node dist/index.js
 
 ## Comparison with migrate dev
 
-| Feature | migrate dev | migrate deploy |
-|---------|-------------|----------------|
-| Creates migrations | Yes | No |
-| Applies migrations | Yes | Yes |
-| Detects drift | Yes | No |
-| Prompts for input | Yes | No |
-| Uses shadow database | Yes | No |
-| Safe for production | No | Yes |
-| Resets on issues | Prompts | Fails |
+| Feature              | migrate dev | migrate deploy |
+| -------------------- | ----------- | -------------- |
+| Creates migrations   | Yes         | No             |
+| Applies migrations   | Yes         | Yes            |
+| Detects drift        | Yes         | No             |
+| Prompts for input    | Yes         | No             |
+| Uses shadow database | Yes         | No             |
+| Safe for production  | No          | Yes            |
+| Resets on issues     | Prompts     | Fails          |
 
 ## Production Workflow
 
 1. **Development**: Create migrations locally
+
    ```bash
    prisma migrate dev --name add_feature
    ```
 
 2. **Commit**: Include migration files in version control
+
    ```bash
    git add prisma/migrations
    git commit -m "Add feature migration"
    ```
 
 3. **Deploy**: Apply in production
+
    ```bash
    prisma migrate deploy
    ```
@@ -92,6 +95,7 @@ CMD npx prisma migrate deploy && node dist/index.js
 If a migration fails, `migrate deploy` exits with error. The failed migration is marked as failed in `_prisma_migrations`.
 
 To fix:
+
 1. Resolve the issue (fix SQL, database state, etc.)
 2. Mark as resolved: `prisma migrate resolve --applied <migration_name>`
 3. Re-run: `prisma migrate deploy`

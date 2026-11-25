@@ -290,3 +290,22 @@ describe("TaskListItem open sub-tasks", () => {
     expect(subtaskLink?.parentElement?.closest("a")).toBeNull();
   });
 });
+
+describe("TaskListItem search", () => {
+  it("shows the result text a search found under the title", () => {
+    render(
+      <TaskListItem
+        task={{
+          ...buildTask(TaskVisibility.PUBLIC),
+          resultMatch: "…the launch plan costs 20…",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("inResult")).toBeInTheDocument();
+    const excerpt = screen.getByText("…the launch plan costs 20…");
+    // Inside the row's spans and link: phrasing content only.
+    expect(excerpt.tagName).toBe("SPAN");
+    expect(excerpt.closest("p")).toBeNull();
+  });
+});

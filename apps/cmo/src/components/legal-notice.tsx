@@ -26,7 +26,7 @@ export function LegalNotice() {
 export function ShortLegalNotice() {
   return (
     <p className="note legal-notice">
-      Cancel any time. By subscribing you agree to the{" "}
+      By subscribing you agree to the{" "}
       <a href="https://www.cmo.xyz/terms" target="_blank" rel="noreferrer">
         Terms
       </a>

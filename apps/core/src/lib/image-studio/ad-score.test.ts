@@ -28,7 +28,7 @@ describe("studio ad ranking", () => {
     expect(score("replaced_in_batch")).toBeLessThan(0.5);
   });
 
-  it("ignores unknown events and supports future judge and pairwise inputs", () => {
+  it("ignores unknown events", () => {
     expect(
       scoreStudioAd({
         thumbsUp: 0,
@@ -36,21 +36,5 @@ describe("studio ad ranking", () => {
         events: [{ type: "unknown", count: 100 }],
       }),
     ).toBe(0.5);
-    expect(
-      scoreStudioAd({
-        thumbsUp: 0,
-        thumbsDown: 0,
-        events: [],
-        judgePrior: 0.8,
-      }),
-    ).toBe(0.8);
-    expect(
-      scoreStudioAd({
-        thumbsUp: 0,
-        thumbsDown: 0,
-        events: [],
-        pairwise: { score: 1, count: 2 },
-      }),
-    ).toBe(0.75);
   });
 });

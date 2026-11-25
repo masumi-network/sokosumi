@@ -67,7 +67,6 @@ const plan = (
       onAnswer={noop}
       onUpdate={async () => null}
       onApprove={noop}
-      onConnectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
 const questionsOn = (answers: ("yes" | "no" | undefined)[]) => {
@@ -711,7 +710,7 @@ describe("Plan", () => {
     expect(html).toContain("Why this strategy");
   });
 
-  it("is read-only once approved: answers and budget as text, no change", () => {
+  it("is read-only once approved, except the owner's Yes or No to ads", () => {
     const base = draft(cmoStrategyVersion(new Date()));
     const html = renderToStaticMarkup(
       <PlanStep
@@ -744,7 +743,6 @@ describe("Plan", () => {
         onAnswer={noop}
         onUpdate={async () => null}
         onApprove={noop}
-        onConnectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
     expect(html).toContain("Continue to Launch");
@@ -752,14 +750,16 @@ describe("Plan", () => {
     expect(html).toContain("Every quarter");
     expect(html).not.toContain("Pace:");
     expect(html).not.toContain("two a day on each network");
-    expect(html).toContain("€200 a month for ads");
+    // Ads cost the owner money, so they stay theirs to change (NMKR, 2026-11-24).
+    expect(html).toContain("€200 a month. Some sales");
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Yes</);
+    expect(html).toContain("They start once you approve it.");
     for (const live of [
       "Ask for a change",
       "Approve strategy",
       "Update strategy",
       ">All-in<",
       ">Change<",
-      ">Yes<",
     ]) {
       expect(html).not.toContain(live);
     }
@@ -841,7 +841,7 @@ describe("Plan", () => {
     expect(html).not.toContain("OK for ads");
   });
 
-  it("starts at No for ads, with Cuso's suggestion one tap away and no amount shown", () => {
+  it("asks Yes or No to ads with Cuso's suggestion in words, the budget field only after a Yes", () => {
     const html = plan({
       ...draft(),
       strategy: {
@@ -856,11 +856,36 @@ describe("Plan", () => {
       },
     });
     expect(html).toContain("Do you want ads?");
+    expect(html.replace(/<!-- -->/g, "")).toMatch(
+      /Cuso suggests CHF\s600 a month on Google Ads\. 20 to 40 clicks a month/,
+    );
+    // Unanswered: neither is picked, and the budget field waits for a Yes.
+    expect(html).toContain(
+      '<button type="button" aria-pressed="false">Yes</button><button type="button" aria-pressed="false">No</button>',
+    );
+    expect(html).not.toContain("Monthly ad budget");
+    // Ad blockers hide elements labelled "Ads" or classed "*-ads" (Brave, 2026-11-24).
+    expect(html).not.toMatch(/aria-label="Ads"|class="[^"]*-ads\b/);
+  });
+
+  it("shows the owner's No to ads as picked", () => {
+    const html = plan({
+      ...draft(),
+      strategy: {
+        ...strategy,
+        ads: {
+          monthly: 0,
+          currency: "CHF",
+          expect: "20 to 40 clicks a month",
+          without: "Posts and search bring the calls.",
+          suggest: { channel: "google_ads", monthly: 600 },
+          setByOwner: true,
+        },
+      },
+    });
     expect(html).toMatch(/aria-pressed="true"[^>]*>No</);
     expect(html).toContain("No ads. Posts and search bring the calls.");
-    // The budget only shows after a Yes.
-    expect(html).not.toContain("Monthly ad budget");
-    expect(html).not.toContain("600");
+    expect(html).not.toContain("Cuso suggests");
   });
 });
 

@@ -216,7 +216,8 @@
       "inviteMembers": "Mitglieder einladen",
       "organizationSettings": "Einstellungen",
       "membersAndSettings": "Mitglieder & Einstellungen",
-      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}",
+      "justYou": "Nur du"
     },
     "DataTable": {
       "Data": {
@@ -1780,7 +1781,12 @@
           "needsYou": "{count, plural, one {# Anfrage braucht dich} other {# Anfragen brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
+          "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}",
+          "loadError": {
+            "title": "Die heutigen Zahlen konnten nicht geladen werden.",
+            "help": "Versuche es in einem Moment erneut.",
+            "retry": "Erneut versuchen"
+          }
         },
         "MyDay": {
           "title": "Mein Tag",
@@ -1814,6 +1820,7 @@
           "newSchedule": "Neuer Zeitplan für {name}",
           "open": "Öffnen",
           "youTo": "Du an {name}",
+          "replied": "{name} hat geantwortet",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
@@ -1822,7 +1829,8 @@
           "failedReply": "{name} konnte die letzte Antwort nicht abschließen",
           "openChat": "Chat öffnen",
           "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
-          "openBot": "Seite von {name} öffnen"
+          "openBot": "Seite von {name} öffnen",
+          "welcome": "{name} hat dir eine Begrüßung geschickt"
         },
         "SokoBotSetup": {
           "title": "Hol dir deinen Soko Bot",
@@ -1960,6 +1968,7 @@
         "loadMore": "Mehr laden"
       },
       "noTitle": "(Kein Titel)",
+      "inResult": "Im Ergebnis",
       "unansweredMention": "Du hast eine unbeantwortete Erwähnung",
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
@@ -2031,6 +2040,9 @@
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
         "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
+        "noSearchMatchesTitle": "Keine Tasks passen zu deiner Suche",
+        "noSearchMatchesDescription": "Nichts passt zu „{query}“. Prüfe die Schreibweise oder versuche weniger Wörter.",
+        "clearSearch": "Suche löschen",
         "stuck": "Hängt",
         "stuckDays": "seit {days}+ Tagen",
         "workspaceTags": "Workspace-Tags",
@@ -2079,6 +2091,7 @@
         "commentPlaceholder": "Kommentar schreiben...",
         "fileLabel": "Datei",
         "uploadFileErrorRetry": "Datei konnte nicht hochgeladen werden. Bitte versuche es erneut!",
+        "commentSendError": "Kommentar senden fehlgeschlagen. Bitte erneut versuchen.",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "submit": "Absenden",
@@ -3298,6 +3311,20 @@
           "confirm": "Auswahl erneut versuchen",
           "resultsTitle": "Ergebnis",
           "published": "Veröffentlicht"
+        },
+        "bulkApprove": {
+          "selectPost": "Beitrag {position} von {count} zum Freigeben auswählen: {post}",
+          "approveSelected": "Auswahl freigeben",
+          "title": "{count, plural, one {# Beitrag freigeben?} other {# Beiträge freigeben?}}",
+          "description": "Jeder Beitrag wird so freigegeben, wie du ihn jetzt siehst. Ein Beitrag, dessen Zeit noch weit genug entfernt ist, wird eingeplant; die anderen werden Entwürfe. Das Ergebnis zeigt, was mit jedem passiert ist.",
+          "willSchedule": "Geplant für {date}. Er wird eingeplant, wenn diese Zeit bei der Freigabe noch weit genug entfernt ist, sonst wird er ein Entwurf.",
+          "willDraft": "Wird ein Entwurf",
+          "resultsTitle": "Ergebnis der Freigabe",
+          "scheduled": "Freigegeben. Erscheint {date}",
+          "drafted": "Als Entwurf freigegeben",
+          "conflict": "Seit du ihn angesehen hast geändert. Öffne ihn und prüfe ihn erneut.",
+          "signedOut": "Nicht freigegeben: deine Sitzung ist abgelaufen. Melde dich an und versuche es erneut.",
+          "skipped": "Nicht versucht: deine Sitzung ist abgelaufen. Melde dich an und versuche es erneut."
         },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",
@@ -5814,7 +5841,7 @@
       "check": {
         "price": "{count, plural, =0 {Er kostet {each} Credits pro Wettbewerber und Woche.} one {Er kostet {credits} Credits pro Woche für # Wettbewerber.} other {Er kostet {credits} Credits pro Woche für # Wettbewerber, je {each}.}}",
         "last": "Letzter Check {last}, nächster {next}.",
-        "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}. Die nächste versucht es erneut.",
+        "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}.{on, select, true { Die nächste versucht es erneut.} other {}}",
         "source": {
           "pages": "Websites",
           "news": "Nachrichten",
@@ -5834,9 +5861,12 @@
         "status": {
           "off": "Der wöchentliche Check ist aus",
           "running": "Der erste Check läuft",
-          "on": "Der wöchentliche Check ist an"
+          "on": "Der wöchentliche Check ist an",
+          "waiting": "Noch kein Check gelaufen"
         },
-        "running": "Was er findet, steht in etwa einer Minute hier."
+        "running": "Was er findet, steht in etwa einer Minute hier.",
+        "waiting": "„Jetzt prüfen“ startet den ersten.",
+        "waitingCmo": "CMO führt ihn aus, solange Cuso bezahlt ist."
       },
       "list": {
         "title": "Beobachtet",
@@ -5849,7 +5879,14 @@
         "removeNamed": "{name} entfernen",
         "add": "Wettbewerber hinzufügen",
         "full": "Das sind alle {limit}. Entferne einen, um einen anderen zu beobachten.",
-        "failed": "Das hat nicht geklappt. Versuche es erneut."
+        "failed": "Das hat nicht geklappt. Versuche es erneut.",
+        "removed": "{name} entfernt",
+        "undo": "Rückgängig",
+        "restoreFailed": "{name} ließ sich nicht zurückholen.",
+        "restoreStale": "Das Entfernen von {name} lässt sich nicht mehr rückgängig machen.",
+        "restoreFull": "{name} ließ sich nicht zurückholen: Du beobachtest schon {limit}. Entferne zuerst einen.",
+        "restoreNameTaken": "{name} ließ sich nicht zurückholen: Ein anderer Wettbewerber trägt jetzt diesen Namen.",
+        "retry": "Erneut versuchen"
       },
       "form": {
         "addTitle": "Wettbewerber hinzufügen",
@@ -6089,6 +6126,7 @@
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
+      "tasksSeeAll": "Aufgaben und Ergebnisse nach „{query}“ durchsuchen",
       "filesFilenameMatch": "Treffer im Dateinamen",
       "peopleGroup": "Personen",
       "copyEmail": "{email} kopieren",
@@ -8783,6 +8821,9 @@
           "denyError": "Anwendung konnte nicht abgelehnt werden"
         },
         "apiAccessNotice": "Die Autorisierung gewährt vollen API-Zugriff auf dein Konto (openid und sokosumi:api). Genehmige nur Apps, denen du vertraust.",
+        "mcpAccessNotice": "Die Autorisierung erlaubt dieser App, Sokosumi über einen MCP-Client in deinem Namen zu nutzen (sokosumi:mcp).",
+        "unverifiedNotice": "Nicht verifizierte App. Sie hat sich selbst registriert, daher kann Sokosumi nicht bestätigen, wer sie betreibt.",
+        "redirectHost": "Nach deiner Antwort leitet Sokosumi dich zu {host} weiter.",
         "descriptionWithApi": "Eine Anwendung möchte auf dein Konto zugreifen und die Sokosumi-API in deinem Namen aufrufen",
         "offlineAccessNotice": "Diese App kann angemeldet bleiben und später neue Access-Tokens holen, ohne dich erneut zu fragen (Refresh-Tokens, bis zu 90 Tage)."
       },
@@ -9593,6 +9634,39 @@
           "statusRevoked": "Widerrufen",
           "workspaceKindOrganization": "Organisation",
           "workspaceKindUser": "Benutzer"
+        },
+        "ApiKeys": {
+          "title": "API-Schlüssel",
+          "description": "Laufzeit-Schlüssel, mit denen dieser Coworker Sokosumi aufruft. Zum Ersetzen einen neuen Schlüssel erstellen, den Agenten umstellen und dann den alten widerrufen.",
+          "createButton": "Schlüssel erstellen",
+          "empty": "Noch keine API-Schlüssel.",
+          "loadError": "Die API-Schlüssel konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+          "unnamed": "Ohne Namen",
+          "revokeButton": "Widerrufen",
+          "createSuccess": "API-Schlüssel erstellt",
+          "createError": "Der API-Schlüssel konnte nicht erstellt werden",
+          "revokeSuccess": "API-Schlüssel widerrufen",
+          "revokeError": "Der API-Schlüssel konnte nicht widerrufen werden",
+          "Table": {
+            "name": "Name",
+            "key": "Schlüssel",
+            "created": "Erstellt",
+            "status": "Status",
+            "actions": "Aktionen",
+            "lastUsed": "Zuletzt verwendet"
+          },
+          "Status": {
+            "active": "Aktiv",
+            "revoked": "Widerrufen",
+            "expired": "Abgelaufen"
+          },
+          "RevokeDialog": {
+            "title": "API-Schlüssel widerrufen?",
+            "description": "{name} ({keyStart}…) funktioniert sofort nicht mehr. Agenten, die ihn noch nutzen, erhalten 401-Fehler.",
+            "cancel": "Abbrechen",
+            "confirm": "Schlüssel widerrufen"
+          },
+          "noRecordedUse": "Keine Nutzung erfasst"
         }
       },
       "Tasks": {
@@ -11153,7 +11227,7 @@
         "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "teamStandupTitle": "Am Team-Stand-up teilnehmen",
-        "teamStandupDescription": "Die Arbeit dieses Assistenten (Tasks und Beiträge, nie Mail oder Kalender) im täglichen Stand-up deiner Organisation zeigen.",
+        "teamStandupDescription": "Dieser Assistent postet ein eigenes Update im täglichen Stand-up deiner Organisation, aus seinen Tasks und Beiträgen, nie aus Mail oder Kalender.",
         "teamStandupError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -12689,6 +12763,78 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      }
+    },
+    "Fundraising": {
+      "title": "Fundraising",
+      "description": "Die Runde: jeder Investor auf der Liste „Investors“, wo er steht und was er im Datenraum geöffnet hat.",
+      "loading": "Runde wird geladen",
+      "subtitle": "{count, plural, one {# Investor} other {# Investoren}} auf der Liste „Investors“",
+      "openList": "Liste „Investors“ öffnen",
+      "openContacts": "Kontakte öffnen",
+      "all": "Alle",
+      "noListTitle": "Noch keine Liste „Investors“",
+      "noList": "Lege in Kontakte eine Kontaktliste mit dem Namen „Investors“ an und füge die Investoren hinzu, mit denen du sprichst. Die Runde läuft über diese Liste.",
+      "emptyTitle": "Noch niemand auf der Liste",
+      "empty": "Füge in Kontakte Investoren zur Liste „Investors“ hinzu. Jeder erscheint hier mit Phase, Verantwortlichem und seiner Aktivität im Datenraum.",
+      "unassigned": "Niemand",
+      "noNextStep": "Nächsten Schritt eintragen",
+      "noTouch": "Noch kein Kontakt",
+      "saveFailed": "Die Änderung konnte nicht gespeichert werden",
+      "link": "Fundraising",
+      "columns": {
+        "investor": "Investor",
+        "stage": "Phase",
+        "owner": "Verantwortlich",
+        "nextStep": "Nächster Schritt",
+        "lastTouch": "Letzter Kontakt",
+        "dataRoom": "Datenraum",
+        "cheque": "Ticket"
+      },
+      "stages": {
+        "TO_RESEARCH": "Zu recherchieren",
+        "WARM_PATH": "Warmer Weg",
+        "REACHED_OUT": "Angeschrieben",
+        "MEETING": "Gespräch",
+        "DATA_ROOM": "Datenraum",
+        "DILIGENCE": "Prüfung",
+        "COMMITTED": "Zugesagt",
+        "PASSED": "Abgesagt"
+      },
+      "room": {
+        "notInvited": "Nicht eingeladen",
+        "invited": "Eingeladen {when}, noch kein Besuch",
+        "opened": "{views, plural, one {# Aufruf} other {# Aufrufe}}",
+        "revoked": "Zugang entzogen"
+      },
+      "sheet": {
+        "noFund": "Noch kein Fonds oder keine Rolle",
+        "openContact": "Kontakt öffnen",
+        "nextStep": "Nächster Schritt",
+        "followUp": "Wiedervorlage",
+        "noFollowUp": "Kein Datum",
+        "ticket": "Ticketgröße",
+        "ticketPlaceholder": "z. B. 500K–2M $",
+        "committed": "Zugesagt",
+        "committedPlaceholder": "z. B. 250k",
+        "thesis": "These",
+        "thesisPlaceholder": "Worin sie investieren, in ein, zwei Zeilen",
+        "notes": "Notizen",
+        "notesPlaceholder": "Was gesagt wurde, was sie brauchen, wer noch beteiligt ist",
+        "knownBy": "Wer sie kennt",
+        "knownByNobody": "Noch niemand im Team hatte Kontakt.",
+        "touches": "{count, plural, one {# Kontakt} other {# Kontakte}}",
+        "room": "Raum",
+        "firstVisit": "Erster Besuch",
+        "downloads": "Downloads",
+        "lastOpened": "Zuletzt geöffnet",
+        "openRoom": "Raumaktivität öffnen",
+        "source": "Quelle: {source}"
+      },
+      "error": {
+        "title": "Die Runde konnte nicht geladen werden",
+        "description": "Etwas ist schiefgegangen. Versuch es noch einmal.",
+        "retry": "Noch einmal versuchen"
       }
     },
     "Seo": {
@@ -15060,7 +15206,7 @@
     "TeamStandup": {
       "title": "Tägliches Agenten-Stand-up",
       "enabledLabel": "Stand-up durchführen",
-      "enabledHelp": "An jedem Werktag posten die Agenten einen Thread im Stand-up-Kanal: was erledigt wurde, was als Nächstes kommt, was auf eine Person wartet, und bis zu drei Übergaben zwischen Agenten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
+      "enabledHelp": "An jedem Werktag postet jeder Agent ein eigenes Update im Stand-up-Kanal: was er erledigt hat, was als Nächstes kommt, was auf eine Person wartet. Bis zu drei Übergaben zwischen Agenten folgen als Antworten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
       "timeLabel": "Uhrzeit",
       "timezoneLabel": "Zeitzone",
       "weekdaysLabel": "Tage",

@@ -112,6 +112,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const jobId of [
       "core",
       "core-postgres",
+      "core-postgres-split",
       "packages",
       "cli",
       "build",
@@ -270,6 +271,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["web", "web"],
       ["core", "core"],
       ["core-postgres", "core"],
+      ["core-postgres-split", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -327,16 +329,27 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    const step = jobBlock(test, "core-postgres").match(
-      /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
-    );
-    assert.ok(step, "missing step Test against PostgreSQL");
-    // Without the flag the files share one database and its job queue, and
-    // parallel files steal each other's jobs.
-    assert.match(
-      step[1],
-      /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
-    );
+    for (const [jobId, stepName] of [
+      ["core-postgres", "Test against PostgreSQL"],
+      ["core-postgres-split", "Test against PostgreSQL on the split layout"],
+      [
+        "core-postgres-split",
+        "Check the pending files still fail on the split layout",
+      ],
+    ]) {
+      const step = jobBlock(test, jobId).match(
+        new RegExp(
+          `- name: ${stepName}\\n([\\s\\S]*?)(?=\\n      - |\\n\\n  [a-z]|$)`,
+        ),
+      );
+      assert.ok(step, `missing step ${stepName}`);
+      // Without the flag the files share one database and its job queue, and
+      // parallel files steal each other's jobs.
+      assert.match(
+        step[1],
+        /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
+      );
+    }
   });
 
   it("per-leg filters only drop what the leg cannot reach", async () => {
@@ -352,13 +365,16 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
-  it("Test CLI runs only when apps/cli changes", async () => {
+  it("Test CLI runs only when apps/cli or the agent-surface manifests change", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
 
     // A single positive pattern, so `predicate-quantifier: every` at the
     // call site behaves the same as the default `some`.
-    assert.match(filter, /^cli:\n  - "apps\/cli\/\*\*"$/m);
+    assert.match(
+      filter,
+      /^cli:\n  - "\{apps\/cli\/\*\*,apps\/core\/agent-surface\/\*\*\}"$/m,
+    );
     assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.cli/);
     assert.match(jobBlock(test, "cli"), /Smoke the built CLI\n/);
   });
@@ -503,7 +519,7 @@ describe("Vercel web turbo build command", () => {
   });
 
   it("gates each app's build on its own turbo package", async () => {
-    for (const app of ["web", "core", "cmo"]) {
+    for (const app of ["web", "core", "cmo", "cmo-website"]) {
       const config = JSON.parse(await readRepoFile("apps", app, "vercel.json"));
       const { name } = JSON.parse(
         await readRepoFile("apps", app, "package.json"),
@@ -549,12 +565,13 @@ describe("Vercel web turbo build command", () => {
     );
     await writeFile(
       path.join(fixture, "pnpm-lock.yaml"),
-      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n",
+      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n  apps/cmo-website: {}\n",
     );
     for (const [app, name] of [
       ["web", "web"],
       ["core", "@sokosumi/core"],
       ["cmo", "cmo"],
+      ["cmo-website", "cmo-website"],
     ]) {
       await mkdir(path.join(fixture, "apps", app), { recursive: true });
       await writeFile(
@@ -585,7 +602,7 @@ describe("Vercel web turbo build command", () => {
       await writeFile(path.join(fixture, file), content);
       git("add", "-f", file);
       git("commit", "-qm", `change ${file}`);
-      for (const name of ["web", "@sokosumi/core", "cmo"]) {
+      for (const name of ["web", "@sokosumi/core", "cmo", "cmo-website"]) {
         const result = spawnSync(
           path.join(repoRoot, "node_modules/.bin/turbo"),
           [

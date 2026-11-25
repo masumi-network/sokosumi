@@ -303,8 +303,13 @@ describe("ToolConnectors", () => {
     ).toBeTruthy();
     await user.clear(search);
     await screen.findByText("slack");
+    // Flush useQuery's passive effect so its observer moves from "fig" to ""
+    // before invalidation; findByText can resolve before setImmediate runs it.
+    await act(async () => {});
     // Five minutes later the old answer is stale and Core is down.
-    await client.invalidateQueries();
+    await act(async () => {
+      await client.invalidateQueries();
+    });
     let fail = (_value: unknown) => {};
     searchCatalog.mockImplementation(
       () => new Promise((resolve) => (fail = resolve)),

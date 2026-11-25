@@ -36,10 +36,11 @@ describe("useDriveFilePreviewText", () => {
     );
     expect(fetchSpy).toHaveBeenCalledWith(
       "/api/drive/files/r1/content?scope=me",
+      { signal: expect.any(AbortSignal) },
     );
   });
 
-  it("transitions to failed on non-ok responses and ignores late responses after unmount", async () => {
+  it("transitions to failed on non-ok responses and aborts in-flight fetch on unmount", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response("nope", { status: 500 }),
     );
@@ -51,16 +52,24 @@ describe("useDriveFilePreviewText", () => {
     await waitFor(() => expect(result.current).toEqual({ kind: "failed" }));
 
     const pending = Promise.withResolvers<Response>();
-    vi.spyOn(globalThis, "fetch").mockReturnValueOnce(pending.promise);
+    let capturedSignal: AbortSignal | undefined;
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce((_input, init) => {
+      capturedSignal = init?.signal ?? undefined;
+      return pending.promise;
+    });
 
     const mounted = renderHook(() =>
       useDriveFilePreviewText(true, "/api/drive/files/r3/content?scope=me"),
     );
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
     mounted.unmount();
+    expect(capturedSignal?.aborted).toBe(true);
 
     await act(async () => {
-      pending.resolve(new Response("stale", { status: 200 }));
-      await pending.promise;
+      pending.reject(new DOMException("Aborted", "AbortError"));
+      await pending.promise.catch(() => {});
     });
     expect(mounted.result.current).toEqual({ kind: "loading" });
   });

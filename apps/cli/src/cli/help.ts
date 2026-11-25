@@ -1,4 +1,4 @@
-import { formatCliCommandHelpLines } from "./commands/discover.js";
+import { formatCliCommandHelpLines } from "./commands/catalog.js";
 import { CLI_VERSION } from "./metadata.js";
 
 export type ValueOptionName =
@@ -62,7 +62,8 @@ export type ValueOptionName =
   | "repeats"
   | "soko-bot-version"
   | "cuso-version"
-  | "out";
+  | "out"
+  | "query";
 
 type CliOptionValue = string | string[];
 
@@ -129,6 +130,7 @@ export interface CliOptions {
   markdown?: boolean;
   "summary-md"?: boolean;
   out?: string;
+  query?: CliOptionValue;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -245,6 +247,12 @@ Evals (platform admin; Core runs them on the deployment you select):
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
   --markdown prints the table for a PR's Evidence. The weekly run on mainnet is the baseline every run is compared with.
 
+Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
+  Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
+  A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
+  follow, restore). --organization-slug WORKSPACE_SLUG selects the Workspace.
+  Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
+
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
@@ -271,6 +279,12 @@ Organization Tasks:
     with its own sub-tasks (last by default). tasks move TASK_ID --detach removes its parent.
     tasks list hides sub-tasks; add --include-subtasks to list them too, or --parent TASK_ID for one Task's.
   Finish: tasks comment TASK_ID --status COMPLETED|CANCELED. Remove: tasks archive TASK_ID (later tasks get/events/jobs/links return 404).
+    tasks restore TASK_ID brings an archived Task back.
+  Task Schedules repeat work: tasks create-schedule --input-json '{"name":"...","rule":{"expr":"0 9 * * 1","timezone":"UTC"}}'.
+    Writes to a schedule or its Runs take "expectedRevision" from tasks get-schedule. create-schedule, resume-schedule and
+    run-schedule may spend credits: each Run creates a Task that can start paid work. run-schedule creates one now.
+    tasks update-schedule-run SCHEDULE_ID RUN_ID skips, moves or restores one Run.
+  Files: tasks upload-url TASK_ID returns uploadUrl and headers; PUT the bytes there and the file shows in tasks files.
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

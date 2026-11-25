@@ -19,6 +19,7 @@ import type {
   SokoBotConnectPromptState,
 } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
+import { chatQueryKeys } from "@/queries/chat";
 
 const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
 
@@ -47,7 +48,7 @@ async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
  */
 export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
   const { data } = useQuery({
-    queryKey: ["soko-bot-connect-prompt"],
+    queryKey: chatQueryKeys.sokoBotConnectPrompt(),
     queryFn: fetchPrompt,
     staleTime: 5 * 60_000,
   });

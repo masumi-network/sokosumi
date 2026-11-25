@@ -13,23 +13,23 @@ npx @evlog/cli map <file> --no-write   # suggested shape for one entry point
 
 **Requirements** (move the score) map to the anti-patterns below:
 
-| Map rule id | Weight | What it expects | Related anti-pattern |
-|-------------|--------|-----------------|----------------------|
-| `wide-event` | 40 | `useLogger()` / request logger | No logging in handlers |
-| `audit` | 25 | `log.audit(...)` on sensitive routes | Missing audit on auth/billing |
-| `structured-errors` | 20 | `createError({ why, fix })` | `throw new Error('...')` |
-| `page-error-handling` | 20 | fetch error handling on pages | Unhandled page fetches |
-| `context` | 15 | `log.set(...)` | Flat / missing request context |
-| `error-handling` | 15 | log or rethrow in `catch` | `console.error(e); throw e` |
+| Map rule id           | Weight | What it expects                      | Related anti-pattern           |
+| --------------------- | ------ | ------------------------------------ | ------------------------------ |
+| `wide-event`          | 40     | `useLogger()` / request logger       | No logging in handlers         |
+| `audit`               | 25     | `log.audit(...)` on sensitive routes | Missing audit on auth/billing  |
+| `structured-errors`   | 20     | `createError({ why, fix })`          | `throw new Error('...')`       |
+| `page-error-handling` | 20     | fetch error handling on pages        | Unhandled page fetches         |
+| `context`             | 15     | `log.set(...)`                       | Flat / missing request context |
+| `error-handling`      | 15     | log or rethrow in `catch`            | `console.error(e); throw e`    |
 
 **Opportunities** (never cost points; fire only when the project already uses the feature). Surface them as suggestions, not defects:
 
-| Map rule id | Fires when | Related skill section |
-|-------------|-----------|-----------------------|
-| `error-catalog` | A catalog is declared and the same inline error appears in 2+ files | Related Capabilities → catalogs |
-| `audit-coverage` | The project records audits and a state-changing handler has none | Audit logs |
-| `ai-logging` | `ai` is a dependency and the AI SDK is called without `evlog/ai` | AI SDK Integration |
-| `auth-identity` | `better-auth` is a dependency without `evlog/better-auth` | Related Capabilities → Better Auth |
+| Map rule id      | Fires when                                                          | Related skill section              |
+| ---------------- | ------------------------------------------------------------------- | ---------------------------------- |
+| `error-catalog`  | A catalog is declared and the same inline error appears in 2+ files | Related Capabilities → catalogs    |
+| `audit-coverage` | The project records audits and a state-changing handler has none    | Audit logs                         |
+| `ai-logging`     | `ai` is a dependency and the AI SDK is called without `evlog/ai`    | AI SDK Integration                 |
+| `auth-identity`  | `better-auth` is a dependency without `evlog/better-auth`           | Related Capabilities → Better Auth |
 
 Full rule reference: https://www.evlog.dev/cli/rules
 
@@ -312,14 +312,14 @@ export default defineEventHandler(async (event) => {
 
 ## Anti-Pattern Summary
 
-| Anti-Pattern | Fix |
-|--------------|-----|
-| Multiple `console.log` in one function | Single wide event with `useLogger(event).set()` |
-| `throw new Error('...')` | `throw createError({ message, status, why, fix })` |
-| `console.error(e); throw e` | `log.error(e); throw createError(...)` |
-| No logging in request handlers | Add `useLogger(event)` (Nuxt/Nitro) or `createRequestLogger()` (standalone) |
-| Flat log data | Grouped objects: `{ user: {...}, cart: {...} }` |
-| Abbreviated field names | Descriptive names: `userId` not `uid` |
+| Anti-Pattern                           | Fix                                                                         |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| Multiple `console.log` in one function | Single wide event with `useLogger(event).set()`                             |
+| `throw new Error('...')`               | `throw createError({ message, status, why, fix })`                          |
+| `console.error(e); throw e`            | `log.error(e); throw createError(...)`                                      |
+| No logging in request handlers         | Add `useLogger(event)` (Nuxt/Nitro) or `createRequestLogger()` (standalone) |
+| Flat log data                          | Grouped objects: `{ user: {...}, cart: {...} }`                             |
+| Abbreviated field names                | Descriptive names: `userId` not `uid`                                       |
 
 ## Suggested Review Comments
 

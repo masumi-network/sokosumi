@@ -380,10 +380,3 @@ export async function runDueSocialAccountSync(
   }
   return metrics;
 }
-
-/** Cron alias — same writer, same metrics. */
-export async function collectSocialPerformance(
-  input: RunDueSocialAccountSyncInput,
-): Promise<RunDueSocialAccountSyncResult> {
-  return runDueSocialAccountSync(input);
-}

@@ -16,6 +16,7 @@ Check Sentry service status
 Show Sentry service status
 
 **Flags:**
+
 - `--url <value> - Status page base URL to query - (default: "https://status.sentry.io")`
 
 **Examples:**

@@ -21,6 +21,10 @@ interface LoadMoreProjectsParams extends AuthenticatedRequest {
   query?: string;
   /** Carries the Open/Hidden/Closed view; its cursor only makes sense inside it. */
   state: ProjectsListState;
+  /** Rejects the read if the active session switched organization before it ran. */
+  expectedOrganizationId?: string | null;
+  /** Rejects the read if the active session switched user before it ran. */
+  expectedViewerId?: string;
 }
 
 export const loadMoreProjects = withSession<
@@ -29,19 +33,41 @@ export const loadMoreProjects = withSession<
     projects: ProjectsListProject[];
     nextCursor: string | null;
   }
->(async ({ cursor, query, state }) => {
-  const page = await projectService.listProjects({
+>(
+  async ({
     cursor,
-    limit: PROJECTS_PAGE_LIMIT,
     query,
-    ...projectsListStateQuery(state),
-  });
+    state,
+    expectedOrganizationId,
+    expectedViewerId,
+    session,
+  }) => {
+    if (
+      expectedOrganizationId !== undefined &&
+      (session.session.activeOrganizationId ?? null) !== expectedOrganizationId
+    ) {
+      throw new Error("Active workspace changed");
+    }
+    if (
+      expectedViewerId !== undefined &&
+      session.user.id !== expectedViewerId
+    ) {
+      throw new Error("Active viewer changed");
+    }
 
-  return {
-    projects: await withCloseStatus(page.projects),
-    nextCursor: page.pagination?.nextCursor ?? null,
-  };
-});
+    const page = await projectService.listProjects({
+      cursor,
+      limit: PROJECTS_PAGE_LIMIT,
+      query,
+      ...projectsListStateQuery(state),
+    });
+
+    return {
+      projects: await withCloseStatus(page.projects),
+      nextCursor: page.pagination?.nextCursor ?? null,
+    };
+  },
+);
 
 interface ProjectPinParams extends AuthenticatedRequest {
   projectId: string;

@@ -440,9 +440,9 @@ try {
 
 Common patterns, with the fields adapted to each case:
 
-| Pattern | Status | Fields |
-|---------|--------|--------|
-| Resource not found | 404 | `why`: what's missing, `fix`: verify identifier |
-| External service failure | 503 | `why`: service error, `fix`: actionable step, `link`: service docs, `cause`: original error |
-| Validation failure | 400 | `why`: what's invalid, `fix`: expected format |
-| Permission denied | 403 | `why`: what's required, `fix`: how to get access |
+| Pattern                  | Status | Fields                                                                                      |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------------- |
+| Resource not found       | 404    | `why`: what's missing, `fix`: verify identifier                                             |
+| External service failure | 503    | `why`: service error, `fix`: actionable step, `link`: service docs, `cause`: original error |
+| Validation failure       | 400    | `why`: what's invalid, `fix`: expected format                                               |
+| Permission denied        | 403    | `why`: what's required, `fix`: how to get access                                            |

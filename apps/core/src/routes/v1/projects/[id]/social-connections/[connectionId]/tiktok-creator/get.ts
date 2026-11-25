@@ -19,7 +19,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   projectSocialConnectionParamsSchema,
@@ -51,7 +51,7 @@ const route = withOrganizationSlugHeaderParameter(
 );
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   app.openapi(route, async (c) => {
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, connectionId } = c.req.valid("param");
     const connection = await prisma.projectSocialConnection.findFirst({

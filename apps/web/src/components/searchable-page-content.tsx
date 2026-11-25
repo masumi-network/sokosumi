@@ -18,7 +18,7 @@ import { PageListSearchContext } from "@/components/page-list-search";
 import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
-import { usePageTextFind } from "@/components/use-page-text-find";
+import { usePageTextFind } from "@/hooks/effects/use-page-text-find";
 import { cn } from "@/lib/utils";
 
 /** Dashboards find visible text. Data-backed collections register to filter their records instead. */
@@ -88,14 +88,7 @@ interface ToolbarProps {
   renderHeader?: (search: ReactNode) => ReactNode;
 }
 
-const DASHBOARD_PATHS = [
-  "/studio",
-  "/tiktok-studio",
-  "/competitors",
-  "/chat",
-  "/you",
-  "/admin",
-];
+const DASHBOARD_PATHS = ["/studio", "/tiktok-studio", "/competitors", "/admin"];
 const SECTION_PATHS = [
   "/soko-bots",
   "/personal-assistant",

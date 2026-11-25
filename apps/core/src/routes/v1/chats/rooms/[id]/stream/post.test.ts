@@ -66,6 +66,7 @@ const {
   clearPendingResponseMirrorMock,
   renewPendingResponseMirrorMock,
   pollCoworkerResponseStatusMock,
+  getCoworkerAuthorizationHeaderMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
@@ -103,6 +104,7 @@ const {
   clearPendingResponseMirrorMock: vi.fn(),
   renewPendingResponseMirrorMock: vi.fn(),
   pollCoworkerResponseStatusMock: vi.fn(),
+  getCoworkerAuthorizationHeaderMock: vi.fn(),
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -150,6 +152,11 @@ vi.mock("@/helpers/coworker-pending-response-mirror", () => ({
 vi.mock("@/helpers/coworker-response-poll", () => ({
   pollCoworkerResponseStatus: (...args: unknown[]) =>
     pollCoworkerResponseStatusMock(...args),
+}));
+
+vi.mock("@/lib/coworker-request-auth", () => ({
+  getCoworkerAuthorizationHeader: (...args: unknown[]) =>
+    getCoworkerAuthorizationHeaderMock(...args),
 }));
 
 vi.mock("@/lib/resumable-ui-stream-context", () => ({
@@ -530,6 +537,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
           mode: string;
           providerConversationId: string | null;
           coworkerSlug: string | null;
+          getAuthorization?: () => Promise<string>;
         };
       };
     };
@@ -538,6 +546,21 @@ describe("POST /chats/rooms/{id}/stream", () => {
       "conv_remote_1",
     );
     expect(streamArgs.providerOptions.sokosumi.coworkerSlug).toBe("hannah");
+    expect(streamArgs.providerOptions.sokosumi.getAuthorization).toEqual(
+      expect.any(Function),
+    );
+    getCoworkerAuthorizationHeaderMock.mockResolvedValueOnce(
+      "Bearer signed-stream-token",
+    );
+    await expect(
+      streamArgs.providerOptions.sokosumi.getAuthorization!(),
+    ).resolves.toBe("Bearer signed-stream-token");
+    expect(getCoworkerAuthorizationHeaderMock).toHaveBeenCalledWith({
+      coworkerBaseUrl: "https://responses.example.com/v1",
+      userId: USER_ID,
+      organizationId: "org_1",
+      coworkerSlug: "hannah",
+    });
 
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
     expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();

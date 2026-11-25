@@ -26,7 +26,6 @@ import {
   BeforeAfter,
   FunnelPlan,
   Improvements,
-  MeasureFunnel,
   OfferLadder,
   stageLabel,
 } from "../strategy-core";
@@ -398,7 +397,7 @@ function measureLine(measure: Measure): string {
       ? measure.value
       : `${measure.value} (my estimate)`;
   }
-  return "Counted once your accounts are connected";
+  return "Not counted yet";
 }
 
 /** What Cuso does on his own schedule; it matches his daily, weekly and monthly runs. */
@@ -460,18 +459,12 @@ function HowItWorks() {
  * stage, what he does every day, week and month, and when he changes course.
  */
 interface ResultsPanelProps {
-  overview: CmoOverview;
   strategy: Strategy;
-  onConnectMeasurement: ConnectMeasurement;
-  measureError?: string | null;
+  /** The plan is approved: the numbers are connected on Results. */
+  approved: boolean;
 }
 
-export function ResultsPanel({
-  overview,
-  strategy,
-  onConnectMeasurement,
-  measureError = null,
-}: ResultsPanelProps) {
+export function ResultsPanel({ strategy, approved }: ResultsPanelProps) {
   const { objective, measurement } = strategy;
   const stages = strategy.funnel ?? [];
   const rules = measurement?.rules ?? [];
@@ -510,20 +503,14 @@ export function ResultsPanel({
               </li>
             ))}
           </ol>
+          {/* Connecting comes after approval, on Launch and Results. */}
+          <p className="note">
+            {approved
+              ? "Connect Google Analytics, Search Console or Shopify on Results, and I count these from real numbers."
+              : "After you approve, connect Google Analytics, Search Console or Shopify, and I count these from real numbers."}
+          </p>
         </Section>
       ) : null}
-
-      <Section title="Connect your numbers">
-        <p className="note">
-          I read real visits, searches and orders from these. Where none of them
-          reaches, I estimate and ask you for the number.
-        </p>
-        <MeasureFunnel
-          sources={overview.measurement}
-          onConnect={onConnectMeasurement}
-          measureError={measureError}
-        />
-      </Section>
 
       {rules.length > 0 ? (
         <Section title="When I change course">

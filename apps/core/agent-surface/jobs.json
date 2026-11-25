@@ -1,0 +1,33 @@
+{
+  "backlog": "SOKD-370",
+  "operations": {
+    "GET /jobs": {
+      "cli": "jobs list",
+      "mcp": "jobs_list"
+    },
+    "GET /jobs/{id}": {
+      "cli": "jobs get",
+      "mcp": "jobs_get"
+    },
+    "GET /jobs/{id}/input-request": {
+      "cli": "jobs get",
+      "mcp": "jobs_input_request"
+    },
+    "POST /jobs/{id}/inputs": {
+      "cli": "jobs input",
+      "mcp": "jobs_input"
+    },
+    "GET /jobs/{id}/events": {
+      "cli": "jobs events",
+      "mcp": "jobs_events"
+    },
+    "GET /jobs/{id}/files": {
+      "cli": "jobs files",
+      "mcp": "jobs_files"
+    },
+    "GET /jobs/{id}/links": {
+      "cli": "jobs links",
+      "mcp": "jobs_links"
+    }
+  }
+}

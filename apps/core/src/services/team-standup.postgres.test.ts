@@ -84,6 +84,9 @@ describe.skipIf(!enabled)("team stand-up", () => {
       host: async () => {
         throw new Error("the host is not asked on a quiet day");
       },
+      writeBot: async () => {
+        throw new Error("no bot writes on a quiet day");
+      },
     });
     expect(outcome?.status).toBe("QUIET");
     expect(
@@ -93,7 +96,7 @@ describe.skipIf(!enabled)("team stand-up", () => {
     ).toBe(0);
   });
 
-  it("writes lines from Task states, mentions the person a blocker waits on, and opens the match's hand-off once", async () => {
+  it("posts an opener, then each agent's own message, mentions the person a Task waits on, and opens the match's hand-off under the needing bot's message once", async () => {
     const world = await organizationWith("Busy Co");
     const task = (name: string, status: "RUNNING" | "INPUT_REQUIRED") =>
       prisma.task.create({
@@ -128,15 +131,28 @@ describe.skipIf(!enabled)("team stand-up", () => {
         dispatch: async (mentionId) => {
           dispatched.push(mentionId);
         },
-        host: async ({ lines }) => ({
-          summary: "Mira is on two Tasks; one waits on Robin.",
+        writeBot: async (record) => ({
+          text: `Nothing finished yet. Next: ${record.open.join(", ")}.`,
+          source: "own",
+          costUsd: 0.001,
+        }),
+        shorten: async (titles) => ({
+          short: new Map(
+            titles.map((title) => [
+              title,
+              title.startsWith("EU") ? "EU pricing research" : title,
+            ]),
+          ),
+          costUsd: 0.001,
+        }),
+        host: async ({ records }) => ({
           costUsd: 0.002,
           matches: [
             {
               needingAgentId: world.bot.id,
               offeringAgentId:
-                lines.find((line) => line.agent.kind === "coworker")?.agent
-                  .id ?? "",
+                records.find((record) => record.agent.kind === "coworker")
+                  ?.agent.id ?? "",
               need: "a DACH market study",
               offer: "is researching EU marketplace pricing",
               askedFor: "Could you share what you have on the DACH market?",
@@ -144,40 +160,75 @@ describe.skipIf(!enabled)("team stand-up", () => {
           ],
         }),
       });
+    await prisma.task.create({
+      data: {
+        name: "DACH market study",
+        status: "DRAFT",
+        workspaceId: world.workspaceId,
+        organizationId: world.organization.id,
+        ownerId: world.robin.id,
+      },
+    });
     const outcome = await run();
     expect(outcome?.status).toBe("POSTED");
-    const root = await prisma.chatRoomMessage.findUniqueOrThrow({
-      where: { id: outcome!.messageId! },
+    const room = await prisma.chatRoom.findFirstOrThrow({
+      where: { organizationId: world.organization.id },
       select: {
-        content: true,
-        senderUserId: true,
-        room: { select: { name: true } },
-        userMentionsAsSource: { select: { userId: true } },
-        replies: {
+        name: true,
+        messages: {
+          where: { parentMessageId: null },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           select: {
-            senderSokoBotId: true,
+            id: true,
             content: true,
-            mentionsAsSource: {
-              select: { coworkerId: true, chainDepth: true },
+            senderUserId: true,
+            senderSokoBotId: true,
+            senderCoworkerId: true,
+            userMentionsAsSource: { select: { userId: true } },
+            replies: {
+              select: {
+                senderSokoBotId: true,
+                content: true,
+                mentionsAsSource: {
+                  select: { coworkerId: true, chainDepth: true },
+                },
+              },
             },
           },
         },
       },
     });
-    expect(root.room.name).toBe("Stand-up");
-    expect(root.senderUserId).toBeNull();
-    expect(root.content).toContain('today: "EU marketplace pricing research"');
-    expect(root.content).toContain(
-      `@${world.robin.id}: "Competitor note on Langdock" waits for an answer`,
+    expect(room.name).toBe("Stand-up");
+    const [opener, bot, mira, ...rest] = room.messages;
+    expect(rest).toHaveLength(0);
+    expect(opener).toMatchObject({
+      id: outcome!.messageId,
+      senderUserId: null,
+      senderSokoBotId: null,
+      senderCoworkerId: null,
+    });
+    expect(opener!.content).toMatch(/^\*\*Stand-up · .+\*\*$/);
+    expect(bot).toMatchObject({
+      senderSokoBotId: world.bot.id,
+      content: "Nothing finished yet. Next: DACH market study.",
+    });
+    expect(mira!.senderCoworkerId).toBe(world.mira.id);
+    expect(mira!.content).toBe(
+      [
+        "Working on: EU pricing research.",
+        `Waiting on @${world.robin.id}: Competitor note on Langdock.`,
+      ].join("\n"),
     );
-    expect(root.content).not.toContain("salary");
-    expect(root.userMentionsAsSource).toEqual([{ userId: world.robin.id }]);
-    expect(root.replies).toHaveLength(1);
-    expect(root.replies[0]).toMatchObject({
+    expect(mira!.userMentionsAsSource).toEqual([{ userId: world.robin.id }]);
+    expect(
+      room.messages.some((message) => message.content.includes("salary")),
+    ).toBe(false);
+    expect(bot!.replies).toHaveLength(1);
+    expect(bot!.replies[0]).toMatchObject({
       senderSokoBotId: world.bot.id,
       mentionsAsSource: [{ coworkerId: world.mira.id, chainDepth: 1 }],
     });
-    expect(root.replies[0]!.content).toContain("- Goal: a DACH market study");
+    expect(bot!.replies[0]!.content).toContain("- Goal: a DACH market study");
     expect(dispatched).toHaveLength(1);
 
     expect(await run()).toBeNull();

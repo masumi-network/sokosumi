@@ -42,7 +42,7 @@ import { Prisma, Agent, User, Job } from "@sokosumi/database";
 
 Connection-string callers receive TCP keepalive with a 10-second initial delay.
 Supplied pools retain caller-owned configuration and lifetime: Prisma disconnect
-does not close them. Options expose `onPoolError` and `onConnectionError` callbacks.
+does not close them. Options expose `schema` (the schema model queries name, `public` by default) and the `onPoolError` and `onConnectionError` callbacks. Each client on a shared pool adds its own pool `error` listener when given `onPoolError`, so attach that handler to the pool once instead.
 
 ```typescript
 import { createPrismaClient } from "@sokosumi/database/client";
@@ -69,6 +69,25 @@ const user = await userRepository.getUserById("user-id", prisma);
 
 ```typescript
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
+```
+
+### SQL Tables Export (`@sokosumi/database/sql-tables`)
+
+- **Purpose**: Table and enum type names for raw SQL, always with their schema: `sharedTable(table)`, `netTable(network, table)`, `sharedType(type)` and `netType(network, type)` return `"<schema>"."<name>"` as a `Prisma.Sql` fragment. Raw SQL never relies on the search path for a table or for an enum cast.
+- **Argument**: the SQL table name, as the statement would write it (`jobEvent`, not the model `JobEvent`), or the enum's name. `prisma/network-tables.json` decides the side (`networkEnums` for types; every other enum is shared): a name of the other side is refused, as is an unknown name.
+- **Preprod**: `netTable("preprod", …)` and `netType("preprod", …)` throw while Preprod is off, so on today's layout no statement can reach Mainnet's rows under Preprod's name.
+- **Layout**: `public` for all three and Preprod off until `configureSqlTables(layout)` is called once at startup. `createSqlTables(layout)` builds the helpers for names a test passes. Both refuse a layout Core's `config/network-layout.ts` refuses (`apps/core/src/lib/db/__tests__/sql-table-layout.test.ts` keeps the two rules together). Core does not call `configureSqlTables` yet.
+- **Tests restore what was there.** `configureSqlTables` returns a function that puts back the layout configured before: `onTestFinished(configureSqlTables(layout))`. Never restore a layout you wrote down yourself.
+- **Temporary tables no longer shadow.** A test that isolated a statement behind `CREATE TEMP TABLE workspace …` now reads the real table, because the statement names its schema. Give the function under test its tables instead: `backfillTaskWorkTypePresets` takes `tables` in its options, and its test passes a `sharedTable` that names `pg_temp` (`apps/core/src/services/task-work-type-presets.postgres.test.ts`).
+- **This package's statements** name Mainnet (`netTable("mainnet", …)`) until their callers pass a Network.
+- **Check**: `apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports unqualified table names in this package, Core and the scripts. It is advisory: it fails nothing yet. Its header lists what it cannot see and the files it leaves out.
+
+```typescript
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
+
+await tx.$queryRaw`
+  SELECT j.id FROM ${netTable("mainnet", "Job")} j
+  JOIN ${sharedTable("workspace")} w ON w.id = j."workspaceId"`;
 ```
 
 ### Job Types Export (`@sokosumi/database/types/job`)
@@ -140,9 +159,11 @@ export const userRepository = {
 
 **Only Core** creates a Prisma client (`apps/core/src/lib/db/prisma.ts`). Web must not import `@sokosumi/database` or create a client — it reaches data through the Core API.
 
-Core's singleton owns a `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
-connection cleanup, and reports adapter errors to Sentry. Import that singleton
-in routes and services; do not construct additional pools there.
+Core's singleton owns one `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
+connection cleanup, and reports adapter errors to Sentry. On that pool it builds
+the `shared` client (the default export) and one client per Network
+(`networkPrisma(network)`), each naming its schema from `DATABASE_SCHEMA_*`. Import
+those in routes and services; do not construct additional pools there.
 
 ```typescript
 import prisma from "@/lib/db/prisma";

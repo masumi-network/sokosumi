@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { afterAll, describe, it } from "vitest";
 
 import { createPrismaClient } from "../client.js";
+import { netTable, netType, sharedTable, sharedType } from "../sql-tables.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 const shouldRunDatabaseTests =
@@ -35,7 +36,7 @@ describeDatabase("history feed database triggers", () => {
         }>
       >`
         WITH created_user AS (
-          INSERT INTO "user" (
+          INSERT INTO ${sharedTable("user")} (
             "id",
             "name",
             "email",
@@ -54,7 +55,7 @@ describeDatabase("history feed database triggers", () => {
           RETURNING "id"
         ),
         created_workspace AS (
-          INSERT INTO "workspace" (
+          INSERT INTO ${sharedTable("workspace")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -65,7 +66,7 @@ describeDatabase("history feed database triggers", () => {
           RETURNING "id"
         ),
         created_task AS (
-          INSERT INTO "task" (
+          INSERT INTO ${sharedTable("task")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -95,8 +96,8 @@ describeDatabase("history feed database triggers", () => {
           "title",
           "status",
           "archivedAt"
-        FROM "history"
-        WHERE "kind" = 'TASK'::"HistoryKind"
+        FROM ${sharedTable("history")}
+        WHERE "kind" = 'TASK'::${sharedType("HistoryKind")}
           AND "entityId" = (SELECT "id" FROM created_task)
       `;
 
@@ -111,14 +112,14 @@ describeDatabase("history feed database triggers", () => {
         Array<{ archivedAt: Date | null }>
       >`
         WITH archived_task AS (
-          UPDATE "task"
+          UPDATE ${sharedTable("task")}
           SET "archivedAt" = NOW()
           WHERE "id" = ${taskId}
           RETURNING "id"
         )
         SELECT "archivedAt"
-        FROM "history"
-        WHERE "kind" = 'TASK'::"HistoryKind"
+        FROM ${sharedTable("history")}
+        WHERE "kind" = 'TASK'::${sharedType("HistoryKind")}
           AND "entityId" = (SELECT "id" FROM archived_task)
       `;
 
@@ -126,11 +127,11 @@ describeDatabase("history feed database triggers", () => {
       assert.ok(archivedRows[0]?.archivedAt instanceof Date);
     } finally {
       await prisma.$executeRaw`
-        DELETE FROM "history"
+        DELETE FROM ${sharedTable("history")}
         WHERE "entityId" = ${taskId}
       `;
       await prisma.$executeRaw`
-        DELETE FROM "user"
+        DELETE FROM ${sharedTable("user")}
         WHERE "id" = ${userId}
       `;
     }
@@ -150,7 +151,7 @@ describeDatabase("history feed database triggers", () => {
     try {
       const beforeInputRows = await prisma.$queryRaw<Array<{ status: string }>>`
         WITH created_user AS (
-          INSERT INTO "user" (
+          INSERT INTO ${sharedTable("user")} (
             "id",
             "name",
             "email",
@@ -169,7 +170,7 @@ describeDatabase("history feed database triggers", () => {
           RETURNING "id"
         ),
         created_workspace AS (
-          INSERT INTO "workspace" (
+          INSERT INTO ${sharedTable("workspace")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -180,7 +181,7 @@ describeDatabase("history feed database triggers", () => {
           RETURNING "id"
         ),
         created_pricing AS (
-          INSERT INTO "AgentPricing" (
+          INSERT INTO ${netTable("mainnet", "AgentPricing")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -190,12 +191,12 @@ describeDatabase("history feed database triggers", () => {
             ${pricingId},
             NOW(),
             NOW(),
-            'FREE'::"PricingType"
+            'FREE'::${netType("mainnet", "PricingType")}
           )
           RETURNING "id"
         ),
         created_agent AS (
-          INSERT INTO "Agent" (
+          INSERT INTO ${netTable("mainnet", "Agent")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -224,7 +225,7 @@ describeDatabase("history feed database triggers", () => {
           RETURNING "id"
         ),
         created_job AS (
-          INSERT INTO "Job" (
+          INSERT INTO ${netTable("mainnet", "Job")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -241,13 +242,13 @@ describeDatabase("history feed database triggers", () => {
             ${userId},
             "id",
             ${`remote-${suffix}`},
-            'FREE'::"JobType",
+            'FREE'::${netType("mainnet", "JobType")},
             (SELECT "id" FROM created_workspace)
           FROM created_agent
           RETURNING "id"
         ),
         created_event AS (
-          INSERT INTO "jobEvent" (
+          INSERT INTO ${netTable("mainnet", "jobEvent")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -259,13 +260,13 @@ describeDatabase("history feed database triggers", () => {
             NOW(),
             NOW(),
             "id",
-            'AWAITING_INPUT'::"AgentJobStatus"
+            'AWAITING_INPUT'::${netType("mainnet", "AgentJobStatus")}
           FROM created_job
           RETURNING "id", "jobId"
         )
         SELECT "status"
-        FROM "history"
-        WHERE "kind" = 'JOB'::"HistoryKind"
+        FROM ${sharedTable("history")}
+        WHERE "kind" = 'JOB'::${sharedType("HistoryKind")}
           AND "entityId" = (SELECT "jobId"::TEXT FROM created_event)
       `;
 
@@ -274,7 +275,7 @@ describeDatabase("history feed database triggers", () => {
 
       const afterInputRows = await prisma.$queryRaw<Array<{ status: string }>>`
         WITH submitted_input AS (
-          INSERT INTO "jobInput" (
+          INSERT INTO ${netTable("mainnet", "jobInput")} (
             "id",
             "createdAt",
             "updatedAt",
@@ -291,11 +292,11 @@ describeDatabase("history feed database triggers", () => {
           RETURNING "eventId"
         )
         SELECT "status"
-        FROM "history"
-        WHERE "kind" = 'JOB'::"HistoryKind"
+        FROM ${sharedTable("history")}
+        WHERE "kind" = 'JOB'::${sharedType("HistoryKind")}
           AND "entityId" = (
             SELECT e."jobId"
-            FROM "jobEvent" AS e
+            FROM ${netTable("mainnet", "jobEvent")} AS e
             WHERE e."id" = (SELECT "eventId" FROM submitted_input)
           )
       `;
@@ -304,11 +305,11 @@ describeDatabase("history feed database triggers", () => {
       assert.equal(afterInputRows[0]?.status, "processing");
     } finally {
       await prisma.$executeRaw`
-        DELETE FROM "history"
+        DELETE FROM ${sharedTable("history")}
         WHERE "entityId" = ${jobId}
       `;
       await prisma.$executeRaw`
-        DELETE FROM "user"
+        DELETE FROM ${sharedTable("user")}
         WHERE "id" = ${userId}
       `;
     }

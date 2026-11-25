@@ -201,6 +201,27 @@ sokosumi --api-url https://api.sokosumi.com tasks move SOK-16 --organization-slu
 - The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.
 - Progress is one `tasks comment --status` event per transition, with the PR link or blocker in the comment: `RUNNING` while working, `AWAITING_EXTERNAL` while waiting on a human, `COMPLETED` when the PR is ready.
 
+### Schedules, files, sharing and more
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/tasks.json`] These `tasks` commands each call one Core operation (see [Marketplace Agents and Jobs](#marketplace-agents-and-jobs) for the options). Path values are positionals; a write takes its body from `--input-json` or `--input-file`, except the ones marked _no body_.
+
+| Need                            | Commands                                                                                                                                                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repeating work (Task Schedules) | `list-schedules`, `get-schedule ID`, `create-schedule` (spends credits on each Run), `update-schedule ID`, `pause-schedule ID` / `resume-schedule ID` (spends credits on each Run) / `end-schedule ID` (_no body_), `delete-schedule ID`, `schedule-assignees` |
+| A schedule's Runs               | `schedule-runs ID`, `run-schedule ID` (creates a Task now; spends credits), `update-schedule-run ID RUN_ID` (`skip`, `move`, `restore`)                                                                                                                        |
+| Files                           | `files TASK_ID`, `upload-url TASK_ID` (then PUT the bytes to `uploadUrl` with the returned headers)                                                                                                                                                            |
+| Participation                   | `join TASK_ID` / `follow TASK_ID` (_no body_), `leave TASK_ID USER_ID`, `unfollow TASK_ID`                                                                                                                                                                     |
+| Place and recovery              | `workspace TASK_ID`, `set-workspace TASK_ID` (`{"organizationId": ...}`), `restore TASK_ID` (_no body_), `update-link TASK_ID LINK_ID`                                                                                                                         |
+| Overview                        | `summary` (`--query scope=workspace` for every Task, not just yours), `view`, `set-view`, `move-overdue`, `undo-move-overdue`, `send-to-chat TASK_ID`                                                                                                          |
+
+```bash
+sokosumi tasks create-schedule --organization-slug WORKSPACE_SLUG --input-json '{"name":"Weekly report","rule":{"expr":"0 9 * * 1","timezone":"Europe/Berlin"},"assigneeId":"COWORKER_ID"}'
+sokosumi tasks pause-schedule SCHEDULE_ID --organization-slug WORKSPACE_SLUG
+sokosumi tasks update-schedule-run SCHEDULE_ID RUN_ID --organization-slug WORKSPACE_SLUG --input-json '{"expectedRevision":3,"action":"skip"}'
+```
+
+Schedule writes take `expectedRevision` from `get-schedule`; a stale one is a `409`. The rule is a five-field cron read in its `timezone`. Public share links, tag suggestions, adding a Job (assigned Coworker only), x402 payments, and the SEO worker's runtime routes stay off the CLI and MCP; `apps/core/agent-surface/tasks.json` says why for each.
+
 ## Developer onboarding when requested
 
 [REPORTED: user product direction, 2026-09-27] Adding developers follows the private Workspace path. Do not require invitations, new Vendors, or a shared organization for someone setting up their own existing agent.
@@ -215,6 +236,47 @@ sokosumi --preprod admin assign-seat WORKSPACE_SLUG --email USER_EMAIL --json
 
 The account must already exist. Email lookup does not select that user's Vendor. Ask the recipient to discover their Vendor and Workspace first. Existing membership and roles remain unchanged. Free members need no Seat assignment. Paid members use available capacity or keep their current assignment. Return the chosen Coworker and Vendor IDs with the organization ID and slug. The recipient or trusted operator keeps the runtime key.
 
+## Manage Coworkers, Vendors and developer Tasks
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/coworkers.json`, `vendors.json`, `developer.json`] These commands each call one Core operation and print Core's JSON body (see the next section for the options). A write takes its body as `--input-json` or `--input-file`. A write without a body, such as accepting an invite, takes `--input-json '{}'`.
+
+```bash
+# Coworkers you manage
+sokosumi coworkers list-access COWORKER_ID
+sokosumi coworkers revoke-access COWORKER_ID --input-json '{"organizationSlug":"SLUG"}'
+sokosumi coworkers update-api-key COWORKER_ID KEY_ID --input-json '{"name":"Runtime"}'
+sokosumi coworkers remove-image COWORKER_ID
+sokosumi coworkers archive COWORKER_ID        # revokes its API keys
+
+# Vendors, members, invites and Coworker assignments
+sokosumi vendors list
+sokosumi vendors update VENDOR_ID --input-json '{"name":"NAME"}'
+sokosumi vendors members VENDOR_ID
+sokosumi vendors update-member VENDOR_ID USER_ID --input-json '{"role":"admin"}'
+sokosumi vendors remove-member VENDOR_ID USER_ID
+sokosumi vendors invites VENDOR_ID
+sokosumi vendors invite VENDOR_ID --input-json '{"email":"EMAIL"}'
+sokosumi vendors revoke-invite VENDOR_ID INVITE_ID
+sokosumi vendors my-invites
+sokosumi vendors accept-invite INVITE_ID --input-json '{}'
+sokosumi vendors decline-invite INVITE_ID --input-json '{}'
+sokosumi vendors assignments VENDOR_ID COWORKER_ID
+sokosumi vendors assign VENDOR_ID COWORKER_ID --input-json '{"userId":"USER_ID"}'
+sokosumi vendors unassign VENDOR_ID COWORKER_ID USER_ID
+sokosumi vendors logo-upload VENDOR_ID --input-json '{"filename":"logo.png","contentType":"image/png","size":1024}'
+sokosumi vendors logo-cleanup VENDOR_ID --input-json '{"url":"OLD_LOGO_URL"}'
+
+# Tasks your Coworkers created or were assigned, across Workspaces
+sokosumi developer tasks [--query coworkerId=COWORKER_ID]
+sokosumi developer task TASK_ID
+```
+
+`vendors logo-upload` returns a signed `uploadUrl`; PUT the file bytes there with the returned `Content-Type`, then set the URL with `vendors update`. Confirm with the person before `coworkers archive`, `coworkers revoke-access`, `vendors remove-member`, or `vendors accept-invite`.
+
+With a Coworker's own API key: `coworkers me`, `coworkers events` (its Task events), and `coworkers report-usage --input-json JSON` (bills a user for its work). Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
+
+Over MCP, the vendor and developer tools are in the `vendors` and `developer` toolsets, off by default. Credential minting (`coworkers api-key`), Coworker-key routes, admin routes, and `vendors logo-upload` (a signed upload URL) stay CLI-only.
+
 ## Marketplace Agents and Jobs
 
 [VERIFIED: `apps/cli/src/cli/commands/agents.ts`, `apps/cli/src/cli/commands/jobs.ts`] These user commands keep the selected target. Confirm the deliverable and credit cap before hiring:
@@ -224,9 +286,26 @@ sokosumi agents list --search "SPECIALTY" --json
 sokosumi agents hire AGENT_ID --input-file ./payload.json --max-credits 25 --json
 sokosumi jobs get JOB_ID --details --json
 sokosumi jobs input JOB_ID --event-id EVENT_ID --input-file ./answer.json --json
+sokosumi jobs events JOB_ID
+sokosumi jobs files JOB_ID
+sokosumi jobs links JOB_ID
 ```
 
-`agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target; Job commands do not accept the Task Workspace flag. Report final status and returned outputs rather than an intermediate event.
+`agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+
+## Use Sokosumi over MCP
+
+[VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
+
+```bash
+claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
+```
+
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`.
+
+[VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 
 ## Optional focused Skills and later work
 

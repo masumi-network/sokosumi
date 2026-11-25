@@ -52,9 +52,6 @@ export function isFileLikeUrl(url: string): boolean {
   }
   try {
     const u = new URL(url);
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return false;
-    }
     if (u.hash) {
       return false;
     }
@@ -74,7 +71,6 @@ export function isFileLikeUrl(url: string): boolean {
   }
 }
 
-/** Returns the last path segment of the URL pathname, or null if none. */
 export function getUrlBasename(url: string): string | null {
   try {
     const u = new URL(url);

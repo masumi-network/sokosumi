@@ -10,7 +10,6 @@ vi.mock("ai", async (importOriginal) => {
 import {
   AD_EVAL_JUDGE_MODEL,
   adEvalJudgeSchema,
-  getAdEvalJudgePrior,
   judgeAdImage,
 } from "./ad-eval-judge";
 
@@ -233,19 +232,5 @@ describe("ad image vision judge", () => {
     expect(
       adEvalJudgeSchema.safeParse({ ...verdict, issues: [" "] }).success,
     ).toBe(false);
-  });
-});
-
-describe("ad judge ranking prior", () => {
-  it.each([
-    [1, 0],
-    [3, 0.5],
-    [5, 1],
-    [10, 1],
-    [null, null],
-    [undefined, null],
-    [Number.NaN, null],
-  ])("normalizes %s to %s", (overall, expected) => {
-    expect(getAdEvalJudgePrior(overall)).toBe(expected);
   });
 });

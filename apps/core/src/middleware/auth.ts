@@ -1,7 +1,6 @@
 import {
   CORE_API_ERROR_KINDS,
   hasAdminRole as checkAdminRole,
-  hasCoreApiOAuthScope,
   OAUTH_SCOPE_CORE_API,
 } from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
@@ -20,9 +19,10 @@ import {
 import prisma from "@/lib/db/prisma";
 
 import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
+import { checkOAuthGrant, OAUTH_GRANT_CLIENT_SELECT } from "./auth-oauth-grant";
 import { syncAuthObservers } from "./auth-observability";
 
-const DEFAULT_USER_ROLE = "user";
+export const DEFAULT_USER_ROLE = "user";
 
 export interface UserAuthenticationContext {
   actor: "user";
@@ -212,7 +212,7 @@ export function isAgentAuthContext(
  * | {@link requireUserContext} | Session or **coworker+context (unbound)** | Task/job grant-gated flows only (e.g. first-contact delegated create → `GRANT_PENDING`). Does **not** check vendor grants. |
  * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
  * | {@link requireOwnerUserContext} | Session only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
- * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker. |
+ * | {@link requireUserAuthContext} | A person by any sign-in: session, API key, OAuth or MCP token | Must be the person, not an agent acting for them (admin role check, a person's own data). Rejects coworker and Soko Bot. For a browser session only, use {@link requireInteractiveUserAuthContext}. |
  * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat) must follow the effective user. |
  *
  * Middleware (`coworkerContextMiddleware`) only **attaches** validated
@@ -297,10 +297,11 @@ export function resolveUserContext(
 }
 
 /**
- * Requires an interactive user session (Better Auth). Rejects coworker keys,
- * including contextual ones — use for PII, session-bound
- * operations, and any handler that must read the real session user (e.g.
- * before an admin-role check).
+ * Requires a person: a Better Auth session, a personal API key, or an OAuth
+ * or MCP token. Rejects coworker keys (contextual ones too) and Soko Bots —
+ * use for PII and any handler that must read the real user (e.g. before an
+ * admin-role check). It does not require a browser: for that, use
+ * {@link requireInteractiveUserAuthContext}.
  *
  * For the effective user (session or contextual coworker), use
  * {@link requireUserContext}, `requireAuthorizedUserContext`, or
@@ -551,13 +552,7 @@ async function verifyOAuthToken(
       user: {
         select: BEARER_USER_SELECT,
       },
-      client: {
-        select: {
-          disabled: true,
-          scopes: true,
-          skipConsent: true,
-        },
-      },
+      client: { select: OAUTH_GRANT_CLIENT_SELECT },
     },
   });
 
@@ -579,54 +574,27 @@ async function verifyOAuthToken(
     return false;
   }
 
-  // A ban clears sessions but leaves bearer tokens usable until they expire.
-  if (!isActiveUser(oauthToken.user)) {
-    return false;
-  }
-
   if (oauthToken.refreshId && oauthToken.refreshToken) {
     if (oauthToken.refreshToken.revoked) {
       return false;
     }
   }
 
-  const client = oauthToken.client;
-  if (!client || client.disabled) {
+  const status = await checkOAuthGrant(
+    {
+      userId: oauthToken.userId,
+      clientId: oauthToken.clientId,
+      tokenScopes: oauthToken.scopes,
+      user: oauthToken.user,
+      client: oauthToken.client,
+    },
+    OAUTH_SCOPE_CORE_API,
+  );
+  if (status === "insufficient_scope") {
+    throw insufficientOAuthScope();
+  }
+  if (status === "inactive") {
     return false;
-  }
-
-  // The token is valid from here; what remains is whether it may call Core.
-  // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
-  if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
-    throw insufficientOAuthScope();
-  }
-
-  // Client allow-list must still include Core API (e.g. after privilege reduction).
-  // Check before consent so reduced clients skip the consent query.
-  if (!hasCoreApiOAuthScope(client.scopes)) {
-    throw insufficientOAuthScope();
-  }
-
-  // A first-party client skips consent, so it has no consent row (ADR 0046).
-  if (!client.skipConsent) {
-    const consent = await prisma.oauthConsent.findFirst({
-      where: {
-        userId: oauthToken.userId,
-        clientId: oauthToken.clientId,
-      },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      select: {
-        id: true,
-        scopes: true,
-      },
-    });
-
-    if (!consent) {
-      return false;
-    }
-    if (!hasCoreApiOAuthScope(consent.scopes)) {
-      throw insufficientOAuthScope();
-    }
   }
 
   setAuthContext(c, {
@@ -635,10 +603,10 @@ async function verifyOAuthToken(
       actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
-      role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
+      role: oauthToken.user?.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
       oauthClientId: oauthToken.clientId,
-      ...(client.skipConsent ? { firstPartyClient: true } : {}),
+      ...(oauthToken.client?.skipConsent ? { firstPartyClient: true } : {}),
     },
   });
   return true;
@@ -717,7 +685,21 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   });
   return await next();
 };
+/**
+ * Requests Core builds itself and runs in process, with the caller they act
+ * for: the MCP server dispatches a tool call to `/v1` this way
+ * (`lib/sokosumi-mcp/dispatch.ts`) after it verified the caller's own token.
+ * Only a `Request` object Core holds can be a key, so no header can forge one.
+ */
+export const preAuthenticatedRequests = new WeakMap<Request, AuthVariables>();
+
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
+  const preAuthenticated = preAuthenticatedRequests.get(c.req.raw);
+  if (preAuthenticated) {
+    setAuthContext(c, preAuthenticated);
+    return await next();
+  }
+
   const authHeader = c.req.header("authorization");
 
   if (authHeader) {

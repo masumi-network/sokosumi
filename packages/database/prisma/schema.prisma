@@ -155,11 +155,12 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables          DataTable[]
-  contacts            Contact[]
-  contactLists        ContactList[]
-  contactCompanies    ContactCompany[]
-  contactCompanyLists ContactCompanyList[]
+  dataTables           DataTable[]
+  contacts             Contact[]
+  contactLists         ContactList[]
+  contactCompanies     ContactCompany[]
+  contactCompanyLists  ContactCompanyList[]
+  fundraisingProspects FundraisingProspect[]
 
   seoAudits            SeoAudit[]
   seoConnections       SeoConnection[]
@@ -2296,8 +2297,9 @@ model OauthClientResource {
 
   clientId   String
   client     OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  /// The resource's `identifier` (its URL), which is what Better Auth stores.
   resourceId String
-  resource   OauthResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resource   OauthResource @relation(fields: [resourceId], references: [identifier], onDelete: Cascade)
   metadata   Json?
 
   @@unique([clientId, resourceId])
@@ -3488,6 +3490,8 @@ model CoworkerApiKey {
 
   expiresAt DateTime?
   revokedAt DateTime?
+  /// Last successful authentication, written at most once a minute.
+  lastUsedAt DateTime?
 
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)

@@ -79,6 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           keyStart: true,
           expiresAt: true,
           revokedAt: true,
+          lastUsedAt: true,
           createdAt: true,
           updatedAt: true,
         },

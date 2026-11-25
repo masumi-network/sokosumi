@@ -17,8 +17,6 @@ import {
   type Dispatch,
   type SetStateAction,
   useCallback,
-  useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -61,8 +59,8 @@ import {
 } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomMessageMutations } from "@/app/chat/hooks/use-room-message-mutations";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
-import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
+import { useRoomShellRoster } from "@/app/chat/hooks/use-room-shell-roster";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
@@ -161,15 +159,20 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
+import { useChatRoomRealtime } from "@/hooks/effects/use-chat-room-realtime";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";
+import { useRoomReadAttention } from "@/hooks/effects/use-room-read-attention";
 import { useRoomUrlAsk } from "@/hooks/effects/use-room-url-ask";
 import { useRoomsClientClassicOutboundCleanup } from "@/hooks/effects/use-rooms-client-classic-outbound-cleanup";
+import { useRoomsClientHeaderParticipantsShown } from "@/hooks/effects/use-rooms-client-header-participants-shown";
+import { useRoomsClientMobileHeaderPortaled } from "@/hooks/effects/use-rooms-client-mobile-header-portaled";
 import { useRoomsClientReopenActiveStreamThread } from "@/hooks/effects/use-rooms-client-reopen-active-stream-thread";
+import { useRoomsClientRoomSurfaceGuard } from "@/hooks/effects/use-rooms-client-room-surface-guard";
 import { useRoomsClientScrollOnHistoryLoaded } from "@/hooks/effects/use-rooms-client-scroll-on-history-loaded";
 import { useRoomsClientTranscriptActive } from "@/hooks/effects/use-rooms-client-transcript-active";
 import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
@@ -189,7 +192,6 @@ import {
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
 } from "@/lib/ably/schema";
-import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
@@ -198,6 +200,7 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
+import { chatQueryKeys } from "@/queries/chat";
 import { CoworkerFirstPrompts } from "./coworker-first-prompts";
 import {
   openDirectWithParticipant,
@@ -234,10 +237,6 @@ import {
 import { RoomMembersPanel } from "./room-members-panel";
 import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
-import {
-  type RoomMessagePage,
-  RoomMessagesHydrator,
-} from "./room-messages-hydrator";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
@@ -251,7 +250,6 @@ import {
   ROOM_SHELL_ROOT_CLASSNAME,
   RoomShellLayout,
 } from "./room-shell-layout";
-import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
@@ -291,11 +289,6 @@ export interface RoomsClientProps {
   messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
-  /**
-   * Deferred initial history (Server → Client promise). Hydrates into this
-   * instance so real header + composer stay mounted while the list skeletons.
-   */
-  messagesPromise?: Promise<RoomMessagePage>;
   /**
    * Deferred org members + coworkers. Room chrome paints from `rooms` alone;
    * roster streams in for pickers / mentions / admin gates.
@@ -423,7 +416,6 @@ interface RetainedTranscriptBinding {
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
   /** Merge a jump window into the cache alone, so a render may call it. */
   joinWindow: (page: RoomTranscriptPage) => void;
-  resolve: (page: RoomMessagePage) => void;
   refresh: (
     isCurrent: () => boolean,
     onHead?: (head: RoomMessagesPage) => void,
@@ -506,21 +498,6 @@ function RetainedRoomsClient({
       cache.setTranscript(roomId, lifetime, (current) =>
         mergeRoomJumpWindow(current, page),
       ),
-    resolve: (page) => {
-      cache.update(roomId, lifetime, (current) =>
-        page.failed
-          ? { ...current, failed: !current.resolved }
-          : {
-              ...current,
-              resolved: true,
-              failed: false,
-              transcript: mergeRoomHeadPage(current.transcript, {
-                messages: page.messages,
-                nextCursor: page.nextCursor,
-              }),
-            },
-      );
-    },
     refresh: async (isCurrent, onHead) => {
       if (
         (await cache.refresh(roomId, lifetime, isCurrent, onHead)) === "stale"
@@ -572,7 +549,6 @@ function RoomView({
   membersLoadFailed: membersLoadFailedProp,
   messages,
   messagesNextCursor,
-  messagesPromise,
   rosterPromise,
   retained,
   registerRefresh,
@@ -642,21 +618,11 @@ function RoomView({
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
-  // Defer portal until after first paint so getRoom title lands in-column with
-  // the composer (useLayoutEffect host + isMobile would portal before paint and
-  // leave the app header blank on the first real chrome frame).
-  const [mobileHeaderPortaled, setMobileHeaderPortaled] = useState(false);
-  useEffect(() => {
-    setMobileHeaderPortaled(isMobile === true && headerRoomSlotHost != null);
-  }, [isMobile, headerRoomSlotHost]);
-  // Defer participant avatars one frame so the title string is not gated on
-  // the avatar stack committing in the same first paint.
-  // Approved LCP exception: mount-only Effect keeps title-with-composer paint
-  // order; do not replace with render-time/portal-only avatar mounting.
-  const [showHeaderParticipants, setShowHeaderParticipants] = useState(false);
-  useEffect(() => {
-    setShowHeaderParticipants(true);
-  }, []);
+  const mobileHeaderPortaled = useRoomsClientMobileHeaderPortaled(
+    isMobile,
+    headerRoomSlotHost,
+  );
+  const showHeaderParticipants = useRoomsClientHeaderParticipantsShown();
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
   const locale = useLocale();
@@ -702,16 +668,8 @@ function RoomView({
   const [boundaryStatus, setBoundaryStatus] = useState<
     Record<string, TranscriptBoundaryStatus>
   >({});
-  const [deferredHistoryPending, setDeferredHistoryPending] = useState(
-    () => messagesPromise != null,
-  );
   const [messageLoadFailedState, setMessageLoadFailedState] =
     useState(messageLoadFailed);
-  const [syncedMessagesPromise, setSyncedMessagesPromise] =
-    useState(messagesPromise);
-  const [deferredRoster, setDeferredRoster] =
-    useState<RoomShellRosterPage | null>(null);
-  const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
@@ -753,10 +711,6 @@ function RoomView({
       );
     });
   }, []);
-  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
-  // room switch must drop the prior timeline so skeleton shows and hydrate
-  // cannot merge room A into room B (or show A under B's header).
-  let effectiveDeferredHistoryPending = deferredHistoryPending;
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
     historicalThreadRef.current = false;
@@ -767,52 +721,28 @@ function RoomView({
     // handed to the next one.
     setEditChannelOpen(false);
     setSearchHoldOffBottom(false);
-    if (messagesPromise != null) {
-      setTranscript(emptyRoomTranscript());
-      setMessageLoadFailedState(false);
-      setDeferredHistoryPending(true);
-      effectiveDeferredHistoryPending = true;
-    }
-    if (rosterPromise != null) {
-      setDeferredRoster(null);
-    }
   }
-  if (messagesPromise !== syncedMessagesPromise) {
-    setSyncedMessagesPromise(messagesPromise);
-    // Same-room promise identity swap (RSC refresh) must not re-enter pending
-    // or focusOnMount false→true steals caret mid-type. Room change above
-    // already sets pending; initial mount seeds deferredHistoryPending.
-    if (messagesPromise == null) {
-      setDeferredHistoryPending(false);
-      effectiveDeferredHistoryPending = false;
-      setMessageLoadFailedState(messageLoadFailed);
-    }
-  }
-  if (rosterPromise !== syncedRosterPromise) {
-    setSyncedRosterPromise(rosterPromise);
-    if (rosterPromise == null) {
-      setDeferredRoster(null);
-    }
-  }
-  const organizationMembers =
-    rosterPromise != null
-      ? (deferredRoster?.organizationMembers ?? organizationMembersProp)
-      : organizationMembersProp;
-  const coworkers =
-    rosterPromise != null
-      ? (deferredRoster?.coworkers ?? coworkersProp)
-      : coworkersProp;
-  const sokoBots =
-    rosterPromise != null
-      ? (deferredRoster?.sokoBots ?? sokoBotsProp)
-      : sokoBotsProp;
-  const membersLoadFailed =
-    rosterPromise != null
-      ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
-      : membersLoadFailedProp;
+  const {
+    organizationMembers,
+    coworkers,
+    sokoBots,
+    membersLoadFailed,
+    ready: rosterReady,
+  } = useRoomShellRoster({
+    currentUserId,
+    workspaceId: activeOrganization?.id ?? null,
+    roomId: selectedRoomId,
+    rosterPromise,
+    fallback: {
+      organizationMembers: organizationMembersProp,
+      membersLoadFailed: membersLoadFailedProp,
+      coworkers: coworkersProp,
+      sokoBots: sokoBotsProp,
+    },
+  });
   const messagesPending = retained
     ? !retained.entry.resolved && !retained.entry.failed
-    : deferredHistoryPending;
+    : false;
   const effectiveMessageLoadFailed = messagesPending
     ? false
     : retained
@@ -827,7 +757,7 @@ function RoomView({
     // revisit asks Core again and nothing refetches it within one. Nothing
     // else reads the key, so it goes when the visit does; unmounting then
     // aborts a read still out, through the signal.
-    queryKey: ["room-open-at-unread", selectedRoomId, roomAtOpen.visit],
+    queryKey: chatQueryKeys.openAtUnread(selectedRoomId, roomAtOpen.visit),
     queryFn: ({ signal }) => {
       const read = () =>
         fetchRoomMessages(selectedRoomId ?? "", null, {
@@ -882,29 +812,6 @@ function RoomView({
   ) {
     setOpeningAtUnread(false);
   }
-
-  const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
-    if (retained) {
-      if (!retained.entry.resolved) retained.resolve(page);
-      return;
-    }
-    setTranscript((current) =>
-      mergeRoomHeadPage(current, {
-        messages: page.messages,
-        nextCursor: page.nextCursor,
-      }),
-    );
-    setMessageLoadFailedState(page.failed);
-    setDeferredHistoryPending(false);
-    if (!page.failed) noteUnreadDivider(page);
-  }, []);
-
-  const handleDeferredRosterResolved = useCallback(
-    (page: RoomShellRosterPage) => {
-      setDeferredRoster(page);
-    },
-    [],
-  );
 
   const [threadListOpen, setThreadListOpen] = useState(false);
   // Every event that can change how many threads in this room are unread: a
@@ -1030,14 +937,12 @@ function RoomView({
   // Async handlers must stop when their room surface is replaced.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
-  useLayoutEffect(() => {
-    selectedRoomIdRef.current = selectedRoomId;
-    return () => {
-      selectedRoomIdRef.current = null;
-      boundaryLoadGenerationRef.current += 1;
-      threadLoadGenerationRef.current += 1;
-    };
-  }, [selectedRoomId]);
+  useRoomsClientRoomSurfaceGuard(
+    selectedRoomId,
+    selectedRoomIdRef,
+    boundaryLoadGenerationRef,
+    threadLoadGenerationRef,
+  );
 
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
@@ -1811,54 +1716,41 @@ function RoomView({
   }
 
   const [syncedPropSnapshot, setSyncedPropSnapshot] = useState(() => ({
-    deferredHistoryPending: effectiveDeferredHistoryPending,
     messageLoadFailed,
     messages,
     messagesNextCursor,
-    messagesPromise,
     selectedRoomId,
   }));
   if (
     !retained &&
-    (syncedPropSnapshot.deferredHistoryPending !==
-      effectiveDeferredHistoryPending ||
-      syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
+    (syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
       syncedPropSnapshot.messages !== messages ||
       syncedPropSnapshot.messagesNextCursor !== messagesNextCursor ||
-      syncedPropSnapshot.messagesPromise !== messagesPromise ||
       syncedPropSnapshot.selectedRoomId !== selectedRoomId)
   ) {
     const isChannelSwitch =
       syncedPropSnapshot.selectedRoomId !== selectedRoomId;
     setSyncedPropSnapshot({
-      deferredHistoryPending: effectiveDeferredHistoryPending,
       messageLoadFailed,
       messages,
       messagesNextCursor,
-      messagesPromise,
       selectedRoomId,
     });
 
-    // Deferred promise owns the first page until hydrate completes, and
-    // progressive open keeps messagesPromise after hydrate while props stay
-    // empty — do not re-apply prop messages / messageLoadFailed or we wipe
-    // hydrate and clobber failed:true from the hydrator.
-    if (!effectiveDeferredHistoryPending && messagesPromise == null) {
-      // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
-      // merge so client-loaded older pages are not wiped by the latest page.
-      const page = { messages, nextCursor: messagesNextCursor };
-      if (isChannelSwitch) {
-        setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
-      } else {
-        setLocalTranscript((current) => mergeRoomHeadPage(current, page));
-      }
-      setMessageLoadFailedState(messageLoadFailed);
-      setThreadParentMessage((current) =>
-        current
-          ? (messages.find((message) => message.id === current.id) ?? current)
-          : current,
-      );
+    // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
+    // merge so client-loaded older pages are not wiped by the latest page.
+    const page = { messages, nextCursor: messagesNextCursor };
+    if (isChannelSwitch) {
+      setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
+    } else {
+      setLocalTranscript((current) => mergeRoomHeadPage(current, page));
     }
+    setMessageLoadFailedState(messageLoadFailed);
+    setThreadParentMessage((current) =>
+      current
+        ? (messages.find((message) => message.id === current.id) ?? current)
+        : current,
+    );
   }
 
   // A Look clears the thread's unread everywhere at once: the header count
@@ -2238,7 +2130,7 @@ function RoomView({
       selectedRoom?.kind === "channel" || selectedRoom?.isGroupDirect
         ? selectedRoom.id
         : null,
-    ready: rosterPromise == null || deferredRoster != null,
+    ready: rosterReady,
     pathname,
     searchParams,
     replace: router.replace,
@@ -3198,18 +3090,6 @@ function RoomView({
     }
     const openRoomListBody = (
       <>
-        {rosterPromise ? (
-          <RoomShellRosterHydrator
-            promise={rosterPromise}
-            onResolved={handleDeferredRosterResolved}
-          />
-        ) : null}
-        {messagesPromise ? (
-          <RoomMessagesHydrator
-            promise={messagesPromise}
-            onResolved={handleDeferredHistoryResolved}
-          />
-        ) : null}
         {showListSkeleton ? (
           <RoomMessageListSkeleton />
         ) : effectiveMessageLoadFailed ? (
@@ -3490,6 +3370,7 @@ function RoomView({
             ) : threadListOpen ? (
               <ThreadListPanel
                 roomId={selectedRoom.id}
+                userId={currentUserId}
                 mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
                 onClose={() => {

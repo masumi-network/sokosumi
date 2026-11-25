@@ -1,3 +1,4 @@
+import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -17,6 +18,7 @@ import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   sokoBotFailureLead,
+  sokoBotWelcomeLead,
   toImportantChats,
   toNewSchedules,
   toTeamDay,
@@ -108,13 +110,13 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       ),
     )
     .catch(() => ({}));
-  const needsYouPanel = (lead?: NeedsYouLead) => (
+  const needsYouPanel = (leads: NeedsYouLead[]) => (
     <Suspense fallback={null}>
       {NeedsYouPanel({
         feed: needsYouFeed,
         projects: needsYouProjects,
         quiet: true,
-        lead,
+        leads,
       })}
     </Suspense>
   );
@@ -129,9 +131,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   } = await homeData;
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
-  const landingNotice = (
+  const landingNotice = (everyVisit = false) => (
     <>
-      <RefreshPrefetchedPage />
+      <RefreshPrefetchedPage everyVisit={everyVisit} />
       <ChatLandingNotice notice={notice} />
     </>
   );
@@ -151,9 +153,20 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       lastFailure,
       tHome,
     );
+    // Right after setup the bot's welcome waits unread, and Needs you said
+    // nothing did.
+    const welcomeLead = sokoBotWelcomeLead(
+      { id: sokoBot.id, name: botName },
+      // Core's introduction text with today's names, for introductions
+      // posted before Core marked them.
+      composeSokoBotIntroduction({ name: sokoBot.name, ownerName: userName }),
+      botRoom,
+      tHome,
+    );
     return (
       <>
-        {landingNotice}
+        {/* A copy kept from before the welcome was read would still list it. */}
+        {landingNotice(welcomeLead !== undefined)}
         <SokoBotHome
           bot={{
             id: sokoBot.id,
@@ -179,19 +192,27 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           chats={withSokoBotChat(
             toImportantChats(important, untitled),
             botRoom,
-            { userId, from: tHome("youTo", { name: botName }), untitled },
+            {
+              userId,
+              from: tHome("youTo", { name: botName }),
+              botId: sokoBot.id,
+              replied: tHome("replied", { name: botName }),
+              untitled,
+            },
             now,
           )}
           schedules={toNewSchedules(sokoBot.schedules ?? [], now)}
           myDay={myDay}
-          needsYou={needsYouPanel(failedLead)}
+          needsYou={needsYouPanel(
+            [welcomeLead, failedLead].filter((lead) => lead !== undefined),
+          )}
         />
       </>
     );
   }
   return (
     <>
-      {landingNotice}
+      {landingNotice()}
       <SokoBotSetup />
     </>
   );

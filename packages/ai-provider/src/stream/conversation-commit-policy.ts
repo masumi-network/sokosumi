@@ -4,7 +4,7 @@ import { MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS } from "../coworker-agent-error.js"
 import { createCommitGateStream } from "./commit-gate-stream.js";
 
 /** Max retry attempts after the first conversation stream (total opens = max + 1). */
-export const COWORKER_CONVERSATION_MAX_RETRIES = 2;
+const COWORKER_CONVERSATION_MAX_RETRIES = 2;
 
 /**
  * Conversation product policy around a protocol stream factory.

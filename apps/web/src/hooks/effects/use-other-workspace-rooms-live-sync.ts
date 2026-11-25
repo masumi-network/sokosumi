@@ -7,13 +7,22 @@ import {
   subscribeOrganizationChatRoomRead,
   subscribeOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
+import { beginRoomAttentionRefresh } from "@/components/chat/room-read-overlay";
+import { chatQueryKeys } from "@/queries/chat";
 
 /** At most one read per window, so a busy room costs less than its messages. */
 const OTHER_WORKSPACE_READ_WINDOW_MS = 2_000;
 
-export const OTHER_WORKSPACE_ROOMS_KEY = [
-  "chat-other-workspace-rooms",
-] as const;
+/** Revision when each room was last revoked, so an older read cannot restore it. */
+const revokedAtRevision = new Map<string, number>();
+
+/** True when `roomId` was revoked after a read started at `requestRevision`. */
+export function wasOtherWorkspaceRoomRevokedSince(
+  roomId: string,
+  requestRevision: number,
+): boolean {
+  return (revokedAtRevision.get(roomId) ?? 0) > requestRevision;
+}
 
 /** A room action's answer does not load the Organization the row shows. */
 export function withWorkspaceOf(
@@ -48,16 +57,18 @@ export function useOtherWorkspaceRoomsLiveSync(
 
     function updateRooms(update: (current: ChatRoom[]) => ChatRoom[]) {
       queryClient.setQueriesData<ChatRoom[]>(
-        { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
+        { queryKey: chatQueryKeys.anyElsewhere() },
         (current) => current && update(current),
       );
     }
 
     const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
-      onRemoved: (removedRoomId) =>
+      onRemoved: (removedRoomId) => {
+        revokedAtRevision.set(removedRoomId, beginRoomAttentionRefresh());
         updateRooms((current) =>
           current.filter((room) => room.id !== removedRoomId),
-        ),
+        );
+      },
       // A room handed over whole is one the reader just joined or edited here,
       // so no `onRoom`.
       onInvalidated: (collections) => {

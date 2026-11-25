@@ -169,11 +169,3 @@ export async function judgeAdImage(
     latencyMs: Date.now() - startedAt,
   };
 }
-
-/** A neutral absence stays absent so a ranker can choose its own default. */
-export function getAdEvalJudgePrior(
-  overall: number | null | undefined,
-): number | null {
-  if (overall == null || !Number.isFinite(overall)) return null;
-  return (Math.max(1, Math.min(5, overall)) - 1) / 4;
-}

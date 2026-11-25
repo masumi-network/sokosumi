@@ -191,7 +191,7 @@ const query = z
     q: taskNameQuerySchema,
     search: z.string().trim().min(1).max(200).optional().openapi({
       description:
-        "Find Tasks by name or identifier first, then by visible tag or description. The selected sort breaks ties within each group.",
+        "Find Tasks by name or identifier first, then by visible tag or description, then by result (a done comment). The selected sort breaks ties within each group.",
     }),
     workspaceTagId: z
       .uuid()
@@ -555,8 +555,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
     }
-    const [tasks, count] = queryParams.search
-      ? await searchTaskList({
+    const [tasks, count, resultMatches] = await (queryParams.search
+      ? searchTaskList({
           search: queryParams.search,
           workspaceId: c.var.workspaceContext?.workspaceId,
           where,
@@ -564,10 +564,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           cursor,
           readPage,
         })
-      : await Promise.all([
+      : Promise.all([
           readPage(where, takePlusOne, cursor),
           prisma.task.count({ where }),
-        ]);
+          new Map<string, string>(),
+        ]));
 
     const hasMore = tasks.length === takePlusOne;
     const pageTasks = tasks.slice(0, take);
@@ -598,6 +599,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(mentionViewerId ? { openSubtasks } : {}),
         ...(unansweredTaskIds
           ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
+          : {}),
+        ...(resultMatches.has(task.id)
+          ? { resultMatch: resultMatches.get(task.id) }
           : {}),
       };
     });

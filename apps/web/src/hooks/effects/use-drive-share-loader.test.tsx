@@ -77,4 +77,33 @@ describe("useDriveShareLoader", () => {
     await waitFor(() => expect(result.current.share).toBeNull());
     expect(toastErrorMock).toHaveBeenCalledWith("Could not load link");
   });
+
+  it("aborts the in-flight request on unmount and suppresses late failure toasts", async () => {
+    const pending = Promise.withResolvers<DriveShare | null>();
+    let capturedSignal: AbortSignal | undefined;
+    fetchDriveShareMock.mockImplementationOnce(
+      (input: { signal?: AbortSignal }) => {
+        capturedSignal = input.signal;
+        return pending.promise;
+      },
+    );
+    const loadFailedMessage = { current: "Could not load link" };
+
+    const { unmount } = renderHook(() =>
+      useDriveShareLoader(ITEM, STORE, loadFailedMessage),
+    );
+
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    unmount();
+    expect(capturedSignal?.aborted).toBe(true);
+
+    await act(async () => {
+      pending.reject(new Error("aborted"));
+      await pending.promise.catch(() => {});
+    });
+
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
 });

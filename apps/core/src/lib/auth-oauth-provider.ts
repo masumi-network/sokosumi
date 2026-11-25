@@ -4,8 +4,13 @@ import {
   getOAuthProviderState,
   type OAuthOptions,
 } from "@better-auth/oauth-provider";
+import {
+  OAUTH_SCOPE_MCP,
+  OAUTH_SCOPE_OFFLINE_ACCESS,
+  OAUTH_SCOPE_OPENID,
+} from "@sokosumi/utils";
 import type { DBAdapter, GenericEndpointContext } from "better-auth";
-import { getOAuthState } from "better-auth/api";
+import { APIError, getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
@@ -22,6 +27,170 @@ export const oauthRefreshTokenOptions = {
   // response instead of signing the person out (default: 0, off).
   refreshTokenReuseInterval: 30,
 } satisfies Partial<OAuthOptions>;
+
+/**
+ * Open dynamic client registration (RFC 7591), so MCP clients such as Claude
+ * Code and Claude.ai connect by URL (ADR 0076). Anyone can register, so a
+ * registered client may ask only for the MCP server's scopes, never
+ * `sokosumi:api`. `applyOAuthClientPolicy` links it to the MCP resource and
+ * keeps `sokosumi:mcp` off clients made any other way.
+ */
+export function clientRegistrationOptions(mcpResourceIdentifier: string) {
+  return {
+    allowDynamicClientRegistration: true,
+    allowUnauthenticatedClientRegistration: true,
+    // Better Auth stores this whole list on every registered client and
+    // refuses a registration that asks for any other scope.
+    clientRegistrationDefaultScopes: [
+      OAUTH_SCOPE_OPENID,
+      OAUTH_SCOPE_MCP,
+      OAUTH_SCOPE_OFFLINE_ACCESS,
+    ],
+    // Allowed, not default: a default resource would also link every client
+    // Web creates. The policy hook asks for it on each registration.
+    clientRegistrationAllowedResources: [mcpResourceIdentifier],
+    // A loopback or custom-scheme redirect, as Claude Code sends without an
+    // `application_type`, makes a native client instead of a refused web one.
+    clientRegistrationDefaultApplicationType: "infer",
+    // Claude.ai registers every user from Anthropic's servers, so they share
+    // one IP's allowance.
+    rateLimit: { register: { window: 60, max: 60 } },
+  } satisfies Partial<OAuthOptions<string[]>>;
+}
+
+/** Registration fields that serve confidential clients or back-channel logout. */
+const UNREGISTRABLE_CLIENT_FIELDS = [
+  "jwks",
+  "jwks_uri",
+  "backchannel_logout_uri",
+  "backchannel_logout_session_required",
+];
+
+/** Links the consent page shows for a client. */
+const CLIENT_INFO_URI_FIELDS = [
+  "client_uri",
+  "logo_uri",
+  "tos_uri",
+  "policy_uri",
+];
+
+/** Web's own client management, which must never grant `sokosumi:mcp`. */
+const MANAGED_CLIENT_PATHS = new Set([
+  "/oauth2/create-client",
+  "/oauth2/update-client",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function invalidClientMetadata(description: string): APIError {
+  return new APIError("BAD_REQUEST", {
+    error: "invalid_client_metadata",
+    error_description: description,
+  });
+}
+
+/**
+ * Before hook for client management (ADR 0076). MCP access comes only through
+ * self-registration, so Web's consent page always warns about an MCP client:
+ * Web's create and update refuse `sokosumi:mcp`. A self-registered client is
+ * public, with no secret and PKCE on every authorization (RFC 7591 §3.2.1 lets
+ * the server replace a requested value), and is linked to the MCP resource.
+ * Registration refuses keys, which only confidential clients use, back-channel
+ * logout, which would have Core post logout tokens to a host anyone chose, and
+ * any page link that is not https.
+ */
+export function applyOAuthClientPolicy(
+  ctx: { path?: string; body?: unknown },
+  mcpResourceIdentifier: string,
+): { context: { body: Record<string, unknown> } } | undefined {
+  const body = ctx.body;
+  if (!isRecord(body)) return;
+
+  if (ctx.path && MANAGED_CLIENT_PATHS.has(ctx.path)) {
+    const metadata = ctx.path === "/oauth2/update-client" ? body.update : body;
+    const scope = isRecord(metadata) ? metadata.scope : undefined;
+    if (
+      typeof scope === "string" &&
+      scope.split(" ").includes(OAUTH_SCOPE_MCP)
+    ) {
+      throw new APIError("BAD_REQUEST", {
+        error: "invalid_scope",
+        error_description: `${OAUTH_SCOPE_MCP} is only for self-registered clients`,
+      });
+    }
+    return;
+  }
+  if (ctx.path !== "/oauth2/register") return;
+
+  const refused = UNREGISTRABLE_CLIENT_FIELDS.find((field) => field in body);
+  if (refused) throw invalidClientMetadata(`${refused} cannot be registered`);
+  const insecure = CLIENT_INFO_URI_FIELDS.find(
+    (field) =>
+      field in body &&
+      !(
+        typeof body[field] === "string" &&
+        URL.canParse(body[field]) &&
+        new URL(body[field]).protocol === "https:"
+      ),
+  );
+  if (insecure) throw invalidClientMetadata(`${insecure} must be an https URL`);
+
+  return {
+    context: {
+      body: {
+        ...body,
+        token_endpoint_auth_method: "none",
+        resources: [mcpResourceIdentifier],
+      },
+    },
+  };
+}
+
+/** The provider's endpoints that show a client to the sign-in and consent pages. */
+const PUBLIC_CLIENT_PATHS = new Set([
+  "/oauth2/public-client",
+  "/oauth2/public-client-prelogin",
+]);
+
+/**
+ * After hook: adds `selfRegistered` to the public client info, true when the
+ * client came from open registration: nobody owns it (no `userId` or
+ * `referenceId`), or it holds `sokosumi:mcp`, which only registration grants
+ * (a signed-in user who registers becomes the owner). Web's consent page warns
+ * about such an app, so a failed read answers true rather than an error. An error answer, such as 404
+ * for an unknown client, passes through unchanged.
+ */
+export async function markSelfRegisteredClient(
+  ctx: GenericEndpointContext & { context: { returned?: unknown } },
+): Promise<Response | Record<string, unknown> | undefined> {
+  const returned = ctx.context.returned;
+  if (
+    !PUBLIC_CLIENT_PATHS.has(ctx.path) ||
+    !isRecord(returned) ||
+    typeof returned.client_id !== "string"
+  ) {
+    return;
+  }
+  let selfRegistered = true;
+  try {
+    const client = await ctx.context.adapter.findOne<{
+      userId?: string | null;
+      referenceId?: string | null;
+      scopes?: string[] | null;
+    }>({
+      model: "oauthClient",
+      where: [{ field: "clientId", value: returned.client_id }],
+    });
+    selfRegistered =
+      (!client?.userId && !client?.referenceId) ||
+      Boolean(client?.scopes?.includes(OAUTH_SCOPE_MCP));
+  } catch (error) {
+    ctx.context.logger.error("Could not read the OAuth client's owner", error);
+  }
+  return ctx.json({ ...returned, selfRegistered });
+}
 
 /**
  * Revokes every access and refresh token the OAuth provider holds for a user,
@@ -50,9 +219,12 @@ export async function revokeUserOAuthTokens(
 const CMO_PRODUCTION_CALLBACK =
   "https://app.cmo.xyz/api/auth/callback/sokosumi";
 
-/** A CMO preview's branch alias, truncated with a hash when the branch is long. */
+/**
+ * A CMO preview's branch alias (Vercel project `cmo-app`), truncated with a
+ * hash when the branch is long.
+ */
 const CMO_PREVIEW_CALLBACK =
-  /^https:\/\/sokosumi-cmo-git-[a-z0-9-]+\.preview\.cmo\.xyz\/api\/auth\/callback\/sokosumi$/;
+  /^https:\/\/cmo-app-git-[a-z0-9-]+\.preview\.cmo\.xyz\/api\/auth\/callback\/sokosumi$/;
 
 /**
  * Preview Core only: lets the CMO client sign a CMO preview in at its own

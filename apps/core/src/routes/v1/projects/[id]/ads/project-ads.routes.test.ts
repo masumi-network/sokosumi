@@ -1482,15 +1482,15 @@ describe("Project ads routes", () => {
       }
     });
 
-    it("rejects a user API key", async () => {
-      const app = createApp({
-        ...SESSION_AUTH,
-        authenticationMethod: "api_key",
-      });
-      const response = await app.request(targetingUrl("languages"));
-      expect(response.status).toBe(403);
-      expect(m.languages).not.toHaveBeenCalled();
-    });
+    it.each(["api_key", "oauth"] as const)(
+      "lets a person's %s token read them",
+      async (authenticationMethod) => {
+        const app = createApp({ ...SESSION_AUTH, authenticationMethod });
+        const response = await app.request(targetingUrl("languages"));
+        expect(response.status).toBe(200);
+        expect(m.languages).toHaveBeenCalledWith(scope);
+      },
+    );
   });
 
   describe("error mapping", () => {
@@ -1531,17 +1531,24 @@ describe("Project ads routes", () => {
   });
 
   describe("access", () => {
-    it("rejects a user API key", async () => {
-      const app = createApp({
-        ...SESSION_AUTH,
-        authenticationMethod: "api_key",
-      });
-      const response = await app.request(
-        `http://localhost/${PROJECT_ID}/ads/accounts`,
-      );
-      expect(response.status).toBe(403);
-      expect(m.list).not.toHaveBeenCalled();
-    });
+    it.each(["api_key", "oauth"] as const)(
+      "lets a person's %s token list ad accounts, but not attach one",
+      async (authenticationMethod) => {
+        const app = createApp({ ...SESSION_AUTH, authenticationMethod });
+        const list = await app.request(
+          `http://localhost/${PROJECT_ID}/ads/accounts`,
+        );
+        expect(list.status).toBe(200);
+        expect(m.list).toHaveBeenCalled();
+
+        const attach = await post(app, "accounts", {
+          adConnectionId: ACCOUNT_UUID,
+          externalAccountIds: ["1"],
+        });
+        expect(attach.status).toBe(403);
+        expect(m.attach).not.toHaveBeenCalled();
+      },
+    );
 
     it("requires a Workspace context", async () => {
       const response = await createApp(SESSION_AUTH, null).request(

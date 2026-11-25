@@ -22407,6 +22407,297 @@ export const ReleaseExportLeaseBodySchema = {
     additionalProperties: false
 } as const;
 
+export const FundraisingAccessSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ]
+} as const;
+
+export const FundraisingPipelineSchema = {
+    type: 'object',
+    properties: {
+        list: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        rooms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    token: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'title',
+                    'token'
+                ]
+            }
+        },
+        prospects: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingProspect'
+            }
+        }
+    },
+    required: [
+        'list',
+        'rooms',
+        'prospects'
+    ]
+} as const;
+
+export const FundraisingProspectSchema = {
+    type: 'object',
+    properties: {
+        contact: {
+            $ref: '#/components/schemas/Contact'
+        },
+        stage: {
+            $ref: '#/components/schemas/FundraisingStage'
+        },
+        stageChangedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        ticketSize: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thesis: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        committedUsd: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        dataRoom: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingDataRoomVisit'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'contact',
+        'stage',
+        'stageChangedAt',
+        'owner',
+        'ticketSize',
+        'thesis',
+        'committedUsd',
+        'notes',
+        'source',
+        'dataRoom'
+    ]
+} as const;
+
+export const FundraisingStageSchema = {
+    type: 'string',
+    enum: [
+        'TO_RESEARCH',
+        'WARM_PATH',
+        'REACHED_OUT',
+        'MEETING',
+        'DATA_ROOM',
+        'DILIGENCE',
+        'COMMITTED',
+        'PASSED'
+    ]
+} as const;
+
+export const FundraisingDataRoomVisitSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomTitle: {
+            type: 'string'
+        },
+        memberId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        email: {
+            type: 'string'
+        },
+        invitedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        firstVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        views: {
+            type: 'integer'
+        },
+        downloads: {
+            type: 'integer'
+        },
+        lastOpened: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        revoked: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'roomId',
+        'roomTitle',
+        'memberId',
+        'email',
+        'invitedAt',
+        'firstVisitAt',
+        'lastVisitAt',
+        'views',
+        'downloads',
+        'lastOpened',
+        'revoked'
+    ]
+} as const;
+
+export const FundraisingProspectUpdateSchema = {
+    type: 'object',
+    properties: {
+        stage: {
+            $ref: '#/components/schemas/FundraisingStage'
+        },
+        ownerUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1
+        },
+        ticketSize: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        },
+        thesis: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        committedUsd: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 10000
+        },
+        source: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        }
+    }
+} as const;
+
 export const HistoryListSchema = {
     type: 'array',
     items: {
@@ -32762,6 +33053,168 @@ export const ProjectCompetitorUpdateSchema = {
             description: 'Its Facebook Page: the name in its address, or the address.'
         }
     }
+} as const;
+
+export const ProjectCompetitorRemovalSchema = {
+    type: 'object',
+    properties: {
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitor'
+            }
+        },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'This week: null until a bot wrote one.'
+        },
+        limit: {
+            type: 'integer',
+            description: 'How many competitors can be tracked.'
+        },
+        signals: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorSignal'
+            },
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
+        },
+        scoreboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorScoreRow'
+            },
+            description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
+        },
+        topPosts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorTopPost'
+            },
+            description: 'Each competitor\'s three strongest Instagram posts.'
+        },
+        check: {
+            type: 'object',
+            properties: {
+                on: {
+                    type: 'boolean',
+                    description: 'Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.'
+                },
+                lastCheckedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                nextCheckAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                creditsPerCompetitor: {
+                    type: 'number',
+                    description: 'What one competitor costs in one weekly check, in credits.'
+                },
+                sources: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        news: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        ads: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        social: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'news',
+                        'ads',
+                        'social'
+                    ]
+                }
+            },
+            required: [
+                'on',
+                'lastCheckedAt',
+                'nextCheckAt',
+                'creditsPerCompetitor',
+                'sources'
+            ]
+        },
+        removal: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Which removal of the competitor this was. It names the removal: an Undo sends it back.'
+        }
+    },
+    required: [
+        'competitors',
+        'feed',
+        'limit',
+        'signals',
+        'scoreboard',
+        'topPosts',
+        'check',
+        'removal'
+    ]
+} as const;
+
+export const ProjectCompetitorRestoreSchema = {
+    type: 'object',
+    properties: {
+        removal: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Which removal of the competitor this was. It names the removal: an Undo sends it back.'
+        }
+    },
+    required: [
+        'removal'
+    ]
 } as const;
 
 export const ProjectCompetitorChecksSchema = {
@@ -67584,6 +68037,15 @@ export const CoworkerApiKeySchema = {
             format: 'date-time',
             example: null
         },
+        lastUsedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-01-02T08:00:00.000Z',
+            description: 'Last successful authentication, updated at most once a minute.'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -67602,6 +68064,7 @@ export const CoworkerApiKeySchema = {
         'keyStart',
         'expiresAt',
         'revokedAt',
+        'lastUsedAt',
         'createdAt',
         'updatedAt'
     ]
@@ -68110,6 +68573,11 @@ export const TaskListItemSchema = {
             type: 'boolean',
             example: false,
             description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
+        },
+        resultMatch: {
+            type: 'string',
+            example: '…The 50% launch plan costs 20 credits a month…',
+            description: 'With `search`, text around the first match in the Task\'s latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.'
         },
         openSubtasks: {
             type: 'array',

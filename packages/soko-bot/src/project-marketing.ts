@@ -90,7 +90,6 @@ export const cmoBrandSectionSchema = z.object({
     })
     .optional(),
 });
-export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
 const section = cmoBrandSectionSchema.optional();
 export const cmoBrandProfileSchema = z.object({
@@ -161,7 +160,6 @@ export const cmoBrandRevealSchema = z.object({
     )
     .max(3),
 });
-export type CmoBrandReveal = z.infer<typeof cmoBrandRevealSchema>;
 
 /** How a number was found: read from a source, Cuso's estimate, or not known. */
 export const CMO_MEASURE_BASES = ["measured", "estimated", "unknown"] as const;
@@ -209,7 +207,6 @@ export const cmoMarketingTodaySchema = z.object({
     })
     .optional(),
 });
-export type CmoMarketingToday = z.infer<typeof cmoMarketingTodaySchema>;
 
 export const CMO_BRAND_ANSWERS = ["yes", "no", "unsure"] as const;
 export type CmoBrandAnswer = (typeof CMO_BRAND_ANSWERS)[number];
@@ -364,7 +361,6 @@ export const CMO_CONTENT_APPROACHES = [
   "research-led",
   "promotional",
 ] as const;
-export type CmoContentApproach = (typeof CMO_CONTENT_APPROACHES)[number];
 
 /** Why people do not buy yet, which decides the mix. */
 export const CMO_BUYING_BARRIERS = [
@@ -649,7 +645,6 @@ const strategyPointSchema = z.object({
 
 /** How hard a plan publishes; Cuso recommends one and the owner can switch. */
 export const CMO_PACES = ["steady", "active", "all_in"] as const;
-export type CmoPace = (typeof CMO_PACES)[number];
 
 /** Who moves a funnel stage: Cuso, the owner (their site, pricing, checkout), or both. */
 export const CMO_STAGE_OWNERS = ["cuso", "you", "shared"] as const;
@@ -1017,7 +1012,6 @@ export const cmoPreviewSchema = z.object({
   title: shortText,
   body: longText,
 });
-export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
 
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */

@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import { resetChatReadThrottleForTests } from "@/lib/chat/chat-read-throttle";
 
 import { fetchBackgroundJson } from "./fetch-background-json";
-import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 const TIMEOUT_MS = 20_000;
 

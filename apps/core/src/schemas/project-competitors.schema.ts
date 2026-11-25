@@ -245,6 +245,22 @@ export const projectCompetitorsSchema = z
   .object(projectCompetitorsShape)
   .openapi("ProjectCompetitors");
 
+const removalField = z
+  .number()
+  .int()
+  .min(1)
+  .describe(
+    "Which removal of the competitor this was. It names the removal: an Undo sends it back.",
+  );
+
+export const projectCompetitorRemovalSchema = z
+  .object({ ...projectCompetitorsShape, removal: removalField })
+  .openapi("ProjectCompetitorRemoval");
+
+export const projectCompetitorRestoreSchema = z
+  .object({ removal: removalField })
+  .openapi("ProjectCompetitorRestore");
+
 export const projectCompetitorChecksSchema = z
   .object({
     on: z

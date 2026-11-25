@@ -102,16 +102,32 @@ async function render({
 }
 
 describe("CheckoutStep", () => {
+  it("opens on Yearly, with Monthly one tap away", async () => {
+    await render();
+    expect(button("Yearly").getAttribute("aria-pressed")).toBe("true");
+    expect(button("Start Starter for $167 a month")).toBeTruthy();
+    await press("Monthly");
+    expect(button("Monthly").getAttribute("aria-pressed")).toBe("true");
+    expect(button("Start Starter for $200 a month")).toBeTruthy();
+  });
+
+  it("opens on Monthly when there is no yearly plan", async () => {
+    await render({
+      plans: cmoPlans.filter((plan) => plan.interval === "month"),
+    });
+    expect(button("Monthly").getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("shows the three monthly plans by name and price, cheapest first", async () => {
     await render();
+    await press("Monthly");
     expect(cards()).toHaveLength(3);
     expect(cards()[0]).toContain("Starter");
     expect(cards()[0]).toContain("$200");
     expect(cards()[1]).toContain("$500");
     expect(cards()[2]).toContain("$1,000");
-    expect(text()).not.toContain("credits");
     expect(text()).not.toContain("(monthly)");
-    expect(text()).not.toContain("$2,000");
+    expect(text()).not.toContain("billed yearly");
   });
 
   it("says what each plan posts as the landing page does, and the team check on the top plan only", async () => {
@@ -149,7 +165,7 @@ describe("CheckoutStep", () => {
     expect(row?.getAttribute("aria-label")).toContain("X");
     expect(row?.getAttribute("aria-label")).toContain("LinkedIn");
     expect(row?.getAttribute("aria-label")).not.toContain("Google Ads");
-    expect(text()).not.toMatch(/\d+ (posts|pictures|videos)/);
+    expect(text()).not.toMatch(/\d+ (pictures|videos)/);
   });
 
   it("shows every network CMO posts on without a strategy", async () => {
@@ -157,7 +173,7 @@ describe("CheckoutStep", () => {
     expect(container.querySelectorAll(".ob-networks-row li")).toHaveLength(6);
   });
 
-  it("says how much of the month each plan makes, and marks the smallest that makes all of it", async () => {
+  it("says how many posts each plan makes a month, and marks the smallest that makes all of it", async () => {
     // Six X posts a day for a week: Starter makes three a day, Growth four, Scale six.
     const week: Strategy = {
       ...strategy,
@@ -174,12 +190,12 @@ describe("CheckoutStep", () => {
       ).flat(),
     };
     await render({ plan: week });
-    expect(cards()[0]).toContain("Makes about 50% of your month.");
-    expect(cards()[1]).toContain("Makes about 70% of your month.");
-    expect(cards()[2]).toContain("Makes your whole month.");
+    expect(cards()[0]).toContain("About 20 posts a month");
+    expect(cards()[1]).toContain("About 30 posts a month");
+    expect(cards()[2]).toContain("All 42 posts a month");
     expect(cards()[2]).toContain("Makes all of it");
     expect(cards()[1]).not.toContain("Makes all of it");
-    expect(button("Start Scale for $1,000 a month")).toBeTruthy();
+    expect(button("Start Scale for $833 a month")).toBeTruthy();
   });
 
   it("marks the plan that already makes a smaller strategy whole", async () => {
@@ -200,7 +216,7 @@ describe("CheckoutStep", () => {
       },
     });
     expect(cards()[0]).toContain("Makes all of it");
-    expect(button("Start Starter for $200 a month")).toBeTruthy();
+    expect(button("Start Starter for $167 a month")).toBeTruthy();
   });
 
   it("checks out the plan the person picks, over the one marked", async () => {
@@ -211,20 +227,96 @@ describe("CheckoutStep", () => {
     await act(async () =>
       container.querySelectorAll<HTMLElement>(".ob-plan-option")[2]?.click(),
     );
-    expect(button("Start Scale for $1,000 a month")).toBeTruthy();
+    expect(button("Start Scale for $833 a month")).toBeTruthy();
     await press("Start Scale");
-    expect(onCheckout).toHaveBeenCalledWith("month", "scale");
+    expect(onCheckout).toHaveBeenCalledWith("year", "scale");
   });
 
   it("shows the yearly saving and the yearly price per month", async () => {
     await render();
-    expect(container.querySelector(".ob-save")?.textContent).toBe("Save 17%");
+    expect(container.querySelector(".ob-save")?.textContent).toBe(
+      "2 months free",
+    );
     await press("Yearly");
     expect(button("Yearly").getAttribute("aria-pressed")).toBe("true");
     expect(cards()[0]).toContain("$200");
     expect(cards()[0]).toContain("$167 a month");
     expect(cards()[0]).toContain("$2,000 billed yearly");
     expect(button("Start Starter for $167 a month")).toBeTruthy();
+  });
+
+  it("fills the same lines on both intervals, so switching never moves the cards", async () => {
+    await render();
+    const lines = () =>
+      [...container.querySelectorAll(".ob-plan-option")].map(
+        (card) => card.children.length,
+      );
+    const yearly = lines();
+    await press("Monthly");
+    expect(lines()).toEqual(yearly);
+    expect(cards()[0]).toContain("Billed monthly");
+  });
+
+  it("says each plan's AI credits a month, on both intervals", async () => {
+    await render();
+    expect(cards()[0]).toContain("10,000 AI credits a month");
+    expect(cards()[1]).toContain("25,000 AI credits a month");
+    expect(cards()[2]).toContain("50,000 AI credits a month");
+    await press("Monthly");
+    expect(cards()[2]).toContain("50,000 AI credits a month");
+  });
+
+  it("frames Growth as the start and Scale as everything, Scale standing out unpicked", async () => {
+    await render();
+    await press("Starter");
+    expect(cards()[0]).not.toMatch(/Strong start|Everything included/);
+    expect(cards()[1]).toContain("Strong start");
+    expect(cards()[2]).toContain("Everything included");
+    const top = container.querySelectorAll(".ob-plan-option")[2];
+    expect(top?.classList.contains("ob-plan-top")).toBe(true);
+    expect(top?.getAttribute("aria-pressed")).toBe("false");
+    expect(text()).not.toMatch(/most popular|most picked/i);
+  });
+
+  it("says each plan's yearly saving in dollars, from the real prices", async () => {
+    await render();
+    expect(cards()[0]).toContain("You save $400 a year");
+    expect(cards()[1]).toContain("You save $1,000 a year");
+    expect(cards()[2]).toContain("You save $2,000 a year");
+    await press("Monthly");
+    expect(cards()[2]).toContain("Yearly saves $2,000");
+  });
+
+  it("falls back to a percent when the yearly prices are not whole free months", async () => {
+    await render({
+      plans: cmoPlans.map((plan) =>
+        plan.interval === "year"
+          ? { ...plan, priceAmount: Math.round(plan.priceAmount * 1.05) }
+          : plan,
+      ),
+    });
+    expect(container.querySelector(".ob-save")?.textContent).toBe("Save 13%");
+  });
+
+  it("puts the quote, the guarantee and Cancel any time by the button, said once", async () => {
+    await render();
+    expect(container.querySelector(".ob-quote blockquote")?.textContent).toBe(
+      "“CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.”",
+    );
+    expect(
+      container.querySelector(".ob-quote figcaption")?.textContent,
+    ).toContain("Florian HallerCEO, Serviceplan Group");
+    const assure = container.querySelector(".ob-assure")?.textContent ?? "";
+    expect(assure).toContain("Cancel any time.");
+    expect(assure).toContain("Not happy in the first 14 days? Full refund.");
+    expect(text().split("Cancel any time").length - 1).toBe(1);
+  });
+
+  it("says what credits buy in prices, not a count of what a plan makes", async () => {
+    await render();
+    expect(container.querySelector(".ob-credits-buy")?.textContent).toBe(
+      "Credits pay for everything Cuso makes: a picture costs 1 credit, a short video about 10 to 20.",
+    );
   });
 
   it("sends the person to Polar with the interval and the plan they picked", async () => {
@@ -244,13 +336,13 @@ describe("CheckoutStep", () => {
     const onCheckout = vi.fn(async () => ({ url: null, error: null }));
     await render({ onCheckout });
     await press("Start Starter");
-    expect(onCheckout).toHaveBeenCalledWith("month", "starter");
+    expect(onCheckout).toHaveBeenCalledWith("year", "starter");
   });
 
   it("keeps the fine print to one line", async () => {
     await render();
     const legal = container.querySelector(".legal-notice");
-    expect(legal?.textContent).toContain("Cancel any time.");
+    expect(legal?.textContent).not.toContain("Cancel any time.");
     expect(
       [...(legal?.querySelectorAll("a") ?? [])].map((link) => link.textContent),
     ).toEqual(["Terms", "Privacy", "DPA", "Imprint"]);

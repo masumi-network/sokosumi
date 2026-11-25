@@ -13,8 +13,8 @@ export default function RegisterLoadingPage() {
         <Skeleton className="h-10 w-full" />
       </div>
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-[50px] w-full" />
-        <Skeleton className="h-[50px] w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
       </div>
       <SignInRow />
     </AuthPage>

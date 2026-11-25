@@ -3,12 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
+  CMO_INDUSTRY_COVERAGE_SYSTEM,
+  CMO_INDUSTRY_PLAN_SYSTEM,
   CMO_INDUSTRY_RESEARCH_VERSION,
+  CMO_INDUSTRY_SYNTHESIS_SYSTEM,
   type CmoIndustryResearch,
   cmoIndustryContext,
   cmoIndustryDue,
   cmoIndustryFromAnswer,
   cmoIndustryNote,
+  cmoMergeResults,
   cmoReadsIndustry,
 } from "./cmo-industry.service";
 import {
@@ -187,5 +191,41 @@ describe("cmo-v21's pillar check", () => {
         "industry",
       )[0],
     ).toMatch(/"A" rests on one fact from the industry research/);
+  });
+});
+
+// Owner, 2026-11-24: NMKR's research leaned on MiCA and tokenized funds; it
+// should start from the buyer's own job and fill what it misses.
+describe("research of the buyer's job", () => {
+  it("plans from the job, keeps what touches it and checks coverage", () => {
+    expect(CMO_INDUSTRY_PLAN_SYSTEM).toContain("the buyer's own job");
+    expect(CMO_INDUSTRY_PLAN_SYSTEM).toContain("their own ecosystem");
+    expect(CMO_INDUSTRY_SYNTHESIS_SYSTEM).toContain(
+      "Keep only items that touch the buyer's day-to-day job",
+    );
+    expect(CMO_INDUSTRY_SYNTHESIS_SYSTEM).toContain(
+      "unless the buyers are institutions",
+    );
+    expect(CMO_INDUSTRY_COVERAGE_SYSTEM).toContain("At most three searches");
+    expect(CMO_INDUSTRY_RESEARCH_VERSION).toBe(3);
+  });
+
+  it("numbers a gap round's results on from the first, each address once", () => {
+    const first = cmoMergeResults(
+      [],
+      [
+        { title: "A", url: "https://a.example/", passages: [] },
+        { title: "A again", url: "https://a.example/", passages: [] },
+      ],
+    );
+    expect(first.map((result) => result.id)).toEqual(["r1"]);
+    const both = cmoMergeResults(first, [
+      { title: "A", url: "https://a.example/", passages: [] },
+      { title: "B", url: "https://b.example/", passages: [] },
+    ]);
+    expect(both.map((result) => `${result.id} ${result.url}`)).toEqual([
+      "r1 https://a.example/",
+      "r2 https://b.example/",
+    ]);
   });
 });

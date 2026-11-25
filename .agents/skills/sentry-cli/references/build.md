@@ -17,11 +17,12 @@ Upload builds to a project
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument    | Description                                                     |
+| ----------- | --------------------------------------------------------------- |
 | `<path...>` | Path(s) to the build(s) to upload (APK, AAB, IPA, or XCArchive) |
 
 **Flags:**
+
 - `--build-configuration <value> - Build configuration for the upload (defaults to the current version)`
 - `--release-notes <value> - Release notes for the build`
 - `--install-group <value>... - Install group(s) for this build (repeatable); builds sharing a group show updates for each other`
@@ -68,11 +69,12 @@ Download a build artifact
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                 |
+| ------------ | --------------------------- |
 | `<build-id>` | ID of the build to download |
 
 **Flags:**
+
 - `-o, --output <value> - Output path (default: preprod_artifact_<build-id>.<ext> in the current directory)`
 
 **Examples:**

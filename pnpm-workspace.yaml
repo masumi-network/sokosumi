@@ -18,19 +18,18 @@ networkConcurrency: 8
 overrides:
   # js-yaml GHSA-2883-xcg3-v3hh, GHSA-5p4m-2wfm-xmqj, GHSA-52cp-r559-cp3m.
   # Patched in 4.3.2 (`v4-legacy`). 5.x is a separate major; do not force it.
-  # 2026-11-23 re-resolve without overrides (pnpm 12.21.0,
-  # @scalar/openapi-to-markdown 1.7.12) landed js-yaml@4.2.0 via
-  # @hey-api/json-schema-ref-parser@1.4.4 (still latest; still depends on
+  # 2026-11-25 re-resolve without overrides (pnpm 12.23.0) landed js-yaml@4.2.0
+  # via @hey-api/json-schema-ref-parser@1.4.4 (still latest; still depends on
   # 4.2.0). Audit reported all three GHSAs. npm `latest` is 5.5.0.
   # `v4-legacy` is still 4.3.2.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-mqg3-3v4r-cm32 (and GHSA-7xg3-fphp-28hg, GHSA-5rm8-gv32-r954,
   # GHSA-9v6h-8rgp-m69f, GHSA-3g9m-rv3r-w5w2, GHSA-r4pc-4jcp-7pqc): dropped.
   # Fixed in 7.30.2 and 8.12.4. 6.x is not named. Audit does not index these
-  # GHSAs. 2026-11-23 re-resolve without overrides landed undici@6.29.1,
+  # GHSAs. 2026-11-25 re-resolve without overrides landed undici@6.29.1,
   # 7.30.2, 8.12.4, and 8.13.1. No 8.12.3. @scalar/json-magic@0.22.0
   # and @vercel/sandbox@4.0.0 depend on undici@^8.12.4.
-  # eve@1.3.0 depends on undici@8.12.4. The incremental lockfile keeps 8.12.4
+  # eve@1.5.0 depends on undici@8.12.4. The incremental lockfile keeps 8.12.4
   # for the caret ranges.
   # 6.29.1 and 7.30.2 are still the newest of the 6.x and 7.x lines. npm
   # `latest` is 8.13.1. The audit did not report undici, so 8.12.4 stays.
@@ -38,60 +37,48 @@ overrides:
   # (@vercel/blob 2.9.0) and 4.0.0 (@vercel/sandbox 4.0.0) pin
   # @vercel/cli-config 0.3.1, which pins zod 4.1.11. @vercel/oidc 4.0.9 uses
   # @vercel/cli-config 0.4.0 (zod ^4.6.6). Workspace pins are already 4.6.7.
-  # 2026-11-23 re-resolve with overrides removed landed zod@4.1.11
+  # 2026-11-25 re-resolve with overrides removed landed zod@4.1.11
   # (@vercel/cli-config@0.3.1) and zod@4.6.7 (@vercel/cli-config@0.4.0).
   # pnpm audit reported GHSA-mrhx-c7xc-m3w5. 4.6.7 is still npm `latest`.
   # The 4.x floor stays.
   "zod@>=4.0.0 <4.6.6": "4.6.7"
-  # zod GHSA-mrhx-c7xc-m3w5 has no 3.x fix. 2026-11-11: puppeteer and
-  # puppeteer-core 25.11.0 (held to match @sparticuz/chromium-min 153.0.0, the
-  # newest pack; see apps/web/src/config/env.secrets.test.ts) depend on
-  # chromium-bidi 17.0.2, which asks for zod ^3.24.1. Puppeteer 25.13+ moves to
-  # chromium-bidi 157 and zod 4 but needs Chrome 155. chromium-bidi is loaded
-  # only for Firefox or `protocol: "webDriverBiDi"` (puppeteer-core
-  # BrowserLauncher `import("../bidi/bidi.js")`). Every launch here uses
-  # Chrome over the default CDP, so this zod is not loaded at runtime. Its
-  # protocol-parser reads `error.errors`, which zod 4 removed: drop this pin
-  # before anything launches with webDriverBiDi, and when puppeteer moves past
-  # 25.12.
-  # 2026-11-23 re-resolve with overrides removed still landed zod@3.25.76 from
-  # chromium-bidi@17.0.2. Puppeteer stays 25.11.0 (Chrome 153.0.8010.36).
-  # 25.18.1 is Chrome 157.0.8103.78 and chromium-bidi 157.0.8090-0.
-  # @sparticuz/chromium-min latest is still 153.0.0. pnpm audit reported
-  # GHSA-mrhx-c7xc-m3w5 for that zod. The parent pin stays.
-  "chromium-bidi@17.0.2>zod": "4.6.7"
-  # katex GHSA-238p-pmpm-9mq7 (low) patched in 0.18.2. 2026-11-11: micromark-extension-math
+  # chromium-bidi@17.0.2>zod: dropped 2026-11-25. puppeteer 25.18.1 depends on
+  # chromium-bidi@157.0.8090-0, which depends on zod ^4.6.5. The fresh resolve
+  # landed zod@4.6.7 for that package and no zod 3.x, so the parent selector
+  # matched nothing. The 4.x floor above covers the remaining GHSA.
+  # katex GHSA-238p-pmpm-9mq7 (low) patched in 0.18.2. micromark-extension-math
   # 3.1.0 (latest, via remark-math 6.0.0, @m2d/math and @lobehub/ui) still asks
   # for katex ^0.16.0. remark-math only parses here; katex runs only in the
   # extension's HTML renderer (`lib/html.js`, `katex.renderToString`), which no
   # code here uses. 0.19.1 matches the katex @lobehub/ui already resolves.
-  # 2026-11-23 re-resolve with overrides removed landed katex@0.16.47 beside
-  # 0.18.10 and 0.19.1. micromark-extension-math 3.1.0 (still latest) still
-  # depends on katex 0.16.47. pnpm audit reported GHSA-238p-pmpm-9mq7. npm
-  # `latest` is 0.19.1. The parent pin stays.
+  # 2026-11-25 re-resolve with overrides removed landed katex@0.16.47 beside
+  # 0.18.10 and 0.19.1. micromark-extension-math 3.1.0 still depends on
+  # katex 0.16.47. pnpm audit reported GHSA-238p-pmpm-9mq7. npm `latest` is
+  # 0.19.1. The parent pin stays.
   "micromark-extension-math>katex": "0.19.1"
   # postcss-selector-parser GHSA-rj75-hqrm-r3gf patched in 6.1.5.
   # @tailwindcss/typography 0.5.20 (latest) pins 6.0.10. 6.1.6 is the newest 6.x.
-  # 2026-11-23 re-resolve with overrides removed landed only
-  # postcss-selector-parser@6.0.10. @tailwindcss/typography 0.5.20 is still
-  # latest and still depends on 6.0.10. pnpm audit reported GHSA-rj75-hqrm-r3gf.
+  # 2026-11-25 re-resolve with overrides removed landed only
+  # postcss-selector-parser@6.0.10. @tailwindcss/typography 0.5.20 still
+  # depends on 6.0.10. pnpm audit reported GHSA-rj75-hqrm-r3gf.
   # 6.1.6 is still the newest 6.x (`legacy-v6`). npm `latest` is 7.2.1; not forced.
   "postcss-selector-parser@>=6.0.0 <6.1.5": "6.1.6"
-  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-23 re-resolve without an
+  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-25 re-resolve without an
   # override landed only esbuild@0.28.2. npm `latest` is 0.28.2.
   # picomatch GHSA-fc5q-39xc-vjpf: no pin. Withdrawn 2026-11-18
   # ("Withdrawn Advisory: picomatch vulnerable to ReDoS through single-branch
   # repeated extglobs"). firstPatchedVersion is still null. npm `latest` is
-  # 4.0.7, which the lockfile already resolves. The 2026-11-23 re-resolve
+  # 4.0.7, which the lockfile already resolves. The 2026-11-25 re-resolve
   # audit did not report it. An override cannot claim a patch that is not
   # published.
   # effect GHSA-7589-6fvf-x4pw (high): ReDoS in Schema.TemplateLiteral.
   # Patched in 3.22.1. npm `latest` is 4.1.5; do not force 4.x. `prev` is
   # 3.22.5, the newest patched 3.x.
-  # 2026-11-23 re-resolve without overrides landed effect@3.20.0 from
+  # 2026-11-25 re-resolve without overrides landed effect@3.20.0 from
   # @prisma/config@7.10.1 (exact dependency; still the current Prisma 7 pin).
   # Audit reported the GHSA. The 3.x floor stays.
   "effect@<=3.22.0": "3.22.5"
+
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
@@ -144,8 +131,10 @@ publicHoistPattern:
   - pg-pool
   - "@biomejs/biome"
 
-# Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
-# Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
-# Upstream: https://github.com/vitest-dev/vitest/issues/11144 (closed without the field; still missing on 5.1.1)
 patchedDependencies:
+  # Drop once happy-dom releases capricorn86/happy-dom#2536 (fixes #2532).
+  happy-dom@21.0.4: patches/happy-dom@21.0.4.patch
+  # Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
+  # Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
+  # Upstream: https://github.com/vitest-dev/vitest/issues/11144 (closed without the field; still missing on 5.1.1)
   vitest@5.1.1: patches/vitest@5.1.1.patch

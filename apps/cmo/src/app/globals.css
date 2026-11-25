@@ -3747,14 +3747,6 @@ video.draft-media {
   font-weight: 500;
 }
 
-.cw-images {
-  padding: 1px 8px;
-  border-radius: var(--radius-mark);
-  background: var(--brand-soft);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
 .cw-you {
   padding-top: 10px;
   border-top: 1px solid var(--border);

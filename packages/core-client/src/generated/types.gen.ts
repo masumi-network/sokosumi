@@ -6330,6 +6330,73 @@ export type ReleaseExportLeaseBody = {
     token: string;
 };
 
+export type FundraisingAccess = {
+    enabled: boolean;
+};
+
+export type FundraisingPipeline = {
+    list: {
+        id: string;
+        name: string;
+    } | null;
+    rooms: Array<{
+        id: string;
+        title: string;
+        token: string;
+    }>;
+    prospects: Array<FundraisingProspect>;
+};
+
+export type FundraisingProspect = {
+    contact: Contact;
+    stage: FundraisingStage;
+    stageChangedAt: Date | null;
+    owner: ContactPerson | null;
+    ticketSize: string | null;
+    thesis: string | null;
+    committedUsd: number | null;
+    notes: string | null;
+    source: string | null;
+    dataRoom: FundraisingDataRoomVisit | null;
+};
+
+export const FundraisingStage = {
+    TO_RESEARCH: 'TO_RESEARCH',
+    WARM_PATH: 'WARM_PATH',
+    REACHED_OUT: 'REACHED_OUT',
+    MEETING: 'MEETING',
+    DATA_ROOM: 'DATA_ROOM',
+    DILIGENCE: 'DILIGENCE',
+    COMMITTED: 'COMMITTED',
+    PASSED: 'PASSED'
+} as const;
+
+export type FundraisingStage = typeof FundraisingStage[keyof typeof FundraisingStage];
+
+export type FundraisingDataRoomVisit = {
+    roomId: string;
+    roomTitle: string;
+    memberId: string;
+    email: string;
+    invitedAt: Date;
+    firstVisitAt: Date | null;
+    lastVisitAt: Date | null;
+    views: number;
+    downloads: number;
+    lastOpened: string | null;
+    revoked: boolean;
+};
+
+export type FundraisingProspectUpdate = {
+    stage?: FundraisingStage;
+    ownerUserId?: string | null;
+    ticketSize?: string | null;
+    thesis?: string | null;
+    committedUsd?: number | null;
+    notes?: string | null;
+    source?: string | null;
+};
+
 export type HistoryList = Array<HistoryItem>;
 
 export type HistoryItem = ({
@@ -8985,6 +9052,70 @@ export type ProjectCompetitorUpdate = {
      * Its Facebook Page: the name in its address, or the address.
      */
     facebookHandle?: string | null;
+};
+
+export type ProjectCompetitorRemoval = {
+    competitors: Array<ProjectCompetitor>;
+    /**
+     * This week: null until a bot wrote one.
+     */
+    feed: {
+        /**
+         * The day of the check it was written from.
+         */
+        checkDay: string;
+        savedAt: Date;
+        items: Array<ProjectCompetitorFeedItem>;
+        /**
+         * What the sources could not settle this week.
+         */
+        openQuestions: Array<string>;
+    } | null;
+    /**
+     * How many competitors can be tracked.
+     */
+    limit: number;
+    /**
+     * What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.
+     */
+    signals: Array<ProjectCompetitorSignal>;
+    /**
+     * Instagram numbers: the business first, then each competitor. A null cell has no data.
+     */
+    scoreboard: Array<ProjectCompetitorScoreRow>;
+    /**
+     * Each competitor's three strongest Instagram posts.
+     */
+    topPosts: Array<ProjectCompetitorTopPost>;
+    check: {
+        /**
+         * Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.
+         */
+        on: boolean;
+        lastCheckedAt: Date | null;
+        nextCheckAt: Date | null;
+        /**
+         * What one competitor costs in one weekly check, in credits.
+         */
+        creditsPerCompetitor: number;
+        sources: {
+            pages: ProjectCompetitorSource;
+            news: ProjectCompetitorSource;
+            ads: ProjectCompetitorSource;
+            social: ProjectCompetitorSource;
+        };
+    };
+    /**
+     * Which removal of the competitor this was. It names the removal: an Undo sends it back.
+     */
+    removal: number;
+};
+
+export type ProjectCompetitorRestore = {
+    /**
+     * Which removal of the competitor this was. It names the removal: an Undo sends it back.
+     */
+    removal: number;
 };
 
 export type ProjectCompetitorChecks = {
@@ -16579,6 +16710,10 @@ export type CoworkerApiKey = {
     keyStart: string;
     expiresAt: Date | null;
     revokedAt: Date | null;
+    /**
+     * Last successful authentication, updated at most once a minute.
+     */
+    lastUsedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -16774,6 +16909,10 @@ export type TaskListItem = {
      * True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.
      */
     hasUnansweredMention?: boolean;
+    /**
+     * With `search`, text around the first match in the Task's latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.
+     */
+    resultMatch?: string;
     /**
      * The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.
      */
@@ -51577,6 +51716,314 @@ export type AcquireExportLeaseResponses = {
 
 export type AcquireExportLeaseResponse = AcquireExportLeaseResponses[keyof AcquireExportLeaseResponses];
 
+export type GetFundraisingAccessData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/access';
+};
+
+export type GetFundraisingAccessErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingAccessError = GetFundraisingAccessErrors[keyof GetFundraisingAccessErrors];
+
+export type GetFundraisingAccessResponses = {
+    /**
+     * Access
+     */
+    200: {
+        data: FundraisingAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingAccessResponse = GetFundraisingAccessResponses[keyof GetFundraisingAccessResponses];
+
+export type GetFundraisingData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising';
+};
+
+export type GetFundraisingErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingError = GetFundraisingErrors[keyof GetFundraisingErrors];
+
+export type GetFundraisingResponses = {
+    /**
+     * Pipeline
+     */
+    200: {
+        data: FundraisingPipeline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingResponse = GetFundraisingResponses[keyof GetFundraisingResponses];
+
+export type PatchFundraisingProspectsByContactIdData = {
+    body?: FundraisingProspectUpdate;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}';
+};
+
+export type PatchFundraisingProspectsByContactIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid change
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchFundraisingProspectsByContactIdError = PatchFundraisingProspectsByContactIdErrors[keyof PatchFundraisingProspectsByContactIdErrors];
+
+export type PatchFundraisingProspectsByContactIdResponses = {
+    /**
+     * Prospect
+     */
+    200: {
+        data: FundraisingProspect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchFundraisingProspectsByContactIdResponse = PatchFundraisingProspectsByContactIdResponses[keyof PatchFundraisingProspectsByContactIdResponses];
+
 export type GetHistoryData = {
     body?: never;
     headers?: {
@@ -62902,7 +63349,7 @@ export type RemoveProjectCompetitorResponses = {
      * Competitor removed
      */
     200: {
-        data: ProjectCompetitors;
+        data: ProjectCompetitorRemoval;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -63047,6 +63494,141 @@ export type UpdateProjectCompetitorResponses = {
 };
 
 export type UpdateProjectCompetitorResponse = UpdateProjectCompetitorResponses[keyof UpdateProjectCompetitorResponses];
+
+export type RestoreProjectCompetitorData = {
+    body: ProjectCompetitorRestore;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        competitorId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/competitors/{competitorId}/restore';
+};
+
+export type RestoreProjectCompetitorErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The removal is no longer the latest, the name is taken, the limit is reached, or a CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No removal given
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RestoreProjectCompetitorError = RestoreProjectCompetitorErrors[keyof RestoreProjectCompetitorErrors];
+
+export type RestoreProjectCompetitorResponses = {
+    /**
+     * Competitor restored
+     */
+    200: {
+        data: ProjectCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RestoreProjectCompetitorResponse = RestoreProjectCompetitorResponses[keyof RestoreProjectCompetitorResponses];
 
 export type SetProjectCompetitorChecksData = {
     body: ProjectCompetitorChecks;
@@ -94084,7 +94666,7 @@ export type SetCmoAdBudgetForProjectError = SetCmoAdBudgetForProjectErrors[keyof
 
 export type SetCmoAdBudgetForProjectResponses = {
     /**
-     * Cuso is re-planning, or will once his current turn ends
+     * Cuso is re-planning, or will once his current turn ends; no turn for a no the plan already follows
      */
     201: {
         data: CmoAdBudgetStarted;
@@ -104344,7 +104926,7 @@ export type GetTasksData = {
          */
         q?: string;
         /**
-         * Find Tasks by name or identifier first, then by visible tag or description. The selected sort breaks ties within each group.
+         * Find Tasks by name or identifier first, then by visible tag or description, then by result (a done comment). The selected sort breaks ties within each group.
          */
         search?: string;
         /**

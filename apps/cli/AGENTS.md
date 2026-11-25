@@ -4,6 +4,7 @@
 
 - Keep CLI product code, tests, and CLI documentation under `apps/cli`.
 - Treat `apps/core`, `apps/web`, other packages, root scripts, CI files, and lockfiles as out of scope for CLI work.
+- Exception: `apps/core/agent-surface/**` is in scope. A PR that adds or renames a CLI command updates its `cli` rows there ([Agent surface](../../docs/agents/agent-surface.md)).
 - Change an out-of-scope path only after the user approves the exact path and action in the current conversation.
 
 ## Production safety

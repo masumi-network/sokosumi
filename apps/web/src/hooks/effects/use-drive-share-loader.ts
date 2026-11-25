@@ -23,19 +23,24 @@ export function useDriveShareLoader(
 
   useEffect(() => {
     if (!item) return;
-    let current = true;
+    const controller = new AbortController();
     setShare(undefined);
     setPassword("");
-    fetchDriveShare({ store, target: item.target })
+    fetchDriveShare({
+      store,
+      target: item.target,
+      signal: controller.signal,
+    })
       .then((found) => {
-        if (current) setShare(found);
+        if (!controller.signal.aborted) setShare(found);
       })
       .catch(() => {
-        if (current) setShare(null);
+        if (controller.signal.aborted) return;
+        setShare(null);
         toast.error(loadFailedMessage.current);
       });
     return () => {
-      current = false;
+      controller.abort();
     };
   }, [item, store]);
 

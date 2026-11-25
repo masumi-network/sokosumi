@@ -97,6 +97,8 @@ describe("YouPageClient", () => {
     // Fills the width like every app page (DESIGN.md, Fill the width).
     expect(shell.className).not.toContain("max-w-");
     expect(shell.className).not.toContain("px-4");
+    expect(shell.className).not.toMatch(/\bp[txy]?-/);
+    expect(shell.className).toContain("pb-6");
     expect(shell.className).not.toContain("max-w-lg");
     expect(
       screen.getByRole("heading", { name: "Patrick Tobler" }),
@@ -191,6 +193,22 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
     expect(
       seo.compareDocumentPosition(screen.getByTestId("you-ads")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("links Competitors after Ads, as the sidebar does", () => {
+    renderYouPage();
+
+    const competitors = screen.getByTestId("you-competitors");
+    expect(competitors).toHaveAttribute("href", "/competitors");
+    expect(competitors).toHaveTextContent("competitors");
+    expect(
+      screen.getByTestId("you-ads").compareDocumentPosition(competitors) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      competitors.compareDocumentPosition(screen.getByTestId("you-files")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });

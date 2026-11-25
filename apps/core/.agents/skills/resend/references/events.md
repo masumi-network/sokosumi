@@ -8,14 +8,14 @@ Events are named signals that can trigger automations and track contact activity
 
 ### Node.js
 
-| Operation | Method | Notes |
-|-----------|--------|-------|
-| Create | `resend.events.create(params)` | Define a new event with optional schema |
-| Get | `resend.events.get(identifier)` | By ID (UUID) or event name |
-| List | `resend.events.list(params?)` | Cursor-paginated |
-| Update | `resend.events.update(params)` | Only `schema` can be updated |
-| Delete | `resend.events.remove(identifier)` | By ID or event name |
-| Send | `resend.events.send(params)` | Fire an event for a contact |
+| Operation | Method                             | Notes                                   |
+| --------- | ---------------------------------- | --------------------------------------- |
+| Create    | `resend.events.create(params)`     | Define a new event with optional schema |
+| Get       | `resend.events.get(identifier)`    | By ID (UUID) or event name              |
+| List      | `resend.events.list(params?)`      | Cursor-paginated                        |
+| Update    | `resend.events.update(params)`     | Only `schema` can be updated            |
+| Delete    | `resend.events.remove(identifier)` | By ID or event name                     |
+| Send      | `resend.events.send(params)`       | Fire an event for a contact             |
 
 ### Python
 
@@ -108,12 +108,12 @@ const { data, error } = await resend.events.remove('order.completed');
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Event name starting with `resend:` | The `resend:` prefix is reserved for system events |
-| Providing both `contactId`/`contact_id` and `email` on send | Provide exactly one — not both |
-| Providing neither `contactId`/`contact_id` nor `email` on send | Exactly one is required to associate the event with a contact |
-| Expecting synchronous response from send | Send returns `202 Accepted` — processing is async |
-| Trying to update the event name | Only `schema` can be updated — delete and recreate for name changes |
-| Schema type mismatch in payload | Payload values should match the schema types (`string`, `number`, `boolean`, `date`) |
-| Not checking `error` in Node.js | SDK returns `{ data, error }`, does not throw — always destructure and check |
+| Mistake                                                        | Fix                                                                                  |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Event name starting with `resend:`                             | The `resend:` prefix is reserved for system events                                   |
+| Providing both `contactId`/`contact_id` and `email` on send    | Provide exactly one — not both                                                       |
+| Providing neither `contactId`/`contact_id` nor `email` on send | Exactly one is required to associate the event with a contact                        |
+| Expecting synchronous response from send                       | Send returns `202 Accepted` — processing is async                                    |
+| Trying to update the event name                                | Only `schema` can be updated — delete and recreate for name changes                  |
+| Schema type mismatch in payload                                | Payload values should match the schema types (`string`, `number`, `boolean`, `date`) |
+| Not checking `error` in Node.js                                | SDK returns `{ data, error }`, does not throw — always destructure and check         |

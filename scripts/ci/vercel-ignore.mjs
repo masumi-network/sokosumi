@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Vercel Ignored Build Step for web, core, and cmo: the `ignoreCommand` in
+ * Vercel Ignored Build Step for web, core, cmo, and cmo-website: the `ignoreCommand` in
  * each app's vercel.json. Exit 0 skips the build; any other code builds.
  *
  *   node ../../scripts/ci/vercel-ignore.mjs <turbo package>

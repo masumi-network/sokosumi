@@ -1630,13 +1630,6 @@ body:has(.ob) .site-header {
   padding: 14px 20px;
 }
 
-.ob-budget-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .ob-approved {
   display: grid;
   margin: 0;
@@ -1705,6 +1698,8 @@ body:has(.ob) .site-header {
 
 /* Inside a tab panel the plan's sections are not cards: hairline dividers. */
 .ob-tabpanel .bb-section {
+  /* Title above its body, as on the app's page: one left edge for all. */
+  grid-template-columns: minmax(0, 1fr);
   padding: 24px 0;
   border: 0;
   border-top: 1px solid var(--border);
@@ -1925,6 +1920,12 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
+/* In a tab panel the cells sit on the panel itself: one left edge. */
+.ob-tabpanel .ob-metrics li {
+  padding: 0;
+  background: none;
+}
+
 /* How it works: four steps on one line, joined by a hairline. */
 .ob-how {
   display: grid;
@@ -2095,8 +2096,92 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-checkout > .legal-notice {
+.ob-checkout > .legal-notice,
+.ob-credits-buy {
   text-align: center;
+}
+
+/* One customer in their own words: calm, under the plans. */
+.ob-quote {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 0 0 0 16px;
+  border-left: var(--line-width) solid var(--line);
+}
+
+.ob-quote blockquote {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  text-wrap: pretty;
+}
+
+.ob-quote figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.ob-quote figcaption > span:last-child {
+  display: grid;
+}
+
+.ob-quote-name {
+  font-weight: 600;
+}
+
+.ob-quote-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--strip);
+  color: var(--strip-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-start {
+  width: 100%;
+}
+
+/* On a phone the Start button stays on screen above the plans, clear of the
+   home indicator; in the flow it rests in its own place, so nothing jumps. */
+@media (max-width: 599px) {
+  .ob-start {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--background);
+  }
+}
+
+/* What makes saying yes safe, right under the button. */
+.ob-assure {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-assure li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ob-plan-options {
@@ -2143,6 +2228,66 @@ body:has(.ob) .site-header {
   font-size: 1rem;
   line-height: 1.25rem;
   font-weight: 600;
+}
+
+/* The top plan stands out picked or not: the 6px shadow, and wider in a row. */
+.ob-plan-option.ob-plan-top {
+  box-shadow: var(--shadow-big);
+}
+
+@media (min-width: 600px) {
+  .ob-checkout > .ob-plan-options:has(> :nth-child(3):last-child) {
+    grid-template-columns: 1fr 1fr 1.2fr;
+  }
+}
+
+/* Under the plan's name: outlined, ink on the top plan; the room is kept on
+   a card without one so every card's lines stay level. */
+.ob-plan-frame,
+.ob-plan-frame-room {
+  justify-self: start;
+  min-height: 20px;
+}
+
+.ob-plan-frame {
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+}
+
+.ob-plan-frame-top {
+  border-color: var(--strip);
+  background: var(--strip);
+  color: var(--strip-foreground);
+}
+
+/* What only the top plan adds, under a hairline, with a check. */
+.ob-plan-extra {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+}
+
+.ob-plan-extra svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.ob-plan-option .ob-value {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-plan-option .ob-swap {
+    animation: ob-fade 150ms ease-out;
+  }
 }
 
 .ob-confirming {

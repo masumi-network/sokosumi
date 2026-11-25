@@ -94,17 +94,17 @@ curl -X POST 'https://api.resend.com/emails' \
 
 ### Common Error Codes
 
-| Code | Description | Action |
-|------|-------------|--------|
-| 400 | Bad request (invalid params) | Fix request parameters |
-| 400 | `invalid_idempotency_key` | Key must be 1-256 characters |
-| 401 | Invalid API key | Check RESEND_API_KEY |
-| 403 | Domain not verified | Verify domain at resend.com/domains |
-| 409 | `invalid_idempotent_request` | Key already used with different payload |
-| 409 | `concurrent_idempotent_requests` | Same key request in progress, retry later |
-| 422 | Unprocessable entity | Check email format/content |
-| 429 | Rate limited | Implement backoff and retry |
-| 500 | Server error | Retry with backoff |
+| Code | Description                      | Action                                    |
+| ---- | -------------------------------- | ----------------------------------------- |
+| 400  | Bad request (invalid params)     | Fix request parameters                    |
+| 400  | `invalid_idempotency_key`        | Key must be 1-256 characters              |
+| 401  | Invalid API key                  | Check RESEND_API_KEY                      |
+| 403  | Domain not verified              | Verify domain at resend.com/domains       |
+| 409  | `invalid_idempotent_request`     | Key already used with different payload   |
+| 409  | `concurrent_idempotent_requests` | Same key request in progress, retry later |
+| 422  | Unprocessable entity             | Check email format/content                |
+| 429  | Rate limited                     | Implement backoff and retry               |
+| 500  | Server error                     | Retry with backoff                        |
 
 ### Node.js
 

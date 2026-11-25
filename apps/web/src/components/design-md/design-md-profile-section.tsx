@@ -124,7 +124,7 @@ export function DesignMdProfileSection({
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{description}</CardDescription>
         <CardAction>
-          <Badge variant={hasDesignMd ? "default" : "outline"}>
+          <Badge variant={hasDesignMd ? "muted" : "outline"}>
             {hasDesignMd ? t("statusReady") : t("statusEmpty")}
           </Badge>
         </CardAction>
