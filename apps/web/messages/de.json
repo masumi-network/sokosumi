@@ -14127,7 +14127,7 @@
         "checkUnfinished": "Letzte Prüfung nicht beendet",
         "projectWorkspace": "SEO-Arbeitsbereich des Projekts",
         "emptyBody": "Erstelle ein Audit und füge die erste Seite hinzu. Weitere Seiten kannst du später hinzufügen.",
-        "createHelp": "Füge eine öffentliche Seiten-URL hinzu. Die Seite wird ohne kostenpflichtige Prüfung gespeichert.",
+        "createHelp": "Füge eine öffentliche Seiten-URL hinzu. Eine kostenlose Seitenprüfung startet sofort.",
         "name": "Audit-Name",
         "firstPage": "URL der ersten Seite",
         "createFailed": "Das Audit konnte nicht erstellt werden. Prüfe Name und URL und versuche es erneut.",
@@ -14140,12 +14140,12 @@
           "titleProject": "Starte das erste SEO-Audit dieses Projekts",
           "body": "Dein Agent verfolgt Rankings, findet Probleme auf Seiten und entwirft Korrekturen. Du gibst jede einzeln frei.",
           "addTitle": "Seite hinzufügen",
-          "addBody": "Beginne mit einer öffentlichen Seite. Weitere Seiten kannst du später hinzufügen.",
+          "addBody": "Beginne mit einer öffentlichen Seite. Eine kostenlose Seitenprüfung startet sofort. Weitere Seiten kannst du später hinzufügen.",
           "connectTitle": "Google verbinden",
           "connectBody": "Verbinde Google, um Suchanfragen und Klicks deiner Seite zu sehen. Das machst du, nachdem du das Audit erstellt hast.",
           "checkTitle": "Erste Prüfung starten",
           "checkBody": "Der Agent liest deine Seiten, findet Probleme und entwirft Korrekturen.",
-          "trust": "Eine Seite zu speichern ist kostenlos. Kostenpflichtige Prüfungen laufen nur, wenn du sie startest.",
+          "trust": "Die erste Seitenprüfung ist kostenlos. Kostenpflichtige Prüfungen laufen nur, wenn du sie startest.",
           "steps": "Einrichtungsschritte"
         }
       },

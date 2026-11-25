@@ -14127,7 +14127,7 @@
         "checkUnfinished": "Last check did not finish",
         "projectWorkspace": "Project SEO workspace",
         "emptyBody": "Create an audit and add its first page. You can add related pages later.",
-        "createHelp": "Add a public page URL. This saves the page without running a paid check.",
+        "createHelp": "Add a public page URL. A free page check starts right away.",
         "name": "Audit name",
         "firstPage": "First page URL",
         "createFailed": "Could not create the audit. Check the name and URL, then try again.",
@@ -14140,12 +14140,12 @@
           "titleProject": "Start this project's first SEO audit",
           "body": "Your agent tracks rankings, finds page issues and drafts fixes. You approve each one.",
           "addTitle": "Add a page",
-          "addBody": "Start with one public page. You can add related pages later.",
+          "addBody": "Start with one public page. A free page check starts right away. You can add related pages later.",
           "connectTitle": "Connect Google",
           "connectBody": "Connect Google to see the searches and clicks of your page. You do this after you create the audit.",
           "checkTitle": "Run the first check",
           "checkBody": "The agent reads your pages, finds issues and drafts fixes.",
-          "trust": "Saving a page is free. Paid checks only run when you start them.",
+          "trust": "The first page check is free. Paid checks only run when you start them.",
           "steps": "Setup steps"
         }
       },

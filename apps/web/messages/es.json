@@ -14127,7 +14127,7 @@
         "checkUnfinished": "La última comprobación no terminó",
         "projectWorkspace": "Espacio SEO del proyecto",
         "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
-        "createHelp": "Añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
+        "createHelp": "Añade la URL de una página pública. Una comprobación gratuita de la página empieza enseguida.",
         "name": "Nombre de la auditoría",
         "firstPage": "URL de la primera página",
         "createFailed": "No se pudo crear la auditoría. Revisa el nombre y la URL e inténtalo de nuevo.",
@@ -14140,12 +14140,12 @@
           "titleProject": "Empieza la primera auditoría SEO de este proyecto",
           "body": "Tu agente sigue las posiciones, encuentra problemas en las páginas y prepara correcciones. Tú apruebas cada una.",
           "addTitle": "Añade una página",
-          "addBody": "Empieza con una página pública. Puedes añadir páginas relacionadas después.",
+          "addBody": "Empieza con una página pública. Una comprobación gratuita de la página empieza enseguida. Puedes añadir páginas relacionadas después.",
           "connectTitle": "Conecta Google",
           "connectBody": "Conecta Google para ver las búsquedas y los clics de tu página. Lo haces después de crear la auditoría.",
           "checkTitle": "Inicia la primera comprobación",
           "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones.",
-          "trust": "Guardar una página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
+          "trust": "La primera comprobación de la página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
           "steps": "Pasos de configuración"
         }
       },

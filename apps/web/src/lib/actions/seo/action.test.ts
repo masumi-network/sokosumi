@@ -14,6 +14,7 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
     changeStateMock: vi.fn(),
   }));
 const setArchivedMock = vi.hoisted(() => vi.fn());
+const createAuditMock = vi.hoisted(() => vi.fn());
 const authenticatedSessionId = vi.hoisted(() =>
   vi.fn<() => string | undefined>(),
 );
@@ -48,10 +49,13 @@ vi.mock("@/lib/services/seo.service", () => ({
   seoServiceNoRedirect: {
     requestAnalysis: requestAnalysisMock,
     setAuditArchived: setArchivedMock,
+    createAudit: createAuditMock,
   },
 }));
 
+import { seoTestWorkspace } from "@/app/seo/components/seo-test-fixture";
 import { mutateSeo } from "./action";
+import { createSeoAuditAction } from "./create-audit";
 import { setSeoAuditArchivedAction } from "./set-audit-archived";
 
 const OWNER = {
@@ -340,4 +344,21 @@ it("binds a per-run coverage decision to the viewer's session and forwards only 
     expectedRevision: 3,
     allowLimitedAudit: true,
   });
+});
+
+it("starts the free page check of a new audit, and keeps the audit when that check does not start", async () => {
+  const audit = { ...seoTestWorkspace(), auditId: OWNER.id };
+  createAuditMock.mockResolvedValue(audit);
+  requestAnalysisMock.mockRejectedValue(
+    new CoreApiRequestError("refused", { status: 503 }),
+  );
+  const result = await createSeoAuditAction({
+    body: { name: "Example", firstPage: { url: "https://example.com/" } },
+  });
+  expect(result).toMatchObject({ ok: true, value: { auditId: OWNER.id } });
+  expect(requestAnalysisMock).toHaveBeenCalledWith(
+    OWNER,
+    expect.objectContaining({ kind: "page_check", maxProviderCalls: 0 }),
+  );
+  expect(revalidatePathMock).toHaveBeenCalledWith("/seo");
 });
