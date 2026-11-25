@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { seoSearchSiteHost } from "@sokosumi/utils";
 import type { SeoIndexedPage } from "@/schemas/project-seo.schema";
+import { seoSearchTypeHasQueries } from "@/schemas/project-seo-traffic.schema";
 import { seoUrlSchema } from "@/schemas/seo-page.schema";
 import type {
   SiteTrafficInput,
@@ -16,6 +17,11 @@ import {
   unwrapNativeStatistics,
   withinPeriod,
 } from "./native-statistics";
+import {
+  BRAND_QUERY_BATCH,
+  BRAND_READ_BUDGET_MS,
+  readBrandSplit,
+} from "./site-traffic-brand";
 
 const PAGE_BATCH = 250;
 const MAX_BATCHES = 10;
@@ -31,6 +37,9 @@ const response = z.object({
 const dailyResponse = response.extend({
   rows: z.array(row).max(SEO_STATS_MAX_DAYS).default([]),
 });
+const brandResponse = response.extend({
+  rows: z.array(row).max(BRAND_QUERY_BATCH).default([]),
+});
 function readRows(value: unknown, schema = response) {
   const payload = unwrapNativeStatistics(value, [
     "rows",
@@ -45,12 +54,23 @@ function readRows(value: unknown, schema = response) {
   return schema.parse(payload).rows;
 }
 /** Every provider call, including the headline total, carries the same site boundary. */
+/** Gives up on one hung read after twice the read budget. The split is then absent. */
+function withBrandBudget<T>(split: Promise<T>): Promise<T | undefined> {
+  let stop = () => {};
+  const late = new Promise<undefined>((resolve) => {
+    const timer = setTimeout(resolve, 2 * BRAND_READ_BUDGET_MS);
+    stop = () => clearTimeout(timer);
+  });
+  return Promise.race([split.catch(() => undefined), late]).finally(stop);
+}
+
 export async function readSiteTraffic(
   input: SiteTrafficInput,
   siteUrl: string,
   selected: string[],
   inspections: SeoIndexedPage[],
   read: (args: Record<string, unknown>) => Promise<unknown>,
+  brandTerms: string[] = [],
 ) {
   const site = seoSearchSiteHost(siteUrl);
   if (
@@ -96,13 +116,25 @@ export async function readSiteTraffic(
       "includingRegex",
       expression,
     );
-  const [totalRows, first, dailyRows] = await Promise.all([
+  const [totalRows, first, dailyRows, brand] = await Promise.all([
     read(args([], 0, 1)).then(readRows),
     read(args(["page"], 0, PAGE_BATCH)).then(readRows),
     input.includeDaily
       ? read(args(["date"], 0, SEO_STATS_MAX_DAYS)).then(
           (value) => readRows(value, dailyResponse),
           () => undefined,
+        )
+      : undefined,
+    // The split is an extra: a failed or slow query read leaves the totals and pages as they are.
+    // A feed (Discover, Google News) has no queries to split.
+    brandTerms.length && seoSearchTypeHasQueries(input.searchType)
+      ? withBrandBudget(
+          readBrandSplit(brandTerms, input, async (start) =>
+            readRows(
+              await read(args(["date", "query"], start, BRAND_QUERY_BATCH)),
+              brandResponse,
+            ),
+          ),
         )
       : undefined,
   ]);
@@ -169,6 +201,7 @@ export async function readSiteTraffic(
     from: input.from,
     to: input.to,
     ...(daily && { daily }),
+    ...(brand && { brand }),
     limited,
     totals: total
       ? { clicks: total.clicks, impressions: total.impressions }

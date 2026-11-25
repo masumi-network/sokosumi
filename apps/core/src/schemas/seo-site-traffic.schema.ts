@@ -41,6 +41,26 @@ export const siteTrafficReport = z
       .max(SEO_STATS_MAX_DAYS)
       .optional(),
     limited: z.boolean(),
+    /**
+     * The listed queries of each day, split by the owner's brand terms. Absent without
+     * brand terms or when the query rows could not be read. Clicks that Google lists
+     * under no query are on neither side.
+     */
+    brand: z
+      .object({
+        daily: z
+          .array(
+            z.object({
+              date: seoDateSchema,
+              branded: counts,
+              nonBranded: counts,
+            }),
+          )
+          .max(SEO_STATS_MAX_DAYS),
+        /** True when the read stopped at its row limit: the weakest rows are on neither side. */
+        limited: z.boolean(),
+      })
+      .optional(),
     pages: z.array(
       counts.extend({
         url: seoUrlSchema,

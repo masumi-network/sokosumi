@@ -259,6 +259,76 @@ describe("website-scoped Search Console traffic", () => {
     ).rejects.toThrow();
     expect(read).not.toHaveBeenCalled();
   });
+  it("splits the listed queries by brand terms inside the same website boundary", async () => {
+    const queries = [
+      { keys: ["2026-11-17", "sample site login"], clicks: 4, impressions: 9 },
+      { keys: ["2026-11-17", "running shoes"], clicks: 1, impressions: 30 },
+    ];
+    const read = vi.fn((args: Record<string, unknown>) =>
+      (args.dimensions as string[]).join() === "date,query"
+        ? Promise.resolve({ rows: queries })
+        : google(args),
+    );
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      read,
+      ["Sample Site"],
+    );
+    expect(report.brand).toEqual({
+      limited: false,
+      daily: [
+        {
+          date: "2026-11-17",
+          branded: { clicks: 4, impressions: 9 },
+          nonBranded: { clicks: 1, impressions: 30 },
+        },
+      ],
+    });
+    const [pageRead, queryRead] = [["page"], ["date", "query"]].map(
+      (dimensions) =>
+        read.mock.calls.find(
+          ([args]) => String(args.dimensions) === String(dimensions),
+        )?.[0],
+    );
+    expect(queryRead?.dimension_filter_groups).toEqual(
+      pageRead?.dimension_filter_groups,
+    );
+  });
+  it("keeps the totals and pages when the query rows cannot be read", async () => {
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      (args) =>
+        (args.dimensions as string[]).includes("query")
+          ? Promise.reject(new Error("no query rows for this search type"))
+          : google(args),
+      ["Sample Site"],
+    );
+    expect(report.brand).toBeUndefined();
+    expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
+  });
+  it("asks a feed for no query rows", async () => {
+    const read = vi.fn(google);
+    const report = await readSiteTraffic(
+      { ...request, searchType: "discover" },
+      apex,
+      [apex],
+      [inspection],
+      read,
+      ["Sample Site"],
+    );
+    expect(report.brand).toBeUndefined();
+    expect(
+      read.mock.calls.some(([args]) =>
+        (args.dimensions as string[]).includes("query"),
+      ),
+    ).toBe(false);
+  });
   it("rejects an unexpected page from the provider before returning private measurements", async () => {
     await expect(
       readSiteTraffic(request, apex, [apex], [], async (args) => ({
