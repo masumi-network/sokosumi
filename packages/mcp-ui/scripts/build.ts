@@ -6,14 +6,32 @@
  *   node scripts/build.ts
  */
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { build } from "vite";
 
 const PACKAGE_DIR = fileURLToPath(new URL("..", import.meta.url));
-export const VIEWS_DIR = join(PACKAGE_DIR, "src", "views");
+const VIEWS_DIR = join(PACKAGE_DIR, "src", "views");
+
+/** The view ids: each directory in src/views with an index.html. */
+export function viewIds(): string[] {
+  return readdirSync(VIEWS_DIR, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        existsSync(join(VIEWS_DIR, entry.name, "index.html")),
+    )
+    .map((entry) => entry.name)
+    .sort();
+}
 
 interface BuiltView {
   id: string;
@@ -43,6 +61,8 @@ export function inlineAssets(
   return html.replace(ASSET_TAG, (_tag, src?: string, href?: string) => {
     if (src) {
       const js = take(src).replace(/<\/script/gi, "<\\/script");
+      // `<!--` can put the HTML parser in a state where `</script>` no longer ends the script.
+      if (js.includes("<!--")) throw new Error(`${src} contains "<!--"`);
       return `<script type="module">${js}</script>`;
     }
     const css = take(href ?? "");
@@ -110,7 +130,7 @@ export async function buildViews(
   outDir = join(PACKAGE_DIR, "dist"),
 ): Promise<void> {
   const views: BuiltView[] = [];
-  for (const id of readdirSync(VIEWS_DIR).sort()) {
+  for (const id of viewIds()) {
     const html = await buildView(id);
     const hash = createHash("sha256").update(html).digest("hex").slice(0, 8);
     views.push({ id, html, uri: `ui://sokosumi/${id}.${hash}.html` });

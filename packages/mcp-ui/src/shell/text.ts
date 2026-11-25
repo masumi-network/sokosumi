@@ -25,15 +25,19 @@ export function formatDateTime(iso: string, host: HostLocale): string {
     dateStyle: "medium",
     timeStyle: "short",
   };
-  try {
-    return new Intl.DateTimeFormat(host.locale, {
-      ...options,
-      timeZone: host.timeZone,
-    }).format(date);
-  } catch {
-    // A host sent a locale or time zone this runtime does not know.
-    return new Intl.DateTimeFormat(undefined, options).format(date);
+  // A host may send a locale or time zone this runtime does not know: drop
+  // the time zone first, then the locale.
+  for (const [locale, timeZone] of [
+    [host.locale, host.timeZone],
+    [host.locale, undefined],
+  ]) {
+    try {
+      return new Intl.DateTimeFormat(locale, { ...options, timeZone }).format(
+        date,
+      );
+    } catch {}
   }
+  return new Intl.DateTimeFormat(undefined, options).format(date);
 }
 
 /**

@@ -29,6 +29,12 @@ describe("formatDateTime", () => {
     ).toBe("Nov 25, 2026, 7:00 AM");
   });
 
+  it("keeps the locale when only the time zone is unknown", () => {
+    expect(
+      spaces(formatDateTime(iso, { locale: "de-DE", timeZone: "Mars/Base" })),
+    ).toMatch(/^25\.11\.2026, /);
+  });
+
   it("falls back to the defaults for an unknown locale or time zone", () => {
     expect(() =>
       formatDateTime(iso, { locale: "not a locale", timeZone: "Mars/Base" }),

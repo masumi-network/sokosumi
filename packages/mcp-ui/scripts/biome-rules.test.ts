@@ -27,6 +27,14 @@ describe("raw HTML ban", () => {
     ["innerHTML", "export const f = (el: Element) => { el.innerHTML = 'x'; };"],
     ["outerHTML", "export const f = (el: Element) => { el.outerHTML = 'x'; };"],
     [
+      "computed innerHTML",
+      "export const f = (el: Element) => { el['innerHTML'] = 'x'; };",
+    ],
+    [
+      "innerHTML in an object",
+      "export const f = (el: Element) => Object.assign(el, { innerHTML: 'x' });",
+    ],
+    [
       "insertAdjacentHTML",
       "export const f = (el: Element) => el.insertAdjacentHTML('beforeend', 'x');",
     ],

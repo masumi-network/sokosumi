@@ -36,7 +36,16 @@ export function HelloView({
       <p className="max-w-prose">{t("hello.body")}</p>
       {canOpen && (
         <div>
-          <PrimaryButton onClick={() => void context.app.openLink({ url })}>
+          <PrimaryButton
+            onClick={() =>
+              context.app.openLink({ url }).catch((error: unknown) =>
+                context.app.sendLog({
+                  level: "warning",
+                  data: `ui/open-link failed: ${String(error)}`,
+                }),
+              )
+            }
+          >
             {t("hello.open")}
           </PrimaryButton>
         </div>

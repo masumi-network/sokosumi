@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { buildViews, inlineAssets, VIEWS_DIR } from "./build.ts";
+import { buildViews, inlineAssets, viewIds } from "./build.ts";
 
 describe("inlineAssets", () => {
   it("inlines the module script and the stylesheet", () => {
@@ -29,6 +29,14 @@ describe("inlineAssets", () => {
     );
   });
 
+  it("fails on a script that would end early in HTML", () => {
+    expect(() =>
+      inlineAssets('<script type="module" src="/a.js"></script>', {
+        "/a.js": 'const s = "<!--<script>";',
+      }),
+    ).toThrow(/<!--/);
+  });
+
   it("fails on an asset it cannot inline", () => {
     expect(() =>
       inlineAssets('<img src="/assets/logo.png">', {
@@ -40,16 +48,21 @@ describe("inlineAssets", () => {
 
 describe("buildViews", () => {
   const outDir = mkdtempSync(join(tmpdir(), "mcp-ui-build-"));
-  const viewIds = readdirSync(VIEWS_DIR);
+  const ids = viewIds();
 
   beforeAll(() => buildViews(outDir), 120_000);
   afterAll(() => rmSync(outDir, { recursive: true, force: true }));
 
+  it("finds the views and nothing else in src/views", () => {
+    expect(ids).toContain("hello");
+    expect(ids.every((id) => !id.startsWith("."))).toBe(true);
+  });
+
   it("emits one self-contained HTML file per view", () => {
     expect(readdirSync(join(outDir, "views")).sort()).toEqual(
-      viewIds.map((id) => `${id}.html`).sort(),
+      ids.map((id) => `${id}.html`).sort(),
     );
-    for (const id of viewIds) {
+    for (const id of ids) {
       const html = readFileSync(join(outDir, "views", `${id}.html`), "utf8");
       expect(html).toMatch(/<script type="module">/);
       expect(html).toMatch(/<style>/);
@@ -61,8 +74,8 @@ describe("buildViews", () => {
   it("exports the registry with hashed URIs and the typed ids", async () => {
     const { MCP_UI } = await import(join(outDir, "index.js"));
 
-    expect(Object.keys(MCP_UI).sort()).toEqual([...viewIds].sort());
-    for (const id of viewIds) {
+    expect(Object.keys(MCP_UI).sort()).toEqual([...ids].sort());
+    for (const id of ids) {
       expect(MCP_UI[id].uri).toMatch(
         new RegExp(`^ui://sokosumi/${id}\\.[0-9a-f]{8}\\.html$`),
       );
@@ -71,7 +84,7 @@ describe("buildViews", () => {
       );
     }
     expect(readFileSync(join(outDir, "index.d.ts"), "utf8")).toContain(
-      `export type UiId = ${viewIds.map((id) => JSON.stringify(id)).join(" | ")};`,
+      `export type UiId = ${ids.map((id) => JSON.stringify(id)).join(" | ")};`,
     );
   });
 });
