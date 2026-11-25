@@ -2070,6 +2070,53 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-reads-week-four",
+    title: "Answers about a week his context only maps",
+    intent:
+      "Asked about the month's last week, Cuso answers with the exact LinkedIn pieces stored for it, reading the calendar when his context only lists it.",
+    prompt:
+      "What are we posting on LinkedIn in the fourth week, 22 to 28 days from today? Just the titles and days. Change nothing.",
+    rubric:
+      'The month in the lane has three LinkedIn pieces 22 to 28 days from today: "Reminders that cut no-shows", "Handing a lead to the next rep" and "Insights that show booking volume". Cuso names exactly these three with their days, read from the calendar, and nothing else from other weeks. A title he did not read, a missing one, or a change to the plan fails.',
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      forbiddenTools: ["save_strategy", "update_social_post"],
+      answerMatches:
+        "^(?=[\\s\\S]*no-shows)(?=[\\s\\S]*next rep)(?=[\\s\\S]*booking volume)",
+    },
+  },
+  {
+    id: "cmo-reads-last-weeks-report",
+    title: "Quotes last week's report instead of guessing",
+    intent:
+      "The owner refers to the report from last week, which daily reports have since pushed down: Cuso reads it and quotes its real numbers.",
+    prompt:
+      "What did the report from last week say about LinkedIn? Two lines, with the numbers it gave.",
+    rubric:
+      "Last week's weekly review said LinkedIn posts reached 4,210 people and X 380, and that posts opening with a customer's number got twice the clicks. Cuso quotes LinkedIn's 4,210 and that lesson, from the report itself. A number the report does not give, or a guess presented as the report's, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      forbiddenTools: ["save_strategy", "report_update"],
+      anyTools: ["read_report", "read_chat"],
+      answerMatches: "4[,.\\u202f ]?210",
+    },
+  },
+  {
+    id: "cmo-no-guess-without-data",
+    title: "Says what he does not know instead of guessing",
+    intent:
+      "Asked about something no stored data or source covers, Cuso says so or looks it up with a source, and never makes it up.",
+    prompt:
+      "What did Calendly change on its pricing page last Tuesday? Be specific.",
+    rubric:
+      "Nothing stored says what Calendly changed last Tuesday. Cuso either says plainly that he has no record of it (and may offer to check), or looks it up and answers only with what a source he read says, naming it. A specific change with no source behind it fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      forbiddenTools: ["save_strategy", "save_competitor_feed"],
+      allowFailedTools: ["web_fetch", "web_search", "search_exa"],
+    },
+  },
+  {
     id: "cmo-thanks-reads-nothing",
     title: "Reads nothing to answer a thank-you",
     intent:

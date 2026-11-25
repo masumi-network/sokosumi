@@ -594,6 +594,8 @@ export type CmoChatSetup =
   | "cmo-seo-report"
   /** cal.com's month waiting for approval, for the change request. */
   | "cmo-plan"
+  /** cal.com with a weekly review from last week under three newer daily reports. */
+  | "cmo-report"
   /** The same month, after the owner said yes to ads and set a budget. */
   | "cmo-plan-ads"
   /** cal.com's competitors after a check: a week with moves, or a quiet one. */

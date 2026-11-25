@@ -1650,6 +1650,71 @@ describe("saving versions", () => {
     ]);
   });
 
+  // cmo-v23 (ADR 0080): a chat or rhythm sees no calendar window, so a whole
+  // calendar it sends must not drop pieces it never read.
+  it("keeps every unsent entry for a turn that worked without the calendar", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    turnFindUnique.mockResolvedValue({
+      versionId: "cmo-v23",
+      clientTurnId: "chat:1",
+      source: "CHAT",
+      userMessage: "",
+    });
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    expect(
+      plan(saved)
+        .calendar.map((entry) => entry.id)
+        .sort(),
+    ).toEqual(
+      strategy.calendar
+        .map((entry) => entry.id)
+        .concat("d")
+        .sort(),
+    );
+  });
+
+  it("keeps a strategy turn's window on cmo-v23", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    turnFindUnique.mockResolvedValue({
+      versionId: "cmo-v23",
+      clientTurnId: "cmo:strategy:bot-1:1",
+      source: "EVENT",
+      userMessage: "",
+    });
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    seedStrategy({ ...strategy, calendar: [...strategy.calendar, far] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual([
+      "b",
+      "a",
+      "d",
+    ]);
+  });
+
   it("keeps what a save leaves out, so a plan can arrive in short calls", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
