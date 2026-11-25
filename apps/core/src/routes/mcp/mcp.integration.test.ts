@@ -121,7 +121,7 @@ describe("Sokosumi MCP server", () => {
     });
   }, 15_000);
 
-  it("lists the default toolsets, under 80 tools, unless the URL picks others", async () => {
+  it("lists the default toolsets, 45 tools at most, unless the URL picks others", async () => {
     const auth = { Authorization: "Bearer mcp-token" };
     const listed = async (query?: string) =>
       (await (await connect(auth, query)).listTools()).tools.map(
@@ -134,7 +134,10 @@ describe("Sokosumi MCP server", () => {
         (DEFAULT_TOOLSETS as readonly string[]).includes(toolsetOf(name)),
       ),
     );
-    expect(defaults.length).toBeLessThan(80);
+    // SOKD-410: feature toolsets keep the default small. Growing it is a
+    // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
+    expect(defaults).toHaveLength(34);
+    expect(defaults.length).toBeLessThanOrEqual(45);
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
     expect(await listed("?toolsets=vendors,organizations")).toEqual(
@@ -163,7 +166,7 @@ describe("Sokosumi MCP server", () => {
   it("warns before a tool that spends credits", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=tasks,agents,projects,seo,contacts,chats,soko-bots",
+      "?toolsets=task-schedules,agents,image-studio,project-brand,ads,seo,contacts,chats,soko-bots",
     );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
@@ -228,7 +231,7 @@ describe("Sokosumi MCP server", () => {
   it("marks the ad campaign tools open-world and destructive", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=projects",
+      "?toolsets=ads",
     );
     const { tools } = await client.listTools();
     const outside = MCP_TOOLS.filter((tool) => tool.openWorld).map(

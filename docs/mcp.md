@@ -38,13 +38,32 @@ Each tool acts in your personal workspace unless it gets a `workspace` argument:
 
 ## Toolsets
 
-A toolset is one route group, such as `tasks` or `jobs`. By default the server lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: to let the agent browse and hire agents and follow their Jobs, add `agents` and `jobs`, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`. Hiring an agent spends workspace credits. Without them, `tasks_jobs` still lists the Jobs that ran for a Task. Account tools are in `users`, which is opt-in: to let the agent check who is signed in (`users_get` with id `me`), preferences, files and the access granted to your personal workspace, add it, as in `?toolsets=workspaces,users,tasks`. The other opt-in toolsets include `projects`, `image-studio`, `drive`, `transactions`, `history`, `notifications` and `categories`. Pick toolsets with `?toolsets=` on the URL. `projects` reads a Project's ads, Image Studio, Social posts and Calendar; `image-studio` reads the model catalog and Studio results across Projects. `projects` also starts and cancels Image Studio generations, which spend credits, drafts, plans and cancels Social posts, which wait for a person's approval, cancels a scheduled newsletter, and creates ad campaigns (always paused), pauses them, and changes the budget or edits a campaign only while it is paused. Otherwise both are read-only for now: a person approves, publishes, sends and resumes an ad campaign ([ADR 0077](./adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). `drive` searches, files and tags Drive documents and edits tables and data rooms; its tools take `scope` (`me`, or `org` with `organizationId`) instead of `workspace`, except the tables tools.
+A toolset is one route group, such as `tasks` or `jobs`, or one feature of a large group, such as `task-schedules`. By default the server lists `workspaces`, `tasks` and `coworkers`: 34 tools. The marketplace is opt-in: to let the agent browse and hire agents and follow their Jobs, add `agents` and `jobs`, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`. Hiring an agent spends workspace credits. Without them, `tasks_jobs` still lists the Jobs that ran for a Task. Account tools are in `users`, which is opt-in: to let the agent check who is signed in (`users_get` with id `me`), preferences, files and the access granted to your personal workspace, add it, as in `?toolsets=workspaces,users,tasks`. The other opt-in toolsets include `projects`, `project-brand`, `social`, `ads`, `image-studio`, `newsletter`, `drive`, `transactions`, `history`, `notifications` and `categories`. Pick toolsets with `?toolsets=` on the URL. `projects` reads and manages Projects and their Calendar; `project-brand` holds the brand brain, competitors and strategies. `image-studio` reads the model catalog and Studio results, and starts and cancels Image Studio generations, which spend credits. `social` drafts, plans and cancels Social posts, which wait for a person's approval. `newsletter` drafts issues and cancels a scheduled one. `ads` creates ad campaigns (always paused), pauses them, and changes the budget or edits a campaign only while it is paused. Otherwise these are read-only for now: a person approves, publishes, sends and resumes an ad campaign ([ADR 0077](./adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). `drive` searches, files and tags Drive documents and edits tables and data rooms; its tools take `scope` (`me`, or `org` with `organizationId`) instead of `workspace`, except the tables tools.
 
 ```bash
-claude mcp add --transport http sokosumi "https://api.sokosumi.com/mcp?toolsets=workspaces,tasks,projects"
+claude mcp add --transport http sokosumi "https://api.sokosumi.com/mcp?toolsets=workspaces,tasks,projects,social"
 ```
 
 An unknown toolset name is an error.
+
+### Toolsets changed (2026-11-25)
+
+Large groups split into feature toolsets (SOKD-410). No tool was renamed; add the new names to `?toolsets=` to keep a tool you used:
+
+| Toolset           | Tools                                                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `task-schedules`  | Task Schedules and their Runs (`tasks_*_schedule*`); three of them spend credits                                              |
+| `task-sharing`    | `tasks_join`, `tasks_leave`, `tasks_follow`, `tasks_unfollow`, `tasks_send_to_chat`, `tasks_workspace`, `tasks_set_workspace` |
+| `task-views`      | `tasks_summary`, `tasks_view`, `tasks_set_view`, `tasks_move_overdue`, `tasks_undo_move_overdue`                              |
+| `task-files`      | `tasks_files`, `tasks_upload_url`                                                                                             |
+| `coworker-access` | Coworker API keys and workspace access: list, update and revoke                                                               |
+| `project-brand`   | `projects_*` brand brain, competitor and strategy tools                                                                       |
+| `social`          | `projects_social_*`                                                                                                           |
+| `ads`             | `projects_ads_*`                                                                                                              |
+| `image-studio`    | now also `projects_image_studio*`                                                                                             |
+| `newsletter`      | now also `projects_newsletter_issue_cancel`                                                                                   |
+
+`tasks` keeps everyday Task work: list, get, create, update, archive, restore, comment, events, Jobs, links, move and receipt.
 
 ## For developers
 

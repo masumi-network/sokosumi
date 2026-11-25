@@ -220,7 +220,7 @@ sokosumi tasks pause-schedule SCHEDULE_ID --organization-slug WORKSPACE_SLUG
 sokosumi tasks update-schedule-run SCHEDULE_ID RUN_ID --organization-slug WORKSPACE_SLUG --input-json '{"expectedRevision":3,"action":"skip"}'
 ```
 
-Schedule writes take `expectedRevision` from `get-schedule`; a stale one is a `409`. The rule is a five-field cron read in its `timezone`. Public share links, tag suggestions, adding a Job (assigned Coworker only), x402 payments, and the SEO worker's runtime routes stay off the CLI and MCP; `apps/core/agent-surface/tasks.json` says why for each.
+Schedule writes take `expectedRevision` from `get-schedule`; a stale one is a `409`. Over MCP, schedule tools are in the `task-schedules` toolset; joining, following, moving a Task to another Workspace and sending it to chat are in `task-sharing`; the summary, saved view and overdue moves in `task-views`; Task files in `task-files`. All are off by default. The rule is a five-field cron read in its `timezone`. Public share links, tag suggestions, adding a Job (assigned Coworker only), x402 payments, and the SEO worker's runtime routes stay off the CLI and MCP; `apps/core/agent-surface/tasks.json` says why for each.
 
 ## Developer onboarding when requested
 
@@ -367,7 +367,7 @@ sokosumi projects social-post-cancel PROJECT_ID POST_ID --input-json '{"revision
 sokosumi projects newsletter-issue-cancel PROJECT_ID ISSUE_ID --input-json '{"revision":2}'
 ```
 
-Also `social-post-queue`, `social-post-duplicate`, `social-account-post-recycle`, `social-queue-slots-update` and the two `statistics-refresh` commands. Send the `revision` you last read. Approving, rejecting, publishing or resuming a post, and approving, scheduling or sending a newsletter answer 403 `person_approval_required` with a `webUrl`: give your user that link instead of retrying. Over MCP these tools are in the `projects` toolset, off by default.
+Also `social-post-queue`, `social-post-duplicate`, `social-account-post-recycle`, `social-queue-slots-update` and the two `statistics-refresh` commands. Send the `revision` you last read. Approving, rejecting, publishing or resuming a post, and approving, scheduling or sending a newsletter answer 403 `person_approval_required` with a `webUrl`: give your user that link instead of retrying. Over MCP the Social post tools are in the `social` toolset and the newsletter tools in `newsletter`, both off by default. Ad tools are in `ads`, Image Studio in `image-studio`, and the brand brain, competitors and strategies in `project-brand`.
 
 ## Projects and newsletters
 
@@ -495,7 +495,7 @@ Over MCP, the Soko Bot tools are in the `soko-bots` toolset, off by default: add
 claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 ```
 
-[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them. Drive tools sit in the `drive` toolset, off by default (`?toolsets=drive`), and take `scope` like the CLI. Contact tools (`contacts_*`, contact lists included) are off by default too: add `contacts` to `?toolsets=`.
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` (everyday Task work) and `coworkers` (Coworker set-up; API keys and access are in `coworker-access`). The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them. Drive tools sit in the `drive` toolset, off by default (`?toolsets=drive`), and take `scope` like the CLI. Contact tools (`contacts_*`, contact lists included) are off by default too: add `contacts` to `?toolsets=`.
 
 [VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 
