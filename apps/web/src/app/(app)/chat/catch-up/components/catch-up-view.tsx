@@ -3,7 +3,6 @@
 import type { ChatCatchUpSummary } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { isCatchUpSummaryEmpty } from "@/components/chat/signals/catch-up-summary-body";
 import { fetchCatchUpSummary } from "@/components/chat/signals/fetch-catch-up-summary";
 import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
@@ -68,7 +67,6 @@ export function CatchUpView({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 pb-4">
-      <ChatUnreadViewHeader title={t("whileYouWereAwayTitle")} />
       {!showsSummary ? (
         <>
           <div className={HOLDER_CLASS}>
