@@ -1,0 +1,57 @@
+diff --git a/dist/debounce-DfBW1PC1.js b/dist/debounce-DfBW1PC1.js
+index 19eec85c1bde3a7d7e4f0d91cd567c7e2fb73297..03a8f029ee62823949910f265a5d04b400fa3147 100644
+--- a/dist/debounce-DfBW1PC1.js
++++ b/dist/debounce-DfBW1PC1.js
+@@ -89,17 +89,43 @@ function createEmitter() {
+ }
+ //#endregion
+ //#region src/lib/timeout.ts
++const pendingTimeoutBatches = /* @__PURE__ */ new Map();
+ function timeout(callback, ms, signal) {
+-	function onTick() {
+-		callback();
+-		signal.removeEventListener("abort", onAbort);
+-	}
+-	const id = setTimeout(onTick, ms);
+-	function onAbort() {
+-		clearTimeout(id);
+-		signal.removeEventListener("abort", onAbort);
++	if (signal.aborted) return;
++	let batch = pendingTimeoutBatches.get(ms);
++	if (!batch) {
++		batch = {
++			entries: /* @__PURE__ */ new Set(),
++			id: null
++		};
++		pendingTimeoutBatches.set(ms, batch);
++		queueMicrotask(() => {
++			if (pendingTimeoutBatches.get(ms) === batch) pendingTimeoutBatches.delete(ms);
++		});
++		batch.id = setTimeout(() => {
++			if (pendingTimeoutBatches.get(ms) === batch) pendingTimeoutBatches.delete(ms);
++			const entries = [...batch.entries];
++			batch.entries.clear();
++			for (const entry of entries) {
++				entry.signal.removeEventListener("abort", entry.onAbort);
++				if (!entry.signal.aborted) entry.callback();
++			}
++		}, ms);
+ 	}
+-	signal.addEventListener("abort", onAbort);
++	const entry = {
++		callback,
++		signal,
++		onAbort() {
++			batch.entries.delete(entry);
++			signal.removeEventListener("abort", entry.onAbort);
++			if (batch.entries.size === 0) {
++				clearTimeout(batch.id);
++				if (pendingTimeoutBatches.get(ms) === batch) pendingTimeoutBatches.delete(ms);
++			}
++		}
++	};
++	batch.entries.add(entry);
++	signal.addEventListener("abort", entry.onAbort);
+ }
+ //#endregion
+ //#region src/lib/with-resolvers.ts

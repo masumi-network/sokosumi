@@ -134,6 +134,10 @@ publicHoistPattern:
 patchedDependencies:
   # Drop once happy-dom releases capricorn86/happy-dom#2536 (fixes #2532).
   happy-dom@21.0.4: patches/happy-dom@21.0.4.patch
+  # Coalesce same-turn debounced key timers in useQueryStates so a 1ms timer
+  # tick boundary cannot flush one key (e.g. `search`) before another (`cursor`).
+  # Re-check when bumping nuqs; drop if upstream batches per-key debounce timers.
+  nuqs@2.10.3: patches/nuqs@2.10.3.patch
   # Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
   # Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
   # Upstream: https://github.com/vitest-dev/vitest/issues/11144 (closed without the field; still missing on 5.1.1)

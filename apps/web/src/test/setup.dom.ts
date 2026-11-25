@@ -41,6 +41,75 @@ if (animationPrototype && !(PATCHED in animationPrototype)) {
   };
 }
 
+interface TrackedDocumentListener {
+  type: string;
+  listener: EventListenerOrEventListenerObject;
+  capture: boolean;
+}
+
+// `document` outlives the file (`isolate: false`). When `window.happyDOM.abort()`
+// cancels a deferred cleanup timer (e.g. `@dnd-kit/core` PointerSensor's 50ms
+// `documentListeners.removeAll`), its `selectionchange` / `click` listeners stay
+// attached to `document` and wipe selections in later files. Track listeners on
+// `document` once per worker and remove any leftovers in `resetBrowserState`.
+const DOC_LISTENERS = Symbol.for("sokosumi.test.documentListeners");
+let documentEventTargetProto: object | null = Object.getPrototypeOf(document);
+while (
+  documentEventTargetProto &&
+  !Object.hasOwn(documentEventTargetProto, "addEventListener")
+) {
+  documentEventTargetProto = Object.getPrototypeOf(documentEventTargetProto);
+}
+const trackedDocumentListeners: Set<TrackedDocumentListener> =
+  documentEventTargetProto && DOC_LISTENERS in documentEventTargetProto
+    ? (
+        documentEventTargetProto as Record<symbol, Set<TrackedDocumentListener>>
+      )[DOC_LISTENERS]
+    : new Set<TrackedDocumentListener>();
+if (documentEventTargetProto && !(DOC_LISTENERS in documentEventTargetProto)) {
+  const proto = documentEventTargetProto as EventTarget &
+    Record<symbol, Set<TrackedDocumentListener>>;
+  const originalAdd = proto.addEventListener;
+  const originalRemove = proto.removeEventListener;
+  Object.defineProperty(proto, DOC_LISTENERS, {
+    value: trackedDocumentListeners,
+  });
+  proto.addEventListener = function addEventListener(
+    this: EventTarget,
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ) {
+    if (this === document && listener) {
+      const capture =
+        typeof options === "boolean" ? options : Boolean(options?.capture);
+      trackedDocumentListeners.add({ type, listener, capture });
+    }
+    return originalAdd.call(this, type, listener, options);
+  };
+  proto.removeEventListener = function removeEventListener(
+    this: EventTarget,
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions,
+  ) {
+    if (this === document && listener) {
+      const capture =
+        typeof options === "boolean" ? options : Boolean(options?.capture);
+      for (const entry of trackedDocumentListeners) {
+        if (
+          entry.type === type &&
+          entry.listener === listener &&
+          entry.capture === capture
+        ) {
+          trackedDocumentListeners.delete(entry);
+        }
+      }
+    }
+    return originalRemove.call(this, type, listener, options);
+  };
+}
+
 // The window outlives the file (`isolate: false`). Give each file its own
 // storage: a `vi.spyOn(localStorage, …)` never comes off happy-dom's Storage,
 // even after `mockRestore`, so a shared one would carry the mock into later
@@ -189,10 +258,15 @@ afterAll(async () => {
 });
 
 // Hand the next file the browser a file that runs first sees.
-async function resetBrowserState() {
+export async function resetBrowserState() {
   // A fetch still in flight would otherwise fail in whichever file runs next.
   // Isolated runs got this from happy-dom's teardown.
   await window.happyDOM.abort();
+  for (const { type, listener, capture } of [...trackedDocumentListeners]) {
+    document.removeEventListener(type, listener, capture);
+  }
+  trackedDocumentListeners.clear();
+  window.getSelection()?.removeAllRanges();
   for (const cookie of document.cookie.split(";")) {
     const name = cookie.split("=")[0]?.trim();
     if (name) {

@@ -190,6 +190,7 @@ overrides:
 
 patchedDependencies:
   happy-dom@21.0.4: 0304ee00e0a71180f28fba037c600e5b536cb2519b8ad09e353d08c0f99396ba
+  nuqs@2.10.3: ed008f2092d2b69f5de96a0f328e7154636f2b956cba6f3692a535cc6a110b8b
   vitest@5.1.1: 6116227850bac83ba12f595440bc6aabb011cc87d7dcac9c59805b72b51cad4d
 
 importers:
@@ -695,7 +696,7 @@ importers:
         version: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       nuqs:
         specifier: 2.10.3
-        version: 2.10.3(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.10.0)(@types/node@26.6.7)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        version: 2.10.3(patch_hash=ed008f2092d2b69f5de96a0f328e7154636f2b956cba6f3692a535cc6a110b8b)(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.10.0)(@types/node@26.6.7)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       p-timeout:
         specifier: 8.1.0
         version: 8.1.0
@@ -16690,7 +16691,7 @@ snapshots:
     dependencies:
       path-key: 3.1.1
 
-  nuqs@2.10.3(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.10.0)(@types/node@26.6.7)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
+  nuqs@2.10.3(patch_hash=ed008f2092d2b69f5de96a0f328e7154636f2b956cba6f3692a535cc6a110b8b)(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.10.0)(@types/node@26.6.7)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
       '@standard-schema/spec': 1.1.0
       react: 19.3.1
