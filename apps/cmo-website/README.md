@@ -3,7 +3,7 @@
 Landing page for **CMO.XYZ**, the AI CMO. The agent is named Cuso. See
 `PROJECT.md` for what he does and how to talk about him.
 
-Deployed by the Vercel project `cmo-xyz` to https://www.cmo.xyz from
+Deployed by the Vercel project `cmo-website` to https://www.cmo.xyz from
 `apps/cmo-website` in this monorepo. Agent rules: `AGENTS.md`.
 
 ## Run it

@@ -98,16 +98,14 @@ it("remembers on this device the Cuso an address opens", async () => {
   vi.mocked(hasSessionCookie).mockReturnValue(false);
 });
 
-const BRANCH_ALIAS = "https://sokosumi-cmo-git-sok-1-fix.preview.cmo.xyz";
+const BRANCH_ALIAS = "https://cmo-app-git-sok-1-fix.preview.cmo.xyz";
 
 it("moves a preview's deployment URL to its branch alias, where sign in lands", async () => {
   vi.stubEnv("VERCEL_ENV", "preview");
   cmo.baseURL = BRANCH_ALIAS;
 
   const response = await proxy(
-    new NextRequest(
-      "https://sokosumi-cmo-abc123.preview.cmo.xyz/signin?ref=mail",
-    ),
+    new NextRequest("https://cmo-app-abc123.preview.cmo.xyz/signin?ref=mail"),
   );
 
   expect(response.status).toBe(308);
@@ -122,9 +120,7 @@ it("keeps a protocol-relative path on the branch alias", async () => {
   cmo.baseURL = BRANCH_ALIAS;
 
   const response = await proxy(
-    new NextRequest(
-      "https://sokosumi-cmo-abc123.preview.cmo.xyz//evil.example/x",
-    ),
+    new NextRequest("https://cmo-app-abc123.preview.cmo.xyz//evil.example/x"),
   );
 
   expect(response.status).toBe(308);
@@ -138,7 +134,7 @@ it.each([
   ["a preview on its branch alias", "preview", `${BRANCH_ALIAS}/`],
   // Behind a local proxy, Next.js sees its own host, not CMO's origin.
   ["local development", undefined, "http://cmo-internal:3100/"],
-  ["production", "production", "https://sokosumi-cmo.vercel.app/"],
+  ["production", "production", "https://cmo-app.vercel.app/"],
 ])("keeps the host for %s", async (_case, vercelEnv, url) => {
   vi.stubEnv("VERCEL_ENV", vercelEnv);
   if (vercelEnv === "preview") cmo.baseURL = BRANCH_ALIAS;

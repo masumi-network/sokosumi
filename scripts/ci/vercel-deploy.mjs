@@ -39,13 +39,13 @@ export const VERCEL_PROJECTS = {
     // CMO has no preprod project; it signs in against mainnet Core only.
     cmo: {
       id: "prj_xtwf8SX1HCG9xfjBiNZ3JmOTlqsN",
-      name: "sokosumi-cmo",
+      name: "cmo-app",
     },
     // The CMO.XYZ website is static and talks to no network; it rides along
     // with CMO on mainnet.
     "cmo-website": {
       id: "prj_EC4gIS0vwLaFoOKZwP6y4ew6nACW",
-      name: "cmo-xyz",
+      name: "cmo-website",
     },
   },
   preprod: {
@@ -519,12 +519,18 @@ export function previewUrl(deployment) {
 /**
  * The fork preview comment: one row per Vercel project, the newest deploy
  * replacing that project's row in `previous` (the comment's current body).
+ * A row of a project no longer in VERCEL_PROJECTS (a renamed one) is dropped.
  */
 export function forkPreviewCommentBody(deployments, sha, previous = "") {
+  const projectNames = new Set(
+    Object.values(VERCEL_PROJECTS).flatMap((network) =>
+      Object.values(network).map((project) => project.name),
+    ),
+  );
   const rows = new Map();
   for (const line of previous.split("\n")) {
     const name = line.match(/^\| `([^`|]+)` \|/)?.[1];
-    if (name) {
+    if (name && projectNames.has(name)) {
       rows.set(name, line);
     }
   }

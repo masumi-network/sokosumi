@@ -381,7 +381,7 @@ describe("createGitDeployment", () => {
       }),
       {
         message:
-          "Vercel deploy failed for sokosumi-cmo (400): bad_request: Invalid preview suffix",
+          "Vercel deploy failed for cmo-app (400): bad_request: Invalid preview suffix",
       },
     );
   });
@@ -868,6 +868,16 @@ describe("fork preview comment", () => {
       `| \`sokosumi-app-mainnet\` | https://${web.alias[0]} | READY | ${FORK_SHA} |`,
       `| \`sokosumi-app-preprod\` | https://${preprod.alias[0]} | READY | ${STALE_SHA} |`,
     ]);
+  });
+
+  it("drops the row of a project that was renamed", () => {
+    const previous = forkPreviewCommentBody([web], STALE_SHA).replace(
+      "`sokosumi-app-mainnet`",
+      "`sokosumi-cmo`",
+    );
+    const body = forkPreviewCommentBody([preprod], FORK_SHA, previous);
+    assert.ok(!body.includes("`sokosumi-cmo`"));
+    assert.ok(body.includes("`sokosumi-app-preprod`"));
   });
 
   function github(pages) {
