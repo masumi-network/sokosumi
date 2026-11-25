@@ -25,8 +25,9 @@ import mcpRouter from "./index";
 
 const { CORE, USER, FIXTURE_UI_TOOLS } = vi.hoisted(() => ({
   /**
-   * No real view ships yet (SOKD-417 adds the Task board), so these UI tools
-   * render the package's placeholder `hello` view in this file only.
+   * Extra UI tools on the package's placeholder `hello` view, in this file
+   * only: a twin that needs no database (users_get) and one in a default
+   * toolset outside the tasks toolset's real tool.
    */
   FIXTURE_UI_TOOLS: [
     {
@@ -76,7 +77,12 @@ vi.mock("@/lib/sokosumi-mcp/auth", () => ({
       : { status: "invalid_token" },
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { user: { findUnique: async () => USER } },
+  default: {
+    user: { findUnique: async () => USER },
+    // An empty Task list: the board test needs a successful tasks_list.
+    task: { findMany: async () => [], count: async () => 0 },
+    taskEventMention: { findMany: async () => [] },
+  },
 }));
 vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
   const actual =
@@ -86,6 +92,13 @@ vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
     MCP_UI_TOOLS: [...actual.MCP_UI_TOOLS, ...FIXTURE_UI_TOOLS],
   };
 });
+
+/** Every view a UI tool uses, real rows first. */
+const VIEW_RESOURCES = (["tasks-board", "hello"] as const).map((id) => ({
+  uri: MCP_UI[id].uri,
+  name: id,
+  mimeType: "text/html;profile=mcp-app",
+}));
 
 const app = new Hono();
 app.use(requestId());
@@ -108,6 +121,7 @@ async function connect(headers: Record<string, string>, query = "") {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(clients.splice(0).map((client) => client.close()));
 });
 
@@ -169,9 +183,10 @@ describe("Sokosumi MCP server", () => {
     ]);
     // SOKD-410: feature toolsets keep the default small. Growing it is a
     // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
-    // UI tools count: 34 data tools, no real UI tool yet, plus this file's
+    // UI tools count: 34 data tools, tasks_show_board, plus this file's
     // fixture tasks_show_task.
-    expect(defaults).toHaveLength(34 + 1);
+    expect(defaults).toHaveLength(35 + 1);
+    expect(defaults).toContain("tasks_show_board");
     expect(defaults).toContain("tasks_show_task");
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
 
@@ -257,13 +272,7 @@ describe("Sokosumi MCP server", () => {
       structuredContent: { status: 422, message: 'Missing argument "id".' },
     });
 
-    expect((await client.listResources()).resources).toEqual([
-      {
-        uri: MCP_UI.hello.uri,
-        name: "hello",
-        mimeType: "text/html;profile=mcp-app",
-      },
-    ]);
+    expect((await client.listResources()).resources).toEqual(VIEW_RESOURCES);
     expect(
       (await client.readResource({ uri: MCP_UI.hello.uri })).contents,
     ).toEqual([
@@ -292,13 +301,7 @@ describe("Sokosumi MCP server", () => {
     expect(
       (await vendors.listTools()).tools.filter((tool) => tool._meta?.ui),
     ).toEqual([]);
-    expect((await vendors.listResources()).resources).toEqual([
-      {
-        uri: MCP_UI.hello.uri,
-        name: "hello",
-        mimeType: "text/html;profile=mcp-app",
-      },
-    ]);
+    expect((await vendors.listResources()).resources).toEqual(VIEW_RESOURCES);
     expect(
       (await vendors.readResource({ uri: MCP_UI.hello.uri })).contents,
     ).toEqual([
@@ -308,6 +311,54 @@ describe("Sokosumi MCP server", () => {
         text: MCP_UI.hello.html,
       },
     ]);
+  }, 15_000);
+
+  it("shows Tasks as a board with exactly tasks_list's result", async () => {
+    // Imported here: at the top it would load zod before the routes extend it.
+    const { workspaceRepository } = await import(
+      "@sokosumi/database/repositories"
+    );
+    vi.spyOn(
+      workspaceRepository,
+      "resolveWorkspaceForContext",
+    ).mockResolvedValue({
+      id: "0196a000-0000-7000-8000-00000000a001",
+      userId: USER.id,
+      organizationId: null,
+    } as Awaited<
+      ReturnType<typeof workspaceRepository.resolveWorkspaceForContext>
+    >);
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=tasks",
+    );
+    const { tools } = await client.listTools();
+    const twin = tools.find((tool) => tool.name === "tasks_list");
+    const board = tools.find((tool) => tool.name === "tasks_show_board");
+    expect(board).toMatchObject({
+      inputSchema: twin?.inputSchema,
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { resourceUri: MCP_UI["tasks-board"].uri } },
+    });
+
+    const args = { limit: 5, sort: "dueOn" };
+    const data = await client.callTool({ name: "tasks_list", arguments: args });
+    const ui = await client.callTool({
+      name: "tasks_show_board",
+      arguments: args,
+    });
+    expect(data).toMatchObject({
+      structuredContent: { data: [], pagination: { total: 0 } },
+    });
+    expect(data.isError).toBeFalsy();
+    const { _meta: uiMeta, ...uiResult } = ui;
+    const { _meta: dataMeta, ...dataResult } = data;
+    expect(uiResult).toEqual(dataResult);
+    expect(uiMeta).toEqual({
+      ...dataMeta,
+      ui: { resourceUri: MCP_UI["tasks-board"].uri },
+      sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+    });
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {

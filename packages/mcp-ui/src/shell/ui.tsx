@@ -15,6 +15,20 @@ export function PrimaryButton({
   );
 }
 
+/** A neutral text button for secondary actions, such as Refresh. */
+export function QuietButton({
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      className={`hover:bg-accent focus-visible:outline-ring inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      {...props}
+    />
+  );
+}
+
 export function Skeleton() {
   return (
     <div role="status" aria-busy="true" className="flex flex-col gap-3">

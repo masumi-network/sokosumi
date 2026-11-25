@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, isUnderBase, t } from "./text.ts";
+import {
+  formatDateTime,
+  formatDay,
+  isMessageKey,
+  isUnderBase,
+  t,
+} from "./text.ts";
 
 describe("t", () => {
   it("returns the English message", () => {
@@ -43,6 +49,32 @@ describe("formatDateTime", () => {
 
   it("returns an invalid date as written", () => {
     expect(formatDateTime("soon", {})).toBe("soon");
+  });
+});
+
+describe("isMessageKey", () => {
+  it("tells known keys from others", () => {
+    expect(isMessageKey("shell.loading")).toBe(true);
+    expect(isMessageKey("shell.nope")).toBe(false);
+  });
+});
+
+describe("formatDay", () => {
+  it("formats a calendar day in the host's locale, whatever its time zone", () => {
+    expect(
+      formatDay("2026-11-28", {
+        locale: "en-US",
+        timeZone: "Pacific/Honolulu",
+      }),
+    ).toBe("Nov 28, 2026");
+    expect(formatDay("2026-11-28", { locale: "de-DE" })).toBe("28.11.2026");
+  });
+
+  it("falls back for an unknown locale and returns an invalid day as written", () => {
+    expect(() =>
+      formatDay("2026-11-28", { locale: "not a locale" }),
+    ).not.toThrow();
+    expect(formatDay("someday", {})).toBe("someday");
   });
 });
 
