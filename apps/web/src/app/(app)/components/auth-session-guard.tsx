@@ -1,18 +1,20 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useRef,
-} from "react";
+import { createContext, type ReactNode, useCallback, useRef } from "react";
 
+import { useAuthSessionProbeLifecycle } from "@/hooks/effects/use-auth-session-probe-lifecycle";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { authClient } from "@/lib/auth/auth.client";
 import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
+
+const getFreshSession = createAuthSessionGetter(() =>
+  authClient.getSession({
+    query: {
+      disableCookieCache: true,
+    },
+  }),
+);
 
 export const AuthSessionIdentityContext = createContext<
   ((userId: string) => void) | null
@@ -31,13 +33,6 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
   const freshSessionRef = useRef<
     { userId: string; generation: number } | undefined
   >(undefined);
-  const getFreshSession = createAuthSessionGetter(() =>
-    authClient.getSession({
-      query: {
-        disableCookieCache: true,
-      },
-    }),
-  );
 
   const reconcileSession = useCallback(async () => {
     const freshSession = freshSessionRef.current;
@@ -85,7 +80,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     realtime.discardRetiredAblyRealtimeClient();
   }, []);
 
-  const validateSession = useEffectEvent(async () => {
+  const validateSession = useCallback(async () => {
     if (isRedirectingRef.current) {
       return;
     }
@@ -114,7 +109,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     isRedirectingRef.current = true;
     const returnUrl = encodeURIComponent(getReturnUrlFromCurrentLocation());
     window.location.replace(`/signin?returnUrl=${returnUrl}`);
-  });
+  }, [reconcileSession]);
 
   const registerRenderedUser = useCallback(
     (userId: string) => {
@@ -133,18 +128,10 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
       }
       void reconcileSession().catch(() => {});
     },
-    [reconcileSession],
+    [reconcileSession, validateSession],
   );
 
-  useEffect(() => {
-    mountedRef.current = true;
-    void validateSession();
-
-    return () => {
-      mountedRef.current = false;
-      probeGenerationRef.current += 1;
-    };
-  }, []);
+  useAuthSessionProbeLifecycle(mountedRef, probeGenerationRef, validateSession);
 
   useEventListener("window", "focus", () => {
     void validateSession();
