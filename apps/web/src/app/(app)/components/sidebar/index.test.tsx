@@ -167,6 +167,23 @@ describe("Sidebar project scope", () => {
         '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
       ),
     ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(chatList);
+    expect(follows(scoped!, chatList)).toBe(true);
+  });
+});
+
+describe("Sidebar scroll boundary", () => {
+  it("keeps navigation and account controls outside the room viewport", () => {
+    renderSidebar();
+    const chatList = screen.getByRole("navigation", { name: "chatList" });
+    const viewport = chatList.closest('[data-slot="scroll-area-viewport"]');
+    expect(viewport).not.toBeNull();
+    for (const control of [
+      screen.getByRole("navigation", { name: "menuItems" }),
+      screen.getByRole("button", { name: "projectTitle" }),
+      screen.getByRole("link", { name: "sokoBot" }),
+      screen.getByText("account"),
+    ]) {
+      expect(viewport?.contains(control)).toBe(false);
+    }
   });
 });
