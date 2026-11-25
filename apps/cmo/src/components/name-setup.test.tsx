@@ -27,7 +27,7 @@ it("asks for the first and last name, with Sign out", () => {
     /<button class="button" type="submit" formNoValidate/,
   );
   expect(html).toMatch(
-    /<button class="button button-secondary" type="submit" formNoValidate=""[^>]*><span class="button-label">Sign out<\/span><\/button>/,
+    /<button class="button button-ghost button-small" type="submit" formNoValidate=""[^>]*><span class="button-label">Not you\? Sign out<\/span><\/button>/,
   );
   expect(html).not.toContain('role="alert"');
 });
@@ -129,7 +129,7 @@ it("signs out from the empty form", async () => {
   });
   const signOutButton = [
     ...container.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
-  ].find((button) => button.textContent === "Sign out");
+  ].find((button) => button.textContent === "Not you? Sign out");
   await act(async () => signOutButton?.click());
 
   expect(signOut).toHaveBeenCalledOnce();

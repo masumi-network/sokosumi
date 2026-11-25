@@ -1008,7 +1008,7 @@ describe("Launch", () => {
     expect(html).not.toContain(">Search Console</button>");
   });
 
-  it("lists only the plan's networks, with their pieces, and no newsletter", () => {
+  it("lists only the plan's networks, with their pieces, and says where the newsletter's list goes", () => {
     const html = render(approved());
     expect(html).toContain("One thing, then I start.");
     expect(html).toContain("LinkedIn");
@@ -1023,8 +1023,12 @@ describe("Launch", () => {
     expect(html).not.toContain("Can wait");
     expect(html).toContain("Add later");
     expect(html).toContain("Facebook &amp; Instagram ads");
-    expect(html).not.toContain("Newsletter");
-    expect(html).not.toContain("mailing list");
+    // The newsletter is set up after hiring: a note, never a row or a chip.
+    expect(html).toContain(
+      "Newsletter: add your mailing list on the Channels page.",
+    );
+    expect(html).not.toContain(">Newsletter</button>");
+    expect(html).not.toMatch(/Newsletter, \+/);
   });
 
   it("launches once one of the plan's networks is connected", () => {

@@ -142,6 +142,8 @@ export function LaunchStep({
   const required = strategySocialChannels(overview);
   const optional = optionalChannels(overview);
   const searchOnly = strategyChannels(overview).includes("seo");
+  // The newsletter is set up after hiring: say where, so it is not missed.
+  const newsletter = strategyChannels(overview).includes("newsletter");
   const plan = overview.approvedStrategy ?? overview.strategy;
   const calendar = overview.strategy?.calendar ?? [];
   const connected = new Set(
@@ -366,11 +368,17 @@ export function LaunchStep({
         />
       ) : null}
 
-      {later.length > 0 || sources.length > 0 ? (
+      {later.length > 0 || sources.length > 0 || newsletter ? (
         <div className="ob-later">
           <p className="ob-small muted">
             Add later, here or on the Channels page
           </p>
+          {newsletter ? (
+            <p className="ob-small muted">
+              Newsletter: add your mailing list on the Channels page.{" "}
+              {AGENT_NAME} writes each issue for it.
+            </p>
+          ) : null}
           <div className="ob-later-chips">
             {later.map(({ key, perMonth }) => {
               // What connecting it adds: the plan's own pieces, or Cuso's proposal.
