@@ -1082,6 +1082,7 @@ export function DriveAllFilesPanel({
                     displayName: item.displayName,
                     mimeType: item.mimeType,
                     sizeBytes: item.sizeBytes,
+                    pathname: item.pathname,
                   })
                 }
                 onDismissLabel={(label) => void dismissLabel(item, label.id)}

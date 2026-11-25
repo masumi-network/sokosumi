@@ -115,6 +115,8 @@ interface DriveFilePreviewProps {
   sizeBytes: number | null;
   /** The file's detail view, when the catalog knows the file. */
   detailsHref: string | null;
+  /** Extra image viewer toolbar buttons, for an image. */
+  imageActions?: ReactNode;
   children: (api: DriveFilePreviewApi) => ReactNode;
 }
 
@@ -157,6 +159,7 @@ export function DriveFilePreview({
   fileUrl,
   sizeBytes,
   detailsHref,
+  imageActions,
   children,
 }: DriveFilePreviewProps): ReactElement {
   const { isImage, isVideo, isAudio, documentKind } = classifyFilePreview(
@@ -189,6 +192,7 @@ export function DriveFilePreview({
                 images={[{ src: fileUrl, alt: name, downloadFilename: name }]}
                 activeSrc={openImageSrc}
                 onActiveSrcChange={setOpenImageSrc}
+                actions={imageActions}
               />
             ) : null}
             {documentKind ? (

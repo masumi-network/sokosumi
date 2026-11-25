@@ -53,6 +53,8 @@ interface ImageViewerProps {
   className?: string;
   /** Optional detail panel beside (below, on narrow screens) the open image. */
   aside?: React.ReactNode;
+  /** Extra toolbar buttons for the open image, before Print. */
+  actions?: React.ReactNode;
 }
 
 interface ViewerUiState {
@@ -73,7 +75,7 @@ const PRINT_CLEANUP_FALLBACK_MS = 500;
 const stepButtonClassName =
   "absolute top-1/2 size-11 -translate-y-1/2 rounded-full bg-scrim-strong text-on-media hover:bg-scrim hover:text-on-media aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-scrim-strong";
 
-const toolbarButtonClassName =
+export const toolbarButtonClassName =
   "size-9 shrink-0 rounded-full text-on-media hover:bg-on-media-quaternary hover:text-on-media";
 
 function clampZoom(zoom: number): number {
@@ -177,8 +179,10 @@ function ImageViewerChrome({
   onPrevious,
   onNext,
   aside,
+  actions,
 }: ImageViewerImage & {
   aside?: React.ReactNode;
+  actions?: React.ReactNode;
   position: number;
   total: number;
   onClose: () => void;
@@ -284,6 +288,7 @@ function ImageViewerChrome({
           <span className="truncate text-sm">{displayName}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {actions}
           <Button
             type="button"
             aria-label={t("print")}
@@ -426,6 +431,7 @@ export function ImageViewer({
   onActiveSrcChange,
   className,
   aside,
+  actions,
 }: ImageViewerProps) {
   const t = useTranslations("Components.ImageViewer");
   const activeIndex = images.findIndex((image) => image.src === activeSrc);
@@ -503,6 +509,7 @@ export function ImageViewer({
             onPrevious={handlePrevious}
             onNext={handleNext}
             aside={aside}
+            actions={actions}
           />
         ) : null}
         {[previousImage, nextImage].map((image) =>

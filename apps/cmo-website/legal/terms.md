@@ -1,6 +1,6 @@
 # Terms of Service
 
-Effective date: {{effective_date}}
+Effective date: {{terms_effective_date}}
 
 ## Who these terms are with
 
@@ -85,7 +85,9 @@ Cancel renewal through Manage billing in Settings. A subscription scheduled to c
 
 Start over is different. It permanently ends that Cuso's work, cancels his unsent posts and ends his subscription immediately, without an automatic refund. Unused credits assigned to him are written off. A new Cuso starts separately. This does not delete all stored records, retract published posts or cancel external advertising campaigns.
 
-Except where required by law, agreed by us or granted by Polar under its applicable terms, fees already paid are non-refundable. CMO is offered to businesses. If you sign up as a consumer, tell us promptly so we can assess eligibility and handle cancellation or any statutory withdrawal right. Where an EU or UK withdrawal period applies, it is generally 14 days from concluding the contract, subject to the applicable service or digital-content rules. Beginning performance or supplying digital content affects those rights only where the required express request, consent, acknowledgement and confirmation have been obtained. Merely accepting these terms does not waive them. Contact [{{legal_email}}](mailto:{{legal_email}}) or the support route on your Polar receipt to withdraw. Nothing here excludes mandatory cancellation, withdrawal, refund or consumer rights where they apply, or Polar's authority to issue a refund. Refunded purchases can have their associated credits removed.
+Not happy in the first 14 days? If you ask within 14 days of a plan's first payment, we refund that payment in full. Write to [{{legal_email}}](mailto:{{legal_email}}) with the purchase details. Renewals, later payments and top-ups are not covered by this refund.
+
+Apart from that first-payment refund, and except where required by law, agreed by us or granted by Polar under its applicable terms, fees already paid are non-refundable. CMO is offered to businesses. If you sign up as a consumer, tell us promptly so we can assess eligibility and handle cancellation or any statutory withdrawal right. Where an EU or UK withdrawal period applies, it is generally 14 days from concluding the contract, subject to the applicable service or digital-content rules. Beginning performance or supplying digital content affects those rights only where the required express request, consent, acknowledgement and confirmation have been obtained. Merely accepting these terms does not waive them. Contact [{{legal_email}}](mailto:{{legal_email}}) or the support route on your Polar receipt to withdraw. Nothing here excludes mandatory cancellation, withdrawal, refund or consumer rights where they apply, or Polar's authority to issue a refund. Refunded purchases can have their associated credits removed.
 
 ## Personal data and confidentiality
 

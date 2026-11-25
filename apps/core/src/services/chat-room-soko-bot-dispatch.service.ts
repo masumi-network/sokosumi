@@ -414,6 +414,7 @@ export async function runSokoBotMentionDispatch(params: {
           mentionId,
           responseMessageId,
           classifyMessage: message,
+          said,
           askedByUserId: isOwner && !askedByBot ? null : userId,
           askedByBot,
           chainDepth,

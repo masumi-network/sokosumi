@@ -1,6 +1,10 @@
+import type { MarketingStrategy } from "@sokosumi/database";
 import {
+  type BrandBrain,
   type CmoSystemSchedule,
+  cmoReadsOnDemand,
   cmoRoutineSkipReason,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
@@ -13,6 +17,11 @@ import {
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import {
+  type CmoTurn,
+  organizeCmoContext,
+} from "@/services/cmo-context-organizer";
+import {
+  type Cuso,
   cmoSiteAccountNetworks,
   findCusoForBot,
   listCmoChannels,
@@ -22,7 +31,10 @@ import {
   cmoReadsIndustry,
   readCmoIndustry,
 } from "@/services/cmo-industry.service";
-import { listCmoReports } from "@/services/cmo-reports.service";
+import {
+  type CmoUpdateRecord,
+  listCmoReports,
+} from "@/services/cmo-reports.service";
 import {
   cmoReadsSitePages,
   cmoSitePagesContext,
@@ -51,27 +63,59 @@ function calendarWindow(
   );
 }
 
+/** Everything Cuso's context is built from, read once per turn. */
+export interface CmoContextSources {
+  cuso: Cuso;
+  versionId: string | null;
+  strategyVersion: MarketingStrategy | null;
+  /** The plan with its Social posts under their ids (ADR 0062). */
+  strategy: MarketingStrategyPlan | null;
+  brandBrain: BrandBrain | null;
+  project: {
+    logo: string | null;
+    designMdUrl: string | null;
+    presenterFileId: string | null;
+    presenterConsentAt: Date | null;
+  } | null;
+  designMd: string | null;
+  brandPictures: Awaited<ReturnType<typeof listCmoBrandPictures>>;
+  reports: CmoUpdateRecord[];
+  competitorMoves: Awaited<ReturnType<typeof recentCompetitorMoves>>;
+  channels: Awaited<ReturnType<typeof listCmoChannels>>;
+  existingAccounts: string[];
+  subscriptionActive: boolean;
+  sitePages: Awaited<ReturnType<typeof readCmoSitePages>> | null;
+  industry: Awaited<ReturnType<typeof readCmoIndustry>> | null;
+}
+
 /**
- * What Cuso sees about the business on every turn: the Brand Brain, the
- * strategy, and the next 31 days of the calendar. Entries outside that
- * window stay in the saved plan. Rhythms and production (`executing`) see
- * only the approved version; other turns see the newest. Null for any bot
- * that is not a CMO bot.
+ * Reads what Cuso's context is built from. Rhythms and production
+ * (`executing`) read only the approved version; other turns the newest. Null
+ * for any bot that is not a CMO bot.
  */
-export async function loadCmoMarketingContext(
+export async function readCmoContextSources(
   sokoBotId: string,
-  now: Date = new Date(),
+  now: Date,
   options: { executing?: boolean } = {},
-): Promise<Record<string, unknown> | null> {
+): Promise<CmoContextSources | null> {
   const cuso = await findCusoForBot(sokoBotId);
   if (!cuso) return null;
-  const version = await cmoWorkingStrategy(
+  const strategyVersion = await cmoWorkingStrategy(
     cuso.projectId,
     options.executing ?? false,
   );
-  // Once approved, its social pieces are the Project's Social posts, under their ids.
-  const strategy = await readMarketingPlan(version);
-  const [project, brandPictures] = await Promise.all([
+  const [
+    strategy,
+    project,
+    brandPictures,
+    reports,
+    competitorMoves,
+    channels,
+    existingAccounts,
+    subscriptionActive,
+    bot,
+  ] = await Promise.all([
+    readMarketingPlan(strategyVersion),
     prisma.project.findUnique({
       where: { id: cuso.projectId },
       select: {
@@ -82,13 +126,73 @@ export async function loadCmoMarketingContext(
       },
     }),
     listCmoBrandPictures(cuso.projectId),
-  ]);
-  const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
-  // A month of reports covers the last four weekly reviews.
-  const [reports, competitorMoves] = await Promise.all([
     listCmoReports(sokoBotId, REPORTS_READ),
     recentCompetitorMoves(cuso.projectId, now),
+    listCmoChannels(cuso.projectId),
+    cmoSiteAccountNetworks(cuso),
+    isCmoSubscribed(cuso),
+    prisma.sokoBot.findUnique({
+      where: { id: sokoBotId },
+      select: { versionId: true },
+    }),
   ]);
+  const versionId = bot?.versionId ?? null;
+  const [designMd, sitePages, industry] = await Promise.all([
+    readDesignMdContent(project?.designMdUrl ?? null),
+    cmoReadsSitePages(versionId)
+      ? readCmoSitePages(cuso.projectId).catch(() => null)
+      : null,
+    cmoReadsIndustry(versionId)
+      ? readCmoIndustry(cuso.projectId).catch(() => null)
+      : null,
+  ]);
+  return {
+    cuso,
+    versionId,
+    strategyVersion,
+    strategy,
+    brandBrain: parseBrandBrain(cuso.brandBrain),
+    project,
+    designMd: designMd ?? null,
+    brandPictures,
+    reports,
+    competitorMoves,
+    channels,
+    existingAccounts,
+    subscriptionActive,
+    sitePages,
+    industry,
+  };
+}
+
+/**
+ * What Cuso sees about the business on every turn: the Brand Brain, the
+ * strategy, and the next 31 days of the calendar. Entries outside that
+ * window stay in the saved plan. A version that reads on demand (cmo-v23)
+ * gets a small core and what the turn needs instead, except on a strategy
+ * turn (`cmo-context-organizer.ts`).
+ */
+export async function loadCmoMarketingContext(
+  sokoBotId: string,
+  now: Date = new Date(),
+  options: { executing?: boolean; turn?: CmoTurn } = {},
+): Promise<Record<string, unknown> | null> {
+  const sources = await readCmoContextSources(sokoBotId, now, options);
+  if (!sources) return null;
+  if (
+    options.turn &&
+    cmoReadsOnDemand(getSokoBotVersion(sources.versionId).skills)
+  )
+    return organizeCmoContext({ sources, turn: options.turn, now });
+  return fitCmoMarketingContext(fullCmoMarketingContext(sources, now), now);
+}
+
+/** The whole marketing context before it is fitted to its budget. */
+export function fullCmoMarketingContext(
+  sources: CmoContextSources,
+  now: Date,
+): MarketingContext {
+  const { cuso, strategy, project, reports } = sources;
   const context: MarketingContext = {
     business: {
       name: cuso.businessName,
@@ -96,37 +200,22 @@ export async function loadCmoMarketingContext(
       marketingProjectId: cuso.projectId,
     },
     /** Whether the strategy shown is the approved version Cuso carries out. */
-    strategyApproved: version?.approvedAt != null,
-    subscriptionActive: await isCmoSubscribed(cuso),
-    connectedChannels: (await listCmoChannels(cuso.projectId)).map(
-      (channel) => ({
-        provider: channel.provider,
-        handle: channel.externalHandle,
-        status: channel.status,
-        socialConnectionId: channel.id,
-      }),
-    ),
+    strategyApproved: sources.strategyVersion?.approvedAt != null,
+    subscriptionActive: sources.subscriptionActive,
+    connectedChannels: cmoConnectedChannelsContext(sources.channels),
     /**
      * Networks the business already has an account on (connected here or to
      * its other Cuso for this website): plan them as existing accounts.
      */
-    existingAccounts: await cmoSiteAccountNetworks(cuso),
-    brandBrain: compactBrandBrain(parseBrandBrain(cuso.brandBrain)),
+    existingAccounts: sources.existingAccounts,
+    brandBrain: compactBrandBrain(sources.brandBrain),
     /**
      * The Project's logo and DESIGN.md (colours, fonts, type): use them in
      * images and layouts.
      */
-    brandLook: {
-      logoUrl: project?.logo ?? null,
-      designMd: designMd?.slice(0, CMO_DESIGN_MD_CHARS) ?? null,
-    },
+    brandLook: cmoBrandLook(sources),
     /** The brand's own photos, the Project's files: generate_image references. */
-    brandPictures: brandPictures
-      .filter((picture) => !picture.fromSite)
-      .map((picture) => ({
-        fileId: picture.fileId,
-        alt: picture.alt.slice(0, 80),
-      })),
+    brandPictures: cmoBrandPicturesContext(sources),
     /**
      * The owner gave their photo, with consent, to be the face of talking
      * videos: presenter "owner" uses it.
@@ -179,36 +268,58 @@ export async function loadCmoMarketingContext(
           update,
       ),
     /** The last weekly reviews' calls and lessons, newest first: the next plan builds on them. */
-    weeklyLearnings: reports
-      .filter((report) => report.kind === "weekly")
-      .slice(0, WEEKLY_LEARNINGS)
-      .map((report) => ({
-        at: report.at.slice(0, 10),
-        verdict: report.verdict ?? null,
-        learnings: report.learnings ?? [],
-      })),
+    weeklyLearnings: cmoWeeklyLearnings(reports),
   };
-  const { versionId } =
-    (await prisma.sokoBot.findUnique({
-      where: { id: sokoBotId },
-      select: { versionId: true },
-    })) ?? {};
-  if (cmoReadsSitePages(versionId)) {
-    const site = await readCmoSitePages(cuso.projectId).catch(() => null);
-    /** Every page of the site: read a page's note with read_file. */
-    if (site && site.pages.length > 0)
-      context.sitePages = cmoSitePagesContext(site.pages, site.complete);
-  }
-  if (cmoReadsIndustry(versionId)) {
-    const industry = await readCmoIndustry(cuso.projectId).catch(() => null);
-    /** The buyer's industry with sources (cmo-v21): pillars and helpful tips rest on it. */
-    if (industry && industry.items.length > 0)
-      context.industryResearch = cmoIndustryContext(industry);
-  }
-  if (competitorMoves.length > 0)
+  const site = sources.sitePages;
+  /** Every page of the site: read a page's note with read_file. */
+  if (site && site.pages.length > 0)
+    context.sitePages = cmoSitePagesContext(site.pages, site.complete);
+  const industry = sources.industry;
+  /** The buyer's industry with sources (cmo-v21): pillars and helpful tips rest on it. */
+  if (industry && industry.items.length > 0)
+    context.industryResearch = cmoIndustryContext(industry);
+  if (sources.competitorMoves.length > 0)
     /** The competitor feed's moves of about the last month, newest first. */
-    context.competitorMoves = competitorMoves;
-  return fitCmoMarketingContext(context, now);
+    context.competitorMoves = sources.competitorMoves;
+  return context;
+}
+
+export function cmoConnectedChannelsContext(
+  channels: CmoContextSources["channels"],
+) {
+  return channels.map((channel) => ({
+    provider: channel.provider,
+    handle: channel.externalHandle,
+    status: channel.status,
+    socialConnectionId: channel.id,
+  }));
+}
+
+export function cmoBrandLook(sources: CmoContextSources) {
+  return {
+    logoUrl: sources.project?.logo ?? null,
+    designMd: sources.designMd?.slice(0, CMO_DESIGN_MD_CHARS) ?? null,
+  };
+}
+
+export function cmoBrandPicturesContext(sources: CmoContextSources) {
+  return sources.brandPictures
+    .filter((picture) => !picture.fromSite)
+    .map((picture) => ({
+      fileId: picture.fileId,
+      alt: picture.alt.slice(0, 80),
+    }));
+}
+
+export function cmoWeeklyLearnings(reports: readonly CmoUpdateRecord[]) {
+  return reports
+    .filter((report) => report.kind === "weekly")
+    .slice(0, WEEKLY_LEARNINGS)
+    .map((report) => ({
+      at: report.at.slice(0, 10),
+      verdict: report.verdict ?? null,
+      learnings: report.learnings ?? [],
+    }));
 }
 
 /** Site pages Cuso's context keeps when the packet is tight. */
@@ -242,7 +353,7 @@ const SHORT_ENTRY_KEYS = [
   "status",
 ] as const;
 
-type MarketingContext = Record<string, unknown> & {
+export type MarketingContext = Record<string, unknown> & {
   brandBrain?: Record<string, unknown> | null;
   strategy?: (Record<string, unknown> & { calendar?: unknown[] }) | null;
 };
@@ -474,7 +585,7 @@ function calendarUntil(
 }
 
 /** The last day a turn sees full drafts for. */
-function draftHorizon(now: Date): string {
+export function draftHorizon(now: Date): string {
   return new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
 }
 
@@ -500,10 +611,14 @@ export async function buildCmoBeatPacket(
   });
   if (skipReason) return { packet: "", skip: true };
   // A rhythm carries out the approved version, never a draft.
-  const context = await loadCmoMarketingContext(sokoBotId, now, {
+  const sources = await readCmoContextSources(sokoBotId, now, {
     executing: true,
   });
-  if (!context) return { packet: "", skip: true };
+  if (!sources) return { packet: "", skip: true };
+  const approvedShown = sources.strategyVersion?.approvedAt != null;
+  const onDemand = cmoReadsOnDemand(
+    getSokoBotVersion(sources.versionId).skills,
+  );
   const posts = cuso
     ? await prisma.socialPost.findMany({
         where: {
@@ -525,17 +640,19 @@ export async function buildCmoBeatPacket(
     : [];
   const lines = [
     `## Execution: ${
-      !context.strategyApproved
+      !approvedShown
         ? "waiting for the owner to approve the strategy (draft only)"
-        : context.subscriptionActive
+        : sources.subscriptionActive
           ? "active"
           : "paused: no CMO subscription (draft only)"
     }`,
-    `## Connected channels: ${JSON.stringify(context.connectedChannels)}`,
+    `## Connected channels: ${JSON.stringify(cmoConnectedChannelsContext(sources.channels))}`,
     "",
     // Every turn's context already carries both in full; repeating them here
     // pushed a full four-week plan past the 20,000-character message limit.
-    "## Brand Brain and strategy: workspace.marketing in your context. Its calendar is the next 31 days; entries outside that window stay when you save_strategy.",
+    onDemand
+      ? "## Brand Brain and strategy: workspace.marketing in your context holds the core, its map and what this run needs. Read the rest with read_calendar, read_strategy, read_brand_brain and read_report."
+      : "## Brand Brain and strategy: workspace.marketing in your context. Its calendar is the next 31 days; entries outside that window stay when you save_strategy.",
     "",
     "## Social posts, last 14 days",
     ...(posts.length

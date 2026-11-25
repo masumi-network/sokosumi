@@ -8,13 +8,27 @@ vi.mock("next-intl", () => ({
     values ? `${key}:${Object.values(values).join(",")}` : key,
 }));
 vi.mock("@/components/ui/image-viewer", () => ({
-  ImageViewer: ({ activeSrc }: { activeSrc: string | null }) => (
-    <div data-testid="image-viewer" data-src={activeSrc} />
+  ImageViewer: ({
+    activeSrc,
+    actions,
+  }: {
+    activeSrc: string | null;
+    actions?: React.ReactNode;
+  }) => (
+    <div data-testid="image-viewer" data-src={activeSrc}>
+      {actions}
+    </div>
   ),
 }));
 vi.mock("@/components/ui/document-viewer", () => ({
   DocumentViewer: ({ kind }: { kind: string }) => (
     <div data-testid="document-viewer" data-kind={kind} />
+  ),
+}));
+
+vi.mock("@/app/drive/components/crop-for-social", () => ({
+  CropForSocial: ({ pathname }: { pathname: string }) => (
+    <button type="button">{`crop:${pathname}`}</button>
   ),
 }));
 
@@ -53,6 +67,28 @@ describe("DriveFileViewer", () => {
     expect(screen.getByTestId("image-viewer").dataset.src).toBe(
       "/api/drive/files/res-1/content?scope=me",
     );
+  });
+
+  it("offers Crop for social on an image only when it knows the Drive pathname", () => {
+    const { unmount } = open("logo.png", "image/png");
+    expect(screen.queryByRole("button", { name: /^crop:/ })).toBeNull();
+    unmount();
+
+    render(
+      <DriveFileViewer
+        file={{
+          id: "res-1",
+          displayName: "logo.png",
+          mimeType: "image/png",
+          pathname: "drive/users/u/logo.png",
+        }}
+        store={store}
+        onClose={noop}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "crop:drive/users/u/logo.png" }),
+    ).toBeVisible();
   });
 
   it("opens a PDF and a text file in the document viewer", () => {

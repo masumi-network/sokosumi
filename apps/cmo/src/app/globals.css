@@ -1555,15 +1555,6 @@ a.cuso-says:focus-visible {
   font-weight: 600;
 }
 
-/* While he works the line stays short; the fold under his reply has it all. */
-.working > .working-why,
-.ob-lead > .working-why {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
 /* "How I got here": a fold under a reply. Quiet, since only its row opens. */
 .trace {
   max-width: 62ch;

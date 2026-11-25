@@ -1551,11 +1551,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       runtimeVersion: "test",
       acceptedAt: new Date().toISOString(),
     });
+    const build = vi.fn().mockResolvedValue(builtContext());
     await new SokoBotControlPlane(
       runtime,
-      {
-        build: vi.fn().mockResolvedValue(builtContext()),
-      } as ContextPacketBuilder,
+      { build } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
@@ -1567,9 +1566,15 @@ describe("SokoBotControlPlane lifecycle", () => {
         responseMessageId: "message_1",
         askedByUserId: "user_teammate",
         classifyMessage: "yes",
+        said: "yes, the Dec 7 one",
       },
     });
 
+    // The context organizer reads only what was typed, never the room's
+    // earlier messages and their dates.
+    expect(build).toHaveBeenCalledWith(
+      expect.objectContaining({ turnMessage: "yes, the Dec 7 one" }),
+    );
     const request = jevEvaluate.mock.calls[0][0];
     expect(request.state.message).toBe("yes");
     expect(request.state.previousReply).toBe(

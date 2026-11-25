@@ -72,6 +72,12 @@ export interface StartSokoBotTurnInput {
      * never tilts a plain "yes" towards a clarifying question.
      */
     classifyMessage?: string;
+    /**
+     * What the person typed in this message, without the room's earlier
+     * messages. Cuso's context organizer reads only these, so a date in an
+     * older message never picks a calendar week.
+     */
+    said?: string;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth?: number;
   };

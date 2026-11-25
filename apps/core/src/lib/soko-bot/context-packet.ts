@@ -116,6 +116,10 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   personAsked?: boolean;
   /** The lasting preference saved from this message before the turn. */
   capturedPreference?: string | null;
+  /** The message as the classifier read it: Cuso's organizer picks from it. */
+  turnMessage?: string;
+  /** The bot's own last reply here, for a message that only answers it. */
+  previousReply?: string | null;
 }
 
 /** A signal at or above this becomes a hint. */
@@ -539,6 +543,12 @@ export class ContextPacketBuilder {
                   source: input.source,
                   clientTurnId: input.clientTurnId ?? null,
                 }),
+                turn: {
+                  source: input.source,
+                  clientTurnId: input.clientTurnId ?? null,
+                  message: input.turnMessage ?? "",
+                  previousReply: input.previousReply ?? null,
+                },
               }),
             )
             .catch(() => null);
