@@ -268,6 +268,8 @@ export function todayLine(overview: CmoOverview, needs: number): string {
   }
   if (state === "stuck") {
     const when = retryWhen(overview.production.retryAt, overview.timeZone);
+    if (overview.production.writerFailed)
+      return `Something on our side stopped your month at ${ready} of ${total}. We're fixing it, and I try again ${when}.`;
     return `I stopped making your month at ${ready} of ${total}. My last try made nothing new, so I try the rest again ${when}.`;
   }
   if (state === "blocked") {

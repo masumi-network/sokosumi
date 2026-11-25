@@ -993,7 +993,9 @@ function ProductionCard({
           : planning
             ? "He plans every post your plan makes, topic by topic, then makes them. This takes a few minutes."
             : production.state === "stuck"
-              ? `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
+              ? production.writerFailed
+                ? `${productionSteps(production, month.total)}. Something on our side stopped him. We're fixing it, and he tries again ${retryWhen(production.retryAt, timeZone)}.`
+                : `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
               : production.state === "blocked"
                 ? "Something on our side keeps him from starting. He tries again every ten minutes."
                 : notStarted

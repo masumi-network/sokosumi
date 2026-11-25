@@ -37,7 +37,9 @@ const {
   advanceMedia,
   turnCount,
   subscriptionFindFirst,
+  toolCallFindMany,
 } = vi.hoisted(() => ({
+  toolCallFindMany: vi.fn(async () => []),
   listMediaJobs: vi.fn(),
   advanceMedia: vi.fn(),
   turnCount: vi.fn(),
@@ -72,6 +74,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: turnFindFirst,
       count: turnCount,
     },
+    sokoBotToolCall: { findMany: toolCallFindMany },
     sokoBot: {
       findUniqueOrThrow: botFindUniqueOrThrow,
       findUnique: botFindUnique,

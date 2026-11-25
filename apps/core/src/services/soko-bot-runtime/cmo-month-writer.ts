@@ -28,7 +28,7 @@ import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
-import { emitCoreWarning } from "@/lib/evlog";
+import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
@@ -945,6 +945,28 @@ export async function writeCmoMonthPieces(
     (piece) => !after.some((left) => left.id === piece.id),
   ).length;
   const left = after.filter((piece) => !refused.has(piece.id)).length;
+  // Nothing written and nothing refused: every chunk failed, which is ours.
+  if (written === 0 && refused.size === 0 && left > 0) {
+    emitCoreError(
+      {
+        operation: "cmo_month_writer",
+        turn: { id: input.turnId },
+        project: { id: cuso.projectId },
+      },
+      {
+        message: "Core's month writer wrote nothing",
+        why: "Every chunk of a write_month_pieces call failed; no piece was refused",
+        fix: "Look up the chunk warnings of this turn (failure) and fix the writer; the month waits until then.",
+      },
+      { alert: "cmo_month_writer_failed", left },
+    );
+    return {
+      written,
+      refused: [],
+      left,
+      next: "Core's writer failed on our side and wrote nothing; we are alerted. Do not call write_month_pieces again in this run. End the run with one sentence: the month is paused by a fault on our side.",
+    };
+  }
   return {
     written,
     refused: [...refused].map(([id, why]) => ({

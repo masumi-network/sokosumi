@@ -203,6 +203,7 @@ function overview() {
       beyondPlan: [],
       withoutPicture: [],
       retryAt: null,
+      writerFailed: false,
       floor: null,
     },
     mailingListSize: 0,
