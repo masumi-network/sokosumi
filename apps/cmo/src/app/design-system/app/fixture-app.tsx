@@ -134,7 +134,8 @@ interface FixtureAppProps {
     | "stuck"
     | "busy"
     | "quiet"
-    | "upgraded";
+    | "upgraded"
+    | "planning";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
@@ -186,22 +187,38 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
               },
             },
           }
-        : state === "upgraded"
+        : state === "planning"
           ? {
               ...shown,
               overview: {
                 ...shown.overview,
-                upgrade: {
-                  versionId: "cmo-v15",
-                  lines: [
-                    "Your strategy and Cuso's messages now use plain words, without marketing jargon.",
-                    "More posts on the networks that suit your business, at the pace each one likes.",
-                    "Short videos, each made once and shared on TikTok, Instagram Reels and YouTube Shorts.",
-                  ],
+                // cmo-v22 right after payment: Core plans the month.
+                production: {
+                  ...shown.overview.production,
+                  state: "planning" as const,
+                  ready: 0,
+                  written: 0,
+                  pictured: 0,
+                  floor: { promised: 356, made: 0 },
                 },
               },
             }
-          : shown;
+          : state === "upgraded"
+            ? {
+                ...shown,
+                overview: {
+                  ...shown.overview,
+                  upgrade: {
+                    versionId: "cmo-v15",
+                    lines: [
+                      "Your strategy and Cuso's messages now use plain words, without marketing jargon.",
+                      "More posts on the networks that suit your business, at the pace each one likes.",
+                      "Short videos, each made once and shared on TikTok, Instagram Reels and YouTube Shorts.",
+                    ],
+                  },
+                },
+              }
+            : shown;
   const loadCompetitors =
     state === "loading"
       ? () => new Promise<null>(() => {})

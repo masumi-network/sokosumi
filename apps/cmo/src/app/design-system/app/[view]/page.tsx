@@ -35,7 +35,8 @@ export default async function AppViewPage({
           state === "stuck" ||
           state === "busy" ||
           state === "quiet" ||
-          state === "upgraded"
+          state === "upgraded" ||
+          state === "planning"
             ? state
             : undefined
         }

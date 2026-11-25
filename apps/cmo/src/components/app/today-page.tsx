@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel, formatDay } from "../../lib/calendar";
 import { channelTone, formatName } from "../../lib/channels";
+import { planningLine } from "../../lib/production";
 import {
   dayIn,
   greeting,
@@ -66,7 +67,13 @@ export function TodayPage({
               Results
             </button>
           </div>
-          <MonthBar entries={entries} />
+          {planningLine(overview.production) ? (
+            <p className="month-lead muted">
+              {planningLine(overview.production)}
+            </p>
+          ) : (
+            <MonthBar entries={entries} />
+          )}
         </section>
       ) : null}
 
