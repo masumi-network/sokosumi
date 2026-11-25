@@ -4,6 +4,7 @@ import { driveFolderPathFromSourceId } from "@sokosumi/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Crop, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { RadioGroup } from "radix-ui";
 import { type RefObject, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -28,7 +29,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toolbarButtonClassName } from "@/components/ui/image-viewer";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
@@ -262,29 +262,28 @@ function ShapePicker({
 }) {
   const t = useTranslations("App.Drive.Crop");
   return (
-    <RadioGroup
+    <RadioGroup.Root
       value={value}
       onValueChange={(next) => onChange(next as SocialShapeId)}
       aria-label={t("shapeLabel")}
       className="grid grid-cols-2 gap-2 sm:grid-cols-4"
     >
       {SOCIAL_SHAPES.map((entry) => (
-        <label
+        // The whole card is the radio, so its tap target and name are the card's.
+        <RadioGroup.Item
           key={entry.id}
-          className="has-[button[data-state=checked]]:border-foreground flex min-h-11 cursor-pointer items-start gap-2 rounded-md border p-2"
+          value={entry.id}
+          className="press focus-visible:ring-ring data-[state=checked]:border-foreground flex min-h-11 flex-col rounded-md border p-2 text-start outline-none focus-visible:ring-2 data-[state=checked]:inset-ring-1 data-[state=checked]:inset-ring-foreground"
         >
-          <RadioGroupItem value={entry.id} className="mt-0.5" />
-          <span className="flex min-w-0 flex-col">
-            <span className="text-sm font-medium">
-              {t(`shapes.${entry.id}.name`)}
-            </span>
-            <span className="text-muted-foreground text-xs">
-              {t(`shapes.${entry.id}.hint`)}
-            </span>
+          <span className="text-sm font-medium">
+            {t(`shapes.${entry.id}.name`)}
           </span>
-        </label>
+          <span className="text-muted-foreground text-xs">
+            {t(`shapes.${entry.id}.hint`)}
+          </span>
+        </RadioGroup.Item>
       ))}
-    </RadioGroup>
+    </RadioGroup.Root>
   );
 }
 
