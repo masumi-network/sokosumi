@@ -1,5 +1,5 @@
 import type { Coworker } from "@sokosumi/core-client";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -22,6 +22,7 @@ import { BotFace } from "@/components/soko-bot/bot-face";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
@@ -124,15 +125,16 @@ async function SokoBotsSection() {
                 href={SOKO_BOT_ROUTE}
                 className={cn(
                   HOLDER_ITEM_CLASS,
-                  "press hover:bg-accent focus-visible:ring-ring flex h-full min-h-32 flex-col items-start justify-center gap-1 border-dashed p-4 transition-colors outline-none focus-visible:ring-2",
+                  HOLDER_ITEM_HOVER_CLASS,
+                  "group press focus-visible:ring-ring flex h-full min-h-32 flex-col items-start gap-3 p-4 outline-none focus-visible:ring-2",
                 )}
               >
-                <span className="text-foreground flex items-center gap-2 font-medium">
-                  <Plus aria-hidden className="size-4" />
-                  {t("createOwnBot")}
-                </span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-foreground text-sm text-pretty">
                   {t("createOwnBotHint")}
+                </span>
+                {/* The tile is the link; this only paints its action. */}
+                <span className="bg-primary text-primary-foreground group-hover:bg-primary-hover mt-auto inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors">
+                  {t("createOwnBot")}
                 </span>
               </Link>
             </li>

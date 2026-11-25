@@ -1,7 +1,6 @@
 "use client";
 
 import type { Coworker } from "@sokosumi/core-client";
-import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -27,7 +26,6 @@ export function CoworkerActions({ coworker }: { coworker: Coworker }) {
     <OpenCoworkerRoomProvider>
       {openNewTask ? (
         <Button type="button" size="sm" onClick={openNewTask}>
-          <Plus aria-hidden className="size-4" />
           {t("giveTask")}
         </Button>
       ) : null}

@@ -1,6 +1,5 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useNewTaskOpener } from "@/app/components/new-task-button.client";
@@ -24,7 +23,6 @@ export function MarketplaceAgentActions({ agentId }: { agentId: string }) {
     <>
       {openNewTask ? (
         <Button type="button" size="sm" onClick={openNewTask}>
-          <Plus aria-hidden />
           {t("startTask")}
         </Button>
       ) : null}
