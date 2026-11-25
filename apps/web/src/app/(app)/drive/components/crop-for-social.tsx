@@ -189,7 +189,7 @@ function CropDialogContent({
       ) : null}
 
       {problem ? null : (
-        <p className="text-muted-foreground text-xs tabular-nums">
+        <p className="text-muted-foreground text-xs">
           {rect
             ? t("result", {
                 name: croppedFileName(name, shape, type),

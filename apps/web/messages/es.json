@@ -11091,7 +11091,7 @@
         "description": "Elige un formato y mueve el control para colocar el recorte. Se guarda una copia junto al original; el original no cambia.",
         "shapeLabel": "Formato",
         "loading": "Cargando imagen…",
-        "loadError": "No se pudo cargar esta imagen. Cierra e inténtalo de nuevo.",
+        "loadError": "No se pudo cargar la imagen. Cierra e inténtalo de nuevo.",
         "result": "Guarda {name}, {width, number} × {height, number} px",
         "save": "Guardar copia",
         "saved": "{name} guardado en Archivos",
