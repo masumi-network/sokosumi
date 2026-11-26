@@ -218,6 +218,34 @@ describe("talkingVideoEditArgs", () => {
     expect(args.at(-1)).toBe("edited.mp4");
   });
 
+  it("lays each card over the cut with a fade, under the captions", () => {
+    const plan = planTalkingVideoEdit(WORDS, 3.5)!;
+    const plain = talkingVideoEditArgs(plan, files);
+    const args = talkingVideoEditArgs(plan, {
+      ...files,
+      cards: [
+        { png: "card-0.png", start: 0.2, end: 1.4 },
+        // Too short to fade in and out: left out.
+        { png: "card-1.png", start: 2, end: 2.3 },
+      ],
+    });
+
+    expect(args).toContain("card-0.png");
+    expect(args).not.toContain("card-1.png");
+    const graph = args[args.indexOf("-filter_complex") + 1]!;
+    expect(graph).toContain(
+      "fade=t=in:st=0.200:d=0.250:alpha=1,fade=t=out:st=1.150:d=0.250:alpha=1[k0]",
+    );
+    expect(graph).toContain(
+      "[cut][k0]overlay=0:0:enable='between(t,0.200,1.400)'[over0]",
+    );
+    expect(graph).toContain(
+      "[over0]ass=captions.ass:fontsdir=/tmp/fonts[video]",
+    );
+    // Without cards the edit is what it was.
+    expect(talkingVideoEditArgs(plan, { ...files, cards: [] })).toEqual(plain);
+  });
+
   it("stands the presenter over the page with the clip's matte", () => {
     const plan = planTalkingVideoEdit(WORDS, 3.5, { siteShots: true })!;
     const args = talkingVideoEditArgs(plan, {
