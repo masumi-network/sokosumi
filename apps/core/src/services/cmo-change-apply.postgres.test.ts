@@ -68,9 +68,10 @@ async function seed() {
     },
   });
   seeded.push({ userId, organizationId });
-  // Organization and Project fire triggers that name tables without a
-  // schema (ticket 19): their fixture runs under this run's schemas.
-  const { workspace, project } = await withFixtureSchemas(async (tx) => {
+  // Organization, Project, an approved strategy and Social posts fire
+  // triggers that name tables without a schema (ticket 19): the fixture
+  // runs under this run's schemas.
+  return withFixtureSchemas(async (tx) => {
     await tx.organization.create({
       data: {
         id: organizationId,
@@ -87,42 +88,41 @@ async function seed() {
       data: { workspaceId: workspace.id, name: "Apply test" },
       select: { id: true },
     });
-    return { workspace, project };
-  });
-  const base = await prisma.marketingStrategy.create({
-    data: {
-      projectId: project.id,
-      plan: jsonInput(plan("Base")),
-      approvedAt: new Date(),
-      approvedByUserId: userId,
-    },
-  });
-  const candidate = await prisma.marketingStrategy.create({
-    data: { projectId: project.id, plan: jsonInput(plan("Changed")) },
-  });
-  const post = (status: "SCHEDULED" | "DRAFT" | "PUBLISHED", text: string) =>
-    prisma.socialPost.create({
+    const base = await tx.marketingStrategy.create({
       data: {
         projectId: project.id,
-        workspaceId: workspace.id,
-        provider: "x",
-        text,
-        status,
-        creatorUserId: userId,
-        marketingStrategyId: base.id,
+        plan: jsonInput(plan("Base")),
+        approvedAt: new Date(),
+        approvedByUserId: userId,
       },
-      select: { id: true },
     });
-  const scheduled = await post("SCHEDULED", "Scheduled post");
-  const draft = await post("DRAFT", "Draft post");
-  const published = await post("PUBLISHED", "Published post");
-  return {
-    userId,
-    projectId: project.id,
-    base,
-    candidateId: candidate.id,
-    posts: { scheduled, draft, published },
-  };
+    const candidate = await tx.marketingStrategy.create({
+      data: { projectId: project.id, plan: jsonInput(plan("Changed")) },
+    });
+    const post = (status: "SCHEDULED" | "DRAFT" | "PUBLISHED", text: string) =>
+      tx.socialPost.create({
+        data: {
+          projectId: project.id,
+          workspaceId: workspace.id,
+          provider: "x",
+          text,
+          status,
+          creatorUserId: userId,
+          marketingStrategyId: base.id,
+        },
+        select: { id: true },
+      });
+    const scheduled = await post("SCHEDULED", "Scheduled post");
+    const draft = await post("DRAFT", "Draft post");
+    const published = await post("PUBLISHED", "Published post");
+    return {
+      userId,
+      projectId: project.id,
+      base,
+      candidateId: candidate.id,
+      posts: { scheduled, draft, published },
+    };
+  });
 }
 
 afterEach(async () => {
@@ -133,11 +133,11 @@ afterEach(async () => {
       select: { id: true },
     });
     const ids = workspaces.map((workspace) => workspace.id);
-    await prisma.socialPost.deleteMany({ where: { workspaceId: { in: ids } } });
-    await prisma.marketingStrategy.deleteMany({
-      where: { project: { workspaceId: { in: ids } } },
-    });
     await withFixtureSchemas(async (tx) => {
+      await tx.socialPost.deleteMany({ where: { workspaceId: { in: ids } } });
+      await tx.marketingStrategy.deleteMany({
+        where: { project: { workspaceId: { in: ids } } },
+      });
       await tx.project.deleteMany({ where: { workspaceId: { in: ids } } });
       await tx.workspace.deleteMany({ where: { id: { in: ids } } });
       await tx.organization.deleteMany({ where: { id: row.organizationId } });
@@ -263,16 +263,16 @@ describe.runIf(enabled)(
       const other = await prisma.marketingStrategy.create({
         data: { projectId: world.projectId, plan: jsonInput(plan("Other")) },
       });
-      await prisma.$transaction([
-        prisma.marketingStrategy.update({
+      await withFixtureSchemas(async (tx) => {
+        await tx.marketingStrategy.update({
           where: { id: world.base.id },
           data: { approvedAt: null },
-        }),
-        prisma.marketingStrategy.update({
+        });
+        await tx.marketingStrategy.update({
           where: { id: other.id },
           data: { approvedAt: new Date() },
-        }),
-      ]);
+        });
+      });
       expect(
         await commitCmoChangeApply({
           candidateId: world.candidateId,
