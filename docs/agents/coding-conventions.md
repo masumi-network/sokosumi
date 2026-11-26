@@ -94,6 +94,7 @@ function handler(_req, res) {
 - **Mocking**: Colocate `vi.mock` (and Prisma factories in Core / `@sokosumi/database`) next to the test. Web has no `__mocks__/` directory.
 - **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
 - **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
+- **Checks on SQL**: Let PostgreSQL or the type checker decide a property of SQL or PL/pgSQL: PostgreSQL prepares or runs the statement on the target layout or compares a digest of a function body, and a TypeScript type rejects a wrong table name. A pattern over SQL text always has one more corner (a comment, a string literal, a quoted alias, a dollar quote). When neither can decide a property, name it as a review step in the pull request instead of building a detector over the text.
 
 ### Code References
 
