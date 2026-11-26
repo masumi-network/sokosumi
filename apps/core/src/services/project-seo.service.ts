@@ -713,7 +713,9 @@ export async function getProjectSeoWorkspace(
       (await readAuditPerformanceSummaries(
         actor,
         analyses.flatMap((a) =>
-          a.kind === "audit_full" && a.taskId && visibleTasks.has(a.taskId)
+          a.kind === "audit_full" &&
+          a.taskId &&
+          taskRows.some((task) => task.id === a.taskId && !task.archivedAt)
             ? [a.taskId]
             : [],
         ),
@@ -721,8 +723,11 @@ export async function getProjectSeoWorkspace(
           a.kind === "audit_full" &&
           a.requestedBy === actor.userId &&
           a.taskId &&
-          tasks.some(
-            (task) => task.id === a.taskId && task.status === "COMPLETED",
+          taskRows.some(
+            (task) =>
+              task.id === a.taskId &&
+              task.status === "COMPLETED" &&
+              !task.archivedAt,
           ) &&
           storedSeoAuditSearchConsoleSchema.safeParse(a.request).data
             ?.searchConsoleAccess

@@ -550,6 +550,15 @@ describe("sync routes", () => {
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
+  it("mounts the SEO impact tick", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/seo-impact");
+
+    // An unmounted path answers 404; the tick asks for the cron secret.
+    expect(response.status).toBe(401);
+  });
+
   it("runs the durable Calendar invalidation publisher", async () => {
     const app = await createApp();
 

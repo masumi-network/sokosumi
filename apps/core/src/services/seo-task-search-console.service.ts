@@ -22,6 +22,7 @@ import {
   gscTaskToolArguments,
   isAuditPageUrl,
 } from "@/lib/seo/search-console-task-read";
+import { withDeadline } from "@/lib/with-deadline";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type {
   GscTaskSearchAnalyticsQuery,
@@ -182,23 +183,6 @@ async function spendReadBudget(
   });
 }
 
-async function withDeadline<T>(work: Promise<T>): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("Search Console read timed out")),
-          GSC_TASK_READ_TIMEOUT_MS,
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 function recheck(
   auth: AuthenticationContext,
   taskId: string,
@@ -277,6 +261,8 @@ async function runRead(
         GSC_TASK_OPERATIONS[read.operation].tool,
         gscTaskToolArguments(read, access.propertyId),
       ),
+      GSC_TASK_READ_TIMEOUT_MS,
+      "Search Console read timed out",
     );
     trace.providerStep = "answered";
     reply = gscTaskReplyBody(read, access.propertyId, data);

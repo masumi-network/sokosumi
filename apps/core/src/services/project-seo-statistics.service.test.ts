@@ -18,6 +18,7 @@ const state = vi.hoisted(() => {
     at,
     member: true,
     closing: false,
+    taskArchivedAt: null as Date | null,
     integrationActive: true,
     accountRevision: 0,
     auditAccess: null as {
@@ -271,6 +272,7 @@ vi.mock("@/lib/db/prisma", () => {
         workspaceId: "workspace",
         projectId: state.projectId,
         organizationId: null,
+        archivedAt: state.taskArchivedAt,
       }),
     },
     $executeRaw: async () => 1,
@@ -499,6 +501,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-01-20T12:00:00Z"));
   state.member = true;
   state.closing = false;
+  state.taskArchivedAt = null;
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
   state.accountRevision = 0;
@@ -1159,6 +1162,25 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("reads nothing from Google when the requester refreshes an archived audit Task", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(integration!),
+    };
+    state.answer = gsc({ rows: [] });
+    state.taskArchivedAt = new Date("2026-01-15T00:00:00Z");
+    await expect(
+      collectSeoAuditPerformance("audit-task", owner, true),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(state.reads).toHaveLength(0);
+  });
 
   it("recovers property-wide totals for an old private audit without changing its filtered page metrics", async () => {
     const owner = { ...actor, sokoBotId: undefined };

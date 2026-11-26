@@ -13,6 +13,7 @@ import {
   checkNetworkLayout,
   networkLayoutShape,
 } from "@/config/network-layout";
+import { seoImpactEnvShape } from "@/config/seo-impact-env";
 import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
@@ -102,6 +103,7 @@ const baseEnvSchema = z.object({
   // A shared service requires explicit global mode; Task authority and billing remain per actor.
   // Omit both SEO overrides to use the built-in live Mainnet service. Preview and Preprod stay opt-in.
   SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
+  ...seoImpactEnvShape,
 
   // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
   SEO_CHAT_DAILY_TURN_LIMIT: z.coerce.number().int().positive().default(100),

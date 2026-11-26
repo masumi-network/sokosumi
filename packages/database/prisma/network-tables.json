@@ -204,6 +204,7 @@
     "ProjectSeoActionTask": "project_seo_action_task",
     "ProjectSeoAnalysis": "project_seo_analysis",
     "ProjectSeoCompetitor": "project_seo_competitor",
+    "ProjectSeoImpactVerdict": "project_seo_impact_verdict",
     "ProjectSeoKeyword": "project_seo_keyword",
     "ProjectSeoObservation": "project_seo_observation",
     "ProjectSeoPage": "project_seo_page",

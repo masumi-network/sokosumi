@@ -85,7 +85,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("gives a colleague the snapshot of an audit Task they may see, and no retry on it", async () => {
+it("gives a colleague the snapshot of an audit Task they may see, property-wide data included, and no retry on it", async () => {
   db.observations.mockResolvedValue([snapshot]);
   const summary = await readAuditPerformanceSummaries(colleague, [
     "public-audit",
@@ -94,8 +94,10 @@ it("gives a colleague the snapshot of an audit Task they may see, and no retry o
     { taskId: "public-audit", clicks: 12 },
   ]);
   expect(summary.auditSearchConsoleRetryTaskIds).toEqual([]);
-  // Property-wide totals go past the audit's pages. The requester agreed to them for their own report only.
-  expect(summary.auditSearchConsole[0]).not.toHaveProperty("propertyTotals");
+  // Property-wide totals are shared with the audit; only their refresh stays with the requester.
+  expect(summary.auditSearchConsole[0]).toMatchObject({
+    propertyTotals: { clicks: 900 },
+  });
   expect(summary.auditSearchConsole[0]).not.toHaveProperty("requester");
   const own = await readAuditPerformanceSummaries(
     { ...colleague, userId: "requester" },
@@ -112,6 +114,62 @@ it("gives a colleague the snapshot of an audit Task they may see, and no retry o
     source: "search_console",
     sourceTaskId: { in: ["public-audit"] },
   });
+});
+
+it("shows a colleague the property's submitted sitemaps and page discovery, without the requester's earlier comparison", async () => {
+  const sitemap = "https://example.test/sitemap.xml";
+  db.observations.mockResolvedValue([
+    {
+      ...snapshot,
+      payload: {
+        ...snapshot.payload,
+        auditPageDiscovery: {
+          recent: { from: "2026-06-01", to: "2026-06-28" },
+          previous: { from: "2026-05-04", to: "2026-05-31" },
+          limited: false,
+          pages: [],
+        },
+        auditDiscovery: {
+          checkedAt: "2026-07-01T00:00:00.000Z",
+          status: "available",
+          sitemaps: [
+            {
+              path: sitemap,
+              type: "sitemap",
+              index: false,
+              pending: false,
+              submittedAt: null,
+              downloadedAt: null,
+              errors: 0,
+              warnings: 0,
+              webUrls: 3,
+            },
+          ],
+          inspections: [],
+          changes: [
+            {
+              url: sitemap,
+              previousDay: "2026-05-01",
+              text: "Google read 2 more URLs.",
+            },
+          ],
+        },
+      },
+    },
+  ]);
+  const [shared] = (
+    await readAuditPerformanceSummaries(colleague, ["public-audit"])
+  ).auditSearchConsole;
+  expect(shared).toMatchObject({
+    pageDiscovery: { limited: false },
+    discovery: { sitemaps: [{ path: sitemap }], changes: [] },
+  });
+  const [own] = (
+    await readAuditPerformanceSummaries({ ...colleague, userId: "requester" }, [
+      "public-audit",
+    ])
+  ).auditSearchConsole;
+  expect(own?.discovery?.changes).toHaveLength(1);
 });
 
 it("reads nothing when the reader may see no audit Task", async () => {

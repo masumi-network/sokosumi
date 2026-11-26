@@ -6599,6 +6599,10 @@
             "title": "SEO audit alerts",
             "description": "Inspect audit failures and connection coverage."
           },
+          "seoImpact": {
+            "title": "SEO impact",
+            "description": "Track done page changes until Google crawls them."
+          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -7999,6 +8003,47 @@
           "gscProperty": "The audit could not use the selected Search Console property.",
           "gscUnavailable": "The audit could not verify Search Console coverage.",
           "gscSkipped": "The owner chose to continue without Search Console."
+        }
+      },
+      "SeoImpact": {
+        "title": "SEO impact",
+        "description": "Page changes that customers marked done. Each row waits for Google's first crawl after the change, then gets the four weeks its verdict compares.",
+        "summary": "Showing {shown} of {total} tracked page changes.",
+        "period": "Period",
+        "periods": {
+          "90": "90 days",
+          "365": "365 days",
+          "all": "All"
+        },
+        "empty": "No page change was tracked in this period.",
+        "customer": "Customer",
+        "page": "Page",
+        "suggestion": "Suggestion",
+        "source": "Source",
+        "changedAt": "Changed",
+        "crawledAt": "First observed crawl after change",
+        "window": "Window",
+        "state": "State",
+        "reason": "Reason",
+        "none": "None",
+        "notYet": "Not yet",
+        "windowRange": "{start} to {end}",
+        "readyOn": "Data final on {date}",
+        "sources": {
+          "cuso_done": "Marked done",
+          "audit_recheck": "Audit recheck"
+        },
+        "states": {
+          "waiting_crawl": "Waits for crawl",
+          "waiting_window": "Waits for window",
+          "not_measurable": "Not measurable"
+        },
+        "reasons": {
+          "no_cuso": "The project has no live Cuso.",
+          "not_connected": "Search Console is not connected.",
+          "no_property": "No Search Console property covers the page.",
+          "inspection_failed": "URL Inspection failed or was refused.",
+          "not_crawled_yet": "Google has not crawled the page since the change."
         }
       },
       "CmoSpend": {
@@ -14201,8 +14246,8 @@
         "importSitemapHelp": "Review the first {count} eligible page URLs below. Starting the audit shares those URLs. The XML file stays on your device.",
         "sitemapReading": "Reading sitemap…",
         "sitemapInvalid": "Choose a sitemap URL set under 512 KiB with public pages from this site.",
-        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in my private report.",
-        "includeSitemaps": "Include Google’s submitted sitemap status for this property in my private report.",
+        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in the report. Everyone who can see the audit sees them.",
+        "includeSitemaps": "Include Google’s submitted sitemap status for this property in the report. Everyone who can see the audit sees it.",
         "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
         "noPermission": "A check cannot be requested for these pages.",
         "running": "Checks in progress",
