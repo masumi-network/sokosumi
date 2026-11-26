@@ -409,6 +409,67 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     expect(keyless.auditId).not.toBe(first.auditId);
   });
 
+  it("refuses a create key another member of the same workspace already used", async () => {
+    const [owner, teammate, organizationId, orgWorkspaceId] = [
+      randomUUID(),
+      randomUUID(),
+      randomUUID(),
+      randomUUID(),
+    ];
+    for (const id of [owner, teammate])
+      await prisma.user.create({
+        data: {
+          id,
+          name: "SEO key fixture",
+          email: `${id}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    await prisma.organization.create({
+      data: {
+        id: organizationId,
+        name: "SEO key fixture",
+        slug: organizationId,
+        workspace: { create: { id: orgWorkspaceId } },
+        members: {
+          create: [owner, teammate].map((id) => ({
+            userId: id,
+            role: "member",
+            seatAssignedAt: new Date(),
+          })),
+        },
+      },
+    });
+    try {
+      const idempotencyKey = `create-${randomUUID()}`;
+      const request = { name: "Shared key", firstPage, idempotencyKey };
+      await createSeoAudit(
+        { userId: owner, workspaceId: orgWorkspaceId, organizationId },
+        request,
+      );
+      // The same input from a teammate: the key is the first member's, not a replay for another.
+      await expect(
+        createSeoAudit(
+          { userId: teammate, workspaceId: orgWorkspaceId, organizationId },
+          request,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(
+        await prisma.seoAudit.count({ where: { workspaceId: orgWorkspaceId } }),
+      ).toBe(1);
+    } finally {
+      await prisma.seoAudit.deleteMany({
+        where: { workspaceId: orgWorkspaceId },
+      });
+      await prisma.organization.deleteMany({ where: { id: organizationId } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner, teammate] } },
+      });
+    }
+  });
+
   it("rejects a foreign optional Project link without retaining an Audit or its first page", async () => {
     const foreignProject = await prisma.project.create({
       data: { workspaceId: foreignWorkspaceId, name: "Foreign native Project" },
