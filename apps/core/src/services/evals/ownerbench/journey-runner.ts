@@ -735,6 +735,41 @@ export async function wakeCheck(
  * TaskEvent (a retry adds a suffix to it): an earlier update on the same
  * Task is a different event and earns nothing.
  */
+/**
+ * The failed or cancelled turns among these whose event a later turn here
+ * processed again as its retry (the retry's event id is the failed one's
+ * with a suffix, ":follow-up-retry"). An unrelated failed turn is not one.
+ */
+export async function retriedAttempts(
+  turnIds: readonly string[],
+): Promise<Set<string>> {
+  const turns = await prisma.sokoBotTurn.findMany({
+    where: { id: { in: [...turnIds] } },
+    select: {
+      id: true,
+      status: true,
+      eventInbox: { select: { eventId: true } },
+    },
+  });
+  const failedStatus = ["FAILED", "CANCELLED"];
+  const recovered = turns
+    .filter((turn) => !failedStatus.includes(turn.status))
+    .flatMap((turn) => turn.eventInbox.map((entry) => entry.eventId));
+  return new Set(
+    turns
+      .filter(
+        (turn) =>
+          failedStatus.includes(turn.status) &&
+          turn.eventInbox.some((entry) =>
+            recovered.some((eventId) =>
+              eventId.startsWith(`${entry.eventId}:`),
+            ),
+          ),
+      )
+      .map((turn) => turn.id),
+  );
+}
+
 async function answerWakes(
   botId: string,
   since: Date,
@@ -771,7 +806,11 @@ async function finishStep(
   );
   const checks: ScenarioCheck[] = [];
   let merged: Awaited<ReturnType<typeof loadA2aChain>>["merged"] | null = null;
-  if (turnIds.length) merged = (await loadA2aChain(turnIds)).merged;
+  // A failed attempt whose own retry got through is not the step's outcome;
+  // it stays in the step's turns, for cost and diagnosis.
+  const retried = await retriedAttempts(turnIds);
+  const graded = turnIds.filter((id) => !retried.has(id));
+  if (graded.length) merged = (await loadA2aChain(graded)).merged;
   checks.push(
     ...stepExpectationChecks(
       journey,

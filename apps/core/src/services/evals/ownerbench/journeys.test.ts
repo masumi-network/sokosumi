@@ -212,6 +212,38 @@ describe("reportedFacts on the Monday report", () => {
     ).toEqual([]);
   });
 
+  it("pairs each Task with the section it is listed under", () => {
+    const sectioned = (done: string, blocked: string, waiting: string) =>
+      `## Weekly report\n\nCompleted:\n- ${done}\n\n**Blocked**\n- ${blocked}\n\nWaiting on you\n- ${waiting}`;
+    expect(
+      wrong(
+        sectioned(
+          "Compare EU invoicing tools",
+          "Draft the partner FAQ",
+          "Pick the webinar date",
+        ),
+      ),
+    ).toEqual([]);
+    // The FAQ listed as completed, the invoicing comparison as blocked.
+    expect(
+      wrong(
+        sectioned(
+          "Draft the partner FAQ",
+          "Compare EU invoicing tools",
+          "Pick the webinar date",
+        ),
+      ),
+    ).toEqual([facts[0]!.item, facts[1]!.item]);
+  });
+
+  it("reads a negated status as its opposite", () => {
+    expect(
+      wrong(
+        "Compare EU invoicing tools is incomplete. Draft the partner FAQ is no longer blocked. Pick the webinar date is no longer waiting on you.",
+      ),
+    ).toEqual(facts.map((fact) => fact.item));
+  });
+
   it("fails every Task reported with the wrong status, or one of them", () => {
     expect(
       wrong(

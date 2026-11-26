@@ -30,6 +30,7 @@ import {
   foregroundTurnId,
   freshConversationCheck,
   journeyTokens,
+  retriedAttempts,
   routingFailures,
   scheduleToFire,
   wakeCheck,
@@ -1240,7 +1241,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           finalReply,
         }: {
           /** The final reply's delivery, or a post_chat receipt. */
-          via?: "final" | "post_chat";
+          via?: "final" | "post_chat" | "send_message";
           metadata?: object;
           /** With post_chat: the turn's own short final reply. */
           finalReply?: string;
@@ -1279,15 +1280,26 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           },
           select: { id: true },
         });
-        if (via === "post_chat") {
-          await prisma.sokoBotToolCall.create({
+        if (via !== "final") {
+          // post_chat names the message as its target; send_message names the
+          // room and leaves the message to its chat effect.
+          const receipt = await prisma.sokoBotToolCall.create({
             data: {
               turnId: turn.id,
               toolCallId: randomUUID(),
-              capability: "post_chat",
+              capability: via,
               inputHash: randomUUID(),
               status: "COMPLETED",
-              targetId: message.id,
+              targetId: via === "post_chat" ? message.id : room.id,
+            },
+            select: { id: true },
+          });
+          await prisma.sokoBotEffectOutbox.create({
+            data: {
+              receiptId: receipt.id,
+              purpose: "CHAT_MESSAGE",
+              payload: { messageId: message.id, roomId: room.id, content },
+              status: "PUBLISHED",
             },
           });
           if (finalReply) {
@@ -1427,7 +1439,16 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         pass: false,
       });
       await clearPosts();
-      // The same file as a result card on the message: shared.
+      // Its raw id in a sentence opens nothing either.
+      await postToOwner(
+        `I could not attach ${savedReport.id}. I have nothing to share yet.`,
+      );
+      expect(await outcomeCheck(delivered, withSavedReport)).toMatchObject({
+        pass: false,
+      });
+      await clearPosts();
+      // The same file as a result card on the message, as Core's preview
+      // resolver writes it: its own preview id, the file in its reference.
       await postToOwner("Here is your weekly report.", true, {
         metadata: {
           result_preview_snapshots: [
@@ -1435,7 +1456,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
               workspaceId,
               reference: { kind: "file", id: savedReport.id },
               data: {
-                id: savedReport.id,
+                id: randomUUID(),
                 state: "available",
                 capturedAt: new Date().toISOString(),
                 kind: "file",
@@ -1449,19 +1470,87 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
       expect(await outcomeCheck(delivered, withSavedReport)).toMatchObject({
         pass: true,
-        actual:
-          'delivered as a message to the owner linking "weekly-result.md"',
+        actual: expect.stringContaining('opening "weekly-result.md"'),
       });
       await clearPosts();
-      // post_chat posted the full report; the final reply only says so.
-      await postToOwner(report, true, {
-        via: "post_chat",
-        finalReply: "I posted your report.",
-      });
+      // A tool posted the full report; the final reply only says so.
+      for (const via of ["post_chat", "send_message"] as const) {
+        await postToOwner(report, true, {
+          via,
+          finalReply: "I posted your report.",
+        });
+        expect(await outcomeCheck(delivered, step), via).toMatchObject({
+          pass: true,
+        });
+        await clearPosts();
+      }
+      // A sectioned report: each Task under its status's heading.
+      await postToOwner(
+        "Weekly report\n\nCompleted:\n- Compare EU invoicing tools\n\nBlocked:\n- Draft the partner FAQ\n\nWaiting on you:\n- Pick the webinar date",
+      );
+      expect(await outcomeCheck(delivered, step)).toMatchObject({ pass: true });
+      await clearPosts();
+      await postToOwner(
+        "Weekly report\n\nCompleted:\n- Draft the partner FAQ\n\nBlocked:\n- Compare EU invoicing tools\n\nWaiting on you:\n- Pick the webinar date",
+      );
       expect(await outcomeCheck(delivered, step)).toMatchObject({
-        pass: true,
-        actual: "delivered as a message to the owner",
+        pass: false,
       });
+      await clearPosts();
+      // The answer's wake failed; its retry delivered the report.
+      const answerEvent = randomUUID();
+      const eventTurn = async (
+        status: "FAILED" | "COMPLETED",
+        eventId: string,
+      ) => {
+        const turn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            source: "EVENT",
+            status,
+            clientTurnId: `lab:fixture:${randomUUID()}`,
+            userMessage: "A Task changed",
+            capabilityNames: [],
+            deadlineAt: new Date(Date.now() + 60_000),
+          },
+          select: { id: true },
+        });
+        await prisma.sokoBotEventInbox.create({
+          data: {
+            botId,
+            turnId: turn.id,
+            eventId,
+            entityId: releasedId!,
+            purpose: "fixture",
+          },
+        });
+        return turn.id;
+      };
+      const failedAttempt = await eventTurn("FAILED", answerEvent);
+      const retry = await eventTurn(
+        "COMPLETED",
+        `${answerEvent}:follow-up-retry`,
+      );
+      const unrelated = await eventTurn("FAILED", randomUUID());
+      const reportMessage = await prisma.chatRoomMessage.create({
+        data: { roomId: room.id, senderSokoBotId: botId, content: report },
+        select: { id: true },
+      });
+      await prisma.sokoBotDelivery.create({
+        data: {
+          turnId: retry,
+          roomId: room.id,
+          messageId: reportMessage.id,
+          status: "PERSISTED",
+        },
+      });
+      expect(await outcomeCheck(delivered, step)).toMatchObject({ pass: true });
+      // The step's status reads the retry; an unrelated failure stays visible.
+      expect([
+        ...(await retriedAttempts([failedAttempt, retry, unrelated])),
+      ]).toEqual([failedAttempt]);
       await clearPosts();
       // A correct report may also say when it looks again.
       await postToOwner(`${report} I'll check again tomorrow.`);

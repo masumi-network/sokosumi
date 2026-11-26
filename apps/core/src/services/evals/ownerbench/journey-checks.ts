@@ -1349,20 +1349,37 @@ async function deliveringTurnIds(context: CheckContext): Promise<string[]> {
   return (await withDescendants(roots)).map((turn) => turn.id);
 }
 
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
 /**
- * What the step delivered to the owner: the messages its run's turns posted
- * in a room the owner is in, made after the step started, each with the text
- * of any file saved in the step that it links. A Coworker's comment, a
- * report saved but never sent, an earlier message: none reached the owner.
+ * The Drive files a message lets the owner open: a Drive link's destination
+ * in its text, or a file card's reference. A bare id or a file name in a
+ * sentence opens nothing.
  */
-export async function deliveredTexts(
+export function openableFileIds(content: string, metadata: unknown): string[] {
+  const links = [
+    ...content.matchAll(new RegExp(`/drive/files/(${UUID})`, "gi")),
+  ].flatMap((match) => (match[1] ? [match[1].toLowerCase()] : []));
+  const cards = readMessageResultSnapshots(metadata).flatMap((snapshot) =>
+    snapshot.reference.kind === "file" ? [snapshot.reference.id] : [],
+  );
+  return [...new Set([...links, ...cards])];
+}
+
+/**
+ * Everything the owner received from this step's run: each message the run's
+ * turns (the claimed scheduled run, or the wakes by the released Task's
+ * answer, retries included, with every run they started) put into a room the
+ * owner is in after the step started, however it got there (the final
+ * reply's delivery, a chat effect, a tool's receipt), each with the latest
+ * text of the files it lets the owner open. A Coworker's comment, a report
+ * never sent, an earlier message, another turn's message: none of it.
+ */
+export async function ownerReceived(
   context: CheckContext,
 ): Promise<{ source: string; text: string }[]> {
-  const since = context.stepStartedAt;
   const turnIds = await deliveringTurnIds(context);
-  // Both ways a turn speaks: its final reply's delivery, and what it posted
-  // with post_chat (the receipt names the message).
-  const [deliveries, posts] = await Promise.all([
+  const [deliveries, receipts] = await Promise.all([
     prisma.sokoBotDelivery.findMany({
       where: {
         turnId: { in: turnIds },
@@ -1372,99 +1389,129 @@ export async function deliveredTexts(
       select: { messageId: true },
     }),
     prisma.sokoBotToolCall.findMany({
-      where: {
-        turnId: { in: turnIds },
-        capability: "post_chat",
-        status: "COMPLETED",
-        targetId: { not: null },
-      },
-      select: { targetId: true },
+      where: { turnId: { in: turnIds }, status: "COMPLETED" },
+      select: { targetId: true, effects: { select: { payload: true } } },
     }),
   ]);
-  const [messages, files] = await Promise.all([
-    prisma.chatRoomMessage.findMany({
-      where: {
-        id: {
-          in: [
-            ...deliveries.flatMap((delivery) => delivery.messageId ?? []),
-            ...posts.flatMap((post) => post.targetId ?? []),
-          ],
-        },
-        deletedAt: null,
-        createdAt: { gte: since },
-        room: { userMembers: { some: { userId: context.lane.userId } } },
-      },
-      orderBy: { createdAt: "asc" },
-      select: { content: true, metadata: true },
+  const effectMessages = receipts.flatMap((receipt) =>
+    receipt.effects.flatMap((effect) => {
+      const id = (effect.payload as { messageId?: unknown } | null)?.messageId;
+      return typeof id === "string" ? [id] : [];
     }),
-    prisma.fileResource.findMany({
-      where: {
-        workspaceId: context.lane.workspaceId,
-        sourceKind: "DRIVE_UPLOAD",
-        lifecycle: "ACTIVE",
-        tombstonedAt: null,
-        createdAt: { gte: since },
-        NOT: { mimeType: { startsWith: "image/" } },
+  );
+  const messages = await prisma.chatRoomMessage.findMany({
+    where: {
+      id: {
+        in: [
+          ...deliveries.flatMap((delivery) => delivery.messageId ?? []),
+          ...receipts.flatMap((receipt) => receipt.targetId ?? []),
+          ...effectMessages,
+        ],
       },
-      select: { id: true, displayName: true },
-    }),
-  ]);
-  const saved = savedFileTexts(
+      senderSokoBotId: context.botId,
+      deletedAt: null,
+      createdAt: { gte: context.stepStartedAt },
+      room: { userMembers: { some: { userId: context.lane.userId } } },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { content: true, metadata: true },
+  });
+  const linked = messages.map((message) =>
+    openableFileIds(message.content, message.metadata),
+  );
+  const fileIds = [...new Set(linked.flat())];
+  const files = await prisma.fileResource.findMany({
+    where: { id: { in: fileIds }, tombstonedAt: null },
+    select: { id: true, displayName: true },
+  });
+  const texts = savedFileTexts(
     files,
     context.toolCalls,
     await indexedTexts(files.map((file) => file.id)),
-  ).map((file, index) => ({ ...file, id: files[index]?.id ?? "" }));
-  return messages.map((message) => {
-    // A file the message itself resolves: its id in a link, or a file card
-    // in the message's results. A bare file name is no reference.
-    const cards = readMessageResultSnapshots(message.metadata).flatMap(
-      (snapshot) =>
-        snapshot.data.state === "available" && snapshot.data.kind === "file"
-          ? [snapshot.data.id]
-          : [],
-    );
-    const linked = saved.filter(
-      (file) =>
-        file.text !== null &&
-        (message.content.includes(file.id) || cards.includes(file.id)),
+  ).map((file, index) => ({ ...file, id: files[index]?.id }));
+  return messages.map((message, index) => {
+    const opened = texts.filter(
+      (file) => file.text !== null && linked[index]?.includes(file.id ?? ""),
     );
     return {
-      source: linked.length
-        ? `a message to the owner linking ${linked.map((file) => `"${file.name}"`).join(", ")}`
+      source: opened.length
+        ? `a message to the owner opening ${opened.map((file) => `"${file.name}"`).join(", ")}`
         : "a message to the owner",
-      text: [message.content, ...linked.map((file) => file.text ?? "")].join(
-        "\n",
+      text: [message.content, ...opened.map((file) => file.text ?? "")].join(
+        "\n\n",
       ),
     };
   });
 }
 
+const NEGATION =
+  /\b(not|no longer|isn't|is not|aren't|are not|wasn't|was not|hasn't been|has not been|never|no)\s+(\w+\s+)?$/i;
+
+/** Whether the clause says the status, not its negation ("no longer blocked", "incomplete"). */
+export function saysStatus(clause: string, pattern: string): boolean {
+  for (const match of clause.matchAll(new RegExp(pattern, "gi"))) {
+    const at = match.index ?? 0;
+    const wordStart = clause.slice(0, at).search(/\w*$/);
+    const prefix = clause.slice(wordStart, at).toLowerCase();
+    if (["in", "un", "non"].includes(prefix)) continue;
+    if (NEGATION.test(clause.slice(Math.max(0, wordStart - 30), wordStart)))
+      continue;
+    return true;
+  }
+  return false;
+}
+
 /**
- * What a report says about each item, clause by clause. A clause is a line,
- * a bullet, a sentence or a part of one joined by a comma or "and", so
- * "invoicing is stuck, the webinar is done" pairs each item with its own
- * word. An item passes when a clause names it with its own status and none
- * names it with another item's status instead.
+ * What a report says about each item, clause by clause. A clause is part of
+ * a line: a sentence, or a piece joined by a comma or "and", so "invoicing
+ * is stuck, the webinar is done" pairs each item with its own word. A line
+ * that names no item but says a status ("Done:", "## Waiting on you") heads
+ * a section: an item under it that says no status of its own takes the
+ * heading's, until a blank line. An item passes when some clause says it
+ * with its own status and none says it with another item's instead.
  */
 export function reportedFacts(
   text: string,
   facts: readonly { item: string; status: string }[],
 ): { wrong: string[] } {
-  const clauses = text
-    .split(
-      /\n|[.;!?](?=\s|$)|,\s|\s+(?:and|but|while|whereas)\s+|\s[-–•]\s|^[-•*]\s/im,
-    )
-    .map((clause) => clause.trim())
-    .filter(Boolean);
-  const has = (clause: string, pattern: string) =>
-    new RegExp(pattern, "i").test(clause);
+  const names = (clause: string, fact: { item: string }) =>
+    new RegExp(fact.item, "i").test(clause);
+  const saysAny = (clause: string) =>
+    facts.some((fact) => saysStatus(clause, fact.status));
+  const clauses: string[] = [];
+  let section = "";
+  for (const line of text.split("\n")) {
+    const body = line
+      .trim()
+      .replace(/^(#+|[-*•]|\d+[.)])\s+/, "")
+      .replace(/\*\*/g, "");
+    if (!body) {
+      section = "";
+      continue;
+    }
+    if (!facts.some((fact) => names(body, fact)) && saysAny(body)) {
+      section = body;
+      continue;
+    }
+    for (const part of body.split(
+      /[.;!?](?=\s|$)|,\s|\s+(?:and|but|while|whereas)\s+|\s[-–•]\s/i,
+    )) {
+      const clause = part.trim();
+      if (!clause) continue;
+      clauses.push(
+        section && !saysAny(clause) ? `${section} ${clause}` : clause,
+      );
+    }
+  }
   const wrong = facts.flatMap((fact) => {
-    const naming = clauses.filter((clause) => has(clause, fact.item));
-    const right = naming.some((clause) => has(clause, fact.status));
+    const naming = clauses.filter((clause) => names(clause, fact));
+    const right = naming.some((clause) => saysStatus(clause, fact.status));
     const contradicted = naming.some(
       (clause) =>
-        !has(clause, fact.status) &&
-        facts.some((other) => other !== fact && has(clause, other.status)),
+        !saysStatus(clause, fact.status) &&
+        facts.some(
+          (other) => other !== fact && saysStatus(clause, other.status),
+        ),
     );
     return right && !contradicted ? [] : [fact.item];
   });
@@ -1476,31 +1523,29 @@ async function deliveredCheck(
   context: CheckContext,
 ): Promise<ScenarioCheck> {
   const minLength = outcome.minLength ?? 40;
-  const delivered = await deliveredTexts(context);
-  const graded = delivered.map((entry) => ({
-    ...entry,
-    wrong: reportedFacts(entry.text, outcome.facts ?? []).wrong,
-  }));
-  const good = graded.find(
-    (entry) =>
-      entry.text.trim().length >= minLength &&
-      matchesAll(entry.text, outcome.textMatches).pass &&
-      !matchesAny(entry.text, outcome.textAvoids) &&
-      entry.wrong.length === 0,
-  );
-  const closest = graded.toSorted((a, b) => a.wrong.length - b.wrong.length)[0];
+  const received = await ownerReceived(context);
+  // Judged on everything the owner received together: a report may come
+  // as a message, the file it opens, or both.
+  const text = received.map((entry) => entry.text).join("\n\n");
+  const { wrong } = reportedFacts(text, outcome.facts ?? []);
+  const pass =
+    received.length > 0 &&
+    text.trim().length >= minLength &&
+    matchesAll(text, outcome.textMatches).pass &&
+    !matchesAny(text, outcome.textAvoids) &&
+    wrong.length === 0;
   return {
     label: outcome.label,
-    pass: Boolean(good),
-    actual: good
-      ? `delivered as ${good.source}`
-      : closest
-        ? `${delivered.length} message(s) to the owner, none with every part right${
-            closest.wrong.length
-              ? `: missing or wrong /${closest.wrong.join("/, /")}/`
-              : ""
-          }`
-        : "nothing reached the owner in this step",
+    pass,
+    actual: !received.length
+      ? "nothing reached the owner in this step"
+      : pass
+        ? `delivered as ${received.map((entry) => entry.source).join("; ")}`
+        : `${received.length} message(s) to the owner${
+            wrong.length
+              ? `: missing or wrong /${wrong.join("/, /")}/`
+              : ", not the report"
+          }`,
   };
 }
 
