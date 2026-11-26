@@ -86,6 +86,20 @@ describe("readContext", () => {
     });
   });
 
+  it("narrows by a one-letter query instead of returning everything", async () => {
+    turnFindMany.mockResolvedValue([]);
+    await readContext(authorized, { section: "conversation", query: "X" });
+    const [{ where }] = turnFindMany.mock.calls[0];
+    // scope, not this turn, no `before`, and the one word
+    expect(where.AND).toHaveLength(4);
+    expect(where.AND.at(-1)).toEqual({
+      OR: [
+        { userMessage: { contains: "X", mode: "insensitive" } },
+        { finalAnswer: { contains: "X", mode: "insensitive" } },
+      ],
+    });
+  });
+
   it("names the sections when the input is wrong", async () => {
     await expect(readContext(authorized, { section: "tasks" })).rejects.toThrow(
       /conversation, projects or jobs/,

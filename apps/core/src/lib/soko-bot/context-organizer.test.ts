@@ -112,4 +112,13 @@ describe("messageSources", () => {
       ),
     ).toEqual(["chats"]);
   });
+
+  it("adds X direct messages on the owner's turn when X is connected", () => {
+    const ids = (providers: string[], ownerTurn: boolean) =>
+      messageSources({ providers, ownerTurn }).map((source) => source.id);
+    expect(ids(["twitter"], true)).toEqual(["chats", "x-dms"]);
+    // Private to the owner, and only with X connected.
+    expect(ids(["twitter"], false)).toEqual(["chats"]);
+    expect(ids(["gmail"], true)).toEqual(["chats"]);
+  });
 });

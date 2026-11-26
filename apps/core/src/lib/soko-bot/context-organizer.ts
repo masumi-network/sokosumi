@@ -214,6 +214,14 @@ export const SOKO_BOT_MESSAGE_SOURCES: readonly (SokoBotMessageSource & {
     read: "list_chats, then read_chat",
     available: () => true,
   },
+  {
+    // X direct messages (v37 on): private to the owner, read like mail.
+    id: "x-dms",
+    what: "the owner's X direct messages",
+    read: 'search_inbox and read_email with provider "twitter"',
+    available: ({ providers, ownerTurn }) =>
+      ownerTurn && providers.includes("twitter"),
+  },
 ];
 
 export function messageSources(

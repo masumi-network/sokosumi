@@ -41,10 +41,13 @@ function wordsIn<T>(
   query: string | undefined,
   fields: (word: ReturnType<typeof contains>) => T[],
 ): { OR: T[] }[] {
-  return (query ?? "")
-    .split(/\s+/)
-    .filter((word) => word.length >= 2)
-    .map((word) => ({ OR: fields(contains(word)) }));
+  const words = (query ?? "").split(/\s+/).filter(Boolean);
+  // Short words are noise beside longer ones, but a query of only short
+  // words ("X") still narrows the read instead of returning everything.
+  const long = words.filter((word) => word.length >= 2);
+  return (long.length ? long : words).map((word) => ({
+    OR: fields(contains(word)),
+  }));
 }
 
 /** The packet's filters for this turn, rebuilt the way the control plane built them. */
