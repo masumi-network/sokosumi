@@ -39,3 +39,41 @@ export const seoFullAuditCostSchema = z.strictObject({
   dataForSeoMicroUsd: microUsd,
   otherApiMicroUsd: microUsd,
 });
+
+const SEO_COST_DETAIL_MAX_ROWS = 200;
+const SEO_COST_DETAIL_MAX_TEXT = 200;
+const count = z.number().int().nonnegative();
+const detailText = z.string().min(1).max(SEO_COST_DETAIL_MAX_TEXT);
+const detailRows = <T extends z.ZodType>(row: T) =>
+  z.array(row).max(SEO_COST_DETAIL_MAX_ROWS);
+
+/** Display-only breakdown of a full-audit receipt. It never changes the charge. */
+export const seoFullAuditCostDetailSchema = z
+  .strictObject({
+    version: z.literal(1),
+    models: detailRows(
+      z.strictObject({
+        model: detailText,
+        provider: detailText.nullable(),
+        calls: count,
+        // null: a call with no known price (a direct, non-Gateway call).
+        microUsd: microUsd.nullable(),
+      }),
+    ),
+    dataForSeo: detailRows(
+      z.strictObject({
+        endpoint: detailText,
+        reads: count,
+        microUsd,
+      }),
+    ),
+    steps: detailRows(
+      z.strictObject({
+        step: detailText,
+        modelMicroUsd: microUsd,
+        dataForSeoMicroUsd: microUsd,
+        otherApiMicroUsd: microUsd,
+      }),
+    ),
+  })
+  .openapi("SeoFullAuditCostDetail");
