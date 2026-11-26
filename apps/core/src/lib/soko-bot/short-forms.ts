@@ -47,6 +47,27 @@ export function calledShortForm(
   );
 }
 
+/**
+ * Whether a round that ended on a short-form call gets the next round with
+ * the full tool: only while steps, tokens and time all leave room. Otherwise
+ * the turn answers as any turn out of budget does.
+ */
+export function fullToolRoundAllowed(input: {
+  steps: readonly { toolCalls: readonly { toolName: string }[] }[];
+  shortForms: readonly CmoShortFormTool[];
+  stepsLeft: number;
+  tokensLeft: number;
+  timeUp: boolean;
+}): boolean {
+  return (
+    input.shortForms.length > 0 &&
+    calledShortForm(input.steps, input.shortForms) &&
+    input.stepsLeft > 0 &&
+    input.tokensLeft > 0 &&
+    !input.timeUp
+  );
+}
+
 /** Ends the round on a short-form call, so the next one offers the full tool. */
 export function endedByShortForm(shortForms: readonly CmoShortFormTool[]) {
   return ({

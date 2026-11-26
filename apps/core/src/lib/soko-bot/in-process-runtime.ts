@@ -58,8 +58,8 @@ import {
   withEvaluationTurn,
 } from "./evaluation-dispatch";
 import {
-  calledShortForm,
   endedByShortForm,
+  fullToolRoundAllowed,
   shortFormsIn,
   withShortForms,
 } from "./short-forms";
@@ -186,8 +186,8 @@ async function runTurn(
     }
 
     const inputTokensOf = (
-      steps: readonly { usage: { inputTokens?: number | undefined } }[],
-    ) => steps.reduce((sum, step) => sum + (step.usage.inputTokens ?? 0), 0);
+      steps: readonly { usage?: { inputTokens?: number | undefined } }[],
+    ) => steps.reduce((sum, step) => sum + (step.usage?.inputTokens ?? 0), 0);
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
     const purpose = await loadSokoBotTurnPurpose(input.turnId);
@@ -212,11 +212,13 @@ async function runTurn(
       const left = maxSteps - first.steps.length;
       const tokensLeft = inputTokenBudget - inputTokensOf(first.steps);
       if (
-        !short.length ||
-        !calledShortForm(first.steps, short) ||
-        left < 1 ||
-        tokensLeft <= 0 ||
-        signal.aborted
+        !fullToolRoundAllowed({
+          steps: first.steps,
+          shortForms: short,
+          stepsLeft: left,
+          tokensLeft,
+          timeUp: signal.aborted,
+        })
       )
         return first;
       return runRound(

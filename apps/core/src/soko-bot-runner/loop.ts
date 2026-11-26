@@ -6,8 +6,8 @@ import {
   type ToolSet,
 } from "ai";
 import {
-  calledShortForm,
   endedByShortForm,
+  fullToolRoundAllowed,
   shortFormsIn,
   withShortForms,
 } from "../lib/soko-bot/short-forms";
@@ -155,11 +155,13 @@ export async function runTurnLoop(
     // A short-form save ended the round: the next offers the full tool, as
     // long as steps, time and tokens all leave room for it.
     if (
-      short.length &&
-      calledShortForm(result.steps, short) &&
-      stepsLeft > 0 &&
-      !timeUp() &&
-      tokensUsed < tokenBudget
+      fullToolRoundAllowed({
+        steps: result.steps,
+        shortForms: short,
+        stepsLeft,
+        tokensLeft: tokenBudget - tokensUsed,
+        timeUp: timeUp(),
+      })
     ) {
       short = [];
       continue;
