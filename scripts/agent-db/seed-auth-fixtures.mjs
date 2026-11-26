@@ -30,22 +30,36 @@ function log(message) {
 const ZERO_WORKSPACE_RESET_SAVEPOINT = "zero_workspace_reset";
 
 /**
- * A shared table with its schema, `"<schema>"."<table>"`, as `sharedTable` of
- * `@sokosumi/database/sql-tables` names it: plain Node cannot import that
- * TypeScript module. `DATABASE_SCHEMA_SHARED` is read as Core reads it (blank
- * or missing is `public`), from the environment the database URL comes from.
+ * Names the shared tables of one layout with their schema,
+ * `"<schema>"."<table>"`, as `sharedTable` of `@sokosumi/database/sql-tables`
+ * does (plain Node cannot import that module: it needs the generated client).
+ * The layout is read once, before any query, by Core's own parser, so a
+ * layout Core refuses stops the seed: a name that is no schema name, a
+ * PostgreSQL system schema, or only some of the three names set.
  *
- * @param {"account" | "member" | "organization" | "session" | "user" | "workspace"} table
+ * @param {Record<string, string | undefined>} env The `DATABASE_SCHEMA_*` variables
+ *   and `NETWORK_PREPROD_ENABLED`; blank or missing is `public` and off.
+ * @returns {Promise<SharedTable>}
  */
-function sharedTable(table) {
-  const schema = process.env.DATABASE_SCHEMA_SHARED || "public";
-  if (!/^[a-z_][a-z0-9_]{0,62}$/.test(schema)) {
+export async function sharedTableFor(env) {
+  const { networkLayoutSchema } = await import(
+    "../../apps/core/src/config/network-layout.ts"
+  );
+  const layout = networkLayoutSchema.safeParse(env);
+  if (!layout.success) {
     throw new Error(
-      `DATABASE_SCHEMA_SHARED is not a schema name: ${JSON.stringify(schema)}`,
+      `Auth fixtures blocked: ${layout.error.issues
+        .map((issue) => [issue.path.join("."), issue.message].join(" "))
+        .join("; ")
+        .trim()}`,
     );
   }
-  return `"${schema}"."${table}"`;
+  return (table) => `"${layout.data.DATABASE_SCHEMA_SHARED}"."${table}"`;
 }
+
+/**
+ * @typedef {(table: "account" | "member" | "organization" | "session" | "user" | "workspace") => string} SharedTable
+ */
 
 /**
  * Best-effort delete of a personal workspace so zero fixtures stay durable.
@@ -54,8 +68,13 @@ function sharedTable(table) {
  *
  * @param {import("pg").PoolClient | import("pg").Client} client
  * @param {{ userId: string, email: string }} fixtureUser
+ * @param {SharedTable} sharedTable
  */
-export async function resetUnwantedPersonalWorkspace(client, fixtureUser) {
+export async function resetUnwantedPersonalWorkspace(
+  client,
+  fixtureUser,
+  sharedTable,
+) {
   try {
     await client.query(`SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
     await client.query(
@@ -98,10 +117,12 @@ export function throwIfZeroWorkspaceResetFailed(failedEmails) {
  *
  * @param {import("pg").PoolClient | import("pg").Client} client
  * @param {{ userId: string }} fixtureUser
+ * @param {SharedTable} sharedTable
  */
 export async function clearUnwantedOrganizationMemberships(
   client,
   fixtureUser,
+  sharedTable,
 ) {
   await client.query(
     `DELETE FROM ${sharedTable("member")} WHERE "userId" = $1`,
@@ -133,8 +154,9 @@ async function importFromCore(specifier) {
  * @param {import("pg").PoolClient | import("pg").Client} client
  * @param {object} fixture
  * @param {string} passwordHash
+ * @param {SharedTable} sharedTable
  */
-async function upsertFixtureUser(client, fixture, passwordHash) {
+async function upsertFixtureUser(client, fixture, passwordHash, sharedTable) {
   const existing = await client.query(
     `SELECT id FROM ${sharedTable("user")} WHERE email = $1 LIMIT 1`,
     [fixture.email],
@@ -204,10 +226,11 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
 
   // Keep zero-workspace fixtures durable across re-seed after accidental
   // lazy-create (workspace middleware upsert on other Core routes).
-  const reset = await resetUnwantedPersonalWorkspace(client, {
-    userId,
-    email: fixture.email,
-  });
+  const reset = await resetUnwantedPersonalWorkspace(
+    client,
+    { userId, email: fixture.email },
+    sharedTable,
+  );
   return { userId, personalWorkspaceReset: reset.reset };
 }
 
@@ -218,8 +241,14 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
  * @param {import("pg").PoolClient | import("pg").Client} client
  * @param {string} userId
  * @param {{ name: string, slug: string }} organization
+ * @param {SharedTable} sharedTable
  */
-async function upsertFixtureOrganization(client, userId, organization) {
+async function upsertFixtureOrganization(
+  client,
+  userId,
+  organization,
+  sharedTable,
+) {
   const now = new Date();
 
   const existing = await client.query(
@@ -265,7 +294,7 @@ async function upsertFixtureOrganization(client, userId, organization) {
 
 /**
  * @param {{
- *   databaseUrl?: string,
+ *   databaseUrl?: string, // a database on today's layout (all `public`)
  *   branchName?: string | null,
  *   force?: boolean,
  * }} [options]
@@ -277,8 +306,9 @@ export async function seedAuthFixtures(options = {}) {
   }
 
   const state = await readState(REPO_ROOT);
+  const passedUrl = options.databaseUrl?.trim();
   const databaseUrl =
-    options.databaseUrl?.trim() ||
+    passedUrl ||
     process.env.DATABASE_URL_UNPOOLED?.trim() ||
     process.env.DATABASE_URL?.trim() ||
     "";
@@ -291,6 +321,11 @@ export async function seedAuthFixtures(options = {}) {
     databaseUrl,
     force,
   });
+
+  // The URL and the layout come from the same place. A URL the caller passes
+  // is the provisioner's agent branch, migrated on today's layout: schema names
+  // exported in the shell describe another database.
+  const sharedTable = await sharedTableFor(passedUrl ? {} : process.env);
 
   const [{ hashPassword }, { default: pg }] = await Promise.all([
     importFromCore("better-auth/crypto"),
@@ -309,6 +344,7 @@ export async function seedAuthFixtures(options = {}) {
         client,
         fixture,
         passwordHash,
+        sharedTable,
       );
       if (personalWorkspaceReset === false) {
         failedPersonalResets.push(fixture.email);
@@ -319,12 +355,17 @@ export async function seedAuthFixtures(options = {}) {
           client,
           userId,
           organization,
+          sharedTable,
         );
         log(
           `Auth fixture ready: ${fixture.email} (org ${organization.slug}=${organizationId})`,
         );
       } else {
-        await clearUnwantedOrganizationMemberships(client, { userId });
+        await clearUnwantedOrganizationMemberships(
+          client,
+          { userId },
+          sharedTable,
+        );
         log(
           `Auth fixture ready: ${fixture.email} (no personal workspace, no organization)`,
         );
