@@ -418,6 +418,12 @@ model History {
   sokoBotId      String?     @db.Uuid
   bucketSlug     String?
   archivedAt     DateTime?
+  /// "mainnet" or "preprod": the Network of the Job this row points
+  /// at. Null when it points at none, or on a row written before the column
+  /// or by a release that does not know it. The check
+  /// `history_network_check` holds the two values; it lives in SQL only,
+  /// because Prisma cannot express CHECKs.
+  network        String?
 
   @@unique([kind, entityId])
   @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
@@ -4061,6 +4067,13 @@ model TaskEvent {
 
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
+  /// "mainnet" or "preprod": the Network of this event's charge. It stays
+  /// when the Transaction is deleted and `transactionId` is cleared. Null on
+  /// an uncharged event, and on a row written before the column or by a
+  /// release that does not know it. The check `taskEvent_network_check`
+  /// holds the two values; it lives in SQL only, because Prisma cannot
+  /// express CHECKs.
+  network       String?
 
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?

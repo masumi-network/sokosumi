@@ -292,6 +292,7 @@ function mountTaskEventRoute(
           channel,
           ...(cents !== undefined && { cents }),
           transactionId,
+          ...(transactionId && { network: c.var.networkScope.network }),
           ...actorData,
         },
       });

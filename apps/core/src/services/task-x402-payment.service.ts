@@ -390,6 +390,7 @@ async function runX402ChargePhase(
           taskId,
           cents,
           transactionId: charge.transactionId,
+          network: input.networkScope.network,
           ...taskEventAttribution,
         },
       });

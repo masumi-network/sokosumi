@@ -1035,7 +1035,14 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     });
     expect(
       await prisma.taskEvent.count({
-        where: { taskId, transactionId: charge.id },
+        where: { taskId, transactionId: charge.id, network: "mainnet" },
+      }),
+    ).toBe(1);
+    // Only the charged event names a Network.
+    expect((await event({ comment: "No charge" })).status).toBe(201);
+    expect(
+      await prisma.taskEvent.count({
+        where: { taskId, network: { not: null } },
       }),
     ).toBe(1);
   });
