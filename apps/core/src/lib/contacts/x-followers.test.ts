@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isLikelyBot,
+  isLikelyBrand,
   type MatchContact,
   matchFollower,
   namesCompany,
@@ -20,6 +21,7 @@ function follower(overrides: Partial<XFollower> = {}): XFollower {
     avatarUrl: "https://pbs.twimg.com/a_400x400.jpg",
     defaultAvatar: false,
     protected: false,
+    verifiedType: null,
     followers: 300,
     following: 200,
     posts: 50,
@@ -79,6 +81,29 @@ describe("isLikelyBot", () => {
     expect(isLikelyBot(follower({ following: 4_000, followers: 50 }))).toBe(
       true,
     );
+  });
+});
+
+describe("isLikelyBrand", () => {
+  it("drops companies, projects and outlets, and keeps people who name theirs", () => {
+    expect(isLikelyBrand(follower())).toBe(false);
+    expect(isLikelyBrand(follower({ name: "Nina Keller | Acme Labs" }))).toBe(
+      false,
+    );
+    expect(isLikelyBrand(follower({ name: "Gus" }))).toBe(false);
+    expect(isLikelyBrand(follower({ verifiedType: "business" }))).toBe(true);
+    expect(isLikelyBrand(follower({ name: "Acme Labs" }))).toBe(true);
+    expect(isLikelyBrand(follower({ name: "Northwind GmbH" }))).toBe(true);
+    expect(
+      isLikelyBrand(
+        follower({ name: "Acme", description: "The official account of Acme" }),
+      ),
+    ).toBe(true);
+    expect(
+      isLikelyBrand(
+        follower({ name: "Acme", description: "We build wallets" }),
+      ),
+    ).toBe(true);
   });
 });
 

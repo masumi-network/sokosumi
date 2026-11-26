@@ -61,6 +61,7 @@ import {
   contactNameKeys,
   followerNameKey,
   isLikelyBot,
+  isLikelyBrand,
   type MatchContact,
   matchFollower,
   ownHost,
@@ -108,8 +109,10 @@ import {
   captureContactInteraction,
   enrichContactFields,
   inContactTransaction,
+  linkMemberByChannel,
   mergeContacts,
   upsertContact,
+  workspaceMemberEmails,
 } from "@/services/contacts.service";
 import {
   type ActiveIntegration,
@@ -188,8 +191,10 @@ export interface CaptureLimits {
   xDmProbeSize: number;
   /** DM events per page once the newest one is new. */
   xDmPageSize: number;
-  /** Followers pages per run. */
+  /** Follow pages a day, followers and following walks together. */
   xFollowPages: number;
+  /** Users on the first page of a walk that already read everyone once. */
+  xFollowProbeSize: number;
   /**
    * Followers per page. X bills each one returned, and a page the write
    * budget ends inside is read again, so a page stays well under it.
@@ -230,6 +235,7 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   xDmProbeSize: 10,
   xDmPageSize: 20,
   xFollowPages: 4,
+  xFollowProbeSize: 20,
   xFollowPageSize: 100,
   overlapMs: 10 * 60 * 1_000,
   callSpacingMs: 250,
@@ -249,19 +255,81 @@ interface SourceCursor {
   newestDmId?: string;
   /** An X DM walk that took more than one run, where it stands. */
   dmWalk?: XDmWalk;
-  /** When X followers were last read from the newest. */
+  /** When the day's X follow pages were read, for both walks together. */
   followsAt?: string;
-  /** The followers page still to read; set until all were read. */
+  /** Before `xWalks`: the followers walk, carried over once. */
   followersToken?: string | null;
-  /**
-   * Every follower was read once; a later walk stops at a page of people who
-   * were all contacts before it began.
-   */
   followersWalked?: boolean;
-  /** When the current walk began at the newest follower. */
   followersWalkFrom?: string;
+  /** The owner's followers and the people they follow, walked apart. */
+  xWalks?: Partial<Record<XWalkKind, XWalk>>;
   /** Provider lacks a needed tool: left alone until then. */
   pausedUntil?: string;
+}
+
+type XWalkKind = "followers" | "following";
+
+interface XWalk {
+  /** The page still to read; set until all were read. */
+  token?: string | null;
+  /**
+   * Everyone was read once; a later walk stops at a page of people who were
+   * all contacts before it began.
+   */
+  walked?: boolean;
+  /** When the current walk began at the newest. */
+  walkFrom?: string;
+}
+
+/** What each walk reads, the list it adds new people to, and the side it records. */
+const X_WALKS: Record<
+  XWalkKind,
+  {
+    tool: string;
+    list: string;
+    color: (typeof CONTACT_LIST_COLORS)[number];
+    side: "followsUser" | "followedByUser";
+  }
+> = {
+  followers: {
+    tool: SOKO_BOT_X_CAPTURE_TOOLS.followers,
+    list: "X followers",
+    color: CONTACT_LIST_COLORS[6],
+    side: "followsUser",
+  },
+  following: {
+    tool: SOKO_BOT_X_CAPTURE_TOOLS.following,
+    list: "X following",
+    color: CONTACT_LIST_COLORS[7],
+    side: "followedByUser",
+  },
+};
+
+/**
+ * The walks, from the old followers fields on first read. The followers walk
+ * goes on where it stood: the migration took who follows the owner from the
+ * "X followers" list, so nothing is read again. Known gap, accepted to save
+ * a second paid pass: followers an old walk joined to an existing contact
+ * without listing them get `followsUser` only if a later walk reaches them.
+ * Before `followersWalked` existed, `followsAt` was set only by a finished
+ * walk.
+ */
+function xWalksOf(cursor: SourceCursor): Partial<Record<XWalkKind, XWalk>> {
+  if (!cursor.xWalks) {
+    cursor.xWalks = cursor.followsAt
+      ? {
+          followers: {
+            token: cursor.followersToken ?? null,
+            walked: cursor.followersWalked ?? true,
+            walkFrom: cursor.followersWalkFrom,
+          },
+        }
+      : {};
+    delete cursor.followersToken;
+    delete cursor.followersWalked;
+    delete cursor.followersWalkFrom;
+  }
+  return cursor.xWalks;
 }
 
 type CaptureCursor = Partial<Record<CaptureSource, SourceCursor>>;
@@ -429,28 +497,6 @@ async function loadCaptureRows(workspaceId?: string): Promise<CaptureRow[]> {
   });
 }
 
-/** Members' addresses: none of them is ever a contact. */
-async function workspaceMemberEmails(
-  workspaceId: string,
-): Promise<Map<string, string>> {
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: {
-      user: { select: { id: true, email: true } },
-      organization: {
-        select: {
-          members: { select: { user: { select: { id: true, email: true } } } },
-        },
-      },
-    },
-  });
-  const users = [
-    ...(workspace?.user ? [workspace.user] : []),
-    ...(workspace?.organization?.members.map((member) => member.user) ?? []),
-  ];
-  return new Map(users.map((user) => [user.id, user.email.toLowerCase()]));
-}
-
 function isConflict(error: unknown): boolean {
   return error instanceof HTTPException && error.status === 409;
 }
@@ -571,6 +617,8 @@ export class ContactCaptureService {
       const members = rows.length
         ? await workspaceMemberEmails(workspaceId)
         : new Map<string, string>();
+      for (const [userId, email] of members)
+        await linkMemberByChannel(workspaceId, userId, "EMAIL", email);
       for (const row of rows) {
         if (!shouldContinue()) break;
         await this.captureIntegration(
@@ -1506,16 +1554,17 @@ export class ContactCaptureService {
   }
 
   // -------------------------------------------------------------------------
-  // X: whom the owner writes with in DMs, and who follows them.
+  // X: whom the owner writes with in DMs, who follows them, whom they follow.
   // -------------------------------------------------------------------------
 
   /**
    * X keeps about 30 days of DMs, so there is no long backfill: every hour
    * the events newer than `since` (the first run reads all it has). X bills
-   * every event and user a page returns, so a quiet hour reads one event and
-   * no users. Once a day, followers become contacts, newest first, a few
-   * small pages a day, and after one full walk a walk ends at the first page
-   * it has nothing new on.
+   * every event and user a page returns, so a quiet hour reads a few events
+   * and no users. Once a day, followers and the people the owner follows
+   * become contacts, newest first: both walks share `xFollowPages` small
+   * pages a day, and after one full walk a walk starts with a probe page and
+   * ends at the first page it has nothing new on.
    */
   private async captureX(
     context: RunContext,
@@ -1530,7 +1579,7 @@ export class ContactCaptureService {
     const dmsDue =
       cursor.backfillUntil !== null ||
       now.getTime() - since.getTime() >= this.limits.xIntervalMs;
-    // A day's walk, new or unfinished, at most once a day.
+    // A day's walks, new or unfinished, at most once a day.
     const followsDue =
       !cursor.followsAt ||
       now.getTime() - new Date(cursor.followsAt).getTime() >=
@@ -1549,6 +1598,12 @@ export class ContactCaptureService {
         "X did not say who is connected",
         "NOT_FOUND",
       );
+    await linkMemberByChannel(
+      context.actor.workspaceId,
+      context.teammateUserId,
+      "X",
+      me.username,
+    );
     if (dmsDue) {
       const from =
         cursor.backfillUntil !== null
@@ -1574,8 +1629,41 @@ export class ContactCaptureService {
       }
       await save();
     }
-    if (followsDue && budget.calls > 0 && this.canRead(context)) {
-      await this.readXFollowers(context, budget, me, cursor, save);
+    if (followsDue && budget.calls > 0 && this.canRead(context))
+      await this.walkXFollows(context, budget, me, cursor, save);
+  }
+
+  /**
+   * The day's follow pages: `xFollowPages` in all, split evenly between the
+   * followers and the following walk, and what one does not need goes to the
+   * other. So both walks together never read more than the followers walk
+   * alone did.
+   */
+  private async walkXFollows(
+    context: RunContext,
+    budget: { calls: number },
+    me: XUser,
+    cursor: SourceCursor,
+    save: () => Promise<unknown>,
+  ): Promise<void> {
+    const walks = xWalksOf(cursor);
+    // Today's walks, however far they get.
+    cursor.followsAt = context.now.toISOString();
+    await save();
+    const kinds = ["followers", "following"] as const;
+    let pages = this.limits.xFollowPages;
+    for (const [i, kind] of kinds.entries()) {
+      const share = Math.ceil(pages / (kinds.length - i));
+      walks[kind] ??= {};
+      pages -= await this.walkX(
+        context,
+        budget,
+        me,
+        kind,
+        walks[kind],
+        share,
+        save,
+      );
     }
   }
 
@@ -1752,81 +1840,93 @@ export class ContactCaptureService {
   }
 
   /**
-   * Walks the owner's followers from where the last run stopped, a page at a
-   * time, at most `xFollowPages` pages a day. A page is read again when the
-   * run's write budget ends inside it. After one full walk, a new one stops at
-   * the first page whose people were all contacts before it began: X lists
-   * followers newest first, so everyone after them was read before. People a
-   * walk adds itself, or who only became contacts from a DM, keep it going.
+   * Walks the owner's followers, or the people they follow, from where the
+   * last run stopped, at most `pages` pages, and returns how many it read. A
+   * page is read again when the run's write budget ends inside it. After one
+   * full walk, a new one starts with a probe page (`xFollowProbeSize`) and
+   * stops at the first page whose people this walk had all recorded before
+   * it began: X lists both newest first, so everyone after them was read
+   * before. People a walk adds itself, or who became contacts another way (a
+   * DM, the other walk, a teammate), keep it going.
    */
-  private async readXFollowers(
+  private async walkX(
     context: RunContext,
     budget: { calls: number },
     me: XUser,
-    cursor: SourceCursor,
+    kind: XWalkKind,
+    walk: XWalk,
+    pages: number,
     save: () => Promise<unknown>,
-  ): Promise<void> {
+  ): Promise<number> {
     let index: Promise<Map<string, string[]>> | null = null;
     // Read on first need, then shared by every page of this run.
     const names = () => {
       index ??= personNameIndex(context.actor.workspaceId);
       return index;
     };
-    // Before `followersWalked` existed, `followsAt` was set only by a finished
-    // walk.
-    cursor.followersWalked ??= Boolean(cursor.followsAt);
-    if (!cursor.followersToken)
-      cursor.followersWalkFrom = context.now.toISOString();
-    const walkFrom = new Date(
-      cursor.followersWalkFrom ?? context.now.toISOString(),
-    );
-    // Today's walk, however far it gets.
-    cursor.followsAt = context.now.toISOString();
-    await save();
-    for (let page = 0; page < this.limits.xFollowPages; page += 1) {
-      if (budget.calls <= 0 || !this.canRead(context)) return;
-      const token = cursor.followersToken ?? null;
-      const result = parseXPage(
-        await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.followers, {
-          id: me.id,
-          max_results: this.limits.xFollowPageSize,
-          user_fields: X_FOLLOWER_FIELDS,
-          ...(token ? { pagination_token: token } : {}),
-        }),
-      );
-      const followers = result.items.flatMap(
-        (raw) => parseXFollower(raw) ?? [],
-      );
-      const { done, settled } = await this.addXFollowers(
+    if (!walk.token) walk.walkFrom = context.now.toISOString();
+    const walkFrom = new Date(walk.walkFrom ?? context.now.toISOString());
+    for (let page = 0; page < pages; page += 1) {
+      if (budget.calls <= 0 || !this.canRead(context)) return page;
+      const token = walk.token ?? null;
+      const raw = await this.call(context, budget, X_WALKS[kind].tool, {
+        id: me.id,
+        max_results:
+          walk.walked && !token
+            ? this.limits.xFollowProbeSize
+            : this.limits.xFollowPageSize,
+        user_fields: X_FOLLOWER_FIELDS,
+        ...(token ? { pagination_token: token } : {}),
+      }).catch(async (error: unknown) => {
+        if (!token || !isXPageTokenRefusal(error)) throw error;
+        // A token X no longer takes: this walk starts over at the newest
+        // tomorrow, and the other walk still runs today. A walk that read
+        // everyone once stays so, and starts with its probe.
+        walk.token = null;
+        delete walk.walkFrom;
+        await save();
+        return null;
+      });
+      if (raw === null) return page + 1;
+      const result = parseXPage(raw);
+      const users = result.items.flatMap((raw) => parseXFollower(raw) ?? []);
+      const { done, settled } = await this.addXUsers(
         context,
-        followers,
+        kind,
+        users,
         names,
         walkFrom,
       );
-      await recordXFollowerCounts(context.actor.workspaceId, followers);
-      if (!done) return;
-      const caughtUp = cursor.followersWalked === true && settled;
-      cursor.followersToken = caughtUp ? null : result.nextToken;
-      if (!result.nextToken) cursor.followersWalked = true;
+      await recordXFollowerCounts(context.actor.workspaceId, users);
+      if (!done) return page + 1;
+      const caughtUp = walk.walked === true && settled;
+      walk.token = caughtUp ? null : result.nextToken;
+      if (!result.nextToken) walk.walked = true;
       await save();
-      if (caughtUp || !result.nextToken) return;
+      if (caughtUp || !result.nextToken) return page + 1;
     }
+    return pages;
   }
 
   /**
-   * Each follower who looks like a person joins the contact they certainly
-   * are (`matchFollower`), or becomes a new contact in the "X followers"
-   * list. Their bio stands in for the summary, so the model never enriches
-   * them. `done` is false when the write budget ran out first; `settled` when
-   * the page has people and every one was a contact before `walkFrom`.
+   * Each user on the page who looks like a person joins the contact they
+   * certainly are (`matchFollower`), or becomes a new contact in the walk's
+   * list ("X followers", "X following"), and every contact among them is
+   * recorded as following the owner, or followed by them. Their bio stands
+   * in for the summary, so the model never enriches them. `done` is false
+   * when the write budget ran out first; `settled` when the page has people
+   * and every one was a contact before `walkFrom` already recorded on this
+   * walk's side for this teammate.
    */
-  private async addXFollowers(
+  private async addXUsers(
     context: RunContext,
+    kind: XWalkKind,
     followers: readonly XFollower[],
     names: () => Promise<Map<string, string[]>>,
     walkFrom: Date,
   ): Promise<{ done: boolean; settled: boolean }> {
     const { actor } = context;
+    const walk = X_WALKS[kind];
     const handleOf = (follower: XFollower) =>
       normalizeContactChannelValue("X", follower.username) ?? "";
     const channels = await prisma.contactChannel.findMany({
@@ -1835,28 +1935,58 @@ export class ContactCaptureService {
         type: "X",
         value: { in: followers.map(handleOf) },
       },
-      select: { value: true, createdAt: true },
+      select: { value: true, createdAt: true, contactId: true },
     });
+    const reached = channels.map((channel) => channel.contactId);
+    const finish = async (done: boolean) => {
+      await recordXFollows(actor.userId, walk.side, reached);
+      return { done, settled };
+    };
     const linked = new Set(channels.map((channel) => channel.value));
+    // Known to this walk: a contact before it began who was already recorded
+    // on this side for this teammate. A contact from a DM, another walk or a
+    // teammate is news to it, so it keeps the walk going.
+    const recorded = new Set(
+      (
+        await prisma.contactXFollow.findMany({
+          where: {
+            userId: actor.userId,
+            contactId: { in: reached },
+            [walk.side]: true,
+          },
+          select: { contactId: true },
+        })
+      ).map((follow) => follow.contactId),
+    );
     const before = new Set(
       channels
-        .filter((channel) => channel.createdAt < walkFrom)
+        .filter(
+          (channel) =>
+            channel.createdAt < walkFrom && recorded.has(channel.contactId),
+        )
         .map((channel) => channel.value),
     );
+    // Bots and brand accounts never become contacts.
+    const skipOf = (follower: XFollower) =>
+      isLikelyBot(follower)
+        ? ("bot_user" as const)
+        : isLikelyBrand(follower)
+          ? ("brand_account" as const)
+          : null;
     const people = followers.filter(
-      (follower) => linked.has(handleOf(follower)) || !isLikelyBot(follower),
+      (follower) => linked.has(handleOf(follower)) || !skipOf(follower),
     );
     const settled =
       people.length > 0 &&
       people.every((follower) => before.has(handleOf(follower)));
     const open = followers.filter((follower) => {
       if (linked.has(handleOf(follower))) return false;
-      if (!isLikelyBot(follower)) return true;
-      context.stats.skipped.bot_user =
-        (context.stats.skipped.bot_user ?? 0) + 1;
+      const skip = skipOf(follower);
+      if (!skip) return true;
+      context.stats.skipped[skip] = (context.stats.skipped[skip] ?? 0) + 1;
       return false;
     });
-    if (open.length === 0) return { done: true, settled };
+    if (open.length === 0) return finish(true);
     const index = await names();
     const bucketOf = (follower: XFollower) =>
       index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
@@ -1881,11 +2011,11 @@ export class ContactCaptureService {
     const candidates = (follower: XFollower) =>
       bucketOf(follower).flatMap((id) => byId.get(id) ?? []);
     const list = await inContactTransaction((tx) =>
-      ensureManualContactList(tx, actor, "X followers", CONTACT_LIST_COLORS[6]),
+      ensureManualContactList(tx, actor, walk.list, walk.color),
     );
     for (const follower of open) {
       if (context.budget.captures <= 0 || !context.shouldContinue())
-        return { done: false, settled };
+        return finish(false);
       context.budget.captures -= 1;
       const profile = `https://x.com/${follower.username}`;
       const fields = {
@@ -1911,6 +2041,7 @@ export class ContactCaptureService {
               { markEnriched: false },
             );
           });
+          reached.push(match.contactId);
           context.stats.updated += 1;
           continue;
         }
@@ -1948,19 +2079,40 @@ export class ContactCaptureService {
                 addedAutomatically: true,
               },
             });
+            return contact.id;
           });
         // Someone else already has that website: add the person without it.
-        await create(true).catch((error: unknown) => {
-          if (website && isConflict(error)) return create(false);
-          throw error;
-        });
+        reached.push(
+          await create(true).catch((error: unknown) => {
+            if (website && isConflict(error)) return create(false);
+            throw error;
+          }),
+        );
         context.stats.created += 1;
       } catch (error) {
         if (!isConflict(error)) throw error;
       }
     }
-    return { done: true, settled };
+    return finish(true);
   }
+}
+
+/** Sets one side of how these contacts and the teammate follow each other. */
+async function recordXFollows(
+  userId: string,
+  side: "followsUser" | "followedByUser",
+  contactIds: readonly string[],
+): Promise<void> {
+  const ids = [...new Set(contactIds)];
+  if (ids.length === 0) return;
+  await prisma.contactXFollow.createMany({
+    data: ids.map((contactId) => ({ contactId, userId, [side]: true })),
+    skipDuplicates: true,
+  });
+  await prisma.contactXFollow.updateMany({
+    where: { userId, contactId: { in: ids }, [side]: false },
+    data: { [side]: true },
+  });
 }
 
 /** Each follower's own audience on their X channel, whoever they are on. */

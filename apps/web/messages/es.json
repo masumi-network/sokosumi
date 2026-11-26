@@ -12333,7 +12333,8 @@
         "more": "Más acciones",
         "filter": "Filtrar",
         "kind": "Tipo",
-        "source": "Origen"
+        "source": "Origen",
+        "onX": "En X"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -12636,7 +12637,22 @@
         "restoreName": "Restaurar a {name}",
         "restored": "{name} restaurado",
         "restoreFailed": "No se pudo restaurar a {name}. El contacto sigue archivado.",
-        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures."
+        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures.",
+        "isYou": "Eres tú",
+        "isTeammate": "Es {name}, de tu equipo",
+        "thisIs": "Es…",
+        "thisIsMe": "Yo ({name})",
+        "thisIsNoOne": "Nadie del equipo",
+        "x": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Sigue a {name} en X",
+          "followed": "{name} sigue a esta persona en X"
+        },
+        "xYou": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Te sigue en X · tú no lo sigues",
+          "followed": "Lo sigues en X · no te sigue"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12821,6 +12837,11 @@
           "industry": "Sector",
           "lists": "Listas"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Sin seguir de vuelta",
+        "YOU_FOLLOW": "No te siguen de vuelta",
+        "MUTUAL": "Se siguen mutuamente"
       },
       "linkedInImport": {
         "menu": "Importar contactos de LinkedIn",

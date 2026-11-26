@@ -53,6 +53,7 @@ const contact = (overrides: Partial<Contact>): Contact => ({
   ],
   lists: [],
   knownBy: [],
+  user: null,
   ...overrides,
 });
 
@@ -122,6 +123,7 @@ describe("ContactsFilterBar", () => {
           kind: null,
           knownBy: null,
           source: null,
+          xFollow: null,
         }}
         onFilter={onFilter}
         teammates={[]}

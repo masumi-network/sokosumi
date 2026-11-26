@@ -87,7 +87,12 @@ describe("contactFilterWhere", () => {
         now,
       ),
     ).toEqual([
-      { interactions: { some: { userId: "user_me" } } },
+      {
+        OR: [
+          { interactions: { some: { userId: "user_me" } } },
+          { xFollows: { some: { userId: "user_me" } } },
+        ],
+      },
       { lastContactAt: { lt: new Date("2026-07-24T15:30:00.000Z") } },
       { createdAt: { gte: new Date("2026-10-15T15:30:00.000Z") } },
       { followUpAt: { lte: new Date("2026-10-22T00:00:00.000Z") } },
