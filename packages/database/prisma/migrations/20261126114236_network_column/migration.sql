@@ -1,11 +1,17 @@
 -- Which Network the Job or Transaction a row points at is on. NULL: the row
 -- points at none, or was written by a release that does not know the column.
 --
--- Every statement can run again, so a deploy that fails in the middle can be
--- finished by the next one. NOT VALID: the previous Core release keeps writing
--- during the deploy, and checking every row here would hold the table's
--- exclusive lock for the scan. VALIDATE at the end lets reads and writes
--- through.
+-- NOT VALID: the previous Core release keeps writing during the deploy, and
+-- checking every row here would hold the table's exclusive lock for the scan.
+--
+-- Each ALTER TABLE below needs ACCESS EXCLUSIVE. While it waits behind an open
+-- transaction, every later read and write of that table waits behind it, so
+-- it gives up after 5 seconds. The deploy then fails with 55P03 and the
+-- statements before it stay applied. Every statement can run again: run
+-- `prisma migrate resolve --rolled-back 20261126114236_network_column` on the
+-- direct URL (DATABASE_URL_UNPOOLED), then deploy again. A plain redeploy
+-- stops at P3009.
+SET lock_timeout = '5s';
 ALTER TABLE "history"
   ADD COLUMN IF NOT EXISTS "network" TEXT,
   DROP CONSTRAINT IF EXISTS "history_network_check",
@@ -18,6 +24,11 @@ ALTER TABLE "taskEvent"
   ADD COLUMN IF NOT EXISTS "network" TEXT,
   DROP CONSTRAINT IF EXISTS "taskEvent_network_check",
   ADD CONSTRAINT "taskEvent_network_check" CHECK ("network" IN ('mainnet', 'preprod')) NOT VALID;
+
+-- No timeout from here on. The updates wait on row locks: a busy row would
+-- fail the deploy. VALIDATE takes SHARE UPDATE EXCLUSIVE, which reads and
+-- writes do not conflict with, so nothing queues behind it while it waits.
+RESET lock_timeout;
 
 -- Every Job is on Mainnet today. No trigger fires on either update: "history"
 -- has none, and the one on "notification" fires for "workspaceId" and "userId"

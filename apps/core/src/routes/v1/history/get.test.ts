@@ -1,6 +1,6 @@
 import { HistoryKind, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
 import type { HistoryRowForApi } from "@/helpers/history";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -183,18 +183,28 @@ describe("GET /history", () => {
   });
 
   it("answers the same whether or not a row has a Network", async () => {
+    // The body carries the time of the answer.
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-26T12:00:00Z"),
+    });
+    onTestFinished(() => void vi.useRealTimers());
     const bodies: string[] = [];
     for (const network of [null, "mainnet"]) {
       historyFindManyMock.mockResolvedValue([
-        { ...createHistoryRow(), network },
+        {
+          ...createHistoryRow({
+            kind: HistoryKind.JOB,
+            agentId: "agent_1",
+            status: SokosumiJobStatus.COMPLETED,
+          }),
+          network,
+        },
       ]);
       historyCountMock.mockResolvedValue(1);
       const response = await createApp().request("http://localhost/");
       expect(response.status).toBe(200);
-      const body = await response.json();
-      // The clock, not the row.
-      body.meta.timestamp = null;
-      bodies.push(JSON.stringify(body));
+      bodies.push(await response.text());
     }
     expect(bodies[1]).toBe(bodies[0]);
     expect(bodies[0]).not.toContain("network");

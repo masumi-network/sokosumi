@@ -13,9 +13,11 @@ import { forbidden, unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { Network } from "@/lib/network";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TASK_X402_MAX_SIGN_DISPATCH_DELAY_MS } from "@/services/task-x402-payment.replay";
 import { createX402DemandFingerprint } from "@/services/task-x402-payment.replay-demand";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 import mountPostTaskX402Payment, { X402_PAY_MAX_BODY_BYTES } from "./post";
 
@@ -526,7 +528,7 @@ function createTxMock(): TxMock {
   };
 }
 
-function createApp(authContext: AuthenticationContext) {
+function createApp(authContext: AuthenticationContext, network?: Network) {
   const app = new OpenAPIHonoWithAuth();
 
   // The real app serializes HTTPExceptions to the JSON error envelope in its
@@ -537,6 +539,12 @@ function createApp(authContext: AuthenticationContext) {
     c.set("requestId", "test-req-id");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    // A scope the middleware keeps: Preprod itself is off on this layout.
+    if (network)
+      c.set(
+        "networkScope",
+        Object.create(testNetworkScope(), { network: { value: network } }),
+      );
     return await next();
   });
 
@@ -1963,6 +1971,15 @@ describe("POST /{id}/x402-payments", () => {
         }),
         expect.anything(),
       );
+    });
+
+    it("tags the charge event with the Network of the request's scope", async () => {
+      const app = createApp(COWORKER_AGENT_CONTEXT, "preprod");
+
+      expect((await postPayment(app, validBody())).status).toBe(200);
+      expect(tx.taskEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ network: "preprod" }),
+      });
     });
 
     it("charges, records, signs, verifies, and returns the header", async () => {

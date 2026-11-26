@@ -28,7 +28,7 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-const { netTable, sharedTable } = createSqlTables(
+const { netTable, netType, sharedTable } = createSqlTables(
   sqlTableLayoutFromEnv(process.env),
 );
 
@@ -73,7 +73,7 @@ async function seedParents(tx: Tx) {
   const task = await tx.task.create({
     data: { name: "Network column", workspaceId },
   });
-  return { userId, taskId: task.id };
+  return { userId, workspaceId, taskId: task.id };
 }
 
 /** A spend of the given size on Mainnet; returns its id. */
@@ -248,6 +248,40 @@ describe.skipIf(!enabled)("the network column", () => {
           taskEvent: await rowsWithoutNetwork(tx, "taskEvent", ids.taskEvent),
         }).toEqual(before);
       }
+    });
+  });
+
+  it("keeps the tag of a Job's History row when the Job changes", async () => {
+    await rolledBack(async (tx) => {
+      const { userId, workspaceId } = await seedParents(tx);
+      const [pricingId, agentId, jobId] = [1, 2, 3].map(() => randomUUID());
+      await tx.$executeRaw`
+        INSERT INTO ${netTable("mainnet", "AgentPricing")} ("id", "updatedAt", "pricingType")
+        VALUES (${pricingId}, NOW(), 'FREE'::${netType("mainnet", "PricingType")})`;
+      await tx.$executeRaw`
+        INSERT INTO ${netTable("mainnet", "Agent")} (
+          "id", "updatedAt", "blockchainIdentifier", "name", "apiBaseUrl",
+          "lastUptimeCheck", "uptimeCount", "uptimeCheckCount", "pricingId", "isShown")
+        VALUES (${agentId}, NOW(), ${agentId}, 'Agent', 'https://example.test',
+          NOW(), 1, 1, ${pricingId}, true)`;
+      await tx.$executeRaw`
+        INSERT INTO ${netTable("mainnet", "Job")} (
+          "id", "updatedAt", "ownerId", "agentId", "agentJobId", "jobType",
+          "workspaceId", "name")
+        VALUES (${jobId}, NOW(), ${userId}, ${agentId}, 'remote',
+          'FREE'::${netType("mainnet", "JobType")}, ${workspaceId}::uuid, 'Before')`;
+      const row = () =>
+        tx.history.findUniqueOrThrow({
+          where: { kind_entityId: { kind: HistoryKind.JOB, entityId: jobId } },
+          select: { title: true, network: true },
+        });
+      expect(await row()).toEqual({ title: "Before", network: null });
+
+      await tx.$executeRawUnsafe(migrationSql);
+      await tx.$executeRaw`
+        UPDATE ${netTable("mainnet", "Job")} SET "name" = 'After' WHERE "id" = ${jobId}`;
+
+      expect(await row()).toEqual({ title: "After", network: "mainnet" });
     });
   });
 

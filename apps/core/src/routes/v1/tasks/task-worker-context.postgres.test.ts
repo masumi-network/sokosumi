@@ -4,6 +4,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { Hono } from "hono";
+import { err } from "neverthrow";
 import {
   afterAll,
   afterEach,
@@ -28,7 +29,13 @@ import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import mountEvents from "./[id]/events/post";
 import mountFiles from "./[id]/files/post";
+import mountX402Payments from "./[id]/x402-payments/post";
 
+const X402 = vi.hoisted(() => ({
+  network: "eip155:84532",
+  asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+  payTo: "0x1111111111111111111111111111111111111111",
+}));
 const { headMock, delMock, grantMock, fixtureEnv } = vi.hoisted(() => ({
   headMock: vi.fn(),
   delMock: vi.fn(),
@@ -90,6 +97,35 @@ vi.mock("@/lib/blob-upload-grant", () => ({
   createBlobUploadGrant: grantMock,
 }));
 vi.mock("@/lib/ably/publish", () => ({ publishTaskEventData: vi.fn() }));
+// The x402 payment's three outside dependencies: the node's wallets, the
+// price list, and the node itself, which refuses.
+vi.mock("@/helpers/x402-readiness", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/x402-readiness")>()),
+  getX402ReadySources: async () => [
+    {
+      caip2Network: X402.network,
+      asset: X402.asset,
+      evmWalletId: "wallet-1",
+      evmWalletAddress: X402.payTo,
+      decimals: 6,
+    },
+  ],
+}));
+vi.mock("@/helpers/agent", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/agent")>()),
+  getCreditCostsOrThrow: async () => [
+    {
+      unit: `${X402.network}/erc20:${X402.asset}`,
+      centsPerUnit: 2n * 10n ** 10n,
+    },
+  ],
+}));
+vi.mock("@/clients/masumi-payment.client", () => ({
+  paymentClient: () => ({
+    payX402: async () =>
+      err({ kind: "refused", status: 402, message: "budget exhausted" }),
+  }),
+}));
 vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: vi.fn(),
 }));
@@ -1274,5 +1310,78 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     expect((await response.json()).data.contextVersion).toBeUndefined();
     expect((await complete({ path: LEGACY_CALLBACK_PATH })).status).toBe(200);
     expect(await prisma.taskFile.count({ where: { taskId } })).toBe(1);
+  });
+
+  // Last in the file: the refund leaves the pool split over two buckets.
+  it("tags the x402 charge event with the Network of the request", async () => {
+    const agent = await prisma.agent.create({
+      data: {
+        blockchainIdentifier: randomUUID(),
+        name: "x402 agent",
+        apiBaseUrl: "https://agent.example.test",
+        lastUptimeCheck: new Date(),
+        uptimeCount: 1,
+        uptimeCheckCount: 1,
+        type: "X402",
+        status: "ONLINE",
+        isShown: true,
+        x402ResourcesUrl: "https://agent.example.test/.well-known/x402",
+        pricing: { create: { pricingType: "FREE" } },
+        paymentSources: {
+          create: {
+            sourceIndex: 0,
+            chain: "EVM",
+            network: X402.network,
+            address: X402.payTo,
+            payTo: X402.payTo,
+            scheme: "exact",
+            pricingType: "FIXED",
+            amounts: {
+              create: { unit: X402.asset, amount: 250000n, decimals: 6 },
+            },
+          },
+        },
+      },
+    });
+    const payments = new OpenAPIHonoWithAuth();
+    payments.use("*", async (c, next) => {
+      c.set("authContext", actor);
+      c.set("isAuthenticated", true);
+      await next();
+    });
+    mountX402Payments(payments);
+
+    await payments.request(`/${taskId}/x402-payments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idempotencyKey: randomUUID(),
+        agentId: agent.id,
+        paymentRequired: {
+          x402Version: 2,
+          accepts: [
+            {
+              scheme: "exact",
+              network: X402.network,
+              asset: X402.asset,
+              amount: "250000",
+              payTo: X402.payTo,
+              maxTimeoutSeconds: 60,
+              extra: { name: "USDC", version: "2" },
+            },
+          ],
+        },
+      }),
+    });
+
+    // The node refused, so the charge was refunded; its event stays.
+    const events = await prisma.taskEvent.findMany({
+      where: { taskId },
+      select: { cents: true, network: true },
+    });
+    // Before afterEach deletes the Task: both rows point at it.
+    await prisma.taskX402Payment.deleteMany({ where: { taskId } });
+    await prisma.agent.delete({ where: { id: agent.id } });
+    expect(events).toEqual([{ cents: 5_000_000_000n, network: "mainnet" }]);
   });
 });

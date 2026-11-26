@@ -1,5 +1,5 @@
 import { NotificationKind } from "@sokosumi/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
@@ -162,6 +162,12 @@ describe("GET /notifications", () => {
   });
 
   it("answers the same whether or not a row has a Network", async () => {
+    // The body carries the time of the answer.
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-26T12:00:00Z"),
+    });
+    onTestFinished(() => void vi.useRealTimers());
     const bodies: string[] = [];
     for (const network of [null, "mainnet"]) {
       notificationFindManyMock
@@ -171,10 +177,7 @@ describe("GET /notifications", () => {
       notificationCountMock.mockResolvedValue(1);
       const response = await createApp().request("http://localhost/");
       expect(response.status).toBe(200);
-      const body = await response.json();
-      // The clock, not the row.
-      body.meta.timestamp = null;
-      bodies.push(JSON.stringify(body));
+      bodies.push(await response.text());
     }
     expect(bodies[1]).toBe(bodies[0]);
     expect(bodies[0]).not.toContain("network");
