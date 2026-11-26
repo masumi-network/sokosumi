@@ -67,6 +67,15 @@ function Shell() {
             </>
           }
         >
+          <button
+            type="button"
+            style={{ display: "none" }}
+            ref={(button) => {
+              if (button) button.checkVisibility = () => false;
+            }}
+          >
+            Hidden project control
+          </button>
           <a href="/social">{section} links</a>
         </SidebarContextPanel>
       </Sidebar>

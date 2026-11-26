@@ -119,12 +119,19 @@ function RailControls({ mobile }: { mobile: boolean }) {
                 if (!mobile && !open) setOpen(true);
                 if (event.detail === 0) {
                   requestAnimationFrame(() => {
-                    document
-                      .getElementById("app-sidebar-panel")
-                      ?.querySelector<HTMLElement>(
-                        ":scope > div:not([hidden]) :is(a[href], button:not(:disabled))",
-                      )
-                      ?.focus();
+                    const panel = document.querySelector(
+                      "#app-sidebar-panel > div:not([hidden])",
+                    );
+                    const focusable = panel?.querySelectorAll<HTMLElement>(
+                      "a[href], button:not(:disabled)",
+                    );
+                    const first = Array.from(focusable ?? []).find(
+                      (element) =>
+                        element.checkVisibility?.({
+                          visibilityProperty: true,
+                        }) !== false,
+                    );
+                    first?.focus();
                   });
                 }
               }}
