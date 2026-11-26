@@ -67,6 +67,19 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   generateText: mocks.generateText,
 }));
+// The real inbox write, unless a case makes it fail.
+const inbox = vi.hoisted(() => ({ fail: false }));
+vi.mock("@/lib/soko-bot/x-inbox", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/lib/soko-bot/x-inbox")>();
+  return {
+    ...original,
+    keepXDms: (...args: Parameters<typeof original.keepXDms>) =>
+      inbox.fail
+        ? Promise.reject(new Error("inbox write failed"))
+        : original.keepXDms(...args),
+  };
+});
 
 import prisma from "@/lib/db/prisma";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
@@ -1431,7 +1444,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await prisma.workspace.create({
         data: { id: busyWorkspaceId, organizationId: busyOrganizationId },
       });
-      await addBot(busyWorkspaceId, ["twitter"]);
+      const busyBot = await addBot(busyWorkspaceId, ["twitter"]);
+      // A version that keeps DMs, so every page also writes the inbox.
+      await prisma.sokoBot.update({
+        where: { id: busyBot.id },
+        data: { versionId: "v37" },
+      });
       const start = Date.now();
       const minutes = (n: number) => new Date(start + n * 60_000).toISOString();
       // 24 messages, newest first: Ruth and the owner taking turns.
@@ -1508,6 +1526,17 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(await ruthInteractions()).toBe(0);
       expect(followerCalls).toBe(1);
 
+      // The inbox write fails on the resumed page: the walk keeps its place,
+      // so the next run reads that page again instead of skipping it.
+      expectCoreLog("error", "Could not read a contact capture source");
+      inbox.fail = true;
+      dmCalls.length = 0;
+      clock = new Date(start + 15 * 60_000);
+      await capture();
+      inbox.fail = false;
+      expect(dmCalls).toEqual([events[10]?.id]);
+      expect((await xCursor()).dmWalk?.token).toBe(events[10]?.id);
+
       // A message arrives between ticks: the open walk goes on from its
       // place without a probe, reaches the end, and only then writes contacts
       // and commits the newest id it started from and the time it began.
@@ -1528,6 +1557,104 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await capture();
       expect(dmCalls).toEqual([null, null]);
       expect((await xCursor()).newestDmId).toBe(events[0]?.id);
+    });
+
+    it("starts a DM walk over when X refuses its saved page token, or it is a day old", async () => {
+      const resetOrganizationId = randomUUID();
+      const resetWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: resetOrganizationId,
+          name: "Capture X reset",
+          slug: `capture-x-reset-${resetOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: resetWorkspaceId, organizationId: resetOrganizationId },
+      });
+      await addBot(resetWorkspaceId, ["twitter"]);
+      const start = Date.now();
+      const events = Array.from({ length: 20 }, (_, index) =>
+        dm(
+          "100-200",
+          index % 2 ? "100" : "200",
+          new Date(start - 600_000 - index * 1_800_000).toISOString(),
+        ),
+      );
+      const dmCalls: (string | null)[] = [];
+      let refuseTokens = false;
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          const token = (input.pagination_token as string | undefined) ?? null;
+          dmCalls.push(token);
+          if (token && refuseTokens)
+            throw new SokoBotIntegrationError(
+              "X: 400 Bad Request: Invalid pagination_token",
+            );
+          const from = token ? events.findIndex((e) => e.id === token) : 0;
+          const page = events.slice(from, from + (input.max_results as number));
+          const next = events[from + page.length];
+          return {
+            data: page,
+            includes: { users: [ruth] },
+            meta: next ? { next_token: next.id } : {},
+          };
+        },
+      );
+      let clock = new Date(start);
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            pagesPerIntegration: 20,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+            xDmCallsPerRun: 2,
+            xDmPageSize: 5,
+          },
+        }).captureWorkspace(resetWorkspaceId, () => true);
+      const walkToken = async () =>
+        (
+          (
+            await prisma.contactCaptureState.findFirstOrThrow({
+              where: {
+                integration: { sokoBot: { workspaceId: resetWorkspaceId } },
+              },
+              select: { cursor: true },
+            })
+          ).cursor as { x: { dmWalk?: { token: string } } }
+        ).x.dmWalk?.token;
+
+      await capture();
+      expect(await walkToken()).toBe(events[5]?.id);
+
+      // X refuses the saved token: the walk is dropped, the next run starts over.
+      expectCoreLog("error", "Could not read a contact capture source");
+      refuseTokens = true;
+      clock = new Date(start + 15 * 60_000);
+      await capture();
+      expect(await walkToken()).toBeUndefined();
+      refuseTokens = false;
+      dmCalls.length = 0;
+      clock = new Date(start + 30 * 60_000);
+      await capture();
+      expect(dmCalls).toEqual([null, null]);
+      expect(await walkToken()).toBe(events[5]?.id);
+
+      // A walk a day old is not resumed: its token may no longer work.
+      dmCalls.length = 0;
+      clock = new Date(start + 30 * 60_000 + 25 * 60 * 60_000);
+      await capture();
+      expect(dmCalls[0]).toBeNull();
     });
 
     it("shows a refused DM read on the connection, and clears it once a read works", async () => {

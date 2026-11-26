@@ -23,6 +23,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
+  addXDmPage,
   type CaptureCandidate,
   type ExtractContext,
   type Extraction,
@@ -31,6 +32,7 @@ import {
   extractSentMail,
   extractSlackConversation,
   extractXDms,
+  newXDmWalk,
   parseEvent,
   parseMail,
   parseSlackConversation,
@@ -43,8 +45,10 @@ import {
   slackCandidate,
   slackDays,
   type XDmEvent,
+  type XDmWalk,
   type XUser,
   xCandidate,
+  xDmWalkEvents,
 } from "@/lib/contacts/capture-extract";
 import type { CaptureSkipReason } from "@/lib/contacts/capture-filters";
 import {
@@ -229,55 +233,6 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   callSpacingMs: 250,
   unsupportedPauseMs: DAY_MS,
 };
-
-/**
- * What a DM walk learned so far, small enough for the cursor: who wrote on
- * which day in each conversation (no message text), and the people in it.
- */
-interface XDmWalk {
-  /** The next page; null before the first. */
-  token: string | null;
-  /** It read back to `from`; only the contacts are left to write. */
-  reached: boolean;
-  /** The newest event it read, kept as `newestDmId` once it finishes. */
-  newestId: string | null;
-  /** Everything after this was read once the walk finishes. */
-  startedAt: string;
-  talk: Record<string, { members: string[]; days: Record<string, string[]> }>;
-  users: Record<string, { name: string | null; username: string }>;
-}
-
-function addXDmTalk(walk: XDmWalk, events: readonly XDmEvent[]): void {
-  for (const event of events) {
-    const conversation = (walk.talk[event.conversationId] ??= {
-      members: [],
-      days: {},
-    });
-    conversation.members = [
-      ...new Set([...conversation.members, ...event.participantIds]),
-    ];
-    const day = event.createdAt.slice(0, 10);
-    conversation.days[day] = [
-      ...new Set([...(conversation.days[day] ?? []), event.senderId]),
-    ];
-  }
-}
-
-/** One event per person and day, as `extractXDms` reads them. */
-function xDmTalkEvents(walk: XDmWalk): XDmEvent[] {
-  return Object.entries(walk.talk).flatMap(([conversationId, conversation]) =>
-    Object.entries(conversation.days).flatMap(([day, senders]) =>
-      senders.map((senderId) => ({
-        id: "",
-        conversationId,
-        senderId,
-        participantIds: conversation.members,
-        createdAt: `${day}T12:00:00.000Z`,
-        text: "",
-      })),
-    ),
-  );
-}
 
 interface SourceCursor {
   /** Everything after this was read forward. */
@@ -1652,6 +1607,15 @@ export class ContactCaptureService {
       });
     };
     let walk = cursor.dmWalk;
+    // X's page tokens do not last: a walk left for a day starts over.
+    if (
+      walk &&
+      context.now.getTime() - new Date(walk.startedAt).getTime() >
+        X_WALK_MAX_AGE_MS
+    ) {
+      delete cursor.dmWalk;
+      walk = undefined;
+    }
     if (!walk) {
       // The newest message alone: when it is not new, nothing is. X filters
       // a page by event type after picking it, so a small page can hold no
@@ -1672,14 +1636,7 @@ export class ContactCaptureService {
           return context.now.toISOString();
         }
       } else if (!probe.nextToken) return context.now.toISOString();
-      walk = {
-        token: null,
-        reached: false,
-        newestId: null,
-        startedAt: context.now.toISOString(),
-        talk: {},
-        users: {},
-      };
+      walk = newXDmWalk(context.now.toISOString());
     }
     // A personal bot's owner reads their new DMs through it (x-inbox), on a
     // version that reads them.
@@ -1709,34 +1666,42 @@ export class ContactCaptureService {
           user_fields: ["name", "username"],
           max_results: this.limits.xDmPageSize,
           ...(walk.token ? { pagination_token: walk.token } : {}),
+        }).catch((error: unknown) => {
+          // A token X no longer takes: the next run starts a fresh walk.
+          if (walk?.token && isXPageTokenRefusal(error)) delete cursor.dmWalk;
+          throw error;
         }),
       );
       const events: XDmEvent[] = [];
+      let older = false;
       for (const raw of page.items) {
         const event = parseXDmEvent(raw);
         if (!event) continue;
-        if (new Date(event.createdAt) < from) walk.reached = true;
+        if (new Date(event.createdAt) < from) older = true;
         else events.push(event);
       }
-      for (const user of page.users)
-        walk.users[user.id] = { name: user.name, username: user.username };
-      addXDmTalk(walk, events);
-      walk.newestId ??= events[0]?.id || null;
-      walk.token = page.nextToken;
-      if (!page.nextToken) walk.reached = true;
-      if (keepsDms)
+      // Staged: the walk moves past this page only once all of it is
+      // handled, so a failed inbox write reads the page again next run.
+      const next = addXDmPage(walk, { events, users: page.users });
+      next.newestId ??= events[0]?.id || null;
+      next.token = page.nextToken;
+      next.reached = older || !page.nextToken;
+      if (keepsDms) {
+        const people = new Map(page.users.map((user) => [user.id, user]));
         await keepXDms(
           context.integration.id,
           events.map((event) => ({
             id: event.id,
             conversationId: event.conversationId,
-            from: xSender(walk.users[event.senderId], event.senderId),
+            from: xSender(people.get(event.senderId), event.senderId),
             createdAt: event.createdAt,
             text: event.text,
             fromOwner: event.senderId === me.id,
           })),
           context.now,
         );
+      }
+      walk = next;
       cursor.dmWalk = walk;
       await save();
     }
@@ -1745,7 +1710,7 @@ export class ContactCaptureService {
     const candidates: CaptureCandidate[] = [];
     const skipped: CaptureSkipReason[] = [];
     for (const talk of extractXDms({
-      events: xDmTalkEvents(walk),
+      events: xDmWalkEvents(walk),
       ownerId: me.id,
     })) {
       const known = walk.users[talk.userId];
@@ -1986,6 +1951,18 @@ export const X_DM_ACCESS_ERROR =
   "X does not let your assistant read your direct messages. Reconnect X and allow messages.";
 
 /** X answered a DM read with a permission error, not a passing failure. */
+/** How long a DM walk may go on from a saved page token. */
+const X_WALK_MAX_AGE_MS = DAY_MS;
+
+/** X refused a saved page token: an expired or invalid pagination token. */
+function isXPageTokenRefusal(error: unknown): boolean {
+  return (
+    error instanceof SokoBotIntegrationError &&
+    /pagination|next_token|\btoken\b/i.test(error.message) &&
+    /invalid|expired|not valid|malformed|400/i.test(error.message)
+  );
+}
+
 function isXDmRefusal(error: unknown): boolean {
   return (
     error instanceof SokoBotIntegrationError &&

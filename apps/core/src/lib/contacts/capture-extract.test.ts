@@ -7,6 +7,7 @@ import outlookReceived from "./__fixtures__/outlook-received.json";
 import outlookSent from "./__fixtures__/outlook-sent.json";
 import slack from "./__fixtures__/slack.json";
 import {
+  addXDmPage,
   type ExtractContext,
   extractInboundMail,
   extractMeeting,
@@ -14,6 +15,7 @@ import {
   extractSlackConversation,
   extractXDms,
   mailTopic,
+  newXDmWalk,
   parseEvent,
   parseMail,
   parseSignature,
@@ -23,6 +25,9 @@ import {
   parseXPage,
   slackCandidate,
   slackDays,
+  X_SMALL_GROUP,
+  X_WALK_CONVERSATIONS,
+  xDmWalkEvents,
 } from "./capture-extract";
 
 const NOW = new Date("2026-10-21T12:00:00Z");
@@ -458,5 +463,64 @@ describe("X", () => {
         direction: "BOTH",
       },
     ]);
+  });
+
+  describe("a DM walk across pages", () => {
+    const parsed = (...raws: unknown[]) =>
+      raws.flatMap((raw) => parseXDmEvent(raw) ?? []);
+    const ruth = { id: "2", name: "Ruth", username: "ruthw" };
+
+    it("finds the same conversations as reading every event at once", () => {
+      const first = parsed(event("1-2", "2", "2026-10-20T16:00:00Z"));
+      // The owner's reply that day is on the next page.
+      const second = parsed(
+        event("1-2", "1", "2026-10-20T09:00:00Z"),
+        event("1-3", "3", "2026-10-19T08:00:00Z"),
+      );
+      const walk = addXDmPage(
+        addXDmPage(newXDmWalk("2026-10-21T00:00:00Z"), {
+          events: first,
+          users: [ruth],
+        }),
+        { events: second, users: [] },
+      );
+      expect(
+        extractXDms({ events: xDmWalkEvents(walk), ownerId: "1" }),
+      ).toEqual(extractXDms({ events: [...first, ...second], ownerId: "1" }));
+      expect(walk.users).toEqual({ "2": { name: "Ruth", username: "ruthw" } });
+    });
+
+    it("returns a copy, so a page that fails leaves the walk as it was", () => {
+      const walk = newXDmWalk("2026-10-21T00:00:00Z");
+      addXDmPage(walk, {
+        events: parsed(event("1-2", "2", "2026-10-20T16:00:00Z")),
+        users: [ruth],
+      });
+      expect(walk).toEqual(newXDmWalk("2026-10-21T00:00:00Z"));
+    });
+
+    it("stays small: a large group is a marker, and conversations stop at the cap", () => {
+      const crowd = Array.from({ length: X_SMALL_GROUP + 2 }, (_, i) =>
+        String(i + 10),
+      );
+      let walk = addXDmPage(newXDmWalk("2026-10-21T00:00:00Z"), {
+        events: parsed({
+          ...event("g1", "10", "2026-10-20T10:00:00Z"),
+          participant_ids: ["1", ...crowd],
+        }),
+        users: crowd.map((id) => ({ id, name: null, username: `u${id}` })),
+      });
+      expect(walk.talk.g1).toEqual({ members: [], days: {}, large: true });
+      expect(walk.users).toEqual({});
+      walk = addXDmPage(walk, {
+        events: parsed(
+          ...Array.from({ length: X_WALK_CONVERSATIONS + 5 }, (_, i) =>
+            event(`1-${i + 100}`, `${i + 100}`, "2026-10-20T10:00:00Z"),
+          ),
+        ),
+        users: [],
+      });
+      expect(Object.keys(walk.talk)).toHaveLength(X_WALK_CONVERSATIONS);
+    });
   });
 });
