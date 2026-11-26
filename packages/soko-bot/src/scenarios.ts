@@ -29,7 +29,7 @@ export interface SokoBotLabTurn {
     status: string;
     result: unknown;
     input?: unknown;
-    /** SOKO_BOT_TOOL_REFUSED when Core refused the call on purpose. */
+    /** The refusal's kind when Core refused the call on purpose. */
     errorKind?: string | null;
   }[];
   events: { type: string; toolName: string | null }[];
@@ -156,11 +156,17 @@ export interface SokoBotScenario {
      */
     allowFailedTools?: string[];
     /**
-     * A file the bot must save, by any path that shows its contents
-     * (workspace_write, upload_file with content, or a bash command that
-     * writes it inline): the name and every listed piece of content.
+     * A file the bot must save, by any call whose record shows what was saved
+     * (workspace_write, or upload_file with content): its name and every
+     * listed piece of content.
      */
     savesFile?: { name: string; contains: string[] };
+    /**
+     * Refusals the scenario sets up, by tool and the refusal's kind (such as
+     * SOKO_BOT_FEATURE_OFF): an outcome, not a failure. Any other refusal or
+     * error still fails the case.
+     */
+    expectedRefusals?: Record<string, string>;
     /** Minimum number of tasks/jobs the turn touched. */
     minDelegations?: number;
     /** Nothing may be delegated. */
@@ -210,35 +216,46 @@ export interface SokoBotScenario {
  * feature off, a permission missing): an outcome to report, not a failure.
  */
 export const SOKO_BOT_TOOL_REFUSED = "refused";
+/** The refusal of a tool whose feature is off for this workspace. */
+export const SOKO_BOT_FEATURE_OFF = "feature_off";
 
 const asText = (value: unknown) => (typeof value === "string" ? value : "");
 
 /** The calls a savesFile check can read a file from. */
-export const SAVES_FILE_TOOLS = ["workspace_write", "upload_file", "bash"];
+export const SAVES_FILE_TOOLS = ["workspace_write", "upload_file"];
 
-/** A completed call that wrote this file with all of this content. */
+/**
+ * The name and contents of what a completed call saved, when its record
+ * shows them: workspace_write wrote its content at its path, and upload_file
+ * stored its content under the name its result reports. A command line or an
+ * upload of a workspace file shows neither, so it proves nothing.
+ */
+function savedContent(
+  call: SokoBotLabTurn["toolCalls"][number],
+): { name: string; content: string } | null {
+  if (call.status !== "COMPLETED") return null;
+  const input = (call.input ?? {}) as Record<string, unknown>;
+  if (call.capability === "workspace_write")
+    return { name: asText(input.path), content: asText(input.content) };
+  if (call.capability !== "upload_file" || !asText(input.content)) return null;
+  const result = (call.result ?? {}) as Record<string, unknown>;
+  return {
+    name: asText(result.filename) || asText(input.filename),
+    content: asText(input.content),
+  };
+}
+
+/** A completed call that saved this file with all of this content. */
 function savedFile(
   calls: SokoBotLabTurn["toolCalls"],
   file: { name: string; contains: string[] },
 ): string | null {
   for (const call of calls) {
+    const saved = savedContent(call);
     if (
-      call.status !== "COMPLETED" ||
-      !SAVES_FILE_TOOLS.includes(call.capability)
-    )
-      continue;
-    const input = (call.input ?? {}) as Record<string, unknown>;
-    const [where, content] =
-      call.capability === "workspace_write"
-        ? [asText(input.path), asText(input.content)]
-        : call.capability === "upload_file"
-          ? [asText(input.filename), asText(input.content)]
-          : call.capability === "bash"
-            ? [asText(input.command), asText(input.command)]
-            : ["", ""];
-    if (
-      where.includes(file.name) &&
-      file.contains.every((piece) => content.includes(piece))
+      saved &&
+      saved.name.split("/").at(-1) === file.name &&
+      file.contains.every((piece) => saved.content.includes(piece))
     )
       return call.capability;
   }
@@ -1166,6 +1183,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "CLARIFY", "MIXED"],
       anyTools: ["fundraising_pipeline", "investor_warm_paths"],
+      expectedRefusals: {
+        fundraising_pipeline: SOKO_BOT_FEATURE_OFF,
+        investor_warm_paths: SOKO_BOT_FEATURE_OFF,
+      },
       forbiddenTools: ["send_email_draft", "create_task", "hire_agent"],
       noDelegations: true,
     },
@@ -1188,6 +1209,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "MIXED",
       ],
       anyTools: ["find_investors"],
+      expectedRefusals: { find_investors: SOKO_BOT_FEATURE_OFF },
       forbiddenTools: [
         "upsert_contact",
         "create_task",
@@ -2610,11 +2632,14 @@ export function evaluateScenario(
     pass: turn.status === "COMPLETED",
     actual: turn.status,
   });
-  // Core refusing on purpose is the case's outcome, judged on the answer.
+  // A refusal the scenario sets up is its outcome, judged on the answer.
   const failedTools = turn.toolCalls.filter(
     (call) =>
       call.status === "FAILED" &&
-      call.errorKind !== SOKO_BOT_TOOL_REFUSED &&
+      !(
+        call.errorKind != null &&
+        expect.expectedRefusals?.[call.capability] === call.errorKind
+      ) &&
       !expect.allowFailedTools?.includes(call.capability),
   );
   checks.push({

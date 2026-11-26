@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CMO_SCENARIOS,
   evaluateScenario,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_SCENARIOS,
   SOKO_BOT_TOOL_REFUSED,
   type SokoBotLabTurn,
@@ -496,45 +497,77 @@ describe("scoring what the bot did, not how", () => {
       label.test(c.label),
     );
 
-  it("counts Core refusing on purpose as an outcome, other failures as failures", () => {
-    const refused = {
-      ...call("fundraising_pipeline"),
-      status: "FAILED",
-      errorKind: SOKO_BOT_TOOL_REFUSED,
+  it("counts only the refusal a scenario sets up as an outcome", () => {
+    const noFailures = (scenarioId: string, failed: Record<string, unknown>) =>
+      check(
+        scenarioId,
+        { toolCalls: [{ ...call("x"), status: "FAILED", ...failed }] },
+        /No failed/,
+      )?.pass;
+    const featureOff = {
+      capability: "fundraising_pipeline",
+      errorKind: SOKO_BOT_FEATURE_OFF,
     };
+    expect(noFailures("fundraising-pipeline-off", featureOff)).toBe(true);
+    // Any other refusal or error of the same tool still fails the case.
+    for (const errorKind of [SOKO_BOT_TOOL_REFUSED, "Error", null])
+      expect(
+        noFailures("fundraising-pipeline-off", { ...featureOff, errorKind }),
+      ).toBe(false);
+    // The same refusal of a tool the scenario did not set up fails too.
     expect(
-      check("fundraising-pipeline-off", { toolCalls: [refused] }, /No failed/)
-        ?.pass,
-    ).toBe(true);
-    const broken = { ...refused, errorKind: "Error" };
-    expect(
-      check("fundraising-pipeline-off", { toolCalls: [broken] }, /No failed/)
-        ?.pass,
+      noFailures("fundraising-pipeline-off", {
+        capability: "send_message",
+        errorKind: SOKO_BOT_FEATURE_OFF,
+      }),
     ).toBe(false);
+    // And no other scenario forgives it.
+    expect(noFailures("workspace-data-work", featureOff)).toBe(false);
   });
 
-  it("accepts the saved file by any path that shows its contents", () => {
+  it("accepts the saved file only where the record shows what was saved", () => {
     const rows =
       "Company,Amount\nAcme,12000\nBeta,8000\nGamma,20000\nDelta,5000\nEpsilon,15000\n";
-    const saved = (capability: string, input: unknown) =>
+    const saved = (
+      capability: string,
+      input: unknown,
+      result: unknown = null,
+    ) =>
       check(
         "workspace-data-work",
-        { toolCalls: [{ ...call(capability), input }] },
+        { toolCalls: [{ ...call(capability, result), input }] },
         /Saves pipeline\.csv/,
       )?.pass;
     expect(
-      saved("upload_file", { filename: "pipeline.csv", content: rows }),
+      saved(
+        "upload_file",
+        { filename: "pipeline.csv", content: rows },
+        { filename: "pipeline.csv" },
+      ),
     ).toBe(true);
     expect(
-      saved("workspace_write", { path: "pipeline.csv", content: rows }),
+      saved("workspace_write", { path: "work/pipeline.csv", content: rows }),
     ).toBe(true);
+    // The name is the one the file was saved under.
     expect(
-      saved("bash", { command: `cat > pipeline.csv <<'EOF'\n${rows}EOF` }),
-    ).toBe(true);
-    // A call alone proves nothing: the name and every row must be there.
-    expect(saved("bash", { command: "python3 make.py > pipeline.csv" })).toBe(
-      false,
-    );
+      saved(
+        "upload_file",
+        { filename: "pipeline.csv", content: rows },
+        { filename: "pipeline (2).csv" },
+      ),
+    ).toBe(false);
+    // A command line shows neither a file nor its contents.
+    expect(
+      saved("bash", {
+        command: 'echo "pipeline.csv Acme 12000 Beta Gamma Delta Epsilon"',
+      }),
+    ).toBe(false);
+    expect(
+      saved("upload_file", {
+        filename: "pipeline.csv",
+        workspacePath: "pipeline.csv",
+      }),
+    ).toBe(false);
     expect(
       saved("upload_file", {
         filename: "pipeline.csv",

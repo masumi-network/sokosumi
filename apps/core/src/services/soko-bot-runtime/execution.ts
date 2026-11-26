@@ -3,6 +3,7 @@ import {
   isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSeoCapability,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_TOOL_REFUSED,
 } from "@sokosumi/soko-bot";
@@ -36,6 +37,7 @@ import { getSocialPost } from "@/services/social-posts.service";
 import {
   type ExecuteSokoBotToolInput,
   pinToBotProject,
+  SokoBotFeatureOffError,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -57,7 +59,8 @@ import { persistedErrorDetail } from "./seller-recovery";
 import { alternateCreateTaskEventInput } from "./task-policy";
 
 /** A refusal Core meant is stored as such, so a report can tell it from a failure. */
-function toolErrorKind(error: unknown): string {
+export function toolErrorKind(error: unknown): string {
+  if (error instanceof SokoBotFeatureOffError) return SOKO_BOT_FEATURE_OFF;
   if (error instanceof SokoBotRefusedUnsentError) return SOKO_BOT_TOOL_REFUSED;
   return error instanceof Error ? error.name : "unknown";
 }

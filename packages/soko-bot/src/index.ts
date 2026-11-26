@@ -210,6 +210,7 @@ export {
   SAVES_FILE_TOOLS,
   type ScenarioCheck,
   type ScenarioResult,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_SCENARIOS,
   SOKO_BOT_TOOL_REFUSED,
   type SokoBotScenario,

@@ -28,6 +28,9 @@ function toolsCaseChecks(): Set<string> {
  * case before it ships, and a tool that gains one leaves the list.
  */
 const NOT_YET_COVERED = new Set([
+  // Its record shows a command, never what it saved: the data-work case
+  // checks the saved file instead.
+  "bash",
   "create_ad_campaign",
   "create_project",
   "delete_ad_campaign",

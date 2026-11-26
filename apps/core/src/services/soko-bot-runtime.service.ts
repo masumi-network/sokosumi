@@ -181,6 +181,9 @@ export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
 
+/** The tool's feature is off for this workspace: there is nothing to do. */
+export class SokoBotFeatureOffError extends SokoBotRefusedUnsentError {}
+
 export function isSokoBotDecisionTargetAllowed(
   toolName: string,
   capabilities: readonly string[],
