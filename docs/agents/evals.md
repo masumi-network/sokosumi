@@ -14,6 +14,12 @@ Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. E
   - Check the team and evals key budgets with `vercel ai-gateway budgets ls` (amounts only).
   - Never start one while another Gateway run is going.
   - Run at most one full suite per bot version (about $12 for CMO's 52 cases), on the PR that adds the version.
+- **Don't overfit to the benchmark.**
+  - Fix general mechanisms (the loop, hand-offs, permissions, verification, asking when a request is ambiguous), never a benchmark journey's wording.
+  - No prompt text, rule or check may name a benchmark case, account, Coworker or phrasing.
+  - Core rules are only for invariants that hold for any request; everything else stays model judgement guided by skills.
+  - The owner benchmark keeps a held-out set that nobody iterates on, described with the benchmark. A version must hold its bar on both sets.
+  - Reviewers flag any change that only makes sense for one journey.
 - **A regression is fixed or explained before merge.** "Flaky" means the case already failed in recent weekly runs; a "regressed" case passed every recent weekly run.
 
 ## Where runs happen
