@@ -224,7 +224,7 @@ export async function buildIngestDeltaMessageForBot(
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
-    select: { id: true, userId: true, ingestTimezone: true },
+    select: { id: true, userId: true, ingestTimezone: true, versionId: true },
   });
   const since = new Date(Date.now() - hours * HOUR_MS);
   const mail: SokoBotInboxMessage[] = [];
@@ -364,10 +364,7 @@ export class SokoBotIngestSyncService {
       );
     });
     const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
-    const xDms = await ownerXDms(
-      bot,
-      { briefing, since: dayAgo },
-    );
+    const xDms = await ownerXDms(bot, { briefing, since: dayAgo });
     if (!briefing && dueMail.length === 0 && xDms.messages.length === 0)
       return "skipped";
 

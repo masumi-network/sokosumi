@@ -689,7 +689,16 @@ export async function buildSystemBeatMessage(input: {
         }),
       );
     }
-    const xDms = await ownerXDms(bot, { briefing: true, since: dayAgo });
+    const version = bot.userId
+      ? await prisma.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { versionId: true },
+        })
+      : null;
+    const xDms = await ownerXDms(
+      { ...bot, versionId: version?.versionId ?? null },
+      { briefing: true, since: dayAgo },
+    );
     const xMessages = await triageXDms(bot.id, xDms.messages, "standup");
     if (xMessages.length > 0)
       lines.push(

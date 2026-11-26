@@ -26,10 +26,10 @@ export const X_DM_GUIDE =
  * A personal bot's unseen X direct messages (all of the last day for the
  * briefing), from what contact capture kept. A shared bot reads none: they
  * are its connector's private messages, and a version without the X
- * messages skill reads none either. `versionId` undefined: looked up.
+ * messages skill reads none either.
  */
 export async function ownerXDms(
-  bot: { id: string; userId: string | null; versionId?: string | null },
+  bot: { id: string; userId: string | null; versionId: string | null },
   input: { briefing: boolean; since: Date },
 ): Promise<{
   messages: SokoBotInboxMessage[];
@@ -37,16 +37,7 @@ export async function ownerXDms(
 }> {
   const none = { messages: [], markSeen: async () => undefined };
   if (!bot.userId) return none;
-  const versionId =
-    bot.versionId !== undefined
-      ? bot.versionId
-      : (
-          await prisma.sokoBot.findUniqueOrThrow({
-            where: { id: bot.id },
-            select: { versionId: true },
-          })
-        ).versionId;
-  if (!sokoBotReadsXDms(getSokoBotVersion(versionId).skills)) return none;
+  if (!sokoBotReadsXDms(getSokoBotVersion(bot.versionId).skills)) return none;
   const integrations = await activeIntegrationsForBot(
     bot.id,
     "generic",
