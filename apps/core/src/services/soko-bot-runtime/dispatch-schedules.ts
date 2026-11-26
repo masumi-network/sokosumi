@@ -14,7 +14,6 @@ import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
 import {
   createSokoBotSchedule,
   deleteSokoBotSchedule,
-  listSokoBotSchedules,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
 import {
@@ -23,8 +22,12 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
-import { requireOwnScheduleScope, runScheduleTool } from "./schedule-scope";
-
+import { listSchedules } from "./schedule-reads";
+import {
+  requireOwnScheduleScope,
+  requireScheduledRunMayEnd,
+  runScheduleTool,
+} from "./schedule-scope";
 export async function dispatchSchedulesTools(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -88,7 +91,16 @@ export async function dispatchSchedulesTools(
     }
 
     case "list_schedules":
-      return listSokoBotSchedules(authorized.turn.sokoBotId);
+      return listSchedules(authorized, input.input);
+
+    case "save_task_schedule":
+
+    case "delete_task_schedule": {
+      const taskSchedules = await import("./task-schedules");
+      return input.capability === "save_task_schedule"
+        ? taskSchedules.saveTaskSchedule(runtime, input, authorized)
+        : taskSchedules.removeTaskSchedule(runtime, input, authorized);
+    }
 
     case "create_schedule":
 
@@ -103,13 +115,20 @@ export async function dispatchSchedulesTools(
             false,
             input.capability,
           );
-          if (authorized.turn.source === "SCHEDULE")
+          if (authorized.turn.source === "SCHEDULE") {
+            await requireScheduledRunMayEnd(
+              tx,
+              authorized.turn.id,
+              input.capability,
+              input.input,
+            );
             await requireOwnScheduleScope(
               tx,
               authorized.turn.id,
               input.capability,
               input.input,
             );
+          }
           const {
             actingUserId: userId,
             workspaceId,

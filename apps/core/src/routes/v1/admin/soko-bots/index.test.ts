@@ -192,6 +192,7 @@ describe("admin Soko Bot route precedence", () => {
       "social",
       "ads",
       "long_form",
+      "playbooks",
     ]);
     expect(data.groups[1].skills).toContainEqual(
       expect.objectContaining({

@@ -1,8 +1,11 @@
+import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { REFUND_PART_SEPARATOR } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
+import { labTurnTree } from "@/lib/soko-bot/lab-turns";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 
 /**
@@ -181,13 +184,19 @@ export interface SokoBotFleetDay {
   users: number;
   /** Turns those messages started. */
   messages: number;
-  /** Every turn that day, background work included. */
+  /** Every customer turn that day, background work included. */
   turns: number;
   totalTokens: number;
-  /** Model cost of all turns: agent loop plus classifier plus judge. */
+  /**
+   * Turn cost (agent loop, classifier, judge and in-turn checks) of
+   * customers' Soko Bots. Work outside a turn is not in it: Cuso's style,
+   * industry and picture checks, the month writer, image and video jobs.
+   */
   costUsd: number;
-  /** Model cost of CMO.xyz bot turns. */
+  /** The same for customers' CMO.xyz bots (Cuso). */
   cmoCostUsd: number;
+  /** Turn cost of eval lanes and behaviour-lab runs, both lines. */
+  evalCostUsd: number;
 }
 
 interface FleetDayRow {
@@ -198,16 +207,19 @@ interface FleetDayRow {
   totalTokens: bigint | null;
   costUsdMicros: bigint | null;
   cmoCostUsdMicros: bigint | null;
+  evalCostUsdMicros: bigint | null;
 }
 
 /** The last `days` UTC days, oldest first, with empty days as zeros. */
 export async function sokoBotFleetDays(
   days: number,
 ): Promise<SokoBotFleetDay[]> {
+  const start = Prisma.sql`date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})`;
   const rows = await prisma.$queryRaw<FleetDayRow[]>`
-    WITH days AS (
+    WITH RECURSIVE ${labTurnTree(Prisma.sql`t."createdAt" >= ${start}`)},
+    days AS (
       SELECT generate_series(
-        date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1}),
+        ${start},
         date_trunc('day', now() AT TIME ZONE 'UTC'),
         interval '1 day'
       ) AS day
@@ -216,33 +228,38 @@ export async function sokoBotFleetDays(
       SELECT
         date_trunc('day', t."createdAt") AS day,
         t."requestedByUserId",
+        -- Lab turns, the runs they started, and eval lanes are ours, not a
+        -- customer's.
+        (
+          EXISTS (SELECT 1 FROM lab_tree l WHERE l."id" = t."id")
+          OR EXISTS (
+            SELECT 1 FROM ${sharedTable("eval_lane")} e WHERE e."workspaceId" = b."workspaceId"
+          )
+        ) AS "ours",
         t."source" = 'CHAT'
           AND t."chainDepth" = 0
           AND t."parentTurnId" IS NULL
           AND t."requestedByUserId" IS NOT NULL
-          AND NOT EXISTS (SELECT 1 FROM "soko_bot_lab_run" l WHERE l."turnId" = t."id")
-          -- Lab turns and eval lanes are ours, not a person writing to a bot.
-          AND COALESCE(t."clientTurnId", '') NOT LIKE 'lab:%'
-          AND NOT EXISTS (SELECT 1 FROM "eval_lane" e WHERE e."workspaceId" = b."workspaceId")
-          AS "fromPerson",
+          AS "chat",
         COALESCE((t."usage" ->> 'inputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'outputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheReadTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheWriteTokens')::numeric, 0) AS tokens,
         COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros,
         COALESCE(b."versionId" = ANY(${[...CMO_SOKO_BOT_VERSION_IDS]}), false) AS "cmo"
-      FROM "soko_bot_turn" t
-      JOIN "soko_bot" b ON b."id" = t."sokoBotId"
-      WHERE t."createdAt" >= date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})
+      FROM ${sharedTable("soko_bot_turn")} t
+      JOIN ${sharedTable("soko_bot")} b ON b."id" = t."sokoBotId"
+      WHERE t."createdAt" >= ${start}
     )
     SELECT
       to_char(d.day, 'YYYY-MM-DD') AS "day",
-      COUNT(DISTINCT t."requestedByUserId") FILTER (WHERE t."fromPerson" AND NOT t."cmo") AS "users",
-      COUNT(t.day) FILTER (WHERE t."fromPerson" AND NOT t."cmo") AS "messages",
-      COUNT(t.day) FILTER (WHERE NOT t."cmo") AS "turns",
-      SUM(t.tokens) FILTER (WHERE NOT t."cmo")::bigint AS "totalTokens",
-      SUM(t.micros) FILTER (WHERE NOT t."cmo")::bigint AS "costUsdMicros",
-      SUM(t.micros) FILTER (WHERE t."cmo")::bigint AS "cmoCostUsdMicros"
+      COUNT(DISTINCT t."requestedByUserId") FILTER (WHERE t."chat" AND NOT t."ours" AND NOT t."cmo") AS "users",
+      COUNT(t.day) FILTER (WHERE t."chat" AND NOT t."ours" AND NOT t."cmo") AS "messages",
+      COUNT(t.day) FILTER (WHERE NOT t."ours" AND NOT t."cmo") AS "turns",
+      SUM(t.tokens) FILTER (WHERE NOT t."ours" AND NOT t."cmo")::bigint AS "totalTokens",
+      SUM(t.micros) FILTER (WHERE NOT t."ours" AND NOT t."cmo")::bigint AS "costUsdMicros",
+      SUM(t.micros) FILTER (WHERE NOT t."ours" AND t."cmo")::bigint AS "cmoCostUsdMicros",
+      SUM(t.micros) FILTER (WHERE t."ours")::bigint AS "evalCostUsdMicros"
     FROM days d
     LEFT JOIN turns t ON t.day = d.day
     GROUP BY d.day
@@ -256,5 +273,6 @@ export async function sokoBotFleetDays(
     totalTokens: asNumber(row.totalTokens),
     costUsd: asNumber(row.costUsdMicros) / 1e6,
     cmoCostUsd: asNumber(row.cmoCostUsdMicros) / 1e6,
+    evalCostUsd: asNumber(row.evalCostUsdMicros) / 1e6,
   }));
 }

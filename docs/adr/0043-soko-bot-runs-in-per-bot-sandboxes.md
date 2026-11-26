@@ -53,7 +53,9 @@ Known limits:
   Jev route classifier does. Queries are the model's search terms. That one
   call keeps no prompt training but drops zero retention, which Perplexity does
   not offer; Core recognizes it by its exact shape (the forced search tool and
-  a single "Search the web for:" message).
+  a single "Search the web for:" message). Since 2026-11-26 the runner's
+  `web_search` is a Core tool that sends the terms straight to Exa, with no
+  model call.
 
 The in-process runtime remains for preview evaluation runs (their per-call
 ledger lives in Core) and as `SOKO_BOT_RUNTIME_ADAPTER=in-process`, which local

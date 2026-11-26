@@ -32,10 +32,13 @@ vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
 
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
 import { sokoBotEventsSyncService } from "./soko-bot-events-sync.service";
-import { sokoBotRuntimeService } from "./soko-bot-runtime.service";
+import { listSchedules } from "./soko-bot-runtime/schedule-reads";
+import {
+  type AuthorizedSokoBotRuntime,
+  sokoBotRuntimeService,
+} from "./soko-bot-runtime.service";
 import {
   createSokoBotSchedule,
-  listSokoBotSchedules,
   purgeSokoBotSchedules,
   SOKO_BOT_SCHEDULE_RETENTION_MS,
 } from "./soko-bot-schedule.service";
@@ -523,7 +526,10 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
   });
 
   describe("a schedule run's own schedule", () => {
-    async function scheduleRun(capabilityNames: string[]) {
+    async function scheduleRun(
+      capabilityNames: string[],
+      prompt = "Check Hannah's Task.",
+    ) {
       const own = await prisma.sokoBotSchedule.create({
         data: {
           sokoBotId: botId,
@@ -532,7 +538,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           name: "Check on Hannah",
           timezone: "UTC",
           cronExpression: "0 9 * * *",
-          prompt: "Check Hannah's Task.",
+          prompt,
           nextRunAt: new Date(Date.now() + HOUR),
           capabilityNames,
         },
@@ -553,14 +559,28 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       return { own, turn };
     }
 
-    it("deletes its own owner-made schedule even without schedule tools", async () => {
-      const { own, turn } = await scheduleRun([]);
+    it("deletes its own owner-made schedule, without schedule tools, when its brief asks", async () => {
+      const { own, turn } = await scheduleRun(
+        [],
+        "Check Hannah's Task. Delete this schedule once she is done.",
+      );
 
       await tool(turn.id, "delete_schedule", { scheduleId: own.id });
 
       expect(
         await prisma.sokoBotSchedule.findUnique({ where: { id: own.id } }),
       ).toBeNull();
+    });
+
+    it("keeps its own schedule when the brief never asks to end it (Codex round 13)", async () => {
+      const { own, turn } = await scheduleRun([]);
+
+      await expect(
+        tool(turn.id, "delete_schedule", { scheduleId: own.id }),
+      ).rejects.toThrow("doesn't delete or switch off schedules");
+      expect(
+        await prisma.sokoBotSchedule.findUnique({ where: { id: own.id } }),
+      ).not.toBeNull();
     });
 
     it("may not touch another schedule with tools it only has for its own", async () => {
@@ -576,13 +596,19 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
       await expect(
         tool(turn.id, "delete_schedule", { scheduleId: other.id }),
-      ).rejects.toThrow('only change its own schedule "Check on Hannah"');
+      ).rejects.toThrow("doesn't delete or switch off schedules");
       await expect(
         tool(turn.id, "update_schedule", {
           scheduleName: "Weekly review",
           enabled: false,
         }),
-      ).rejects.toThrow("only change its own schedule");
+      ).rejects.toThrow("doesn't delete or switch off schedules");
+      await expect(
+        tool(turn.id, "update_schedule", {
+          scheduleName: "Weekly review",
+          cronExpression: "0 10 * * 1",
+        }),
+      ).rejects.toThrow('only change its own schedule "Check on Hannah"');
       expect(
         (
           await prisma.sokoBotSchedule.findUniqueOrThrow({
@@ -592,7 +618,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       ).toBe(true);
     });
 
-    it("keeps the schedule tools a bot-written schedule inherited", async () => {
+    it("keeps the schedule tools a bot-written schedule inherited, but never deletes another schedule", async () => {
       const { turn } = await scheduleRun([
         "create_schedule",
         "update_schedule",
@@ -607,11 +633,20 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         prompt: "Old.",
       });
 
-      await tool(turn.id, "delete_schedule", { scheduleId: other.id });
-
+      await tool(turn.id, "update_schedule", {
+        scheduleId: other.id,
+        cronExpression: "0 10 * * 1",
+      });
       expect(
-        await prisma.sokoBotSchedule.findUnique({ where: { id: other.id } }),
-      ).toBeNull();
+        (
+          await prisma.sokoBotSchedule.findUniqueOrThrow({
+            where: { id: other.id },
+          })
+        ).cronExpression,
+      ).toBe("0 10 * * 1");
+      await expect(
+        tool(turn.id, "delete_schedule", { scheduleId: other.id }),
+      ).rejects.toThrow("doesn't delete or switch off schedules");
     });
   });
 
@@ -713,9 +748,15 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         }),
       ).toBe(0);
       // Spent ones are already out of the bot's own list.
-      expect(
-        (await listSokoBotSchedules(botId)).map((schedule) => schedule.name),
-      ).toEqual(["Paused by the owner"]);
+      const listed = (await listSchedules(
+        {
+          turn: { sokoBotId: botId, workspaceId, actingUserId: userId },
+        } as unknown as AuthorizedSokoBotRuntime,
+        {},
+      )) as { schedules: { name: string }[] };
+      expect(listed.schedules.map((schedule) => schedule.name)).toEqual([
+        "Paused by the owner",
+      ]);
 
       // Inside the retention window nothing goes: the Calendar shows the run.
       expect(

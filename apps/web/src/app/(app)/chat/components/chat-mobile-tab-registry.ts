@@ -8,6 +8,8 @@ import {
 
 import {
   CHAT_CATCH_UP_PATH,
+  CHAT_CHATS_LIST_PATH,
+  CHAT_WELCOME_PATH,
   classifyChatChromeSurface,
 } from "@/app/chat/utils/chat-route-base";
 import { isOpenedYouRow } from "@/app/components/mobile-app-chrome";
@@ -112,7 +114,11 @@ export type ChatMobileTab =
   | {
       kind: "link";
       id: Exclude<ChatMobileTabId, "you">;
-      href: "/" | "/tasks" | "/chat" | "/projects";
+      href:
+        | typeof CHAT_WELCOME_PATH
+        | typeof CHAT_CHATS_LIST_PATH
+        | "/tasks"
+        | "/projects";
       labelKey: Exclude<ChatMobileTabLabelKey, "you">;
       icon: LucideIcon;
       isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
@@ -131,7 +137,7 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
     id: "home",
     kind: "link",
-    href: "/",
+    href: CHAT_WELCOME_PATH,
     labelKey: "home",
     icon: Home,
     isActive: (pathname, searchParams) =>
@@ -161,7 +167,7 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
     id: "chats",
     kind: "link",
-    href: "/chat",
+    href: CHAT_CHATS_LIST_PATH,
     labelKey: "chats",
     icon: MessageCircle,
     // Catch up sits above the room list in this tab, so the tab stays lit

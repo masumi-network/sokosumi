@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../../lib/agent";
 import type { View } from "../../lib/views";
-import { type CusoArt, cusoArt } from "../cuso";
+import { CusoFace } from "../cuso";
 import { ThemeToggle } from "../theme-toggle";
 import { isBrandPage } from "./brand-menu";
 import { VIEWS } from "./sidebar";
@@ -19,8 +19,6 @@ interface TabBarProps {
   onSelect: (view: View) => void;
   /** What needs the owner, counted on Today. */
   needs: number;
-  /** Cuso's pose for his state: on a phone he stands in his own tab. */
-  pose: CusoArt;
   manyCusos?: boolean;
   signOut?: () => Promise<void>;
 }
@@ -33,7 +31,6 @@ export function TabBar({
   view,
   onSelect,
   needs,
-  pose,
   manyCusos = false,
   signOut,
 }: TabBarProps) {
@@ -102,7 +99,7 @@ export function TabBar({
         >
           <span className="tab-icon">
             {id === "chat" ? (
-              <img className="tab-cuso" src={cusoArt(pose)} alt="" />
+              <CusoFace size={26} />
             ) : (
               <Icon size={20} aria-hidden="true" />
             )}

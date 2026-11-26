@@ -46,8 +46,12 @@ describe("HeaderChrome", () => {
     const row = header.querySelector(".h-16");
     expect(row).toBeTruthy();
     expect(row?.className).toContain("px-4");
-    expect(row?.className).toContain("md:border-b");
-    expect(row?.className).toContain("md:border-sidebar-border");
+    expect(row?.className).toContain("md:px-4");
+    expect(tokens).toContain(
+      "md:start-[calc(var(--app-rail-width)+var(--sidebar-width))]",
+    );
+    expect(tokens).toContain("md:sidebar-hidden:start-(--app-rail-width)");
+    expect(tokens).toContain("inset-x-0");
     expect(screen.getByText("controls")).toBeTruthy();
   });
 });

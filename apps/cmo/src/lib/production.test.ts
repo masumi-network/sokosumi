@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  monthGivenUp,
   planningLine,
   productionShare,
   productionSteps,
   retryWhen,
+  stoppedNote,
   withoutPictureLine,
 } from "./production";
 
@@ -60,6 +62,36 @@ describe("production progress", () => {
     expect(withoutPictureLine({ ...production, withoutPicture: ["a"] })).toBe(
       "1 post has no picture: none he made fit your brand, so it stays a draft.",
     );
+  });
+});
+
+describe("stoppedNote", () => {
+  const stuck = { ...production, state: "stuck" as const, written: 4 };
+  const at = new Date(Date.now() + 60_000).toISOString();
+
+  it("says a month Core gave up on is not tried again, and never 'soon'", () => {
+    const given = { ...stuck, writerFailed: true, retryAt: null };
+    expect(monthGivenUp(given)).toBe(true);
+    expect(stoppedNote(given, 10, "UTC")).toBe(
+      "He couldn't finish this month's posts. Our team has been told, and he won't try again on his own.",
+    );
+  });
+
+  it("keeps the retry time for a month that runs again", () => {
+    const ours = { ...stuck, writerFailed: true, retryAt: at };
+    expect(monthGivenUp(ours)).toBe(false);
+    expect(stoppedNote(ours, 10, "UTC")).toMatch(
+      /^Words 4 of 10 · Pictures 0 of 6\. Something on our side stopped him\. We're fixing it, and he tries again (tomorrow )?at \d\d:\d\d\.$/,
+    );
+    expect(stoppedNote({ ...stuck, retryAt: at }, 10, "UTC")).toMatch(
+      /His last try made nothing new, so he tries the rest again (tomorrow )?at \d\d:\d\d\.$/,
+    );
+  });
+
+  it("is only for a stopped month", () => {
+    expect(
+      monthGivenUp({ ...production, writerFailed: true, retryAt: null }),
+    ).toBe(false);
   });
 });
 

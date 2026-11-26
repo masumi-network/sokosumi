@@ -8,6 +8,7 @@ import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { contactDetailHref } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import prisma from "@/lib/db/prisma";
+import { type ExaAgentRunInput, runExaAgent } from "@/lib/exa-agent";
 import {
   type FundraisingActor,
   fundraisingEnabled,
@@ -52,7 +53,7 @@ function toMs(value: unknown): number | null {
   return null;
 }
 
-async function fundraisingActor(
+export async function fundraisingActor(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<FundraisingActor> {
   if (!actsForOwner(authorized))
@@ -88,6 +89,13 @@ export async function executeFundraisingTool(
   if (!isFundraisingCapability(capability))
     throw new SokoBotRuntimeValidationError("Not a fundraising tool");
   const actor = await fundraisingActor(authorized);
+  let dispatched = false;
+  const researchProvider = {
+    run(request: ExaAgentRunInput) {
+      dispatched = true;
+      return runExaAgent(request);
+    },
+  };
   try {
     if (capability === "fundraising_pipeline") {
       const filter = SOKO_BOT_TOOL_INPUT_SCHEMAS.fundraising_pipeline.parse(
@@ -181,7 +189,7 @@ export async function executeFundraisingTool(
       const { contactId, research } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.parse(input.input);
       const result = research
-        ? await researchPortfolio(actor, contactId)
+        ? await researchPortfolio(actor, contactId, researchProvider)
         : await warmPaths(actor, contactId);
       const answer = {
         contactId,
@@ -224,7 +232,7 @@ export async function executeFundraisingTool(
     const search = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_investors.parse(
       input.input,
     );
-    const result = await findInvestors(actor, search);
+    const result = await findInvestors(actor, search, researchProvider);
     return runtime.commitReceipt(
       authorized,
       input.toolCallId,
@@ -238,7 +246,7 @@ export async function executeFundraisingTool(
       },
     );
   } catch (error) {
-    if (error instanceof HTTPException && error.status < 500)
+    if (!dispatched && error instanceof HTTPException && error.status < 500)
       throw new SokoBotRefusedUnsentError(error.message);
     throw error;
   }

@@ -1,10 +1,13 @@
 import type { SokoBotTurnSource } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { turnFindManyMock, receiptFindManyMock } = vi.hoisted(() => ({
-  turnFindManyMock: vi.fn(),
-  receiptFindManyMock: vi.fn(),
-}));
+const { turnFindManyMock, receiptFindManyMock, labTreeMock } = vi.hoisted(
+  () => ({
+    turnFindManyMock: vi.fn(),
+    receiptFindManyMock: vi.fn(),
+    labTreeMock: vi.fn().mockResolvedValue([]),
+  }),
+);
 
 vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
@@ -12,8 +15,15 @@ vi.mock("@/lib/db/database-now", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // labTurnIdsSince: our lab turns and the background runs below them.
+    $queryRaw: labTreeMock,
     sokoBotTurn: { findMany: turnFindManyMock },
     sokoBotToolCall: { findMany: receiptFindManyMock },
+    evalLane: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ workspaceId: "ws_eval", cusoProjectId: null }]),
+    },
   },
 }));
 
@@ -187,9 +197,33 @@ describe("getSokoBotQualityOverview", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           NOT: { clientTurnId: { startsWith: "lab:" } },
+          // Eval-lane turns are ours, lab-prefixed or not.
+          workspaceId: { notIn: ["ws_eval"] },
         }),
       }),
     );
+  });
+
+  it("leaves out a lab turn's background runs, whose ids do not say lab", async () => {
+    turnFindManyMock.mockResolvedValue([
+      turn({ id: "turn-customer" }),
+      turn({ id: "turn-lab-child" }),
+    ]);
+    labTreeMock.mockResolvedValueOnce([{ id: "turn-lab-child" }]);
+
+    const quality = await getSokoBotQualityOverview();
+
+    expect(quality.overall.turns).toBe(1);
+  });
+
+  it("shows one bot's own turns even when it is an eval-lane bot", async () => {
+    turnFindManyMock.mockResolvedValue([]);
+
+    await getSokoBotQualityOverview({ sokoBotId: "bot_eval" });
+
+    const where = turnFindManyMock.mock.lastCall?.[0].where;
+    expect(where).toMatchObject({ sokoBotId: "bot_eval" });
+    expect(where).not.toHaveProperty("workspaceId");
   });
 
   it("includes recent feedback from older turns without changing headline turn counts", async () => {

@@ -693,9 +693,13 @@ a.button {
   background: var(--stage);
 }
 
-/* In the chat he talks from Peach Blossom, the pink kept for him. */
-.msg .cuso-avatar {
-  background: var(--peach);
+/* His profile picture: the face on Iris, round wherever it shows. */
+.cuso-face {
+  display: block;
+  flex: none;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 /* Smaller than the circle, so the drawing's corners stay inside it. */
@@ -5578,17 +5582,6 @@ button.week-more {
 /* Pressed: the pill gives under the thumb at once. */
 .tab:active .tab-icon {
   transform: scale(0.92);
-}
-
-/* Cuso's own tab: his pose for his state, on his light disc. */
-.tab-cuso {
-  width: 26px;
-  height: 26px;
-  padding: 2px;
-  border: var(--line-width-small) solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-  object-fit: contain;
 }
 
 .tab-icon .count {

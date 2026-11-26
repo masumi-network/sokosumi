@@ -7,6 +7,7 @@ import {
   authEvent,
   beginCheckout,
   commonEvents,
+  gaIds,
   milestones,
   userProperties,
   viewPlans,
@@ -185,5 +186,28 @@ describe("authEvent", () => {
     const now = Date.parse("2026-11-25T12:00:00Z");
     expect(authEvent(new Date("2026-11-25T11:50:00Z"), now)).toBe("sign_up");
     expect(authEvent(new Date("2026-11-25T11:00:00Z"), now)).toBe("login");
+  });
+});
+
+describe("gaIds", () => {
+  it("reads the client id and either form of the session cookie", () => {
+    expect(
+      gaIds(
+        "GA1.1.123456789.1764000000",
+        "GS2.1.s1764070000$o3$g1$t1764070100$j60$l0$h0",
+      ),
+    ).toEqual({
+      clientId: "123456789.1764000000",
+      sessionId: "1764070000",
+    });
+    expect(
+      gaIds("GA1.1.123.456", "GS1.1.1764070000.3.1.1764070100.0.0.0"),
+    ).toEqual({
+      clientId: "123.456",
+      sessionId: "1764070000",
+    });
+    expect(gaIds("GA1.1.123.456", undefined)).toEqual({ clientId: "123.456" });
+    expect(gaIds(undefined, "GS2.1.s1")).toBeNull();
+    expect(gaIds("junk", undefined)).toBeNull();
   });
 });

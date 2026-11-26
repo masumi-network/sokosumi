@@ -8,7 +8,7 @@ import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "../chat-chats-list-shell";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Mobile `/chat` must clear the fixed bottom nav:
+ * Mobile `/chat/rooms` must clear the fixed bottom nav:
  * 1. Grow with content so AppMobileChrome's in-flow tab-bar spacer sits after
  *    the last DM in main's scroll (no nested min-h-0 + overflow-y-auto).
  * 2. Cancel main `p-4` on top/sides only — never `-m-4` / `-mb-4` (negative
@@ -37,7 +37,7 @@ describe("chat list page scroll clearance contract", () => {
   });
 
   it("page mounts the shared shell class (no local -m-4 / overflow lock)", () => {
-    const source = readFileSync(join(here, "../page.tsx"), "utf8");
+    const source = readFileSync(join(here, "../rooms/page.tsx"), "utf8");
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
 
     // Require the className binding — a bare import would still match the

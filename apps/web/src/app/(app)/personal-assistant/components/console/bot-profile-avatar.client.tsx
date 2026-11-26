@@ -16,7 +16,7 @@ interface BotProfileAvatarProps {
   onEdit: (() => void) | null;
 }
 
-/** The bot's one picture at the top of its console, or its orb without one. */
+/** The bot's picture beside its console's name, or its orb without one. */
 export function BotProfileAvatar({
   name,
   seed,
@@ -27,15 +27,15 @@ export function BotProfileAvatar({
 }: BotProfileAvatarProps) {
   const t = useTranslations("App.SokoBot.Avatar");
   return (
-    <div className="relative size-38 shrink-0 md:size-46">
-      <div className="bg-muted ring-border size-full overflow-hidden rounded-full ring-4">
+    <div className="relative size-14 shrink-0 md:size-16">
+      <div className="bg-muted ring-border size-full overflow-hidden rounded-full ring-2">
         <BotFace
           imageUrl={imageUrl}
           seed={seed}
-          orbSize={368}
+          orbSize={128}
           avatarCode={avatarCode}
           avatarState={avatarState}
-          avatarSize={184}
+          avatarSize={64}
           interactive
           alt={name}
           className="size-full"
@@ -46,9 +46,9 @@ export function BotProfileAvatar({
           type="button"
           onClick={onEdit}
           aria-label={t("edit")}
-          className="bg-background border-border hover:bg-accent focus-visible:ring-ring absolute right-0.5 bottom-0.5 flex size-10 items-center justify-center rounded-full border outline-none focus-visible:ring-2"
+          className="bg-background border-border hover:bg-accent focus-visible:ring-ring absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border outline-none focus-visible:ring-2"
         >
-          <Pencil aria-hidden className="size-4" />
+          <Pencil aria-hidden className="size-3.5" />
         </button>
       ) : null}
     </div>

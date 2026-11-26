@@ -1,9 +1,14 @@
-import { render, screen, within } from "@testing-library/react";
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
+
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 let pathname = "/";
-vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathname,
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
 vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
   GlobalRail: () => null,
 }));
@@ -62,70 +67,17 @@ function tokens(element: Element | null | undefined): string[] {
   return (element?.className ?? "").split(/\s+/).filter(Boolean);
 }
 
-function renderSidebar(path = "/") {
+function renderSidebar(path = "/agents") {
   pathname = path;
   return render(
     <SidebarProvider defaultOpen>
       <Sidebar
-        workspaceSwitcher={<button type="button">Acme</button>}
+        workspaceSwitcher={<button type="button">Workspace</button>}
         accountFooter={<div>account</div>}
         chatList={<nav aria-label="chatList" />}
         newsletterEnabled={false}
       />
     </SidebarProvider>,
-  );
-}
-
-function sidebarHeader(container: HTMLElement): HTMLElement {
-  const header = container.querySelector<HTMLElement>(
-    '[data-slot="sidebar-header"]',
-  );
-  if (!header) throw new Error("no sidebar header");
-  return header;
-}
-
-describe("Sidebar header", () => {
-  // As in Linear: the switcher at the start, Search and New task pushed to
-  // the end.
-  it("leads with the Workspace switcher, then Search, then New task", () => {
-    const { container } = renderSidebar();
-    const header = sidebarHeader(container);
-
-    const switcher = within(header).getByRole("button", { name: "Acme" });
-    const search = within(header).getByRole("button", { name: "search" });
-    const newTask = within(header).getByRole("button", { name: "newTask" });
-
-    expect(follows(switcher, search)).toBe(true);
-    expect(follows(search, newTask)).toBe(true);
-    // The switcher's slot takes the room the buttons leave, so they sit at
-    // the end and its name shortens before it reaches them.
-    expect(tokens(switcher.parentElement)).toEqual(
-      expect.arrayContaining(["min-w-0", "flex-1"]),
-    );
-    expect(switcher.parentElement?.contains(search)).toBe(false);
-    // The same 64px row as the top bar, so the hairline runs straight across.
-    expect(tokens(header)).toEqual(
-      expect.arrayContaining(["h-16", "border-b"]),
-    );
-  });
-
-  // The phone keeps its switcher in the top bar, and its sheet is unchanged.
-  it("leaves the wordmark to the phone sheet, and the switcher to desktop", () => {
-    const { container } = renderSidebar();
-    const header = sidebarHeader(container);
-
-    const switcher = within(header).getByRole("button", { name: "Acme" });
-    const wordmark = within(header).getByRole("link");
-
-    expect(wordmark).toHaveAttribute("href", "/");
-    expect(tokens(wordmark.parentElement)).toContain("md:hidden");
-    expect(tokens(switcher.parentElement)).toContain("max-md:hidden");
-  });
-});
-
-function follows(first: Element, second: Element): boolean {
-  return Boolean(
-    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
   );
 }
 
@@ -137,7 +89,9 @@ describe("Sidebar project scope", () => {
     const title = screen.getByRole("button", { name: "projectTitle" });
     const nav = screen.getByRole("navigation", { name: "menuItems" });
 
-    expect(follows(title, nav)).toBe(true);
+    expect(
+      title.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   // Work, Records and Marketing read as inside the project; the chat
@@ -159,11 +113,23 @@ describe("Sidebar project scope", () => {
     ).toBe(false);
   });
 
-  it("shows the existing chat list and assistant links in Chats", () => {
+  it("shows the chat list in Chats", () => {
     renderSidebar("/chat/example");
 
     expect(screen.getByRole("navigation", { name: "chatList" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "sokoBot" })).toBeVisible();
     expect(screen.queryByRole("navigation", { name: "menuItems" })).toBeNull();
   });
+});
+
+it("places workspace selection above the phone drawer panels", () => {
+  const { container } = renderSidebar();
+  const row = container.querySelector('[data-slot="sidebar-workspace-row"]');
+  const panel = container.querySelector("#app-sidebar-panel");
+  expect(row).toHaveClass("md:hidden", "h-12");
+  expect(row).toHaveTextContent("Workspace");
+  expect(
+    panel &&
+      row &&
+      row.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });

@@ -150,8 +150,14 @@ const adminSokoBotListItemSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const adminSokoBotFleetSummarySchemaResponseTransformer = (data: any) => {
+    data.attention = data.attention.map((item: any) => adminSokoBotListItemSchemaResponseTransformer(item));
+    return data;
+};
+
 const adminSokoBotListSchemaResponseTransformer = (data: any) => {
     data.items = data.items.map((item: any) => adminSokoBotListItemSchemaResponseTransformer(item));
+    data.summary = adminSokoBotFleetSummarySchemaResponseTransformer(data.summary);
     return data;
 };
 

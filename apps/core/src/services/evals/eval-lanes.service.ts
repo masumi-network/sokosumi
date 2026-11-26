@@ -432,6 +432,52 @@ export async function defaultEvalVersions() {
  * made (Tasks, schedules, posts in the room, Drive files, drafts, contacts)
  * goes, and memory starts empty. The seeded Projects, people and room stay.
  */
+function evalXAccountId(sokoBotId: string): string {
+  return `${EVAL_CONNECTED_ACCOUNT_PREFIX}x-dms:${sokoBotId}`;
+}
+
+/**
+ * A stand-in X connection holding only the DMs a case gives, as contact
+ * capture keeps them: the ingest, stand-up and search_inbox read them, and
+ * nothing ever calls X for it.
+ */
+export async function seedEvalXDms(
+  lane: EvalLaneRecord,
+  dms: readonly {
+    from: string;
+    text: string;
+    minutesAgo: number;
+    conversation: string;
+    fromOwner?: boolean;
+  }[],
+): Promise<void> {
+  const now = Date.now();
+  const cursor = {
+    xDms: dms.map((dm, index) => ({
+      id: `eval-dm-${index + 1}`,
+      conversationId: dm.conversation,
+      from: dm.fromOwner ? "Robin Keller (@robinkeller)" : dm.from,
+      createdAt: new Date(now - dm.minutesAgo * 60_000).toISOString(),
+      text: dm.text,
+      fromOwner: dm.fromOwner ?? false,
+    })),
+  };
+  const composioAccountId = evalXAccountId(lane.sokoBotId);
+  await prisma.sokoBotIntegration.upsert({
+    where: { composioAccountId },
+    create: {
+      sokoBotId: lane.sokoBotId,
+      provider: "twitter",
+      name: "X",
+      composioAccountId,
+      status: "ACTIVE",
+      connectedAt: new Date(now),
+      cursor,
+    },
+    update: { status: "ACTIVE", cursor },
+  });
+}
+
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<void> {
@@ -479,6 +525,9 @@ export async function resetEvalLaneForSokoBot(
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
+  await prisma.sokoBotIntegration.deleteMany({
+    where: { sokoBotId, composioAccountId: evalXAccountId(sokoBotId) },
+  });
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
   await seedEvalMcpServer(lane);
   await closeA2aWorld(lane);

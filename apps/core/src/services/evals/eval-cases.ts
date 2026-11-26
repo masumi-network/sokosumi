@@ -23,6 +23,10 @@ import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
 import { isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID } from "./eval-cmo-variety";
 import { MEETING_PREP_SCENARIO } from "./eval-meeting-prep";
+import {
+  MOVE_TO_TASK_SCHEDULE_SCENARIO,
+  SCHEDULES_SCENARIO,
+} from "./eval-schedules";
 import type { StandupEvalSetup } from "./eval-standup";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
@@ -89,6 +93,10 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "reminder-named-zone-wins": "Schedules",
   "quiet-standup": "Rhythms",
   "quiet-delta": "Mail and calendar",
+  "x-dm-standup": "Mail and calendar",
+  "x-dm-urgent": "Mail and calendar",
+  "x-dm-bulk": "Mail and calendar",
+  "x-dm-ask": "Mail and calendar",
   "autonomous-meeting-prep": "Rhythms",
   "expensive-work-asks-first": "Hiring",
   "weekly-wrap": "Rhythms",
@@ -170,6 +178,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
   ),
   scenarioCase(MEETING_PREP_SCENARIO, "soko-bot", "Mail and calendar"),
   scenarioCase(CHAT_IDENTITY_SCENARIO, "soko-bot", "Chat"),
+  scenarioCase(SCHEDULES_SCENARIO, "soko-bot", "Schedules"),
+  scenarioCase(MOVE_TO_TASK_SCHEDULE_SCENARIO, "soko-bot", "Schedules"),
   ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   {
     id: "standup-quiet",
@@ -239,6 +249,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
                 : scenario.id === "cmo-reads-last-weeks-report"
                   ? "cmo-report"
                   : scenario.id === "cmo-change-request" ||
+                      scenario.id === "cmo-chat-strategy-skill" ||
+                      scenario.id === "cmo-change-then-drafts" ||
                       scenario.id === "cmo-reads-week-four" ||
                       scenario.id === "cmo-change-reply-plain" ||
                       scenario.id === CMO_CORRECTION_CASE_ID ||
@@ -248,7 +260,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
                       ? "cmo-plan-ads"
                       : scenario.id === "cmo-seo-skipped-idea"
                         ? "cmo-seo-skipped"
-                        : scenario.id === "cmo-weekly-review-last-week"
+                        : scenario.id === "cmo-weekly-review-last-week" ||
+                            scenario.id === "cmo-daily-run-watch"
                           ? "cmo-weekly-review"
                           : isCmoSeoReportCase(scenario.id)
                             ? "cmo-seo-report"
@@ -275,4 +288,9 @@ export function selectEvalCases(input: {
       input.suites.includes(evalCase.suite) &&
       (input.caseIds.length === 0 || input.caseIds.includes(evalCase.id)),
   );
+}
+
+/** Scenario cases end in a judge's verdict; the others are scored by checks alone. */
+export function isJudgedEvalCase(evalCase: EvalCase): boolean {
+  return evalCase.kind === "scenario";
 }

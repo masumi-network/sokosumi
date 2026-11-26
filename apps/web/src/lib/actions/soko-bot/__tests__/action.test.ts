@@ -226,7 +226,11 @@ describe("soko-bot actions", () => {
       expect(revalidatePathMock).toHaveBeenCalledWith(
         `${SOKO_BOTS_ROUTE}/${BOT_ID}`,
       );
-      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOTS_ROUTE);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/agents");
+      expect(revalidatePathMock).toHaveBeenCalledWith(
+        "/projects/[projectId]/bots",
+        "page",
+      );
     });
 
     it("reactivates the shared bot named by botId and refreshes its pages", async () => {
@@ -237,7 +241,11 @@ describe("soko-bot actions", () => {
       expect(revalidatePathMock).toHaveBeenCalledWith(
         `${SOKO_BOTS_ROUTE}/${BOT_ID}`,
       );
-      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOTS_ROUTE);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/agents");
+      expect(revalidatePathMock).toHaveBeenCalledWith(
+        "/projects/[projectId]/bots",
+        "page",
+      );
     });
 
     it.each([
@@ -272,7 +280,11 @@ describe("soko-bot actions", () => {
       });
       expect(result.ok).toBe(true);
       expect(serviceMock.rename).toHaveBeenCalledWith("Atlas", BOT_ID);
-      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOTS_ROUTE);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/agents");
+      expect(revalidatePathMock).toHaveBeenCalledWith(
+        "/projects/[projectId]/bots",
+        "page",
+      );
     });
 
     it("renames the caller's own bot without a botId", async () => {
@@ -324,7 +336,7 @@ describe("soko-bot actions", () => {
         scope: "project",
         projectId,
       });
-      expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOTS_ROUTE);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/agents");
     });
 
     it("refuses a project bot without a project, and a project on another scope", async () => {

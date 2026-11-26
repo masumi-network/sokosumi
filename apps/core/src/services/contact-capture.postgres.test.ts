@@ -67,12 +67,27 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   generateText: mocks.generateText,
 }));
+// The real inbox write, unless a case makes it fail.
+const inbox = vi.hoisted(() => ({ fail: false }));
+vi.mock("@/lib/soko-bot/x-inbox", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/lib/soko-bot/x-inbox")>();
+  return {
+    ...original,
+    keepXDms: (...args: Parameters<typeof original.keepXDms>) =>
+      inbox.fail
+        ? Promise.reject(new Error("inbox write failed"))
+        : original.keepXDms(...args),
+  };
+});
 
 import prisma from "@/lib/db/prisma";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { SokoBotIntegrationError } from "./composio-integration-tools.service";
 import {
   ContactCaptureService,
   scheduleContactCapture,
+  X_DM_ACCESS_ERROR,
 } from "./contact-capture.service";
 import {
   emptyEnrichmentStats,
@@ -1022,6 +1037,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       participants?: string[],
     ) => ({
       id: `${conversation}:${sender}:${at}`,
+      text: `message from ${sender}`,
       event_type: "MessageCreate",
       dm_conversation_id: conversation,
       sender_id: sender,
@@ -1174,6 +1190,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
       const run = await service().captureWorkspace(xWorkspaceId, () => true);
       expect(run.capture).toMatchObject({ errors: [], unsupported: [] });
+      // A version without the X messages skill keeps no DMs.
+      expect(
+        await prisma.sokoBotIntegration.findFirstOrThrow({
+          where: {
+            sokoBot: { workspaceId: xWorkspaceId },
+            provider: "twitter",
+          },
+          select: { cursor: true },
+        }),
+      ).toEqual({ cursor: null });
 
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
@@ -1286,7 +1312,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(mocks.runIntegrationTool).not.toHaveBeenCalled();
     });
 
-    it("reads one DM event and no users in an hour with nothing new", async () => {
+    it("reads one small DM page and no users in an hour with nothing new", async () => {
       const quietOrganizationId = randomUUID();
       const quietWorkspaceId = randomUUID();
       await prisma.organization.create({
@@ -1300,7 +1326,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await prisma.workspace.create({
         data: { id: quietWorkspaceId, organizationId: quietOrganizationId },
       });
-      await addBot(quietWorkspaceId, ["twitter"]);
+      const quietBot = await addBot(quietWorkspaceId, ["twitter"]);
+      // Only a version with the X messages skill keeps DMs.
+      await prisma.sokoBot.update({
+        where: { id: quietBot.id },
+        data: { versionId: "v37" },
+      });
       const start = Date.now();
       let clock = new Date(start);
       let events = [
@@ -1308,6 +1339,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         dm("100-200", "100", new Date(start - 120_000).toISOString()),
       ];
       const dmCalls: Record<string, unknown>[] = [];
+      let emptyProbe = false;
       mocks.runIntegrationTool.mockImplementation(
         async (...args: unknown[]) => {
           const tool = args[1] as string;
@@ -1318,6 +1350,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
             throw new Error(`unexpected tool ${tool}`);
           dmCalls.push(input);
+          if (emptyProbe && input.max_results === 10) {
+            emptyProbe = false;
+            return { meta: { result_count: 0, next_token: "more" } };
+          }
           return {
             data: events.slice(0, input.max_results as number),
             includes: { users: [ruth] },
@@ -1340,8 +1376,29 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(
         dmCalls.map((call) => [call.max_results, call.expansions]),
       ).toEqual([
-        [1, undefined],
+        [10, undefined],
         [20, ["sender_id", "participant_ids"]],
+      ]);
+      expect(dmCalls[1]?.dm_event_fields).toContain("text");
+      // The owner's bot keeps the new DMs for the briefing and search_inbox.
+      const kept = await prisma.sokoBotIntegration.findFirstOrThrow({
+        where: { sokoBotId: quietBot.id },
+        select: { cursor: true },
+      });
+      const xDms = (
+        kept.cursor as {
+          xDms: { from: string; text: string; fromOwner: boolean }[];
+        }
+      ).xDms;
+      expect(
+        xDms.map(({ from, text, fromOwner }) => ({ from, text, fromOwner })),
+      ).toEqual([
+        {
+          from: "Ruth Weber (@RuthW)",
+          text: "message from 200",
+          fromOwner: false,
+        },
+        { from: "X user 100", text: "message from 100", fromOwner: true },
       ]);
 
       dmCalls.length = 0;
@@ -1349,7 +1406,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await capture();
       expect(
         dmCalls.map((call) => [call.max_results, call.expansions]),
-      ).toEqual([[1, undefined]]);
+      ).toEqual([[10, undefined]]);
 
       dmCalls.length = 0;
       events = [
@@ -1358,7 +1415,382 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       ];
       clock = new Date(start + 122 * 60 * 1000);
       await capture();
-      expect(dmCalls.map((call) => call.max_results)).toEqual([1, 20]);
+      expect(dmCalls.map((call) => call.max_results)).toEqual([10, 20]);
+
+      // X filters by event type after picking the page: the probe can come
+      // back empty with more pages behind it. That is not a quiet hour.
+      dmCalls.length = 0;
+      events = [
+        dm("100-200", "200", new Date(start + 150 * 60 * 1000).toISOString()),
+        ...events,
+      ];
+      emptyProbe = true;
+      clock = new Date(start + 183 * 60 * 1000);
+      await capture();
+      expect(dmCalls.map((call) => call.max_results)).toEqual([10, 20]);
+    });
+
+    it("walks a busy account's DMs across runs from where it stopped, and still reads followers", async () => {
+      const busyOrganizationId = randomUUID();
+      const busyWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: busyOrganizationId,
+          name: "Capture X busy",
+          slug: `capture-x-busy-${busyOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: busyWorkspaceId, organizationId: busyOrganizationId },
+      });
+      const busyBot = await addBot(busyWorkspaceId, ["twitter"]);
+      // A version that keeps DMs, so every page also writes the inbox.
+      await prisma.sokoBot.update({
+        where: { id: busyBot.id },
+        data: { versionId: "v37" },
+      });
+      const start = Date.now();
+      const minutes = (n: number) => new Date(start + n * 60_000).toISOString();
+      // 24 messages, newest first: Ruth and the owner taking turns.
+      let events = Array.from({ length: 24 }, (_, index) =>
+        dm("100-200", index % 2 ? "100" : "200", minutes(-10 - index * 30)),
+      );
+      const dmCalls: (string | null)[] = [];
+      let followerCalls = 0;
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") {
+            followerCalls += 1;
+            return { data: [] };
+          }
+          if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
+            throw new Error(`unexpected tool ${tool}`);
+          const token = (input.pagination_token as string | undefined) ?? null;
+          dmCalls.push(token);
+          // Like X's tokens, a page token points at an event, not an offset.
+          const from = token ? events.findIndex((e) => e.id === token) : 0;
+          const page = events.slice(from, from + (input.max_results as number));
+          const next = events[from + page.length];
+          return {
+            data: page,
+            includes: { users: [ruth] },
+            meta: next ? { next_token: next.id } : {},
+          };
+        },
+      );
+      let clock = new Date(start);
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            pagesPerIntegration: 20,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+            xDmCallsPerRun: 3,
+            xDmPageSize: 5,
+          },
+        }).captureWorkspace(busyWorkspaceId, () => true);
+      const xCursor = async () =>
+        (
+          (
+            await prisma.contactCaptureState.findFirstOrThrow({
+              where: {
+                integration: { sokoBot: { workspaceId: busyWorkspaceId } },
+              },
+              select: { cursor: true },
+            })
+          ).cursor as {
+            x: {
+              since: string;
+              newestDmId?: string;
+              dmWalk?: { token: string };
+            };
+          }
+        ).x;
+      const ruthInteractions = async () =>
+        (await contactsOf(busyWorkspaceId)).find((c) => c.name === "Ruth Weber")
+          ?.interactions.length ?? 0;
+
+      // Run 1: the probe and two pages; the walk saves its place.
+      await capture();
+      expect(dmCalls).toEqual([null, null, events[5]?.id]);
+      expect((await xCursor()).dmWalk?.token).toBe(events[10]?.id);
+      expect(await ruthInteractions()).toBe(0);
+      expect(followerCalls).toBe(1);
+
+      // The inbox write fails on the resumed page: the walk keeps its place,
+      // so the next run reads that page again instead of skipping it.
+      expectCoreLog("error", "Could not read a contact capture source");
+      inbox.fail = true;
+      dmCalls.length = 0;
+      clock = new Date(start + 15 * 60_000);
+      await capture();
+      inbox.fail = false;
+      expect(dmCalls).toEqual([events[10]?.id]);
+      expect((await xCursor()).dmWalk?.token).toBe(events[10]?.id);
+
+      // A message arrives between ticks: the open walk goes on from its
+      // place without a probe, reaches the end, and only then writes contacts
+      // and commits the newest id it started from and the time it began.
+      events = [dm("100-200", "200", minutes(20)), ...events];
+      dmCalls.length = 0;
+      clock = new Date(start + 30 * 60_000);
+      await capture();
+      expect(dmCalls).toEqual([events[11]?.id, events[16]?.id, events[21]?.id]);
+      const done = await xCursor();
+      expect(done.dmWalk).toBeUndefined();
+      expect(done.newestDmId).toBe(events[1]?.id);
+      expect(done.since).toBe(new Date(start).toISOString());
+      expect(await ruthInteractions()).toBeGreaterThan(0);
+
+      // The next walk starts from the newest again and finds the new message.
+      dmCalls.length = 0;
+      clock = new Date(start + 61 * 60_000);
+      await capture();
+      expect(dmCalls).toEqual([null, null]);
+      expect((await xCursor()).newestDmId).toBe(events[0]?.id);
+    });
+
+    it("writes the contacts of more conversations than a walk holds before moving on", async () => {
+      const manyOrganizationId = randomUUID();
+      const manyWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: manyOrganizationId,
+          name: "Capture X many",
+          slug: `capture-x-many-${manyOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: manyWorkspaceId, organizationId: manyOrganizationId },
+      });
+      await addBot(manyWorkspaceId, ["twitter"]);
+      // One UTC afternoon: all 305 conversations fall on the same day, so
+      // the walk overflows more than once on that day whenever CI runs.
+      const start = Date.parse("2026-11-20T23:00:00.000Z");
+      // 10 conversations a page: past 300 the walk overflows on page 31 and
+      // again on page 32, both on the same day.
+      const talkers = 320;
+      // Newest first: each person writes, the owner answers a minute before.
+      const events = Array.from({ length: talkers }, (_, i) => {
+        const id = String(1000 + i);
+        const at = start - 60_000 - i * 120_000;
+        return [
+          dm(`100-${id}`, id, new Date(at).toISOString()),
+          dm(`100-${id}`, "100", new Date(at - 60_000).toISOString()),
+        ];
+      }).flat();
+      const people = Array.from({ length: talkers }, (_, i) =>
+        user(String(1000 + i), `Person ${i}`, `person${i}`),
+      );
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          const token = (input.pagination_token as string | undefined) ?? null;
+          const from = token ? events.findIndex((e) => e.id === token) : 0;
+          const page = events.slice(from, from + (input.max_results as number));
+          const next = events[from + page.length];
+          return {
+            data: page,
+            includes: { users: people },
+            meta: next ? { next_token: next.id } : {},
+          };
+        },
+      );
+      await new ContactCaptureService({
+        now: () => new Date(start),
+        sleep: async () => undefined,
+        limits: {
+          backfillDays: 30,
+          pagesPerIntegration: 20,
+          capturesPerWorkspace: 1_000,
+          enrichmentWorkspaces: 0,
+          embeddingsPerWorkspace: 0,
+          companiesPerWorkspace: 0,
+          xCallsPerRun: 45,
+          xDmCallsPerRun: 40,
+          xDmPageSize: 20,
+        },
+      }).captureWorkspace(manyWorkspaceId, () => true);
+
+      const contacts = await contactsOf(manyWorkspaceId);
+      expect(
+        contacts.filter((contact) => contact.interactions.length > 0),
+      ).toHaveLength(talkers);
+      // 320 contacts are written one by one.
+    }, 60_000);
+
+    it("starts a DM walk over when X refuses its saved page token, or it is a day old", async () => {
+      const resetOrganizationId = randomUUID();
+      const resetWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: resetOrganizationId,
+          name: "Capture X reset",
+          slug: `capture-x-reset-${resetOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: resetWorkspaceId, organizationId: resetOrganizationId },
+      });
+      await addBot(resetWorkspaceId, ["twitter"]);
+      const start = Date.now();
+      const events = Array.from({ length: 20 }, (_, index) =>
+        dm(
+          "100-200",
+          index % 2 ? "100" : "200",
+          new Date(start - 600_000 - index * 1_800_000).toISOString(),
+        ),
+      );
+      const dmCalls: (string | null)[] = [];
+      let refuseTokens = false;
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          const input = args[2] as Record<string, unknown>;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          const token = (input.pagination_token as string | undefined) ?? null;
+          dmCalls.push(token);
+          if (token && refuseTokens)
+            throw new SokoBotIntegrationError(
+              "X: 400 Bad Request: Invalid pagination_token",
+            );
+          const from = token ? events.findIndex((e) => e.id === token) : 0;
+          const page = events.slice(from, from + (input.max_results as number));
+          const next = events[from + page.length];
+          return {
+            data: page,
+            includes: { users: [ruth] },
+            meta: next ? { next_token: next.id } : {},
+          };
+        },
+      );
+      let clock = new Date(start);
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            pagesPerIntegration: 20,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+            xDmCallsPerRun: 2,
+            xDmPageSize: 5,
+          },
+        }).captureWorkspace(resetWorkspaceId, () => true);
+      const walkToken = async () =>
+        (
+          (
+            await prisma.contactCaptureState.findFirstOrThrow({
+              where: {
+                integration: { sokoBot: { workspaceId: resetWorkspaceId } },
+              },
+              select: { cursor: true },
+            })
+          ).cursor as { x: { dmWalk?: { token: string } } }
+        ).x.dmWalk?.token;
+
+      await capture();
+      expect(await walkToken()).toBe(events[5]?.id);
+
+      // X refuses the saved token: the walk is dropped, the next run starts over.
+      expectCoreLog("error", "Could not read a contact capture source");
+      refuseTokens = true;
+      clock = new Date(start + 15 * 60_000);
+      await capture();
+      expect(await walkToken()).toBeUndefined();
+      refuseTokens = false;
+      dmCalls.length = 0;
+      clock = new Date(start + 30 * 60_000);
+      await capture();
+      expect(dmCalls).toEqual([null, null]);
+      expect(await walkToken()).toBe(events[5]?.id);
+
+      // A walk a day old is not resumed: its token may no longer work.
+      dmCalls.length = 0;
+      clock = new Date(start + 30 * 60_000 + 25 * 60 * 60_000);
+      await capture();
+      expect(dmCalls[0]).toBeNull();
+    });
+
+    it("shows a refused DM read on the connection, and clears it once a read works", async () => {
+      const deniedOrganizationId = randomUUID();
+      const deniedWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: deniedOrganizationId,
+          name: "Capture X denied",
+          slug: `capture-x-denied-${deniedOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: deniedWorkspaceId, organizationId: deniedOrganizationId },
+      });
+      const bot = await addBot(deniedWorkspaceId, ["twitter"]);
+      expectCoreLog("error", "Could not read a contact capture source");
+      let denied = true;
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (denied)
+            throw new SokoBotIntegrationError(
+              "X: 403 Forbidden: not permitted to access direct messages",
+            );
+          return { data: [] };
+        },
+      );
+      let clock = new Date();
+      const capture = () =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+          },
+        }).captureWorkspace(deniedWorkspaceId, () => true);
+      const connection = () =>
+        prisma.sokoBotIntegration.findFirstOrThrow({
+          where: { sokoBotId: bot.id },
+          select: { lastError: true, lastErrorAt: true },
+        });
+
+      await capture();
+      expect(await connection()).toMatchObject({
+        lastError: X_DM_ACCESS_ERROR,
+        lastErrorAt: expect.any(Date),
+      });
+
+      denied = false;
+      clock = new Date(clock.getTime() + 61 * 60 * 1000);
+      await capture();
+      expect(await connection()).toEqual({
+        lastError: null,
+        lastErrorAt: null,
+      });
     });
 
     it("reads followers a page a day, and after one full walk stops at the first page with nothing new", async () => {

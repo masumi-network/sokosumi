@@ -183,7 +183,7 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
       pageLabel: "Pricing",
     },
     {
-      ...shot("/cuso/done.svg"),
+      ...shot("/cuso/correct.svg"),
       kind: "testimonials",
       title: "What mission leads say",
       pageLabel: "Home",

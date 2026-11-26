@@ -162,6 +162,7 @@ async function askModel(system: string, prompt: string) {
   });
   const result = await generateText({
     ...request,
+    telemetry: { functionId: "contact-suggestions" },
     providerOptions: {
       ...request.providerOptions,
       google: { thinkingConfig: { thinkingLevel: "low" } },

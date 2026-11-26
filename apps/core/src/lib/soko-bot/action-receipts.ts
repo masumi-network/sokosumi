@@ -20,6 +20,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "edit_ad_campaign",
   "delete_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
+  "find_investors",
   "generate_image",
   "generate_video",
   "generate_talking_video",
@@ -99,6 +100,8 @@ export const ACTION_CAPABILITIES = new Set([
   "create_schedule",
   "update_schedule",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
   "update_memory",
   "manage_reminder",
   "create_social_post",
@@ -111,6 +114,12 @@ export const ACTION_CAPABILITIES = new Set([
   "install_skill",
   "remove_skill",
 ]);
+
+/** Warm paths have an action receipt only when the owner requests research. */
+export const ACTION_RECEIPT_CAPABILITIES = [
+  ...ACTION_CAPABILITIES,
+  "investor_warm_paths",
+];
 
 /** Object key order is not part of an operation's identity. */
 export function canonicalActionJson(value: unknown): string {

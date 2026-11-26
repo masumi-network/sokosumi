@@ -109,21 +109,22 @@ describe.skipIf(!db)("Task tags against PostgreSQL", () => {
           { labelId: retired.id },
         ]),
       );
-      await setTaskWorkspaceTags(tx, taskId, workspaceId, [], [], false);
+      await setTaskWorkspaceTags(tx, taskId, workspaceId, []);
       expect(await ids()).toEqual([]);
-      expect(
-        await tx.taskWorkspaceTagDecision.count({ where: { taskId } }),
-      ).toBe(0);
-      await expect(
-        setTaskWorkspaceTags(
-          tx,
-          taskId,
-          workspaceId,
-          undefined,
-          [current.id],
-          false,
-        ),
-      ).rejects.toMatchObject({ status: 422 });
+      const dismissed = [current.id, retired.id]
+        .toSorted()
+        .map((labelId) => ({ labelId, state: "JEV_DISMISSED" as const }));
+      const decisions = () =>
+        tx.taskWorkspaceTagDecision.findMany({
+          where: { taskId },
+          select: { labelId: true, state: true },
+          orderBy: { labelId: "asc" },
+        });
+      expect(await decisions()).toEqual(dismissed);
+      await setTaskWorkspaceTags(tx, taskId, workspaceId, undefined, [
+        current.id,
+      ]);
+      expect(await decisions()).toEqual(dismissed);
       await expect(
         setTaskWorkspaceTags(tx, taskId, workspaceId, [retired.id]),
       ).rejects.toMatchObject({ status: 422 });
@@ -221,14 +222,7 @@ describe.skipIf(!db)("Task tags against PostgreSQL", () => {
       ).toBe(0);
       expect(await applied(obsolete.id)).toBeNull();
 
-      await setTaskWorkspaceTags(
-        tx,
-        taskId,
-        workspaceId,
-        [moderate.id],
-        [],
-        true,
-      );
+      await setTaskWorkspaceTags(tx, taskId, workspaceId, [moderate.id]);
       await tx.task.update({
         where: { id: taskId },
         data: { name: "Revised brief" },
@@ -239,14 +233,9 @@ describe.skipIf(!db)("Task tags against PostgreSQL", () => {
       expect(await applied(moderate.id)).toEqual({ state: "MANUAL" });
       expect(await decision(moderate.id)).toBeNull();
 
-      await setTaskWorkspaceTags(
-        tx,
-        taskId,
-        workspaceId,
-        undefined,
-        [moderate.id],
-        true,
-      );
+      await setTaskWorkspaceTags(tx, taskId, workspaceId, undefined, [
+        moderate.id,
+      ]);
       await evaluate();
       expect(await decision(moderate.id)).toEqual({ state: "JEV_DISMISSED" });
       expect(await applied(moderate.id)).toBeNull();

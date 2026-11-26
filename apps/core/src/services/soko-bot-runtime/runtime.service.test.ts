@@ -4,11 +4,17 @@ import { TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
+import JSZip from "jszip";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
+import * as exaAgent from "@/lib/exa-agent";
+import { buildPdfFixture } from "@/lib/files/pdf-fixture";
+import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
+import * as portfolio from "@/services/fundraising-paths.service";
+import { dispatchFilesTools } from "./dispatch-files";
 
 const {
   botFindFirstMock,
@@ -69,6 +75,9 @@ const {
   transactionBotUpdateMock,
   transactionMemoryRevisionCreateMock,
   transactionMemoryRevisionFindUniqueMock,
+  transactionSnapshotFindUniqueMock,
+  transactionToolCallFindManyMock,
+  memoryRevisionFindFirstMock,
   transactionProjectFindFirstMock,
   transactionDecisionCreateMock,
   transactionDecisionFindFirstMock,
@@ -212,6 +221,9 @@ const {
   transactionBotUpdateMock: vi.fn(),
   transactionMemoryRevisionCreateMock: vi.fn(),
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
+  transactionSnapshotFindUniqueMock: vi.fn(),
+  transactionToolCallFindManyMock: vi.fn(),
+  memoryRevisionFindFirstMock: vi.fn(),
   transactionProjectFindFirstMock: vi.fn(),
   transactionDecisionCreateMock: vi.fn(),
   transactionDecisionFindFirstMock: vi.fn(),
@@ -301,10 +313,26 @@ vi.mock("@/helpers/data-table", () => ({
 }));
 
 const social = vi.hoisted(() => ({
-  ownMessage: vi.fn(async () => ({
-    problem: null as string | null,
-    costUsd: 0,
-  })),
+  ownMessage: vi.fn(
+    async (_post: {
+      postId: string;
+      workspaceId: string;
+      text: string;
+    }): Promise<{
+      problem: string | null;
+      costUsd: number;
+      waitsForBatch?: true;
+    }> => ({
+      problem: null,
+      costUsd: 0,
+    }),
+  ),
+  stamp: vi.fn(
+    async (_post: {
+      postId: string;
+      workspaceId: string;
+    }): Promise<string | null> => null,
+  ),
   listAccounts: vi.fn(),
   project: vi.fn(),
   listStatistics: vi.fn(),
@@ -391,6 +419,14 @@ vi.mock("@/services/social-posts.service", () => ({
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
   ownMessageProblem: social.ownMessage,
+  monthSiblingsStamp: social.stamp,
+  MonthPostsChangedError: class extends Error {
+    constructor() {
+      super("Another post of this month changed while this edit was checked.");
+    }
+  },
+  withSocialPostBatch: (_unsaved: ReadonlySet<string>, run: () => unknown) =>
+    run(),
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -514,6 +550,7 @@ vi.mock("@/lib/db/database-now", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBotMemoryRevision: { findFirst: memoryRevisionFindFirstMock },
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     fileResource: {
@@ -640,6 +677,10 @@ vi.mock("@/lib/db/transaction", () => ({
           create: transactionMemoryRevisionCreateMock,
           findUnique: transactionMemoryRevisionFindUniqueMock,
         },
+        sokoBotContextSnapshot: {
+          findUnique: transactionSnapshotFindUniqueMock,
+        },
+        sokoBotRuntimeEvent: { findMany: vi.fn().mockResolvedValue([]) },
         sokoBotDelegation: {
           create: delegationCreateMock,
           update: delegationUpdateMock,
@@ -653,7 +694,9 @@ vi.mock("@/lib/db/transaction", () => ({
           count: transactionToolCallCountMock,
           create: transactionToolCallCreateMock,
           findUnique: transactionToolCallFindUniqueMock,
+          findMany: transactionToolCallFindManyMock,
           update: transactionToolCallUpdateMock,
+          updateMany: toolCallUpdateManyMock,
           upsert: vi.fn().mockResolvedValue({}),
         },
         project: { findFirst: transactionProjectFindFirstMock },
@@ -808,6 +851,7 @@ import {
 import * as scheduleService from "@/services/soko-bot-schedule.service";
 import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
+import * as fundraising from "./fundraising";
 
 const SCOPE = {
   userId: "user_1",
@@ -991,6 +1035,195 @@ describe("SokoBotRuntimeService authorization", () => {
       id: DECISION_ID,
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
+    });
+  });
+
+  describe("Core tool dispatch", () => {
+    function serviceForDispatch() {
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      const service = new SokoBotRuntimeService();
+      service["requireMutationAuthority"] = vi
+        .fn()
+        .mockResolvedValue(undefined);
+      service.authorize = vi.fn().mockResolvedValue({
+        askedByKind: "OWNER",
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+        toolCallLimit: 10,
+      });
+      return service;
+    }
+
+    it.each(fundraising.FUNDRAISING_CAPABILITIES)(
+      "returns and records the %s handler result",
+      async (capability) => {
+        const service = serviceForDispatch();
+        const result = { found: 10 };
+        const handler = vi.fn().mockResolvedValue(result);
+        service["executeFundraisingTool"] = handler;
+        const call = {
+          ...SCOPE,
+          capability,
+          toolCallId: "research",
+          input: {},
+        };
+
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        expect(handler).toHaveBeenCalledWith(call, expect.anything());
+        expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "COMPLETED", result }),
+          }),
+        );
+      },
+    );
+
+    it.each([
+      { capability: "find_investors", input: {}, paid: true },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId, research: true },
+        paid: true,
+      },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId },
+        paid: false,
+      },
+    ] as const)(
+      "handles an interrupted $capability call according to its cost (paid=$paid)",
+      async ({ capability, input, paid }) => {
+        const service = serviceForDispatch();
+        const call = { ...SCOPE, capability, toolCallId: "interrupted", input };
+        toolCallFindUniqueMock.mockResolvedValue({
+          id: "receipt",
+          ...call,
+          inputHash: actionInputHash(input),
+          status: "PENDING",
+        });
+        const handler = vi.fn().mockResolvedValue({ paths: [] });
+        service["executeFundraisingTool"] = handler;
+        if (paid) {
+          await expect(service.executeTool(call)).rejects.toThrow(
+            SokoBotRuntimeConflictError,
+          );
+          expect(handler).not.toHaveBeenCalled();
+        } else {
+          await expect(service.executeTool(call)).resolves.toEqual({
+            paths: [],
+          });
+          expect(handler).toHaveBeenCalledOnce();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "retains the paid operation if a refusal follows dispatch (dispatched=%s)",
+      async (dispatched) => {
+        const service = serviceForDispatch();
+        workspaceFindUniqueMock.mockResolvedValueOnce({
+          organizationId: "org_1",
+        });
+        getEnvMock.mockReturnValue({
+          ...getEnvMock(),
+          FUNDRAISING_ORGANIZATION_IDS: ["org_1"],
+        });
+        const provider = vi.spyOn(exaAgent, "runExaAgent").mockResolvedValue({
+          runId: "research",
+          costUsd: 0.01,
+          structured: {},
+          text: null,
+          citations: [],
+        });
+        const research = vi
+          .spyOn(portfolio, "researchPortfolio")
+          .mockImplementation(async (_actor, _contact, deps) => {
+            if (dispatched)
+              await deps?.run({
+                query: "portfolio",
+                effort: "medium",
+                outputSchema: {},
+              });
+            throw badRequest("Contact left the investor list");
+          });
+        try {
+          await expect(
+            service.executeTool({
+              ...SCOPE,
+              capability: "investor_warm_paths",
+              input: { contactId: SCOPE.sokoBotId, research: true },
+              toolCallId: "warm",
+            }),
+          ).rejects.toThrow("Contact left the investor list");
+          expect(provider).toHaveBeenCalledTimes(dispatched ? 1 : 0);
+          const data = toolCallUpdateManyMock.mock.lastCall?.[0].data;
+          expect(data.disposition).toBe(dispatched ? "UNKNOWN" : "REJECTED");
+          if (dispatched) expect(data).not.toHaveProperty("operationKey");
+          else expect(data.operationKey).toBeNull();
+        } finally {
+          research.mockRestore();
+          provider.mockRestore();
+        }
+      },
+    );
+
+    it("checks current fundraising access before returning a completed search receipt", async () => {
+      const service = serviceForDispatch();
+      const call = {
+        ...SCOPE,
+        capability: "find_investors",
+        toolCallId: "search",
+        input: {},
+      } as const;
+      const result = { found: 10 };
+      const handler = vi.fn().mockResolvedValue(result);
+      service["executeFundraisingTool"] = handler;
+      await expect(service.executeTool(call)).resolves.toEqual(result);
+      toolCallFindUniqueMock.mockResolvedValue({
+        ...call,
+        id: "receipt",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        inputHash: actionInputHash(call.input),
+        result,
+      });
+      const policy = vi
+        .spyOn(fundraising, "fundraisingActor")
+        .mockResolvedValueOnce({
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+          sokoBotId: SCOPE.sokoBotId,
+          organizationId: "org",
+        })
+        .mockRejectedValueOnce(new Error("Fundraising disabled"));
+      try {
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        await expect(service.executeTool(call)).rejects.toThrow(
+          "Fundraising disabled",
+        );
+        expect(policy).toHaveBeenCalledTimes(2);
+        expect(handler).toHaveBeenCalledOnce();
+      } finally {
+        policy.mockRestore();
+      }
+    });
+
+    it("fails a tool without a Core handler instead of recording an empty success", async () => {
+      const service = serviceForDispatch();
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "workspace_read",
+          toolCallId: "misrouted",
+          input: { path: "brief.md" },
+        }),
+      ).rejects.toThrow(SokoBotRuntimeValidationError);
+      expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
     });
   });
 
@@ -4752,6 +4985,175 @@ describe("SokoBotRuntimeService memory updates", () => {
     );
   });
 
+  it("refuses to rewrite memory the turn saw only part of, until it reads it", async () => {
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionSnapshotFindUniqueMock.mockResolvedValue({
+      omissions: { memory: 4_000 },
+    });
+    transactionToolCallFindManyMock.mockResolvedValueOnce([]);
+    const write = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_partial",
+        input: { markdown: memoryMarkdown("Ship launch") },
+      });
+
+    await expect(write()).rejects.toThrow("Call read_memory");
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+
+    transactionToolCallFindManyMock.mockResolvedValueOnce([
+      { toolCallId: "call_read" },
+    ]);
+    transactionMemoryRevisionCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000023",
+      version: 2,
+      hash: "hash_2",
+      markdown: memoryMarkdown("Ship launch"),
+    });
+    await write();
+    expect(transactionMemoryRevisionCreateMock).toHaveBeenCalledOnce();
+    transactionSnapshotFindUniqueMock.mockResolvedValue(null);
+  });
+
+  it("rereads the pinned revision whole when a read_memory call is replayed", async () => {
+    const titles = [
+      "Active goals",
+      "Decisions",
+      "Preferences",
+      "Follow-ups",
+      "Blockers",
+    ];
+    const lastEntry = "Never publish before the owner approves.";
+    const stored = [
+      "# Soko Bot memory",
+      ...titles.map((title, section) =>
+        [
+          `## ${title}`,
+          ...Array.from({ length: 12 }, (_, index) =>
+            section === 4 && index === 11
+              ? `- ${lastEntry}`
+              : `- ${title} ${index}: ${'say "yes" at C:\\share, '.repeat(10)}`,
+          ),
+        ].join("\n"),
+      ),
+      "",
+    ].join("\n\n");
+    const revisionId = "01960001-0001-7001-8001-000000000031";
+    const firstRead = {
+      id: revisionId,
+      version: 3,
+      hash: "hash_3",
+      markdown: stored,
+    };
+    expect(Buffer.byteLength(stored, "utf8")).toBeLessThanOrEqual(16_384);
+    // What the first read left on its row: the bounded audit copy.
+    const auditCopy = (
+      await import("@/lib/soko-bot/persisted-value")
+    ).persistedToolResult(firstRead) as Record<string, unknown>;
+    expect(auditCopy.markdown).toBeUndefined();
+    const turn = await turnFindUniqueMock();
+    turnFindUniqueMock.mockResolvedValue({
+      ...turn,
+      capabilityNames: ["read_memory", "update_memory"],
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256").update(canonicalJson({})).digest("hex"),
+      capability: "read_memory",
+      status: "COMPLETED",
+      result: auditCopy,
+      toolCallId: "call_read",
+      turnId: SCOPE.turnId,
+    });
+    memoryRevisionFindFirstMock.mockResolvedValue({
+      id: revisionId,
+      version: 3,
+      hash: "hash_3",
+      markdown: stored,
+    });
+
+    const replayed = (await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_memory",
+      toolCallId: "call_read",
+      input: {},
+    })) as { markdown: string };
+
+    expect(memoryRevisionFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sokoBotId: SCOPE.sokoBotId, id: revisionId },
+      }),
+    );
+    expect(replayed.markdown).toContain(lastEntry);
+    expect(replayed.markdown.length).toBeGreaterThan(14_000);
+
+    // The first response was lost; the retry is what the model read. Its
+    // rewrite passes the guard and keeps the whole document.
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionSnapshotFindUniqueMock.mockResolvedValue({
+      omissions: { memory: 8_000 },
+    });
+    transactionToolCallFindManyMock.mockResolvedValueOnce([
+      { toolCallId: "call_read" },
+    ]);
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionCreateMock.mockImplementation(
+      async ({ data }: { data: { markdown: string } }) => ({
+        id: "01960001-0001-7001-8001-000000000033",
+        version: 2,
+        hash: "hash_4",
+        markdown: data.markdown,
+      }),
+    );
+    const rewrite = replayed.markdown.replace(
+      "Active goals 0:",
+      "Active goals 0 (renamed):",
+    );
+    const saved = (await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "call_write",
+      input: { markdown: rewrite },
+    })) as { markdown: string };
+    expect(saved.markdown).toContain(lastEntry);
+    expect(saved.markdown).toContain("Active goals 0 (renamed):");
+    transactionSnapshotFindUniqueMock.mockResolvedValue(null);
+    transactionMemoryRevisionCreateMock.mockReset();
+  });
+
+  it("replays a read that found no memory as none, though a revision was saved since", async () => {
+    const turn = await turnFindUniqueMock();
+    turnFindUniqueMock.mockResolvedValue({
+      ...turn,
+      capabilityNames: ["read_memory", "update_memory"],
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256").update(canonicalJson({})).digest("hex"),
+      capability: "read_memory",
+      status: "COMPLETED",
+      result: null,
+      toolCallId: "call_empty",
+      turnId: SCOPE.turnId,
+    });
+    memoryRevisionFindFirstMock.mockClear();
+    memoryRevisionFindFirstMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000032",
+      version: 1,
+      hash: "hash_1",
+      markdown: memoryMarkdown("Saved after the first read"),
+    });
+
+    const replayed = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_memory",
+      toolCallId: "call_empty",
+      input: {},
+    });
+
+    expect(replayed).toBeNull();
+    expect(memoryRevisionFindFirstMock).not.toHaveBeenCalled();
+  });
+
   it("keeps optimistic conflict when another turn changed memory", async () => {
     transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 2 });
     transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
@@ -7841,6 +8243,7 @@ describe("Soko Bot project social tools", () => {
     "get_social_post",
     "create_social_post",
     "update_social_post",
+    "update_social_posts",
     "schedule_social_post",
     "cancel_social_post",
     "publish_social_post",
@@ -8073,6 +8476,308 @@ describe("Soko Bot project social tools", () => {
       text: "Fees again",
     });
     expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("saves a batch of posts one by one and names every refused post in one answer", async () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b2";
+    social.update.mockResolvedValueOnce(post);
+    social.ownMessage
+      .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+      .mockResolvedValueOnce({
+        problem: 'Rewrite the post: it says nearly what the post "Fees" says.',
+        costUsd: 0,
+      });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_posts",
+      toolCallId: "batch",
+      input: {
+        projectId,
+        posts: [
+          { postId, revision: 2, text: "Stake today" },
+          { postId: otherId, revision: 1, text: "Fees again" },
+        ],
+      },
+    });
+
+    expect(result).toEqual({
+      saved: [{ postId, revision: 2, status: "DRAFT" }],
+      refused: [
+        {
+          postId: otherId,
+          problem:
+            'Rewrite the post: it says nearly what the post "Fees" says.',
+        },
+      ],
+    });
+    expect(social.update).toHaveBeenCalledTimes(1);
+  });
+
+  describe("a batch where one post takes another's words", () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b2";
+    const wait = {
+      problem:
+        'Wait for another post of this batch: this text says nearly what the post "Fees" says now.',
+      costUsd: 0,
+      waitsForBatch: true as const,
+    };
+    const batch = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "swap",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "Fees" },
+            { postId: otherId, revision: 1, text: "Staking" },
+          ],
+        },
+      });
+
+    // Codex round 4 (#8243): A saved B's words, then B's edit failed and kept
+    // them. A now waits for B and is refused once B keeps its words.
+    it("saves neither when the other post's edit fails", async () => {
+      social.ownMessage
+        .mockResolvedValueOnce(wait)
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+        .mockResolvedValueOnce({
+          problem:
+            'Rewrite the post: it says nearly what the post "Fees" says.',
+          costUsd: 0,
+        });
+      social.update.mockRejectedValueOnce(
+        new Error("Social post was modified, reload and retry"),
+      );
+
+      const result = await batch();
+
+      expect(result).toEqual({
+        saved: [],
+        refused: [
+          {
+            postId: otherId,
+            problem: "Social post was modified, reload and retry",
+          },
+          {
+            postId,
+            problem:
+              'Rewrite the post: it says nearly what the post "Fees" says.',
+          },
+        ],
+      });
+      expect(social.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("saves the waiting post after the other one got new words", async () => {
+      social.ownMessage
+        .mockResolvedValueOnce(wait)
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 });
+      social.update
+        .mockResolvedValueOnce({ ...post, id: otherId })
+        .mockResolvedValueOnce(post);
+
+      const result = await batch();
+
+      expect(result).toEqual({
+        saved: [
+          { postId: otherId, revision: 2, status: "DRAFT" },
+          { postId, revision: 2, status: "DRAFT" },
+        ],
+        refused: [],
+      });
+    });
+
+    it("refuses two posts that wait on each other", async () => {
+      social.ownMessage.mockResolvedValueOnce(wait).mockResolvedValueOnce(wait);
+
+      const result = await batch();
+
+      expect(result).toMatchObject({
+        saved: [],
+        refused: [
+          {
+            postId,
+            problem: expect.stringContaining("Neither could be saved"),
+          },
+          {
+            postId: otherId,
+            problem: expect.stringContaining("Neither could be saved"),
+          },
+        ],
+      });
+      expect(social.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Codex round 4 (#8243): the deadline was checked only before each edit.
+  it("ends a batch at its deadline although an edit is still running", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const otherId = "0190e0c9-0000-7000-8000-0000000000b3";
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      const running = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "slow",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "Slow" },
+            { postId: otherId, revision: 1, text: "Next" },
+          ],
+        },
+      });
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      await expect(running).resolves.toEqual({
+        saved: [],
+        refused: [],
+        stillSaving: postId,
+        notTried: [otherId],
+        next: expect.stringContaining("may still be saved"),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Codex round 11 (#8277): a 20-second access read made the batch answer at
+  // 120 seconds, after the tool's 115-second timeout.
+  it("counts a slow access read into the batch's deadline", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const owner = social.owner.getMockImplementation();
+      social.owner.mockImplementationOnce(async (...args: unknown[]) => {
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+        return owner?.(...args);
+      });
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      let answered = false;
+      const running = new SokoBotRuntimeService()
+        .executeTool({
+          ...SCOPE,
+          capability: "update_social_posts",
+          toolCallId: "slow-access",
+          input: { projectId, posts: [{ postId, revision: 2, text: "Slow" }] },
+        })
+        .finally(() => {
+          answered = true;
+        });
+
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      expect(answered).toBe(true);
+      await expect(running).resolves.toMatchObject({ stillSaving: postId });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Codex round 11 (#8277): two batches checked at once each passed against
+  // the other's old words, and both saved "April release.".
+  it("saves the same words once when two batches are checked at the same time", async () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b4";
+    const rows = new Map([
+      [postId, { text: "Launch notes.", revision: 2 }],
+      [otherId, { text: "Community update.", revision: 2 }],
+    ]);
+    social.stamp.mockImplementation(async ({ postId: own }) =>
+      [...rows]
+        .filter(([id]) => id !== own)
+        .map(([id, row]) => `${id}:${row.revision}`)
+        .join(),
+    );
+    let checks = 0;
+    const bothChecking = Promise.withResolvers<void>();
+    social.ownMessage.mockImplementation(async ({ postId: own, text }) => {
+      if ((checks += 1) === 2) bothChecking.resolve();
+      if (checks <= 2) await bothChecking.promise;
+      const same = [...rows].find(
+        ([id, row]) => id !== own && row.text === text,
+      );
+      return {
+        problem: same
+          ? `Rewrite the post: it says nearly what the post "${same[1].text}" says.`
+          : null,
+        costUsd: 0,
+      };
+    });
+    social.update.mockImplementation(
+      async (change: { postId: string; text: string }) => {
+        const row = rows.get(change.postId)!;
+        row.text = change.text;
+        row.revision += 1;
+        return { ...post, id: change.postId, revision: row.revision };
+      },
+    );
+    // One transaction at a time, as Serializable makes the second see the first.
+    const run = serializableTransactionMock.getMockImplementation()!;
+    let tail = Promise.resolve();
+    serializableTransactionMock.mockImplementation(
+      (...args: Parameters<typeof run>) => {
+        const next = tail.then(() => run(...args));
+        tail = next.then(
+          () => undefined,
+          () => undefined,
+        );
+        return next;
+      },
+    );
+    const batch = (id: string, key: string) =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: key,
+        input: {
+          projectId,
+          posts: [{ postId: id, revision: 2, text: "April release." }],
+        },
+      });
+
+    try {
+      const results = (await Promise.all([
+        batch(postId, "first"),
+        batch(otherId, "second"),
+      ])) as { saved: unknown[]; refused: { problem: string }[] }[];
+
+      expect(results.flatMap((result) => result.saved)).toHaveLength(1);
+      expect(results.flatMap((result) => result.refused)).toEqual([
+        expect.objectContaining({
+          problem: expect.stringContaining('says nearly what the post "April'),
+        }),
+      ]);
+      expect(
+        [...rows.values()].filter((row) => row.text === "April release."),
+      ).toHaveLength(1);
+    } finally {
+      serializableTransactionMock.mockImplementation(run);
+      social.stamp.mockImplementation(async () => null);
+      social.ownMessage.mockImplementation(async () => ({
+        problem: null,
+        costUsd: 0,
+      }));
+      social.update.mockReset();
+    }
+  });
+
+  it("refuses a batch that names one post twice", async () => {
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "batch-twice",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "One" },
+            { postId, revision: 2, text: "Two" },
+          ],
+        },
+      }),
+    ).rejects.toThrow("Each post can be in one update_social_posts call once.");
   });
 
   it("reads the Project's posting instructions in the turn's workspace", async () => {
@@ -10104,6 +10809,223 @@ describe("Soko Bot project social tools", () => {
     ).rejects.toThrow("reconciliation");
     expect(social.publish).not.toHaveBeenCalled();
   });
+
+  it("allows tainted owner-directed update_social_post on DRAFT and NEEDS_APPROVAL posts, and refuses SCHEDULED, FAILED, and PUBLISHED posts", async () => {
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    const service = new SokoBotRuntimeService();
+
+    for (const allowedStatus of ["DRAFT", "NEEDS_APPROVAL"] as const) {
+      social.update.mockClear();
+      social.get.mockResolvedValue({ ...post, status: allowedStatus });
+      social.update.mockResolvedValue({ ...post, status: allowedStatus });
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "update_social_post",
+          toolCallId: `tainted-update-${allowedStatus}`,
+          input: { projectId, postId, revision: 2, text: "Updated pricing" },
+        }),
+      ).resolves.toMatchObject({ id: postId, status: allowedStatus });
+      expect(social.update).toHaveBeenCalledTimes(1);
+    }
+
+    for (const lockedStatus of ["SCHEDULED", "FAILED", "PUBLISHED"] as const) {
+      social.update.mockClear();
+      social.get.mockResolvedValue({ ...post, status: lockedStatus });
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "update_social_post",
+          toolCallId: `tainted-update-${lockedStatus}`,
+          input: { projectId, postId, revision: 2, text: "Updated pricing" },
+        }),
+      ).rejects.toThrow(SokoBotTaintedActionError);
+      expect(social.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rechecks post status inside the transaction when a draft is scheduled mid-flight on a tainted turn", async () => {
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    // Pre-check sees DRAFT; by the time the transaction runs, the post was scheduled.
+    social.get
+      .mockResolvedValueOnce({ ...post, status: "DRAFT" })
+      .mockResolvedValueOnce({ ...post, status: "SCHEDULED" });
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "tainted-toctou",
+        input: { projectId, postId, revision: 2, text: "Updated pricing" },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("saves DRAFT posts and refuses SCHEDULED posts in a tainted owner-directed update_social_posts batch", async () => {
+    const scheduledPostId = "01960001-0001-7001-8001-000000000099";
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    social.get.mockImplementation(async ({ postId: id }: { postId: string }) =>
+      id === scheduledPostId
+        ? { ...post, id: scheduledPostId, status: "SCHEDULED" }
+        : { ...post, id: postId, status: "DRAFT" },
+    );
+    social.update.mockResolvedValue({ ...post, id: postId, revision: 3 });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_posts",
+      toolCallId: "tainted-batch",
+      input: {
+        projectId,
+        posts: [
+          { postId, revision: 2, text: "New draft pricing copy" },
+          { postId: scheduledPostId, revision: 2, text: "New scheduled copy" },
+        ],
+      },
+    });
+    expect(result).toMatchObject({
+      saved: [{ postId, revision: 3, status: "DRAFT" }],
+      refused: [
+        {
+          postId: scheduledPostId,
+          problem: expect.stringContaining(
+            "only edit unapproved drafts (DRAFT or NEEDS_APPROVAL)",
+          ),
+        },
+      ],
+    });
+    expect(social.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses tainted update_social_post and update_social_posts on a non-owner INGEST background child even for a DRAFT post", async () => {
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: "ingest-root",
+      parentTurn: {
+        source: "INGEST",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: SCOPE.userId,
+        chainDepth: 0,
+      },
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    social.get.mockResolvedValue({ ...post, status: "DRAFT" });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "tainted-ingest-single",
+        input: { projectId, postId, revision: 2, text: "Injected edit" },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "tainted-ingest-batch",
+        input: {
+          projectId,
+          posts: [{ postId, revision: 2, text: "Injected edit" }],
+        },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("Drive file tools", () => {
@@ -10519,6 +11441,134 @@ describe("Drive file tools", () => {
     await expect(
       service["readFile"](authorized as never, { fileId: "someone-elses" }),
     ).rejects.toThrow("File not found");
+  });
+
+  it.each([
+    { ext: "pdf", state: "PENDING", type: "application/pdf" },
+    {
+      ext: "docx",
+      state: "RUNNING",
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+  ])(
+    "reads a newly uploaded $ext before indexing finishes",
+    async ({ ext, state, type }) => {
+      const words = "Typed memory ships on Tuesday. ".repeat(25);
+      const bytes =
+        ext === "pdf"
+          ? buildPdfFixture({ pages: [words] })
+          : await new JSZip()
+              .file(
+                "word/document.xml",
+                `<w:document><w:body><w:p><w:r><w:t>${words}</w:t></w:r></w:p></w:body></w:document>`,
+              )
+              .generateAsync({ type: "uint8array" });
+      files.loadLive.mockResolvedValueOnce([
+        {
+          id: "brief",
+          displayName: `launch.${ext}`,
+          mimeType: type,
+          sizeBytes: bytes.byteLength,
+          sourceId: `drive/u/launch.${ext}`,
+          sourceKind: "DRIVE_UPLOAD",
+          contentRevision: 1,
+          extractionState: state,
+        },
+      ]);
+      files.chunks.mockResolvedValueOnce([]);
+      files.download.mockResolvedValueOnce(bytes);
+      const result = await dispatchFilesTools(
+        service["operations"],
+        {
+          ...SCOPE,
+          capability: "read_file",
+          toolCallId: "read-launch-brief",
+          input: { fileId: "brief", maxChars: 500 },
+        },
+        authorized as never,
+      );
+      expect(result).toMatchObject({
+        text: expect.stringContaining("Typed memory ships on Tuesday"),
+        truncated: true,
+      });
+      expect(result).toHaveProperty("text.length", 500);
+    },
+  );
+
+  it.each([6 * 1024 * 1024, null])(
+    "leaves documents with an oversized or unknown size to the index (%s)",
+    async (sizeBytes) => {
+      files.loadLive.mockResolvedValueOnce([
+        {
+          id: "large",
+          displayName: "long.pdf",
+          mimeType: "application/pdf",
+          sizeBytes,
+          sourceId: "drive/u/long.pdf",
+          sourceKind: "DRIVE_UPLOAD",
+          contentRevision: 1,
+          extractionState: "PENDING",
+        },
+      ]);
+      files.chunks.mockResolvedValueOnce([]);
+      files.download.mockClear();
+      await expect(
+        service["readFile"](authorized as never, { fileId: "large" }),
+      ).resolves.toMatchObject({
+        text: "",
+        note: expect.stringContaining("still being processed"),
+      });
+      expect(files.download).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the stored partial-read reason when document passages have been indexed", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "deck",
+        displayName: "slides.pptx",
+        contentRevision: 1,
+        extractionState: "PARTIAL",
+        extractionReason: "Only the first slides could be read.",
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "Slide one" }]);
+    await expect(
+      service["readFile"](authorized as never, { fileId: "deck" }),
+    ).resolves.toMatchObject({
+      text: "Slide one",
+      truncated: true,
+      note: "Only the first slides could be read.",
+    });
+  });
+
+  it("prefers indexed document text and reports a scanned PDF without a text layer", async () => {
+    const file = {
+      id: "scan",
+      displayName: "scan.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 5000,
+      sourceId: "drive/u/scan.pdf",
+      sourceKind: "DRIVE_UPLOAD",
+      contentRevision: 1,
+      extractionState: "RUNNING",
+    };
+    files.loadLive.mockResolvedValueOnce([file]).mockResolvedValueOnce([file]);
+    files.chunks
+      .mockResolvedValueOnce([{ text: "Already indexed" }])
+      .mockResolvedValueOnce([]);
+    files.download.mockClear();
+    await expect(
+      service["readFile"](authorized as never, { fileId: "scan" }),
+    ).resolves.toMatchObject({ text: "Already indexed" });
+    expect(files.download).not.toHaveBeenCalled();
+    files.download.mockResolvedValueOnce(buildPdfFixture({ pages: [""] }));
+    await expect(
+      service["readFile"](authorized as never, { fileId: "scan" }),
+    ).resolves.toMatchObject({
+      text: "",
+      note: expect.stringContaining("no text layer"),
+    });
   });
 
   it("waits out the 404 a just-rewritten file gives", async () => {

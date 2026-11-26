@@ -3801,7 +3801,8 @@
           }
         },
         "bots": {
-          "title": "Bots de este proyecto"
+          "title": "Bots de este proyecto",
+          "empty": "Aún no hay bots para este proyecto. Un bot de proyecto ve las Tasks públicas del proyecto y todos hablan con él en una sala."
         }
       },
       "Newsletter": {
@@ -7062,6 +7063,8 @@
           "archived": "Archivado",
           "version": "Versión",
           "showDormant": "Mostrar sin uso y archivados ({count})",
+          "showEvals": "Mostrar bots de evals",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Mostrar",
           "kind": {
@@ -7636,8 +7639,10 @@
           "usersTitle": "Personas que escribieron a un Soko Bot",
           "usersSub": "máximo {peak} en {days} días",
           "usersBar": "{day}: {users} personas, {messages} mensajes",
-          "costTitle": "Coste de modelo de Soko Bots",
-          "cmoCostTitle": "Coste de modelo de CMO.xyz",
+          "costTitle": "Coste por turno de Soko Bots",
+          "cmoCostTitle": "Coste por turno de CMO.xyz",
+          "evalCostTitle": "Coste por turno de evals y laboratorio",
+          "costScope": "Coste por turno: el coste de modelo del bucle, el enrutado, el juez y las comprobaciones dentro de un turno. Las lanes de evals y las ejecuciones de laboratorio solo cuentan en Evals. No incluye el trabajo fuera de un turno: las comprobaciones de estilo, sector e imagen de Cuso, el redactor del mes, imágenes y vídeo.",
           "costSub": "{total} en {days} días",
           "costBar": "{day}: {cost}",
           "today": "hoy",
@@ -7648,7 +7653,8 @@
           "turns": "Turnos",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Aspecto",
@@ -7893,6 +7899,9 @@
         "title": "Gasto de CMO",
         "description": "Lo que gastó cada bot CMO en su trabajo, lo que se cobró a su dueño y en qué: cada modelo, búsqueda web, Exa, gastos generales e imágenes.",
         "summary": "{bots, plural, one {# bot CMO gastó} other {# bots CMO gastaron}} {spent} y cobraron {charged} créditos.",
+        "showEvals": "Mostrar Cusos de evals",
+        "hideEvals": "Ocultar Cusos de evals",
+        "evalBadge": "Eval",
         "period": "Periodo",
         "days": "{days} días",
         "empty": "Ningún bot CMO trabajó en este periodo.",
@@ -8070,6 +8079,9 @@
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
         "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
+        "costlier": "Costlier: {cost}, usually {usual}",
+        "slower": "Slower: {minutes} min, usually {usual} min",
+        "usageCounts": "{costlier} costlier, {slower} slower than usual",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
         "comparedWith": "Compared with the weekly run of {when}",
@@ -9374,7 +9386,6 @@
         "sokoBotsTitle": "Soko Bots",
         "sokoBotsNote": "Asistentes que trabajan para una persona, un proyecto o todo el equipo.",
         "sokoBotsUnavailable": "Ahora no se pueden cargar los Soko Bots. Vuelve a intentarlo en un momento.",
-        "manageSokoBots": "Gestionar Soko Bots",
         "createOwnBot": "Configura tu Soko Bot",
         "createOwnBotHint": "Tu propio asistente para correo, tareas y chats.",
         "coworkersTitle": "Coworkers",
@@ -9782,6 +9793,8 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Volver a las salas",
+        "allChats": "Todos los chats",
         "tasks": "Tareas",
         "agents": "Agents",
         "chats": "Chats",
@@ -9870,6 +9883,7 @@
       },
       "Empty": {
         "noChannels": "No channels yet.",
+        "messageSomeone": "Iniciar un mensaje",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "peopleLoadFailedDescription": "Las personas a las que puedes escribir no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
@@ -11271,13 +11285,6 @@
         "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
-        "archive": "Archivar",
-        "archiveConfirmTitle": "¿Archivar tu Soko Bot?",
-        "archiveConfirmDescription": "Los turnos en curso se cancelan y las programaciones se detienen. Puedes reactivarlo en cualquier momento desde esta página.",
-        "archiveCancel": "Conservar",
-        "archiveConfirm": "Archivar",
-        "archived": "Soko Bot archivado.",
-        "archiveError": "No se pudo archivar el Soko Bot.",
         "delete": "Eliminar",
         "deleteConfirm": "Eliminar para siempre",
         "deleteCancel": "Cancelar",
@@ -11287,8 +11294,6 @@
         "deleteError": "No se pudo eliminar tu Soko Bot.",
         "deleted": "Soko Bot eliminado.",
         "sharedArchiveDescription": "Detiene todos los turnos y programaciones para todos. Un propietario o administrador puede reactivarlo; el historial se conserva.",
-        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
-        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
         "sharedDeleteConfirmTitle": "¿Eliminar este bot compartido?",
         "sharedDeleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran para todos. Las tareas que creó se quedan donde están."
       },
@@ -11445,7 +11450,6 @@
         }
       },
       "Console": {
-        "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
         "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
@@ -11519,7 +11523,8 @@
           "Usage": "No se cargó el uso.",
           "help": "Las programaciones y el chat siguen funcionando.",
           "retry": "Reintentar"
-        }
+        },
+        "back": "Agentes"
       },
       "Avatar": {
         "edit": "Cambiar aspecto",
@@ -11723,49 +11728,36 @@
       "Unavailable": {
         "title": "No se pudieron cargar los asistentes de tu equipo",
         "description": "No se ha perdido nada. Vuelve a intentarlo en un momento.",
-        "retry": "Reintentar",
-        "placeholder": "Tu asistente aparecerá aquí cuando se cargue el equipo."
+        "retry": "Reintentar"
       },
-      "createAssistant": "Crea tu asistente",
-      "createAssistantHint": "Consigue un asistente que se encarga de tareas, hace seguimiento y te mantiene al día. Configurarlo lleva un minuto.",
-      "assistantFallback": "Asistente personal",
-      "chatError": "No se pudo abrir el chat.",
-      "manage": "Ajustes",
-      "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",
-      "teamEmpty": "Aún no hay nadie más en este espacio de trabajo. Invita a tu equipo y sus asistentes aparecerán aquí.",
-      "inviteTeam": "Invita a tu equipo",
-      "disabled": "Soko Bot no está disponible temporalmente",
-      "noAssistantYou": "Aún no tienes asistente",
-      "chat": "Chat",
-      "teamSummary": "{bots, plural, one {# asistente} other {# asistentes}} · {people, plural, one {# persona} other {# personas}}",
-      "notSetUp": "Aún sin configurar",
-      "messageBot": "Escribir a {name}",
-      "lastActive": "Activo por última vez el {date}",
-      "notActiveYet": "Aún sin actividad",
-      "statsTasks": "{count, plural, one {# tarea} other {# tareas}}",
-      "statsMessages": "{count, plural, one {# mensaje} other {# mensajes}} en {days} días",
-      "assistantOf": "Asistente de",
-      "message": "Escribir",
-      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día.",
-      "heroCaption": "Soko Bots para todo tu equipo",
-      "heroTitle": "Los asistentes personales de tu equipo",
-      "chatWith": "Chatear con {name}",
-      "yourAssistantTitle": "Tu asistente",
-      "teamTitle": "Los asistentes de tu equipo",
-      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat.",
+      "settings": "Ajustes",
+      "settingsName": "Ajustes de {name}",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "pauseName": "Pausar {name}",
+      "resumeName": "Reanudar {name}",
+      "paused": "En pausa",
+      "pausedToast": "{name} está en pausa. Sigue respondiendo cuando le escriben.",
+      "resumed": "{name} vuelve a trabajar.",
+      "pauseError": "No se pudo pausar el Soko Bot.",
+      "resumeError": "No se pudo reanudar el Soko Bot.",
+      "archivedTitle": "Archivados",
+      "archivedOn": "Archivado el {date}",
+      "notSetUpTitle": "Aún sin configurar",
+      "invitePeople": "Invitar personas",
+      "teamEmpty": "Aún no hay nadie más en este espacio de trabajo. Invita a tu equipo y cada persona podrá configurar su propio Soko Bot.",
+      "Archive": {
+        "archive": "Archivar",
+        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
+        "archiveConfirmTitle": "¿Archivar tu Soko Bot?",
+        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
+        "archiveConfirmDescription": "Los turnos en curso se cancelan y las programaciones se detienen. Vuelve a configurarlo cuando quieras para recuperarlo.",
+        "archiveCancel": "Conservar",
+        "archiveError": "No se pudo archivar el Soko Bot.",
+        "archived": "Soko Bot archivado.",
+        "archiveConfirm": "Archivar"
+      },
       "Shared": {
-        "title": "Bots compartidos",
-        "count": "{count, plural, one {# bot} other {# bots}}",
-        "countSplit": "{active, plural, one {# activo} other {# activos}} · {archived, plural, one {# archivado} other {# archivados}}",
-        "empty": "Aún no hay bots compartidos. Un bot compartido trabaja para un proyecto o para todo el espacio de trabajo, y todos hablan con él en una sala.",
-        "noneActive": "Ahora mismo no hay ningún bot compartido activo.",
-        "scopeWorkspace": "Trabaja para todo el espacio de trabajo",
-        "scopeProject": "Trabaja para un proyecto",
-        "scopeProjectNamed": "Trabaja para {project}",
-        "archived": "Archivado",
-        "archivedGroup": "Archivados",
-        "fallbackName": "Asistente compartido",
-        "openBot": "Ajustes de {name}",
         "Create": {
           "trigger": "Nuevo Soko Bot",
           "title": "Crear un Soko Bot",
@@ -11796,12 +11788,14 @@
         "Archived": {
           "title": "{name} está archivado",
           "description": "Un bot archivado ya no lee, no ejecuta sus programaciones ni responde en su sala. Su historial se conserva.",
-          "back": "Volver a Soko Bots",
-          "reactivate": "Reactivar",
-          "reactivated": "Soko Bot reactivado.",
-          "reactivateError": "No se pudo reactivar el Soko Bot."
+          "back": "Agentes",
+          "reactivate": "Restaurar",
+          "reactivateName": "Restaurar {name}",
+          "reactivated": "Soko Bot restaurado.",
+          "reactivateError": "No se pudo restaurar el Soko Bot."
         }
-      }
+      },
+      "moreName": "Más opciones de {name}"
     },
     "Calendar": {
       "Metadata": {

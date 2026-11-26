@@ -7,7 +7,28 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SokoBotMemorySecretError,
+  sokoBotMemoryNotKept,
 } from "../memory.js";
+
+describe("sokoBotMemoryNotKept", () => {
+  it("names entries past a section's limit and entries that would be cut", () => {
+    const goals = Array.from({ length: 13 }, (_, i) => `- Goal ${i + 1}`);
+    const markdown = [
+      "# Soko Bot memory",
+      "## Active goals",
+      ...goals,
+      "## Preferences",
+      `- ${"Long ".repeat(120)}`,
+    ].join("\n");
+    const notKept = sokoBotMemoryNotKept(markdown);
+    expect(notKept).toHaveLength(2);
+    expect(notKept[0]).toContain('dropped: "Goal 13"');
+    expect(notKept[1]).toContain("cut to 500 characters");
+    expect(
+      sokoBotMemoryNotKept("# Soko Bot memory\n## Active goals\n- One"),
+    ).toEqual([]);
+  });
+});
 
 describe("Soko Bot memory", () => {
   it("round-trips canonical sections", () => {

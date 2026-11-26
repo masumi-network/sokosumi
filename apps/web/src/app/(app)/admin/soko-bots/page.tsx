@@ -93,7 +93,7 @@ export default async function AdminSokoBotsPage({
         {availability.disabled ? (
           <SokoBotKillSwitch initial={availability} />
         ) : null}
-        <FleetHealthSummary items={list.items} />
+        <FleetHealthSummary summary={list.summary} />
         {fleetDays ? <FleetDays fleet={fleetDays} /> : null}
         <QualityOverview
           quality={quality}

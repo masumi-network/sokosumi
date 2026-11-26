@@ -256,7 +256,21 @@ export async function authorize(
       typeof turn.classification.confidence === "number"
         ? turn.classification.confidence
         : 1,
+    ...complexityOf(turn.classification),
   };
+}
+
+function complexityOf(classification: unknown): { complexity?: string } {
+  const label =
+    typeof classification === "object" &&
+    classification !== null &&
+    "complexity" in classification &&
+    typeof classification.complexity === "object" &&
+    classification.complexity !== null &&
+    "label" in classification.complexity
+      ? classification.complexity.label
+      : undefined;
+  return typeof label === "string" ? { complexity: label } : {};
 }
 
 export async function requireMutationAuthority(

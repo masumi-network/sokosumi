@@ -1,12 +1,16 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
-import { ACTION_CAPABILITIES } from "./action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  ACTION_RECEIPT_CAPABILITIES,
+} from "./action-receipts";
 import {
   ACTION_LABELS,
   buildActionResponse,
   HELD_BACK_REPLY,
   parseActionNarrativeText,
+  REPLY_CHECK_NOTES,
 } from "./action-response";
 
 const db = vi.hoisted(() => ({
@@ -59,12 +63,64 @@ function replay() {
 describe("action lines the owner reads", () => {
   it("has words for every action, so no line shows a tool's name", () => {
     expect(
-      [...ACTION_CAPABILITIES].filter((action) => !ACTION_LABELS[action]),
+      ACTION_RECEIPT_CAPABILITIES.filter((action) => !ACTION_LABELS[action]),
     ).toEqual([]);
   });
 
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it.each([
+    ["find_investors", "Ran an investor search."],
+    ["investor_warm_paths", "Researched the investor's portfolio."],
+  ])(
+    "describes a verified %s receipt in the owner's reply",
+    async (capability, expected) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({ capability }),
+      ]);
+      const response = await buildActionResponse(prisma, "turn-current", "");
+      expect(response.answerText).toBe(expected);
+      expect(response.appliedReceiptIds).toEqual(["receipt-one"]);
+    },
+  );
+
+  it("reports uncertain paid portfolio research and leaves ordinary warm-path reads out of the action report", async () => {
+    const capability = "investor_warm_paths";
+    const contact = { contactId: "investor-one" };
+    const rows = [
+      receipt({
+        id: "read",
+        capability,
+        input: contact,
+        disposition: null,
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+      receipt({
+        id: "paid",
+        capability,
+        input: { ...contact, research: true },
+        status: "FAILED",
+        disposition: "UNKNOWN",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+    ];
+    db.sokoBotToolCall.findMany.mockImplementationOnce(async ({ where }) =>
+      rows.filter((row) => where.capability.in.includes(row.capability)),
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "");
+    expect(response.appliedReceiptIds).toEqual([]);
+    expect(response.unfulfilledActions).toEqual([
+      { action: capability, receiptId: "paid", reason: "UNKNOWN" },
+    ]);
+    expect(response.answerText).toBe(
+      "I couldn't confirm whether this went through: researched the investor's portfolio. Check before trying again.",
+    );
   });
 
   it("links a calendar mailbox to its saved card without linking the name from the question", async () => {
@@ -551,7 +607,9 @@ describe("authoritative action responses", () => {
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
         turnId: "turn-current",
-        capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
+        capability: {
+          in: [...ACTION_RECEIPT_CAPABILITIES, "list_calendar_events"],
+        },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
@@ -1089,6 +1147,32 @@ describe("authoritative action responses", () => {
     expect(cuso.answerText).toBe("The first week's posts are written.");
   });
 
+  it("shows Cuso's receipt lines when Core cut his words", async () => {
+    const updated = receipt({
+      capability: "update_social_post",
+      targetId: "post-one",
+    });
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "EVENT",
+      versionId: "cmo-v8",
+    });
+    db.sokoBotToolCall.count.mockResolvedValue(0);
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([updated]);
+    // His sentence about the edit was the one cut; the receipt says it.
+    const cuso = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "The second week waits for your pictures.",
+      question: null,
+      observationToolCallIds: [],
+      replyCheck: "cut",
+    });
+    expect(cuso.answerText).toContain("Updated social post");
+    expect(cuso.answerText).toContain(
+      "The second week waits for your pictures.",
+    );
+    expect(cuso.answerText).toContain(REPLY_CHECK_NOTES.cut);
+  });
+
   it("keeps Cuso's answer after he saved the Brand Brain", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
     db.sokoBotTurn.findUnique.mockResolvedValue({
@@ -1473,6 +1557,241 @@ describe("authoritative action responses", () => {
     expect(response.unfulfilledActions).toHaveLength(1);
   });
 
+  it("suppresses a rejected send_message when a later retry to the same recipient succeeded", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: {
+          to: "CodePat",
+          projectId: "bad-project",
+          message: "Please check the architecture post.",
+        },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-1",
+        input: {
+          to: "@codepat",
+          message: "Please check the architecture post.",
+        },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Sent a message.");
+    expect(response.answerText).not.toContain("Not confirmed");
+    expect(response.unfulfilledActions).toEqual([]);
+  });
+
+  it("still reports a rejected send_message to a different recipient", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: { to: "Hannah", message: "Can you review?" },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-2",
+        input: { to: "CodePat", message: "Can you review?" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("never suppresses an UNKNOWN send_message even when a later call to the same recipient succeeded", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        status: "COMPLETED",
+        disposition: "UNKNOWN",
+        input: { to: "CodePat", message: "Check this." },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-3",
+        input: { to: "CodePat", message: "Check this." },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain(
+      "I couldn't confirm whether this went through: sent a message.",
+    );
+  });
+
+  it("still reports a rejected send_message that happened after an earlier success to the same recipient", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "sent-first",
+        toolCallId: "call-sent",
+        capability: "send_message",
+        targetId: "msg-first",
+        input: { to: "CodePat", message: "Part 1" },
+        createdAt: new Date("2026-09-26T12:00:00Z"),
+      }),
+      receipt({
+        id: "refused-later",
+        toolCallId: "call-refused",
+        capability: "send_message",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        input: { to: "CodePat", message: "Part 2" },
+        createdAt: new Date("2026-09-26T12:00:05Z"),
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("still reports a rejected send_message when a later send to the same recipient carries a different message", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: { to: "CodePat", message: "Review the launch plan" },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-diff",
+        input: { to: "CodePat", message: "Send the invoice" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("does not conflate a #room address with a person of the same name", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: { to: "#Jordan", message: "Review the launch plan" },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-person",
+        input: { to: "Jordan", message: "Review the launch plan" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("still reports a rejected structured handoff when a later handoff has the same opener but a different request goal", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: {
+          to: "CodePat",
+          message: "Please take this.",
+          request: {
+            goal: "Architecture review",
+            deliverable: "X draft",
+          },
+        },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-req-2",
+        input: {
+          to: "CodePat",
+          message: "Please take this.",
+          request: {
+            goal: "Release checklist",
+            deliverable: "PR comment",
+          },
+        },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("suppresses a rejected structured handoff retried with the same request after dropping a bad projectId", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: {
+          to: "CodePat",
+          projectId: "bad-project",
+          message: "Please take this.",
+          request: {
+            goal: "Architecture review",
+            deliverable: "X draft",
+          },
+        },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-req-ok",
+        input: {
+          to: "@codepat",
+          message: "Please take this.",
+          request: {
+            goal: "Architecture review",
+            deliverable: "X draft",
+          },
+        },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toEqual([]);
+    expect(response.answerText).toBe("Sent a message.");
+  });
+
+  it("suppresses a rejected post_chat, open_direct_chat, or ask_coworker retry of the same message", async () => {
+    for (const [capability, earlier, later] of [
+      [
+        "post_chat",
+        {
+          roomId: "room-1",
+          content: "Draft 1",
+          resultReferences: [{ id: "bad" }],
+        },
+        { roomId: "room-1", content: "Draft 1" },
+      ],
+      [
+        "open_direct_chat",
+        {
+          person: "Hannah",
+          message: "Please review the brief",
+          resultReferences: [{ id: "bad" }],
+        },
+        { person: "@hannah", message: "Please review the brief" },
+      ],
+      [
+        "ask_coworker",
+        {
+          coworkerIds: ["mira", "codepat"],
+          question: "Can you check the release notes?",
+          projectId: "bad-project",
+        },
+        {
+          coworkerIds: ["codepat", "mira"],
+          question: "Can you check the release notes?",
+        },
+      ],
+    ] as const) {
+      refusedThenCreated(
+        { capability, input: earlier },
+        { capability, targetId: `ok-${capability}`, input: later },
+      );
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done.",
+      );
+      expect(response.unfulfilledActions).toEqual([]);
+      expect(response.answerText).not.toContain("Not confirmed");
+    }
+  });
+
   it("always reports an attempt whose outcome is unknown", async () => {
     refusedThenCreated({ status: "COMPLETED", disposition: "UNKNOWN" });
     const response = await buildActionResponse(prisma, "turn-current", "Done.");
@@ -1745,5 +2064,36 @@ describe("authoritative action responses", () => {
       },
     );
     expect(result.answerText).toBe(HELD_BACK_REPLY);
+  });
+
+  it("says beside the bot's words, not in them, that Core left a claim out", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const message = "x".repeat(8_000);
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      message,
+      true,
+      {
+        kind: "REPORT",
+        message,
+        question: null,
+        observationToolCallIds: [],
+        replyCheck: "cut",
+      },
+    );
+    expect(result.answerText).toBe(`${message}\n\n${REPLY_CHECK_NOTES.cut}`);
+    // No "list above": Cuso's owner never sees the receipt lines.
+    expect(REPLY_CHECK_NOTES.cut).not.toMatch(/list|above/);
+    expect(REPLY_CHECK_NOTES.unchecked).not.toMatch(/list|above/);
+  });
+
+  it("never takes the model's word that Core checked its reply", () => {
+    expect(
+      parseActionNarrativeText(
+        '{"kind":"REPORT","message":"Done.","question":null,"observationToolCallIds":[],"replyCheck":"unchecked"}',
+      ),
+    ).not.toHaveProperty("replyCheck");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { ArrowLeft, House, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,8 +11,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CHATS_LIST_PATH,
+  CHAT_WELCOME_PATH,
+} from "@/app/chat/utils/chat-route-base";
 import { useNavPathname } from "@/components/navigation-progress.client";
+import { RestingIntentLink } from "@/components/resting-intent-link";
 import {
   SidebarGroup,
   SidebarMenu,
@@ -45,7 +49,7 @@ export function SidebarPanelProvider({ children }: { children: ReactNode }) {
   const section =
     (selection.pathname === pathname ? selection.section : null) ??
     sidebarSection(navPathname) ??
-    "work";
+    "chats";
   const value = useMemo(
     () => ({
       section,
@@ -63,7 +67,7 @@ export function useSidebarPanel() {
   const pathname = useNavPathname();
   return (
     context ?? {
-      section: sidebarSection(pathname) ?? "work",
+      section: sidebarSection(pathname) ?? "chats",
       selectSection: undefined,
     }
   );
@@ -77,13 +81,71 @@ export function SidebarContextPanel({
   chats: ReactNode;
   children: ReactNode;
 }) {
-  const showChats = useSidebarPanel().section === "chats";
+  const { section, selectSection } = useSidebarPanel();
+  const { isMobile } = useSidebar();
+  const showChats = section === "chats";
 
   return (
     <div id="app-sidebar-panel">
-      <div hidden={showChats}>{children}</div>
-      <div hidden={!showChats}>{chats}</div>
+      <div hidden={showChats}>
+        {children}
+        {isMobile && !showChats && selectSection ? (
+          <BackToRooms onClick={() => selectSection("chats")} />
+        ) : null}
+      </div>
+      <div hidden={!showChats}>
+        <SidebarChatHome />
+        {chats}
+      </div>
     </div>
+  );
+}
+
+function SidebarChatHome() {
+  const t = useTranslations("App.Sidebar.Content.MenuItems");
+  const { setOpenMobile } = useSidebar();
+  const isActive = useNavPathname() === CHAT_WELCOME_PATH;
+
+  return (
+    <SidebarGroup>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive}>
+            <RestingIntentLink
+              href={CHAT_WELCOME_PATH}
+              prefetchContent={!isActive}
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => setOpenMobile(false)}
+            >
+              <SidebarRowSlot aria-hidden>
+                <House aria-hidden />
+              </SidebarRowSlot>
+              <span className={SIDEBAR_ROW_LABEL_CLASS}>{t("home")}</span>
+            </RestingIntentLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
+function BackToRooms({ onClick }: { onClick: () => void }) {
+  const nav = useTranslations("App.Channels.MobileNav");
+  return (
+    <SidebarGroup>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton type="button" onClick={onClick}>
+            <SidebarRowSlot aria-hidden>
+              <ArrowLeft aria-hidden />
+            </SidebarRowSlot>
+            <span className={SIDEBAR_ROW_LABEL_CLASS}>
+              {nav("backToRooms")}
+            </span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
   );
 }
 
@@ -104,12 +166,12 @@ function MobileChatsLink() {
             <Link
               href={CHAT_CHATS_LIST_PATH}
               aria-current={isActive ? "page" : undefined}
-              onNavigate={() => setOpenMobile(false)}
+              onClick={() => setOpenMobile(false)}
             >
               <SidebarRowSlot aria-hidden>
                 <MessageCircle aria-hidden />
               </SidebarRowSlot>
-              <span className={SIDEBAR_ROW_LABEL_CLASS}>{nav("chats")}</span>
+              <span className={SIDEBAR_ROW_LABEL_CLASS}>{nav("allChats")}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

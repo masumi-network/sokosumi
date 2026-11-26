@@ -252,6 +252,14 @@ export function prepareEvaluationStep({
   steps: EvaluationStep[];
 }): { messages: ModelMessage[] } | undefined {
   if (!evaluationBinding() || steps.length === 0) return;
+  return { messages: evaluationHistory(initialMessages, steps) };
+}
+
+export function evaluationHistory(
+  initialMessages: PrepareStepInput["initialMessages"],
+  steps: EvaluationStep[],
+): ModelMessage[] {
+  if (steps.length === 0) return initialMessages;
   const observations = steps.flatMap((step) =>
     step.content.flatMap((part) => {
       if (part.type !== "tool-result" && part.type !== "tool-error") return [];
@@ -289,21 +297,19 @@ export function prepareEvaluationStep({
     typeof lastMessage.content === "string"
       ? [{ type: "text" as const, text: lastMessage.content }]
       : lastMessage.content;
-  return {
-    messages: [
-      ...initialMessages.slice(0, -1),
-      {
-        ...lastMessage,
-        content: [
-          ...content,
-          {
-            type: "text" as const,
-            text: trustedContinuation + "\n" + observationBlock,
-          },
-        ],
-      },
-    ],
-  };
+  return [
+    ...initialMessages.slice(0, -1),
+    {
+      ...lastMessage,
+      content: [
+        ...content,
+        {
+          type: "text" as const,
+          text: trustedContinuation + "\n" + observationBlock,
+        },
+      ],
+    },
+  ];
 }
 
 export function evaluationMiddleware(

@@ -1,6 +1,6 @@
 import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
-import { EVAL_CASES, selectEvalCases } from "./eval-cases";
+import { EVAL_CASES, isJudgedEvalCase, selectEvalCases } from "./eval-cases";
 
 /** The tools a case checks the bot calls, or does not call. */
 function toolsCaseChecks(): Set<string> {
@@ -207,5 +207,24 @@ describe("CMO chat setup", () => {
     expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
     expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
     expect(prepared("cmo-brand-fit")).toBe("cmo-brand");
+  });
+});
+
+describe("judged cases", () => {
+  it("are the scenario cases a judge grades, not the check-only ones", () => {
+    const byId = (id: string) => {
+      const found = EVAL_CASES.find((item) => item.id === id);
+      if (!found) throw new Error(`Missing case ${id}`);
+      return found;
+    };
+    expect(isJudgedEvalCase(byId("ambiguous-request"))).toBe(true);
+    const month = EVAL_CASES.find((item) => item.kind === "cmo-month");
+    if (!month) throw new Error("Missing month case");
+    expect(isJudgedEvalCase(month)).toBe(false);
+    expect(
+      EVAL_CASES.filter((item) => item.kind === "standup").every(
+        (item) => !isJudgedEvalCase(item),
+      ),
+    ).toBe(true);
   });
 });
