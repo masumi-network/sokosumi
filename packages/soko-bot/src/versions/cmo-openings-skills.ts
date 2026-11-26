@@ -15,7 +15,12 @@ export function cmoPicksOpenings(skills: readonly string[]): boolean {
 
 /** What Core's month writer adds to its brief for such a version. */
 export const CMO_OPENINGS_WRITING_GUIDE = `## Openings
-For every Social post you write a draft for, give openings: four other first lines for that draft, each a different angle on the same piece (a number from the business, a named customer and what they did, a result, a decision that sounds surprising, a before and after). Each is one line, true from the piece's brief, its claim, the Brand Brain or the draft's own words: never a new number, name or fact. The rest of the draft must still read right under each one. No questions, no advice. Core keeps the strongest of the draft's own first line and these four. Leave openings null for scripts, articles and newsletter issues.`;
+For every Social post you write a draft for, give openings: four other first lines for that draft, one of each kind, in this order:
+1. A number or price from the Brand Brain that bears on the piece's point.
+2. A named customer from the proof and what they got.
+3. The result the reader gets, said as a fact.
+4. A decision or contrast that sounds surprising at first.
+Each is a new way in, not the draft's first line in other words. It may bring in one fact from the Brand Brain or the proof that supports the piece's point, said as the source says it; never a number, name or fact that is not there. When the Brand Brain has nothing for a kind, write the strongest line you can of another kind. The rest of the draft must still read right under each one. One line, no question, no advice. Core keeps the strongest of the draft's own first line and these four. Leave openings null for scripts, articles and newsletter issues.`;
 
 export const CMO_PICKED_OPENINGS: SokoBotSkill = {
   id: CMO_PICKED_OPENINGS_SKILL,

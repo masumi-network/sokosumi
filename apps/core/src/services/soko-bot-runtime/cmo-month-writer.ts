@@ -111,6 +111,7 @@ import {
   cmoOpeningCandidates,
   cmoPickOpening,
   cmoPicksOpeningOn,
+  firstLineOf,
   withOpening,
 } from "./cmo-openings";
 import {
@@ -676,49 +677,62 @@ export async function writeCmoMonthPieces(
   };
   // cmo-v23-openings: each Social post keeps the strongest of its first lines.
   const grounding = JSON.stringify(compactBrandBrain(brain));
+  // Openings the month already has, so two posts never open on one number.
+  const takenOpenings = cmoSaidLines(strategy.calendar);
+  const pickOpening = async (
+    written: WrittenPiece,
+  ): Promise<{ written: WrittenPiece; costUsd: number }> => {
+    const piece = byId.get(written.id);
+    if (
+      !piece ||
+      !written.draft?.trim() ||
+      !written.openings?.length ||
+      !cmoPicksOpeningOn(piece.channel) ||
+      deadline - Date.now() < SAVE_RESERVE_MS + OPENING_PICK_MS
+    )
+      return { written, costUsd: 0 };
+    const grounded = [
+      written.draft,
+      piece.title,
+      piece.brief ?? "",
+      piece.claim ?? "",
+      piece.story ?? "",
+      ...proof,
+      grounding,
+    ].join("\n");
+    const candidates = cmoOpeningCandidates(
+      written.draft,
+      written.openings,
+      piece.channel,
+      grounded,
+      takenOpenings,
+    );
+    const pick =
+      candidates.length === 0
+        ? { opening: null, costUsd: 0 }
+        : await cmoPickOpening({
+            candidates,
+            channel: piece.channel,
+            businessName: cuso.businessName,
+          });
+    const draft = pick.opening
+      ? withOpening(written.draft, pick.opening)
+      : written.draft;
+    takenOpenings.push(firstLineOf(draft));
+    return { written: { ...written, draft }, costUsd: pick.costUsd };
+  };
+  /** One piece after another, so each sees the openings picked before it. */
   const pickOpenings = async (
     results: readonly WrittenPiece[],
   ): Promise<WrittenPiece[]> => {
     if (!openings) return [...results];
+    const picked: WrittenPiece[] = [];
     let costUsd = 0;
-    const picked = await Promise.all(
-      results.map(async (written) => {
-        const piece = byId.get(written.id);
-        if (
-          !piece ||
-          !written.draft?.trim() ||
-          !written.openings?.length ||
-          !cmoPicksOpeningOn(piece.channel) ||
-          deadline - Date.now() < SAVE_RESERVE_MS + OPENING_PICK_MS
-        )
-          return written;
-        const grounded = [
-          written.draft,
-          piece.title,
-          piece.brief ?? "",
-          piece.claim ?? "",
-          piece.story ?? "",
-          ...proof,
-          grounding,
-        ].join("\n");
-        const candidates = cmoOpeningCandidates(
-          written.draft,
-          written.openings,
-          piece.channel,
-          grounded,
-        );
-        if (candidates.length < 2) return written;
-        const pick = await cmoPickOpening({
-          candidates,
-          channel: piece.channel,
-          businessName: cuso.businessName,
-        });
-        costUsd += pick.costUsd;
-        return pick.opening
-          ? { ...written, draft: withOpening(written.draft, pick.opening) }
-          : written;
-      }),
-    );
+    for (const written of results) {
+      const result = await pickOpening(written);
+      picked.push(result.written);
+      costUsd += result.costUsd;
+    }
     await chargeCheck(input, SOKO_BOT_JEV_MODEL, costUsd);
     return picked;
   };

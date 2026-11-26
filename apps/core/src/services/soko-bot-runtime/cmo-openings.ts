@@ -83,16 +83,55 @@ export function cmoOpeningProblems(
   return problems;
 }
 
+function numbersOf(line: string): string[] {
+  return (line.match(NUMBER) ?? []).map(digits);
+}
+
+function wordsOf(line: string): Set<string> {
+  return new Set(line.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+}
+
+/** Share of words two lines have in common, of all words in either. */
+function overlap(a: Set<string>, b: Set<string>): number {
+  const shared = [...a].filter((word) => b.has(word)).length;
+  return shared / Math.max(1, new Set([...a, ...b]).size);
+}
+
+const SAME_WORDS = 0.5;
+
+/**
+ * Whether a line opens like one the month already has: on the same numbers
+ * (every post opened on one customer's 15% or one price), or in mostly the
+ * same words.
+ */
+export function cmoOpeningRepeats(
+  line: string,
+  taken: readonly string[],
+): boolean {
+  const numbers = numbersOf(line);
+  const words = wordsOf(line);
+  return taken.some((other) => {
+    const theirs = new Set(numbersOf(other));
+    return (
+      (numbers.length > 0 && numbers.every((number) => theirs.has(number))) ||
+      overlap(words, wordsOf(other)) >= SAME_WORDS
+    );
+  });
+}
+
 /**
  * The first lines worth comparing: the draft's own first, then each
- * alternative code finds no problem in, once each. The draft's own line
- * stays a candidate even with a problem, since the draft already has it.
+ * alternative code finds no problem in, once each. A line that repeats an
+ * opening the month already has is left out (given the proof, every post
+ * opened on the same customer's result); the draft's own line is kept even
+ * then, and with any other problem, when nothing else is left.
  */
 export function cmoOpeningCandidates(
   draft: string,
   alternatives: readonly string[],
   channel: string,
   grounded: string,
+  taken: readonly string[] = [],
 ): string[] {
   const own = firstLineOf(draft);
   const seen = new Set([own.toLowerCase()]);
@@ -102,9 +141,15 @@ export function cmoOpeningCandidates(
       const key = line.toLowerCase();
       if (!line || seen.has(key)) return false;
       seen.add(key);
-      return cmoOpeningProblems(line, channel, grounded).length === 0;
+      return (
+        !cmoOpeningRepeats(line, taken) &&
+        cmoOpeningProblems(line, channel, grounded).length === 0
+      );
     });
-  return own ? [own, ...fresh] : fresh;
+  if (!own) return fresh;
+  return cmoOpeningRepeats(own, taken) && fresh.length > 0
+    ? fresh
+    : [own, ...fresh];
 }
 
 /** How much more likely "a beats b" must be than "b beats a" to win. */

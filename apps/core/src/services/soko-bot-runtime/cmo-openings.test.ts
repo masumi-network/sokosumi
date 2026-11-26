@@ -6,6 +6,7 @@ import {
   type CompareOpenings,
   cmoOpeningCandidates,
   cmoOpeningProblems,
+  cmoOpeningRepeats,
   cmoPickOpening,
   withOpening,
 } from "./cmo-openings";
@@ -69,6 +70,33 @@ describe("cmoOpeningCandidates", () => {
       "Routing forms pick the right rep.",
       "Rho cut no-shows from 18% to 7%.",
     ]);
+  });
+});
+
+describe("cmoOpeningRepeats", () => {
+  it("finds the same numbers or mostly the same words", () => {
+    const taken = ["NMKR Studio minting costs 3% or a minimum of 2 ADA."];
+    expect(cmoOpeningRepeats("Minting is 3% or 2 ADA a token.", taken)).toBe(
+      true,
+    );
+    expect(
+      cmoOpeningRepeats("NMKR Studio minting costs 3% or less.", taken),
+    ).toBe(true);
+    expect(cmoOpeningRepeats("Book.io sold 130,000 NFTs on NMKR.", taken)).toBe(
+      false,
+    );
+  });
+
+  it("drops a repeating own line when another candidate is left", () => {
+    expect(
+      cmoOpeningCandidates(
+        DRAFT,
+        ["Rho cut no-shows from 18% to 7%."],
+        "linkedin",
+        DRAFT,
+        ["Routing forms pick the right rep for you."],
+      ),
+    ).toEqual(["Rho cut no-shows from 18% to 7%."]);
   });
 });
 
