@@ -43,12 +43,13 @@ import { SeoAuditOnboarding } from "./seo-audit-onboarding";
 import { type SeoAuditLastCheck, seoAuditCheckState } from "./seo-audit-status";
 import { SeoDate } from "./seo-shared";
 import { useCreateSeoAudit } from "./use-create-seo-audit";
+import { useSeoAuditList } from "./use-seo-audit-list";
 
 const SAVED_AUDITS_TITLE_ID = "seo-saved-audits";
 const AUDIT_ROW_CLASS = "flex min-w-0 items-center gap-3 p-4";
 
 export function SeoAuditIndex({
-  audits,
+  audits: serverAudits,
   nextCursor,
   cursor = null,
   projectId,
@@ -70,6 +71,12 @@ export function SeoAuditIndex({
 }) {
   const t = useTranslations("App.Seo");
   const tSearch = useTranslations("App.PageSearch");
+  // A search ranks the whole list on the server, so only the plain list reads again.
+  const audits = useSeoAuditList(
+    serverAudits,
+    { projectId, archived, cursor },
+    !searching,
+  );
   const hasAudits = audits.length > 0 || Boolean(nextCursor);
   const form = useCreateSeoAudit(projectId, !archived && addOpen && hasAudits);
   const [pending, startRestore] = useTransition();

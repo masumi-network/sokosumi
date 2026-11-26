@@ -1,4 +1,5 @@
 import type { SeoAuditSummary } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -8,6 +9,7 @@ import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
 import { setSeoAuditArchivedAction } from "@/lib/actions/seo/set-audit-archived";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditIndex } from "./seo-audit-index";
+import { SEO_AUDIT_LIST_REFRESH_MS } from "./seo-audit-status";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -19,6 +21,14 @@ vi.mock("@/lib/actions/seo/set-audit-archived", () => ({
 }));
 vi.mock("@/lib/actions/seo/create-audit", () => ({
   createSeoAuditAction: vi.fn(),
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      session: { activeOrganizationId: null },
+      user: { id: "owner" },
+    },
+  }),
 }));
 
 const AUDIT: SeoAuditSummary = {
@@ -40,23 +50,29 @@ function show(
     archived?: boolean;
   } = {},
 ) {
-  render(
-    <NextIntlClientProvider
-      locale="en"
-      timeZone="UTC"
-      messages={messages}
-      formats={createFormats()}
-    >
-      <SeoAuditIndex
-        audits={audits}
-        archived={options.archived}
-        cursor={options.cursor ?? null}
-        nextCursor={options.nextCursor ?? null}
-        projectId={options.projectId ?? null}
-        addOpen={addOpen}
-      />
-    </NextIntlClientProvider>,
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const tree = (list: SeoAuditSummary[]) => (
+    <QueryClientProvider client={client}>
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        messages={messages}
+        formats={createFormats()}
+      >
+        <SeoAuditIndex
+          audits={list}
+          archived={options.archived}
+          cursor={options.cursor ?? null}
+          nextCursor={options.nextCursor ?? null}
+          projectId={options.projectId ?? null}
+          addOpen={addOpen}
+        />
+      </NextIntlClientProvider>
+    </QueryClientProvider>
   );
+  return render(tree(audits));
 }
 
 describe("SEO audit list", () => {
@@ -126,6 +142,48 @@ describe("SEO audit list", () => {
     expect(
       row("Done").queryByText(messages.App.Seo.setup.checkRunningBadge),
     ).toBeNull();
+  });
+
+  it("reads the list again while a check runs and shows the finished check without a reload", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const at = new Date();
+      const check = (status: "running" | "completed") => ({
+        kind: "page_check" as const,
+        status,
+        createdAt: at,
+        updatedAt: at,
+      });
+      const fetchMock = vi.fn(async (_url: string) =>
+        Response.json({
+          audits: [{ ...AUDIT, lastCheck: check("completed") }],
+          pagination: null,
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      show([{ ...AUDIT, lastCheck: check("running") }], false, {
+        projectId: "6a3f5c1e-0d62-4f0e-8d4e-6d6f1a9c2b11",
+      });
+      expect(
+        screen.getByText(messages.App.Seo.setup.checkRunningBadge),
+      ).toBeVisible();
+      expect(fetchMock).not.toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(SEO_AUDIT_LIST_REFRESH_MS));
+      await waitFor(() =>
+        expect(screen.getByText(/Last check: Page check/)).toBeVisible(),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        "/api/seo/audits?projectId=6a3f5c1e-0d62-4f0e-8d4e-6d6f1a9c2b11",
+      );
+      await act(() =>
+        vi.advanceTimersByTimeAsync(SEO_AUDIT_LIST_REFRESH_MS * 2),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it.each([{ audits: [] }, { audits: [AUDIT] }])(

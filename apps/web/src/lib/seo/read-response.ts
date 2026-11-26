@@ -45,7 +45,8 @@ export function requireMatchingSeoViewer(
 
 export async function readSeoResponse(
   request: Request,
-  owner: SeoOwner,
+  /** `null` for a read that no single Audit or Project owns, such as the Audit list. */
+  owner: SeoOwner | null,
   read: (userId: string) => Promise<unknown>,
 ) {
   const session = await readRouteSession();
@@ -53,7 +54,7 @@ export async function readSeoResponse(
     return coreSessionUnavailableJson("SEO unavailable", session);
   if (session.status === "signedOut")
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!z.uuid().safeParse(owner.id).success)
+  if (owner && !z.uuid().safeParse(owner.id).success)
     return NextResponse.json(
       { error: "Invalid SEO identifier" },
       { status: 400 },
@@ -87,6 +88,21 @@ export function readSeoWorkspaceResponse(request: Request, owner: SeoOwner) {
       Object.fromEntries(new URL(request.url).searchParams),
     );
     return seoServiceNoRedirect.getWorkspace(owner, query);
+  });
+}
+
+const auditListQuerySchema = z.object({
+  projectId: z.uuid().optional(),
+  status: z.enum(["active", "archived"]).optional(),
+  cursor: z.string().max(200).optional(),
+});
+
+export function readSeoAuditListResponse(request: Request) {
+  return readSeoResponse(request, null, async () => {
+    const query = auditListQuerySchema.parse(
+      Object.fromEntries(new URL(request.url).searchParams),
+    );
+    return seoServiceNoRedirect.listAudits(query);
   });
 }
 
