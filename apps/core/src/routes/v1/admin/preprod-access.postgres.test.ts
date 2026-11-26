@@ -214,7 +214,8 @@ describe.skipIf(!enabled)("Preprod access", () => {
     oauthClientId = randomUUID();
     const scopes = ["sokosumi:api"];
     await prisma.oauthClient.create({
-      data: { clientId: oauthClientId, scopes },
+      // First-party, so a guard that lets only first-party OAuth through fails.
+      data: { clientId: oauthClientId, scopes, skipConsent: true },
     });
     await prisma.oauthConsent.create({
       data: { clientId: oauthClientId, userId: admin.id, scopes },
@@ -298,7 +299,11 @@ describe.skipIf(!enabled)("Preprod access", () => {
       },
     });
     await prisma.apikey.deleteMany({ where: { referenceId: { in: userIds } } });
-    await prisma.oauthClient.deleteMany({ where: { clientId: oauthClientId } });
+    if (oauthClientId) {
+      await prisma.oauthClient.deleteMany({
+        where: { clientId: oauthClientId },
+      });
+    }
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.deleteMany({ where: { id: vendorId } });
     await prisma.organization.deleteMany({
@@ -425,52 +430,70 @@ describe.skipIf(!enabled)("Preprod access", () => {
     }
   });
 
-  it("lists the switch applied last as the newest, whichever transaction began first", async () => {
-    const transaction = prisma.$transaction.bind(prisma);
-    for (const target of await targets()) {
-      let began!: () => void;
-      const beginning = new Promise<void>((resolve) => {
-        began = resolve;
-      });
-      let release!: () => void;
-      const released = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      // The first switch's transaction begins, then waits for the second.
-      vi.spyOn(prisma, "$transaction").mockImplementationOnce(
-        async (callback, options) =>
-          transaction(async (tx) => {
-            await tx.$queryRaw`SELECT 1`;
-            began();
-            await released;
-            return callback(tx);
-          }, options),
-      );
-      const appliedSecond = put({ cookie: adminCookie }, target.path, {
-        enabled: false,
-        reason: "SOK-9: applied second",
-      });
-      await beginning;
-      const appliedFirst = await put({ cookie: adminCookie }, target.path, {
-        enabled: true,
-        reason: "SOK-9: applied first",
-      });
-      expect(appliedFirst.status).toBe(200);
-      release();
-      expect((await appliedSecond).status).toBe(200);
+  it.each([
+    ["on one host clock", 0],
+    ["when its host clock is 250 ms behind", 250],
+  ])(
+    "lists the switch applied last as the newest, whichever transaction began first, %s",
+    async (_, behindMs) => {
+      const transaction = prisma.$transaction.bind(prisma);
+      for (const target of await targets()) {
+        let began!: () => void;
+        const beginning = new Promise<void>((resolve) => {
+          began = resolve;
+        });
+        let release!: () => void;
+        const released = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        // The first switch's transaction begins, then waits for the second.
+        vi.spyOn(prisma, "$transaction").mockImplementationOnce(
+          async (callback, options) =>
+            transaction(async (tx) => {
+              await tx.$queryRaw`SELECT 1`;
+              began();
+              await released;
+              return callback(tx);
+            }, options),
+        );
+        const appliedSecond = put({ cookie: adminCookie }, target.path, {
+          enabled: false,
+          reason: "SOK-9: applied second",
+        });
+        await beginning;
+        try {
+          const appliedFirst = await put({ cookie: adminCookie }, target.path, {
+            enabled: true,
+            reason: "SOK-9: applied first",
+          });
+          expect(appliedFirst.status).toBe(200);
+          if (behindMs > 0) {
+            // Only the application's clock: the database keeps its own.
+            vi.useFakeTimers({ toFake: ["Date"] });
+            vi.setSystemTime(Date.now() - behindMs);
+          }
+        } finally {
+          release();
+        }
+        try {
+          expect((await appliedSecond).status).toBe(200);
+        } finally {
+          vi.useRealTimers();
+        }
 
-      expect(await flagOf(target.type, target.id)).toBe(false);
-      const read = await request({ cookie: adminCookie }, target.path);
-      const { data } = (await read.json()) as AccessBody;
-      expect(data.enabled).toBe(false);
-      expect(
-        data.changes.map(({ enabled, reason }) => [enabled, reason]),
-      ).toEqual([
-        [false, "SOK-9: applied second"],
-        [true, "SOK-9: applied first"],
-      ]);
-    }
-  });
+        expect(await flagOf(target.type, target.id)).toBe(false);
+        const read = await request({ cookie: adminCookie }, target.path);
+        const { data } = (await read.json()) as AccessBody;
+        expect(data.enabled).toBe(false);
+        expect(
+          data.changes.map(({ enabled, reason }) => [enabled, reason]),
+        ).toEqual([
+          [false, "SOK-9: applied second"],
+          [true, "SOK-9: applied first"],
+        ]);
+      }
+    },
+  );
 
   it("answers from its own transaction when the target is deleted right after", async () => {
     const transaction = prisma.$transaction.bind(prisma);

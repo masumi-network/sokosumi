@@ -1,4 +1,5 @@
 import { forbidden, notFound } from "@/helpers/error";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
@@ -64,10 +65,11 @@ export async function preprodAccessOf(
 
 /**
  * Switches the flag and records the change in one transaction, and answers
- * from that transaction: a target deleted at any point is 404 with nothing
- * written. A value the row already holds changes nothing and records nothing,
- * as a repeated refund does on the other operator audit tables; the condition
- * is in the update, so two equal requests at once record one change.
+ * from that transaction: a target the transaction does not find is 404 with
+ * nothing written; one deleted after the commit still gets its 200. A value
+ * the row already holds changes nothing and records nothing, as a repeated
+ * refund does on the other operator audit tables; the condition is in the
+ * update, so two equal requests at once record one change.
  */
 export function setPreprodAccess(input: {
   target:
@@ -102,11 +104,13 @@ export function setPreprodAccess(input: {
     }
     const changed = { type: target.type, id: current.id };
     if (count > 0) {
-      // Prisma stamps `createdAt` here, after the update and under its row
-      // lock, so the newest record is the last switch; the column's own
-      // default would be the transaction's start.
+      // The database's clock, read after the update and under its row lock,
+      // so the newest record is the last switch on any Core host; Prisma's
+      // own stamp is the host's clock, the column default the transaction's
+      // start.
       await tx.preprodAccessChange.create({
         data: {
+          createdAt: await databaseNow(tx),
           targetType: changed.type,
           targetId: changed.id,
           enabled,
