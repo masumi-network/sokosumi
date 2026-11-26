@@ -64,33 +64,72 @@ const KIND_LABELS: Record<CmoReport["kind"], string> = {
  */
 export function cmoReportCard(report: CmoReport, projectId: string) {
   const production = report.kind === "production";
-  // Nothing ran yet: Cuso's changes and done lines are what he proposes.
-  const pending = report.awaitsApproval === true && !report.revertedAt;
+  const proposed = proposedLines(report);
   return {
-    title: report.headline,
+    title: cmoReportTitle(report),
     status: report.revertedAt
       ? "Reverted"
-      : pending
+      : proposed
         ? "Waits for your approval"
         : KIND_LABELS[report.kind],
-    summary: production ? null : (report.results ?? null),
+    summary: production || proposed ? null : (report.results ?? null),
     // The newest report is the Project's latest update.
     sourceHref: `/projects/${encodeURIComponent(projectId)}`,
     details: production
       ? []
       : [
-          ...(pending ? [{ label: "Not yet", value: AWAITS_APPROVAL }] : []),
-          ...report.changes.map((value) => ({
-            label: pending ? "Proposed" : "Changed",
-            value,
-          })),
-          ...report.done.map((value) => ({
-            label: pending ? "Proposed" : "Done",
-            value,
-          })),
+          ...(proposed
+            ? [
+                { label: "Not yet", value: AWAITS_APPROVAL },
+                ...proposed.map((value) => ({ label: "Proposed", value })),
+              ]
+            : [
+                ...report.changes.map((value) => ({ label: "Changed", value })),
+                ...report.done.map((value) => ({ label: "Done", value })),
+              ]),
           ...report.upNext.map((value) => ({ label: "Up next", value })),
         ].slice(0, 8),
   };
+}
+
+/**
+ * Nothing ran yet: everything Cuso wrote, his headline included, is what he
+ * proposes. Null when the report is not waiting on the owner.
+ */
+function proposedLines(report: CmoReport): string[] | null {
+  if (!report.awaitsApproval || report.revertedAt) return null;
+  return [
+    report.headline,
+    ...(report.results ? [report.results] : []),
+    ...report.changes,
+    ...report.done,
+  ];
+}
+
+/** The card's title and chat text: Core's own words while the change waits. */
+export function cmoReportTitle(report: CmoReport): string {
+  return proposedLines(report) ? AWAITS_APPROVAL_TITLE : report.headline;
+}
+
+const AWAITS_APPROVAL_TITLE = "A strategy change waits for your approval";
+
+/**
+ * The report as CMO shows it to the owner. A change still waiting for
+ * approval ticks nothing off: Core's title leads, and Cuso's lines are what
+ * comes once the owner approves.
+ */
+export function cmoReportForOwner<T extends CmoReport>(report: T): T {
+  const proposed = proposedLines(report);
+  return proposed
+    ? {
+        ...report,
+        headline: AWAITS_APPROVAL_TITLE,
+        results: undefined,
+        changes: [],
+        done: [],
+        upNext: [AWAITS_APPROVAL, ...proposed, ...report.upNext].slice(0, 12),
+      }
+    : report;
 }
 
 /** The report as the Project's latest update: Markdown under a TL;DR. */
@@ -99,16 +138,17 @@ export function cmoReportMarkdown(report: CmoReport): string {
     items.length > 0
       ? [`## ${title}`, "", ...items.map((item) => `- ${item}`)]
       : [];
+  const proposed = proposedLines(report);
   return [
     [`# ${KIND_LABELS[report.kind]} report`],
-    ["## TL;DR", "", report.headline],
-    report.results ? ["## Results", "", report.results] : [],
-    ...(report.awaitsApproval
-      ? [
-          ["## Waits for your approval", "", AWAITS_APPROVAL],
-          list("Proposed", [...report.changes, ...report.done]),
-        ]
-      : [list("Changes", report.changes), list("Done", report.done)]),
+    ["## TL;DR", "", cmoReportTitle(report)],
+    ...(proposed
+      ? [["## Not yet", "", AWAITS_APPROVAL], list("Proposed", proposed)]
+      : [
+          report.results ? ["## Results", "", report.results] : [],
+          list("Changes", report.changes),
+          list("Done", report.done),
+        ]),
     list("Up next", report.upNext),
   ]
     .filter((section) => section.length > 0)

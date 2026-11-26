@@ -499,6 +499,16 @@ describe("what write_strategy answers", () => {
       cmoStrategyStepAnswer({ state: "failed", reason: "x" }, false),
     ).toMatchObject({ next: expect.stringContaining("rest of the owner") });
   });
+
+  it("says a chat change waits for approval and moved no post", () => {
+    const answer = cmoStrategyStepAnswer(saved, false, true);
+    expect(answer).toMatchObject({
+      written: true,
+      upcomingPosts: expect.stringContaining("unchanged"),
+      next: expect.stringContaining("takes effect once they approve it"),
+    });
+    expect(answer.next).not.toContain("The strategy is saved.");
+  });
 });
 
 describe("step turns", () => {

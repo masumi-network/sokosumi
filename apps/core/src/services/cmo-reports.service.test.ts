@@ -83,6 +83,7 @@ vi.mock("@/services/cmo-production.service", async (importOriginal) => ({
   kickCmoProduction: vi.fn(),
 }));
 
+import { cmoReportForOwner } from "@/helpers/cmo-report-card";
 import {
   listCmoReports,
   reportCmoUpdate,
@@ -308,7 +309,8 @@ describe("report_update", () => {
     sokoBotFindUnique.mockResolvedValue(cuso());
     const update = {
       kind: "request" as const,
-      headline: "No more Friday posts",
+      headline: "Your Friday posts moved to Thursday",
+      results: "Upcoming content now matches the new cadence.",
       done: ["Moved the Friday posts to Thursday"],
       upNext: [],
       changes: ["More X, less LinkedIn"],
@@ -321,21 +323,41 @@ describe("report_update", () => {
     });
     expect(record.awaitsApproval).toBe(true);
     const { create } = messageUpsert.mock.calls[0]?.[0];
+    // Core's words lead; none of Cuso's claims reads as done.
+    expect(create.content).toBe("A strategy change waits for your approval");
     expect(create.metadata.result_preview_snapshots[0].data).toMatchObject({
+      title: "A strategy change waits for your approval",
       status: "Waits for your approval",
+      summary: null,
       details: [
         {
           label: "Not yet",
           value:
             "Your upcoming posts change once you approve the new strategy.",
         },
+        { label: "Proposed", value: "Your Friday posts moved to Thursday" },
+        {
+          label: "Proposed",
+          value: "Upcoming content now matches the new cadence.",
+        },
         { label: "Proposed", value: "More X, less LinkedIn" },
         { label: "Proposed", value: "Moved the Friday posts to Thursday" },
       ],
     });
-    expect(projectUpdateMany.mock.calls[0]?.[0].data.latestUpdateMd).toContain(
-      "## Waits for your approval",
+    const markdown: string =
+      projectUpdateMany.mock.calls[0]?.[0].data.latestUpdateMd;
+    expect(markdown).toContain(
+      "## TL;DR\n\nA strategy change waits for your approval",
     );
+    expect(markdown).not.toContain("## Done");
+    expect(markdown).not.toContain("## Results");
+    // CMO's own update list ticks nothing off either.
+    expect(cmoReportForOwner(record)).toMatchObject({
+      headline: "A strategy change waits for your approval",
+      done: [],
+      changes: [],
+      results: undefined,
+    });
 
     // A request that saved no new version, or Cuso claiming the flag, is a report as before.
     messageUpsert.mockClear();
@@ -349,6 +371,61 @@ describe("report_update", () => {
     expect(
       messageUpsert.mock.calls[0]?.[0].create.metadata
         .result_preview_snapshots[0].data.status,
+    ).toBe("Request");
+  });
+
+  it("keeps waiting for approval when the chat rewrites its run's card", async () => {
+    // The background run wrote the version; the parent chat turn rewrites
+    // the run's card.
+    seedStrategy(strategy, { approvedAt: new Date("2026-11-01T09:00:00Z") });
+    const proposed = seedStrategy(revised, { authorTurnId: "run-1" });
+    sokoBotFindUnique.mockResolvedValue(cuso());
+    turnFindMany.mockResolvedValue([{ id: "run-1" }]);
+    messageFindMany.mockResolvedValue([
+      {
+        id: MESSAGE_ID,
+        clientMessageId: "cmo-report:run-1:call-9",
+        metadata: reportMessage({ kind: "request", awaitsApproval: true })
+          .metadata,
+      },
+    ]);
+    messageUpdate.mockImplementation(async (args) => ({
+      id: args.where.id,
+      createdAt: new Date("2026-10-05T09:03:00Z"),
+      metadata: args.data.metadata,
+    }));
+    const update = {
+      kind: "request" as const,
+      headline: "Fridays are off now",
+      done: [],
+      upNext: [],
+      changes: [],
+    };
+    const record = await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-2",
+      update,
+    });
+    expect(record.awaitsApproval).toBe(true);
+    const { data } = messageUpdate.mock.calls[0]?.[0];
+    expect(data.content).toBe("A strategy change waits for your approval");
+    expect(data.metadata.result_preview_snapshots[0].data.status).toBe(
+      "Waits for your approval",
+    );
+
+    // Once the owner approved the run's version, the rewrite is a report.
+    Object.assign(proposed, { approvedAt: new Date("2026-11-26T09:00:00Z") });
+    messageUpdate.mockClear();
+    await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-3",
+      update,
+    });
+    expect(
+      messageUpdate.mock.calls[0]?.[0].data.metadata.result_preview_snapshots[0]
+        .data.status,
     ).toBe("Request");
   });
 

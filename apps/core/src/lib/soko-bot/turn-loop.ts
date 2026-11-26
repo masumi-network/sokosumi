@@ -858,11 +858,17 @@ function savedVersionId(result: unknown): string | undefined {
 async function pendingStrategyVersions(
   calls: { capability: string; result: unknown }[],
 ): Promise<Set<string>> {
-  const ids = calls.flatMap((call) =>
-    call.capability === "save_strategy" || call.capability === "write_strategy"
-      ? (savedVersionId(call.result) ?? [])
-      : [],
-  );
+  // The id column is a uuid: anything else in a stored result is no version.
+  const ids = [
+    ...new Set(
+      calls.flatMap((call) =>
+        call.capability === "save_strategy" ||
+        call.capability === "write_strategy"
+          ? (savedVersionId(call.result) ?? [])
+          : [],
+      ),
+    ),
+  ].filter((id) => z.string().uuid().safeParse(id).success);
   if (ids.length === 0) return new Set();
   const versions = await prisma.marketingStrategy.findMany({
     where: { id: { in: ids }, approvedAt: null },
