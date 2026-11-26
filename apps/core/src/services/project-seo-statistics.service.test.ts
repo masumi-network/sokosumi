@@ -149,6 +149,7 @@ vi.mock("@/lib/db/prisma", () => {
       }: {
         where: {
           kind?: string;
+          sourceTaskId?: string;
           pageIds?: { hasSome: string[] };
           AND?: [
             { payload: { equals: string } },
@@ -185,6 +186,15 @@ vi.mock("@/lib/db/prisma", () => {
                 where.pageIds?.hasSome.some((id) =>
                   (row.pageIds as string[]).includes(id),
                 ),
+            ) ?? null
+          );
+        // An audit's own rows: its performance snapshot and its pages' daily series.
+        if (where.sourceTaskId)
+          return (
+            state.observations.find(
+              (row) =>
+                row.kind === where.kind &&
+                row.sourceTaskId === where.sourceTaskId,
             ) ?? null
           );
         if (!where.AND) return null; // No brand terms saved.
@@ -1696,7 +1706,11 @@ describe("Search Console query rows", () => {
           }
         : healthy(slug, args);
     await collectSeoAuditPerformance("audit-task");
-    expect(state.observations).toHaveLength(1);
+    // The snapshot, then each verified page's daily rows for the impact of a done action.
+    expect(state.observations.map((row) => row.kind)).toEqual([
+      "audit_search_performance",
+      "audit_page_search_series",
+    ]);
     expect(state.observations[0]).toMatchObject({
       kind: "audit_search_performance",
       visibility: "PRIVATE",
@@ -1751,7 +1765,8 @@ describe("Search Console query rows", () => {
     }
     const reads = state.reads.length;
     await collectSeoAuditPerformance("audit-task");
-    expect(state.observations).toHaveLength(1);
+    // A second run reads Google again for neither row.
+    expect(state.observations).toHaveLength(2);
     expect(state.reads).toHaveLength(reads);
     expect(
       (await readAuditPerformanceSummaries(actor, ["audit-task"]))

@@ -8,7 +8,11 @@ import {
   AUDIT_PAGE_SERIES_KIND,
   auditPageSeriesSchema,
 } from "@/schemas/seo-action-impact.schema";
-import { normalizeSeoUrl, seoOwnerWhere } from "./project-seo-store";
+import {
+  normalizeSeoUrl,
+  seoLinkedTaskWhere,
+  seoOwnerWhere,
+} from "./project-seo-store";
 
 /** Each audit holds over a year of days per page, so each page needs only its newest few audits. */
 const IMPACT_SERIES_AUDITS = 6;
@@ -18,15 +22,13 @@ const IMPACT_SERIES_AUDITS = 6;
  * An action whose page has no such rows gets no impact: the audit's combined
  * statistics of several pages are never credited to one of them.
  *
- * The rows follow their audit Task: `visibleTasks` holds the Tasks the reader may
- * see, so a member reads the rows of a public audit a colleague requested. The
- * colleague's Google connection stays their own. `ownerId` narrows the rows to
- * the ones a single person collected.
+ * The rows follow their audit Task: a member reads the rows of a public audit a
+ * colleague requested. The colleague's Google connection stays their own.
+ * `ownerId` narrows the rows to the ones a single person collected.
  */
 export async function withSeoActionImpact(
   actor: SeoActor,
   actions: ProjectSeoWorkspace["actions"],
-  visibleTasks: ReadonlySet<string>,
   { days, ownerId }: { days?: number; ownerId?: string } = {},
   now = new Date(),
 ): Promise<ProjectSeoWorkspace["actions"]> {
@@ -42,17 +44,32 @@ export async function withSeoActionImpact(
     select: { id: true },
   });
   if (!pages.length) return actions;
-  const audits = await prisma.projectSeoObservation.findMany({
+  const stored = await prisma.projectSeoObservation.findMany({
     where: {
       ...seoOwnerWhere(actor),
       kind: AUDIT_PAGE_SERIES_KIND,
-      sourceTaskId: { in: [...visibleTasks] },
+      sourceTaskId: { not: null },
       pageIds: { hasSome: pages.map((page) => page.id) },
       ...(ownerId && { ownerId }),
     },
     orderBy: { observedAt: "desc" },
-    select: { id: true, pageIds: true },
+    select: { id: true, pageIds: true, sourceTaskId: true },
   });
+  // The Tasks are checked here, not taken from the report list: that list holds only the newest checks.
+  const visible = new Set(
+    (
+      await prisma.task.findMany({
+        where: {
+          id: { in: stored.flatMap((row) => row.sourceTaskId ?? []) },
+          ...seoLinkedTaskWhere(actor, true),
+        },
+        select: { id: true },
+      })
+    ).map((task) => task.id),
+  );
+  const audits = stored.filter(
+    (row) => row.sourceTaskId && visible.has(row.sourceTaskId),
+  );
   // The limit counts per page: many audits of one page must not hide the only audit of another.
   const wanted = new Set<string>();
   for (const { id } of pages)
@@ -77,7 +94,11 @@ export async function withSeoActionImpact(
       const source = `${data!.propertyId} ${page.measuredUrl}`;
       const held = byPage.get(key) ?? { source, series: [] };
       if (held.source !== source) continue;
-      held.series.push({ from: data!.from, to: data!.to, days: page.days });
+      held.series.push({
+        from: page.from ?? data!.from,
+        to: page.to ?? data!.to,
+        days: page.days,
+      });
       byPage.set(key, held);
     }
   }

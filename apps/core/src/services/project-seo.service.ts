@@ -685,7 +685,7 @@ export async function getProjectSeoWorkspace(
     (options.includeAuditPerformance && !actor.sokoBotId ? {} : null);
   const actions =
     impact && privateMetricsAllowed
-      ? await withSeoActionImpact(actor, reviewedActions, visibleTasks, impact)
+      ? await withSeoActionImpact(actor, reviewedActions, impact)
       : reviewedActions;
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),

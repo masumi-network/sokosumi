@@ -8,6 +8,10 @@ import {
   nativeSeoMetricsSchema,
 } from "@/schemas/project-seo-native-metrics.schema";
 import {
+  AUDIT_PAGE_SERIES_KIND,
+  auditPageSeriesSchema,
+} from "@/schemas/seo-action-impact.schema";
+import {
   AUDIT_PERFORMANCE_KIND,
   AUDIT_QUERY_PREVIEW_LIMIT,
 } from "@/schemas/seo-audit-performance.schema";
@@ -53,6 +57,29 @@ export async function readAuditPerformanceSummaries(
     },
     select: { sourceTaskId: true, ownerId: true, payload: true },
   });
+  // A retry also reads each page's daily rows. A page whose read failed has no impact until then.
+  const series = retry.size
+    ? await prisma.projectSeoObservation.findMany({
+        where: {
+          ...seoOwnerWhere(actor),
+          kind: AUDIT_PAGE_SERIES_KIND,
+          ownerId: actor.userId,
+          sourceTaskId: { in: [...retry] },
+        },
+        select: { sourceTaskId: true, payload: true },
+      })
+    : [];
+  const storedPages = new Map(
+    series.map((row) => {
+      const data = auditPageSeriesSchema.safeParse(row.payload).data;
+      return [
+        row.sourceTaskId,
+        new Set(
+          data?.pages.map((page) => `${data.propertyId} ${page.pageUrl}`),
+        ),
+      ];
+    }),
+  );
   const withDiscovery = observations.flatMap((row) =>
     row.sourceTaskId &&
     row.ownerId === actor.userId &&
@@ -71,9 +98,18 @@ export async function readAuditPerformanceSummaries(
       data.provider !== "search_console"
     )
       return [];
+    const stored = storedPages.get(row.sourceTaskId);
     if (
       data.auditPerformanceComplete &&
-      data.auditDiscovery?.status !== "unavailable"
+      data.auditDiscovery?.status !== "unavailable" &&
+      !(
+        withinSearchConsoleRetention(data.to) &&
+        data.auditMeasuredPages.some(
+          (page) =>
+            page.basis !== "unverified" &&
+            !stored?.has(`${data.propertyId} ${page.pageUrl}`),
+        )
+      )
     )
       retry.delete(row.sourceTaskId);
     const requester = row.ownerId === actor.userId;

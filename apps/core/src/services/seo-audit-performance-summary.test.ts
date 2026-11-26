@@ -1,6 +1,7 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { SeoActor } from "@/schemas/project-seo.schema";
+import { AUDIT_PAGE_SERIES_KIND } from "@/schemas/seo-action-impact.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { readAuditPerformanceSummaries } from "./seo-audit-performance-summary";
 
@@ -51,7 +52,13 @@ const snapshot = {
   },
 };
 
-beforeEach(() => db.observations.mockReset());
+// A hook that returns a function gets it called as a cleanup, so neither returns the mock.
+beforeEach(() => {
+  db.observations.mockReset();
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 it("gives a colleague the snapshot of an audit Task they may see, and no retry on it", async () => {
   db.observations.mockResolvedValue([snapshot]);
@@ -88,4 +95,60 @@ it("reads nothing when the reader may see no audit Task", async () => {
     auditSearchConsoleRetryTaskIds: [],
   });
   expect(db.observations).not.toHaveBeenCalled();
+});
+
+it("keeps the retry for the requester while a verified page has no daily rows", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-07-10T00:00:00Z"));
+  const requester = { ...colleague, userId: "requester" };
+  const complete = {
+    ...snapshot,
+    payload: { ...snapshot.payload, auditPerformanceComplete: true },
+  };
+  const read = (pages: string[], propertyId = snapshot.payload.propertyId) => {
+    db.observations.mockReset();
+    db.observations.mockImplementation(async ({ where }) =>
+      where.kind === AUDIT_PAGE_SERIES_KIND
+        ? [
+            {
+              sourceTaskId: "public-audit",
+              payload: {
+                propertyId,
+                from: "2025-05-25",
+                to: "2026-06-28",
+                pages: pages.map((pageUrl) => ({
+                  pageUrl,
+                  measuredUrl: pageUrl,
+                  days: [],
+                })),
+              },
+            },
+          ]
+        : [complete],
+    );
+    return readAuditPerformanceSummaries(
+      requester,
+      ["public-audit"],
+      ["public-audit"],
+    );
+  };
+  // The page's daily read failed: the report is complete, the impact is not.
+  expect((await read([])).auditSearchConsoleRetryTaskIds).toEqual([
+    "public-audit",
+  ]);
+  expect(
+    // Rows of another property are not this audit's rows.
+    (await read(["https://example.test/a"], "sc-domain:other.test"))
+      .auditSearchConsoleRetryTaskIds,
+  ).toEqual(["public-audit"]);
+  expect(
+    (await read(["https://example.test/a"])).auditSearchConsoleRetryTaskIds,
+  ).toEqual([]);
+  expect(db.observations.mock.calls[1][0].where).toMatchObject({
+    kind: AUDIT_PAGE_SERIES_KIND,
+    ownerId: "requester",
+  });
+  // Google no longer keeps the period: a retry could not read it.
+  vi.setSystemTime(new Date("2027-12-01T00:00:00Z"));
+  expect((await read([])).auditSearchConsoleRetryTaskIds).toEqual([]);
 });

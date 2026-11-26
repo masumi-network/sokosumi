@@ -22,6 +22,9 @@ export const auditPageSeriesSchema = z.object({
       z.object({
         pageUrl: seoUrlSchema,
         measuredUrl: seoUrlSchema,
+        /** The range this page was read for, when a later retry read it for another range than the row's. */
+        from: day.optional(),
+        to: day.optional(),
         days: z.array(
           z.object({
             date: day,

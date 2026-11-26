@@ -24,6 +24,7 @@ import {
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { readNativeSeoTool } from "./project-seo-statistics.service";
 import {
+  normalizeSeoUrl,
   seoOwnerData,
   seoOwnerUnique,
   seoOwnerWhere,
@@ -92,19 +93,18 @@ export async function collectSeoAuditPageSeries(
     .safeParse(performance?.payload)
     .data?.auditMeasuredPages?.filter((page) => page.basis !== "unverified");
   if (!performance || !measured?.length) return;
-  // Pages stored for another property or range are read again: one row holds one range.
-  const sameRange = (payload: unknown) => {
+  // A stored page keeps the range it was read for. A late retry reads fewer days and must not shorten it.
+  const storedPages = (payload: unknown) => {
     const data = auditPageSeriesSchema.safeParse(payload).data;
-    return data?.propertyId === access.propertyId &&
-      data.from === period.from &&
-      data.to === period.to
-      ? data.pages
+    return data?.propertyId === access.propertyId
+      ? data.pages.map((page) => ({ from: data.from, to: data.to, ...page }))
       : [];
   };
   const pages = new Map(
-    sameRange(stored?.payload).map((page) => [page.pageUrl, page]),
+    storedPages(stored?.payload).map((page) => [page.pageUrl, page]),
   );
-  if (measured.every((page) => pages.has(page.pageUrl))) return;
+  const missing = measured.filter((page) => !pages.has(page.pageUrl));
+  if (!missing.length) return;
   const integration = await resolveSeoStatisticsIntegration(
     actor,
     "search_console",
@@ -115,7 +115,7 @@ export async function collectSeoAuditPageSeries(
   )
     return;
   const reads = await Promise.allSettled(
-    measured.map(async (page) => {
+    missing.map(async (page) => {
       const query: NativeStatisticsQuery = {
         provider: "search_console",
         propertyId: access.propertyId,
@@ -153,6 +153,7 @@ export async function collectSeoAuditPageSeries(
       pages.set(page.pageUrl, {
         pageUrl: page.pageUrl,
         measuredUrl: page.measuredUrl,
+        ...period,
         days: points("clicks").map((point) => ({
           date: point.date,
           clicks: point.value ?? 0,
@@ -185,7 +186,7 @@ export async function collectSeoAuditPageSeries(
       where: { ...where, kind: AUDIT_PAGE_SERIES_KIND },
       select: { payload: true },
     });
-    const kept = sameRange(latest?.payload).filter(
+    const kept = storedPages(latest?.payload).filter(
       (page) => !pages.has(page.pageUrl),
     );
     const payload: AuditPageSeries = {
@@ -193,7 +194,18 @@ export async function collectSeoAuditPageSeries(
       ...period,
       pages: [...kept, ...pages.values()],
     };
+    // Only a page with stored days counts as a page of this row: a reader limits the rows it takes per page.
+    const held = new Set(
+      payload.pages.map((page) => normalizeSeoUrl(page.pageUrl)),
+    );
+    const owned = await tx.projectSeoPage.findMany({
+      where: { ...seoOwnerWhere(actor), id: { in: performance.pageIds } },
+      select: { id: true, url: true },
+    });
     const row = {
+      pageIds: owned
+        .filter((page) => held.has(page.url))
+        .map((page) => page.id),
       payload: jsonInput(payload),
       artifactHash: sha256(JSON.stringify(payload)),
       observedAt,
@@ -208,7 +220,6 @@ export async function collectSeoAuditPageSeries(
         sourceTaskId: taskId,
         ownerId: actor.userId,
         visibility: "PRIVATE",
-        pageIds: performance.pageIds,
         ...row,
       },
       update: row,
