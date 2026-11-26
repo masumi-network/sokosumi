@@ -4711,7 +4711,27 @@
       "slideshowIncludes": "Musik und dein Logo am Ende sind inbegriffen.",
       "costDetailShort": "wird erst berechnet, wenn das Video fertig ist, in etwa einer Minute",
       "previewMetaSlideshow": "Keine Stimme: Musik und deine Zeilen im Bild",
-      "aiLabelHintShort": "Dieses Video hat eine generierte Stimme oder Musik. Beim Veröffentlichen wird es als KI-generiert gekennzeichnet."
+      "aiLabelHintShort": "Dieses Video hat eine generierte Stimme oder Musik. Beim Veröffentlichen wird es als KI-generiert gekennzeichnet.",
+      "shapes": {
+        "label": "Formate",
+        "hint": "Du zahlst für das erste Format. Jedes weitere wird kostenlos aus demselben Video geschnitten.",
+        "notForKind": "Eine Website-Tour ist im Quadrat schwer zu lesen.",
+        "previewIn": "Vorschau in",
+        "onStage": "Formate dieses Videos",
+        "making": "(wird geschnitten)",
+        "names": {
+          "9:16": "Hochformat",
+          "4:5": "Feed",
+          "1:1": "Quadrat",
+          "16:9": "Breitbild"
+        },
+        "where": {
+          "9:16": "TikTok, Reels, Shorts",
+          "4:5": "Instagram- und Facebook-Feed",
+          "1:1": "X, LinkedIn, Facebook",
+          "16:9": "YouTube, LinkedIn, X"
+        }
+      }
     },
     "Studio": {
       "back": "Zurück zum Projekt",

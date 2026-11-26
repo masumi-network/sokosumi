@@ -358,6 +358,92 @@ describe("TikTokStudio", () => {
     });
   });
 
+  it("makes the video in every shape picked, and previews each", async () => {
+    startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
+    renderStudio();
+    fireEvent.click(screen.getByRole("button", { name: /names\.16:9/ }));
+    fireEvent.click(screen.getByRole("button", { name: /names\.4:5/ }));
+
+    // The shape just added is previewed.
+    const preview = screen.getByRole("tablist", { name: "shapes.previewIn" });
+    expect(
+      within(preview).getByRole("tab", { selected: true }),
+    ).toHaveTextContent("4:5");
+    fireEvent.click(within(preview).getByRole("tab", { name: /16:9/ }));
+    expect(
+      within(preview).getByRole("tab", { selected: true }),
+    ).toHaveTextContent("16:9");
+
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenCalledWith(
+        expect.objectContaining({ shapes: ["9:16", "4:5", "16:9"] }),
+      ),
+    );
+  });
+
+  it("keeps the last shape: a video is made in one at least", () => {
+    renderStudio();
+    expect(screen.getByRole("button", { name: /names\.9:16/ })).toBeDisabled();
+  });
+
+  it("lists a video once and shows its other shapes on the stage", () => {
+    const job = (id: string, shape: string, sourceJobId: string | null) =>
+      ({
+        id,
+        prompt: SCRIPT,
+        status: "SUCCEEDED",
+        talkingVideo: { presenterId: "maya", shape, sourceJobId },
+      }) as ProjectTalkingVideos["jobs"][number];
+    const asset = (id: string, jobId: string) =>
+      ({
+        id,
+        jobId,
+        contentPath: `/${id}.mp4`,
+      }) as ProjectTalkingVideos["assets"][number];
+    render(
+      <TestQueryProvider>
+        <TikTokStudio
+          catalog={CATALOG}
+          projectId="project-1"
+          readOnly={false}
+          hasWebsite={false}
+          pictures={[]}
+          initialVideos={{
+            jobs: [
+              job("wide", "16:9", "first"),
+              job("square", "1:1", "first"),
+              job("first", "9:16", null),
+            ],
+            assets: [
+              asset("asset-wide", "wide"),
+              asset("asset-square", "square"),
+              asset("asset-first", "first"),
+            ],
+          }}
+        />
+      </TestQueryProvider>,
+    );
+
+    const tiles = screen.getAllByRole("button", { name: /videoReady/ });
+    expect(tiles).toHaveLength(1);
+    fireEvent.click(tiles[0]!);
+    const stage = screen.getByRole("region", { name: "stageVideo" });
+    const tabs = within(stage).getByRole("tablist", { name: "shapes.onStage" });
+    expect(
+      within(tabs)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["9:16", "1:1", "16:9"]);
+    expect(stage.querySelector("video")?.getAttribute("src")).toContain(
+      "asset-first",
+    );
+    fireEvent.click(within(tabs).getByRole("tab", { name: /16:9/ }));
+    expect(stage.querySelector("video")?.getAttribute("src")).toContain(
+      "asset-wide",
+    );
+  });
+
   it("pulses a presenter's tile until their photo has loaded", () => {
     // happy-dom treats every image as already loaded; a browser does not.
     const complete = vi
@@ -936,7 +1022,9 @@ describe("making a short", () => {
     expect(
       screen
         .getAllByRole("button", { pressed: true })
-        .map((button) => button.getAttribute("aria-label")),
+        .map((button) => button.getAttribute("aria-label"))
+        // The shape chips are pressed buttons too.
+        .filter(Boolean),
     ).toEqual([
       "pictureChosen",
       "pictureChosen",
