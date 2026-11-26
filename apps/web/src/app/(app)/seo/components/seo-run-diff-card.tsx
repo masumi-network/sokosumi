@@ -21,7 +21,7 @@ export function SeoRunDiffCard({
   outside = 0,
 }: {
   diff: ProjectSeoRunDiff;
-  /** Open issues the check counts outside its page issues, such as Search Console indexing issues. */
+  /** Open issues the check counts that the comparison leaves out, such as Search Console indexing issues. */
   outside?: number;
 }) {
   const t = useSeoResultTranslations("App.Seo");
@@ -51,7 +51,7 @@ export function SeoRunDiffCard({
     >
       <div>
         <h4 className="font-medium">{title}</h4>
-        {/* Before and now, so the counts add up to the issue count above the card. */}
+        {/* Before and now, so the counts add up to the issue total of the check. */}
         <p className="text-muted-foreground text-xs">
           {t("runDiff.issues", view.issues)}
         </p>
@@ -98,8 +98,18 @@ export function SeoRunDiffCard({
               })}
             </p>
           ) : null}
-          {/* The issue count above the card also counts these: say why it is higher than "now". */}
-          {outside ? <p>{t("runDiff.outside", { count: outside })}</p> : null}
+          {/* The issue total of the check also counts these: say why it is higher than "now". Across a rulebook
+              change with tests only one check ran, some of them can be page issues of those tests. */}
+          {outside ? (
+            <p>
+              {t(
+                view.rulebookChange?.other
+                  ? "runDiff.outsideAny"
+                  : "runDiff.outside",
+                { count: outside },
+              )}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {added?.items.length ? (

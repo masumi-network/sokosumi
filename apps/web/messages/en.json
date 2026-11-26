@@ -14828,7 +14828,8 @@
         },
         "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out.",
         "firstNew": "First new issues",
-        "outside": "{count, plural, one {# more open issue comes from Search Console indexing. It is outside this comparison.} other {# more open issues come from Search Console indexing. They are outside this comparison.}}"
+        "outside": "{count, plural, one {# more open issue comes from Search Console indexing. It is outside this comparison.} other {# more open issues come from Search Console indexing. They are outside this comparison.}}",
+        "outsideAny": "{count, plural, one {# more open issue is outside this comparison: a Search Console indexing issue, or an issue of a test only one check ran.} other {# more open issues are outside this comparison: Search Console indexing issues, or issues of tests only one check ran.}}"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

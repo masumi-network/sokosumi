@@ -165,10 +165,10 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
   expect(
     within(card).getAllByText("Open page issues: 2 before, 5 now"),
   ).toHaveLength(2);
-  // The issue count above the card also counts Search Console indexing issues: the card says so.
+  // The check's issue total is higher: with tests only one check ran, the card names no single cause.
   expect(
     within(card).getByText(
-      "2 more open issues come from Search Console indexing. They are outside this comparison.",
+      "2 more open issues are outside this comparison: Search Console indexing issues, or issues of tests only one check ran.",
     ),
   ).toBeInTheDocument();
   expect(
@@ -188,6 +188,29 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
     ),
   ).toHaveLength(2);
 });
+
+it.each([
+  ["with the same tests", undefined],
+  [
+    "across a rulebook change where both checks ran every test",
+    { compared: 40, other: 0 },
+  ],
+])(
+  "names Search Console indexing as the issues outside a comparison %s",
+  (_, rulebookChange) => {
+    const value = diff({
+      fixedCount: 2,
+      rulebookChange,
+      numbers: { issues: { from: 2, to: 0 }, moves: [], moveCount: 0 },
+    });
+    show(value, <SeoRunDiffCard diff={value} outside={1} />);
+    expect(
+      screen.getByText(
+        "1 more open issue comes from Search Console indexing. It is outside this comparison.",
+      ),
+    ).toBeInTheDocument();
+  },
+);
 
 it.each([
   ["not comparable", diff({ comparable: false, reason: "market" })],
