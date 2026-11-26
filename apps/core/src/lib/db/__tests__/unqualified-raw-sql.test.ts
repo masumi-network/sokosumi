@@ -33,6 +33,13 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 // False findings: a common table expression named like a table, a statement
 // on a temporary table after its `CREATE`, and prose in a comment or string
 // that happens to read like SQL. These are why it does not fail the build.
+// What does fail: the prepare step of CI's job `Test Core PostgreSQL split
+// layout` (`scripts/prepare-raw-sql.ts`), on a bare table or type name in a
+// raw SQL statement under its `SOURCE_PATHS` that it can resolve and prepare.
+// It skips commands PostgreSQL cannot prepare (for example `LOCK TABLE`) and
+// statements with a fragment it cannot resolve: a bare name there fails only
+// in a test that runs that SQL on the split layout. That job is not a
+// required check today, so it turns red and does not block a merge.
 const KEYWORDS = "FROM|JOIN|INTO|UPDATE|USING|TABLE|TRUNCATE|ONLY|REFERENCES";
 
 /**
