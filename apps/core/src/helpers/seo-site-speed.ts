@@ -95,14 +95,20 @@ function readCheck(value: unknown, stored = false) {
 }
 
 /**
+ * How much a measurement shows: a measured field read (it decides the verdict) and a measured lab read. A gap shows
+ * nothing, so a failed read never hides a measured one of the same page and device.
+ */
+function speedEvidence(row: PageSpeedRows[number]) {
+  return (
+    (row.field.status === "measured" ? 2 : 0) +
+    (row.lab.status === "measured" ? 1 : 0)
+  );
+}
+
+/**
  * The URL template of a row: a path, and public text. The worker writes "#" for a number segment. The text
  * guard reads "#" as a URL fragment, so it reads the template with a digit in that segment.
  */
-/** A measurement with a measured lab or field read: it is evidence, not a gap. */
-function speedMeasured(row: PageSpeedRows[number]) {
-  return row.lab.status === "measured" || row.field.status === "measured";
-}
-
 function publicGroup(value: unknown) {
   if (typeof value !== "string") return undefined;
   const group = value.trim();
@@ -172,7 +178,7 @@ export function readSiteSpeed(
     try {
       // The worker fills the other device of a reduced test with a placeholder. Only the row's own devices are read.
       // An audited page's device comes from the audit. A page that is audited only as a redirect target keeps a
-      // device the audit did not measure for it (a redirect on one device only), or measured only as a gap.
+      // device the audit did not measure for it (a redirect on one device only), or measured with less evidence.
       const devices = readPageSpeed(
         row.speed,
         url,
@@ -185,7 +191,7 @@ export function readSiteSpeed(
             !pageSpeed.some(
               (measured) =>
                 measured.device === own.device &&
-                speedMeasured(measured) &&
+                speedEvidence(measured) >= speedEvidence(own) &&
                 [measured.pageUrl, measured.testedUrl]
                   .map(auditedSeoPageKey)
                   .includes(url),
@@ -258,7 +264,8 @@ export function readableStoredSiteSpeed(value: unknown) {
         const measured = reportObject(device);
         return (
           allowed.includes(measured?.device) &&
-          speedPageUrl(measured?.pageUrl) === url
+          speedPageUrl(measured?.pageUrl) === url &&
+          speedPageUrl(measured?.testedUrl) === url
         );
       })
       .flatMap(readableStoredMeasurement)
@@ -345,24 +352,30 @@ export function scopedSiteSpeed(
           ...item,
           devices: item.devices.filter((row) => allowed.includes(row.device)),
         };
-      // One measurement per device: the page's own, else the one of a page that redirects to it, else the
-      // report's own. A measured one comes before a gap: a failed audit read does not hide a measured target.
+      // One measurement per device, the one that shows the most (`speedEvidence`), as the import kept it. On a tie:
+      // the page's own, else the one of a page that redirects to it (in the audit's order), else the report's own.
       return {
         ...item,
         devices: SPEED_DEVICES.flatMap((device) => {
           if (!allowed.includes(device)) return [];
           const on = (key: "pageUrl" | "testedUrl") =>
-            speed.find(
+            speed.filter(
               (row) =>
                 row.device === device &&
                 auditedSeoPageKey(row[key]) === item.url,
             );
           const found = [
-            on("pageUrl"),
-            on("testedUrl"),
-            item.devices.find((row) => row.device === device),
-          ].filter((row) => row !== undefined);
-          return found.find(speedMeasured) ?? found[0] ?? [];
+            ...on("pageUrl"),
+            ...on("testedUrl"),
+            ...item.devices.filter((row) => row.device === device),
+          ];
+          return (
+            found.reduce<(typeof found)[number] | undefined>(
+              (best, row) =>
+                best && speedEvidence(best) >= speedEvidence(row) ? best : row,
+              undefined,
+            ) ?? []
+          );
         }),
       };
     }),

@@ -428,6 +428,131 @@ describe("the speed table in a workspace view", () => {
     ]);
   });
 
+  it("shows the measured read of a target that two audited pages redirect to, whatever the audit's order (review pass 23)", () => {
+    // Two audited pages redirect to /pricing on mobile: one lab test hit a quota, the other measured the page.
+    const other = "https://example.test/other";
+    const measured = readPageSpeed(section(other, EXTRA), other, {
+      mobile: EXTRA,
+    }).filter((own) => own.device === "mobile");
+    const quota = {
+      pageUrl: SEO_TEST_PAGE,
+      testedUrl: EXTRA,
+      device: "mobile" as const,
+      lab: { status: "quota" as const },
+      field: { status: "no_data" as const },
+    };
+    for (const pageSpeed of [
+      [quota, ...measured],
+      [...measured, quota],
+    ]) {
+      const siteSpeed = readSiteSpeed(
+        site([extra(EXTRA)]),
+        [SEO_TEST_PAGE, other],
+        pageSpeed,
+      );
+      const table = scopedSiteSpeed(
+        { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE, other] },
+        row,
+        new Set([SEO_TEST_PAGE, other]),
+      );
+      expect(
+        table?.rows[0]?.devices.map((item) => [
+          item.pageUrl,
+          item.device,
+          item.lab.status,
+        ]),
+      ).toEqual([
+        [other, "mobile", "measured"],
+        [EXTRA, "desktop", "deadline"],
+      ]);
+    }
+  });
+
+  it("gives a measured field read of the audit the target's device over the report's lab read (review pass 23)", () => {
+    // The field read decides the verdict: an audit read with field data shows more than a lab read alone.
+    const [lab] = readPageSpeed(section(EXTRA), EXTRA).filter(
+      (own) => own.device === "mobile",
+    );
+    const field = {
+      pageUrl: SEO_TEST_PAGE,
+      testedUrl: EXTRA,
+      device: "mobile" as const,
+      lab: { status: "quota" as const },
+      field: { ...lab!.lab, status: "measured" },
+    } as unknown as NonNullable<typeof lab>;
+    const pageSpeed = [field];
+    const siteSpeed = readSiteSpeed(
+      site([extra(EXTRA)]),
+      [SEO_TEST_PAGE],
+      pageSpeed,
+    );
+    const table = scopedSiteSpeed(
+      { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
+      row,
+      new Set([SEO_TEST_PAGE]),
+    );
+    expect(
+      table?.rows[0]?.devices.map((item) => [
+        item.pageUrl,
+        item.device,
+        item.lab.status,
+        item.field.status,
+      ]),
+    ).toEqual([
+      [SEO_TEST_PAGE, "mobile", "quota", "measured"],
+      [EXTRA, "desktop", "deadline", "no_data"],
+    ]);
+  });
+
+  it("gives the report's read with field data the target's device over an audit lab read alone (review pass 23)", () => {
+    const pageSpeed = readPageSpeed(
+      section(SEO_TEST_PAGE, EXTRA),
+      SEO_TEST_PAGE,
+      { mobile: EXTRA },
+    ).filter((own) => own.device === "mobile");
+    const own = section(EXTRA);
+    const field = {
+      level: "url",
+      url: EXTRA,
+      period: null,
+      p75: { lcp: 5200, inp: 60, cls: 0, ttfb: null, fcp: null },
+      sourceRefs: [
+        {
+          port: "crux",
+          request: {
+            port: "crux",
+            device: "mobile",
+            url: EXTRA,
+            params: { kind: "record", level: "url" },
+          },
+          outcome: { kind: "ok", status: 200 },
+        },
+      ],
+    };
+    const siteSpeed = readSiteSpeed(
+      site([
+        extra(EXTRA, { speed: { ...own, mobile: { ...own.mobile, field } } }),
+      ]),
+      [SEO_TEST_PAGE],
+      pageSpeed,
+    );
+    const table = scopedSiteSpeed(
+      { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
+      row,
+      new Set([SEO_TEST_PAGE]),
+    );
+    expect(
+      table?.rows[0]?.devices.map((item) => [
+        item.pageUrl,
+        item.device,
+        item.field.status,
+      ]),
+    ).toEqual([
+      [EXTRA, "mobile", "measured"],
+      [EXTRA, "desktop", "no_data"],
+    ]);
+  });
+
   it("gives no table to a view that lacks an audited page", () => {
     expect(scopedSiteSpeed(stored, row, new Set([EXTRA]))).toBeNull();
   });
@@ -481,6 +606,22 @@ describe("the guards of speed data on each path", () => {
       "desktop",
     ]);
     expect(JSON.stringify([audit.pageSpeed, table])).not.toContain(SECRET);
+  });
+
+  it("drops a stored row measurement whose tested URL is another page (review pass 23)", () => {
+    const [own] = readPageSpeed(section(EXTRA), EXTRA).filter(
+      (item) => item.device === "mobile",
+    );
+    const devices = (testedUrl: string) =>
+      storedRows([
+        {
+          url: EXTRA,
+          audited: false,
+          devices: [{ ...own, testedUrl }],
+        },
+      ])?.rows[0]?.devices.length;
+    expect(devices(EXTRA)).toBe(1);
+    expect(devices("https://example.test/checkout")).toBe(0);
   });
 
   it("drops a stored measurement with credential material in a URL, of the audit and of the table", () => {
