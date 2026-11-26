@@ -108,7 +108,7 @@ const ART: CusoArt[] = [
   "friendly",
   "pointing",
   "thinking",
-  "done",
+  "correct",
   "researching",
 ];
 
