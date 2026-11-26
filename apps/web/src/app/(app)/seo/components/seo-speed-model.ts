@@ -214,7 +214,7 @@ export type SeoVitalTrend =
       first: SeoTrendPoint;
       last: SeoTrendPoint;
       /**
-       * One point per week, both axes 0 to 1 with y 0 at the top. A null y is a week without a value: the line breaks there.
+       * One point per week, both axes 0 to 1 with y 0 at the top. x is the week's date between the first and last week. A null y is a week without a value: the line breaks there.
        * `alone`: a value with no value in the week before and after it. It lies on no line, so the chart draws a dot.
        */
       points: { x: number; y: number | null; alone: boolean }[];
@@ -244,6 +244,9 @@ export function seoVitalTrend(
   if (!first || !last || measured.length < SEO_TREND_MIN_POINTS)
     return { chart: false, reason: "too_few" };
   const { good } = SEO_VITAL_LIMITS[metric];
+  // A missing week leaves a gap on the time axis: x comes from the week's date, not its place in the list.
+  const start = Date.parse(weeks[0]);
+  const span = Date.parse(weeks[weeks.length - 1]) - start;
   // The share of the highest value comes first: a product with the headroom can leave the number range.
   const top = Math.max(good, ...measured.map(({ value }) => value));
   const height = (value: number) => 1 - value / top / SEO_TREND_HEADROOM;
@@ -264,7 +267,7 @@ export function seoVitalTrend(
     first,
     last,
     points: values.map((value, index) => ({
-      x: weeks.length > 1 ? index / (weeks.length - 1) : 0,
+      x: span > 0 ? (Date.parse(weeks[index]) - start) / span : 0,
       y: value == null ? null : height(value),
       alone:
         value != null && values[index - 1] == null && values[index + 1] == null,

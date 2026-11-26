@@ -125,6 +125,16 @@ it("reads a falling LCP as getting faster and breaks the line at a week without 
   expect(trend.limit).toBeLessThan(1);
 });
 
+it("places each week on the time axis by its date, so a missing week leaves a gap", () => {
+  const trend = seoVitalTrend("lcp", {
+    status: "comparable",
+    weeks: ["2026-10-04", "2026-10-11", "2026-10-18", "2026-11-01"],
+    lcp: [4200, 3900, 3500, 3000],
+  });
+  if (!trend.chart) throw new Error("expected a chart");
+  expect(trend.points.map(({ x }) => x)).toEqual([0, 0.25, 0.5, 1]);
+});
+
 it("reads a CLS change equal to the floor as steady, whatever the values", () => {
   // 0.14 - 0.12 is a little over 0.02 in binary floats; 0.12 - 0.10 a little under.
   for (const cls of [
