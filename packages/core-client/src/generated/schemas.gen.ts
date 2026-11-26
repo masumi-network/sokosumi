@@ -51944,6 +51944,10 @@ export const ProjectSeoKeywordSeriesSchema = {
                         type: 'string',
                         pattern: '^[A-Z]{2}$'
                     },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    },
                     points: {
                         type: 'array',
                         items: {
@@ -51983,7 +51987,7 @@ export const ProjectSeoKeywordSeriesSchema = {
                     'points'
                 ]
             },
-            maxItems: 25
+            maxItems: 50
         }
     },
     required: [

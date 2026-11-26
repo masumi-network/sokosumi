@@ -13235,6 +13235,7 @@ export type ProjectSeoKeywordSeries = {
     keywords: Array<{
         keyword: string;
         countryCode?: string;
+        from?: string;
         points: Array<{
             date: string;
             clicks: number;

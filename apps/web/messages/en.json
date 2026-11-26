@@ -13510,7 +13510,7 @@
         "notInKeptRows": "Not in the first {count} rows kept",
         "trendShow": "Daily positions",
         "trendEmpty": "No Search Console impressions in any country",
-        "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
+        "trendNotRequested": "Not read in the last sync. Up to 50 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions",
         "trendTruncated": "A Search Console read reached its row limit. Some days can be missing.",

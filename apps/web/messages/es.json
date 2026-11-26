@@ -13510,7 +13510,7 @@
         "notInKeptRows": "No está entre las primeras {count} filas guardadas",
         "trendShow": "Posiciones diarias",
         "trendEmpty": "Sin impresiones de Search Console en ningún país",
-        "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
+        "trendNotRequested": "No se leyó en la última sincronización. Hasta 50 palabras clave seguidas reciben posiciones diarias.",
         "trendLabel": "Posición media de «{keyword}»",
         "trendNoImpressions": "Sin impresiones",
         "trendTruncated": "Una lectura de Search Console alcanzó su límite de filas. Pueden faltar algunos días.",

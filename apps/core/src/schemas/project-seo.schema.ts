@@ -484,8 +484,8 @@ export const seoMetricSchema = z
   })
   .openapi("ProjectSeoMetric");
 export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
-export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
-/** One daily read per country; a sync reads at most this many. */
+export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 50;
+/** A sync reads tracked keyword days for at most this many countries. */
 export const SEO_KEYWORD_SERIES_MAX_COUNTRIES = 3;
 /**
  * Daily Search Console rows for tracked keywords, grouped by normalized query
@@ -505,6 +505,8 @@ export const seoKeywordSeriesSchema = z
             .string()
             .regex(/^[A-Z]{2}$/)
             .optional(),
+          /** First day read, where the workspace added days of earlier syncs. Never stored. */
+          from: seoDateSchema.optional(),
           points: z
             .array(
               z.object({
@@ -595,7 +597,7 @@ export const seoSearchQueriesSchema = z
     rowLimit: z.number().int().positive(),
     truncated: z.boolean(),
     rows: z.array(seoSearchQueryRowSchema.extend({ id: z.string() })),
-    /** Daily positions of tracked keywords from the same observation. Absent when not requested. */
+    /** Daily positions of tracked keywords from the same observation, with older days of earlier syncs. Absent when not requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
     /** The Search Console search type of these rows. Absent reads web search. */
     searchType: seoSearchTypeSchema.optional(),

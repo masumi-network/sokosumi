@@ -13510,7 +13510,7 @@
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen",
         "trendShow": "Tägliche Positionen",
         "trendEmpty": "In keinem Land Search-Console-Impressionen",
-        "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
+        "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 50 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen",
         "trendTruncated": "Eine Search-Console-Abfrage hat ihr Zeilenlimit erreicht. Einige Tage können fehlen.",

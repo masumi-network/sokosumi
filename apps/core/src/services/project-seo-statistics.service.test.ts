@@ -2506,6 +2506,24 @@ describe("Search Console query rows", () => {
     expect(workspace.searchQueries?.keywordSeries).toEqual(series);
   });
 
+  it("stores the keywords past the first 25 apart and hands the workspace one series", async () => {
+    for (let index = 0; index < 26; index++)
+      state.keywords.push(saved(`kw ${String(index).padStart(2, "0")}`));
+    state.answer = gsc({ rows: [] }, { rows: [] });
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    expect(seriesRead()).toHaveLength(2);
+    const payload = state.observations[0].payload as {
+      keywordSeries: { keywords: unknown[] };
+      keywordSeriesMore: { keyword: string }[];
+    };
+    // A build from before 50 keywords refuses more than 25 in the series itself.
+    expect(payload.keywordSeries.keywords).toHaveLength(25);
+    expect(payload.keywordSeriesMore.map((entry) => entry.keyword)).toEqual([
+      "kw 25",
+    ]);
+    expect(workspace.searchQueries?.keywordSeries?.keywords).toHaveLength(26);
+  });
+
   it("reads each keyword country apart and drops the series when one read fails", async () => {
     state.keywords.push(saved("battery"), {
       ...saved("akku"),
