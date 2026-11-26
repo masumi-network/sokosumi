@@ -310,6 +310,7 @@ async function runTurn(
         ...(turn.planLoop
           ? {
               plan: {
+                inherited: turn.planInherited,
                 doneCheck: (draft: string) =>
                   evaluateTurnDoneCheck({
                     turnId: input.turnId,

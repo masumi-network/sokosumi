@@ -3,7 +3,7 @@ import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { turnTokenBudget } from "../lib/soko-bot/turn-budget";
-import { runTurnLoop } from "./loop";
+import { runTurnLoop, type TurnLoopPlan } from "./loop";
 import {
   FOREGROUND_TIME_UP_PROMPT,
   KEEP_GOING_PROMPT,
@@ -797,7 +797,8 @@ describe("the done check (planLoop)", () => {
 
   const loopInput = (
     model: MockLanguageModelV3,
-    plan: Parameters<typeof runTurnLoop>[0]["plan"],
+    // A plan from earlier in the request, unless a test says otherwise.
+    plan: Omit<TurnLoopPlan, "inherited"> & { inherited?: boolean },
     extra: Partial<Parameters<typeof runTurnLoop>[0]> = {},
   ) => ({
     model,
@@ -809,7 +810,7 @@ describe("the done check (planLoop)", () => {
     deadline: 60 * MINUTE,
     stopped: new AbortController().signal,
     now: () => 0,
-    plan,
+    plan: { inherited: true, ...plan },
     ...extra,
   });
 
@@ -831,6 +832,65 @@ describe("the done check (planLoop)", () => {
       "Your plan still lists open steps: s2.",
     ]);
     expect(result.text).toBe("Answer 2.");
+  });
+
+  it("asks Core nothing on a turn with no plan, until the turn writes one", async () => {
+    let asked = 0;
+    const plan = {
+      inherited: false,
+      doneCheck: async () => {
+        asked += 1;
+        return null;
+      },
+      openSteps: async () => {
+        asked += 1;
+        return null;
+      },
+    };
+    await runTurnLoop(loopInput(answeringModel().model, plan));
+    expect(asked).toBe(0);
+
+    // The same turn after an update_plan call asks once it answers.
+    let calls = 0;
+    const planning = new MockLanguageModelV3({
+      doStream: async () => {
+        calls += 1;
+        return streamOf(
+          calls === 1
+            ? {
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "plan_1",
+                    toolName: "update_plan",
+                    input: "{}",
+                  },
+                ],
+                finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                warnings: [],
+                usage,
+              }
+            : {
+                content: [{ type: "text", text: "Planned." }],
+                finishReason: { unified: "stop", raw: "stop" },
+                warnings: [],
+                usage,
+              },
+        );
+      },
+    });
+    await runTurnLoop(
+      loopInput(planning, plan, {
+        tools: {
+          ...tools,
+          update_plan: tool({
+            inputSchema: z.object({}),
+            execute: async () => ({ revision: 1 }),
+          }),
+        },
+      }),
+    );
+    expect(asked).toBe(1);
   });
 
   it("keeps the finished answer when Core's check used up the turn's time", async () => {
@@ -979,6 +1039,7 @@ describe("the done check (planLoop)", () => {
       stopped: new AbortController().signal,
       now: () => clock.now,
       plan: {
+        inherited: true,
         doneCheck: async () => null,
         openSteps: async () =>
           "Open steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30",

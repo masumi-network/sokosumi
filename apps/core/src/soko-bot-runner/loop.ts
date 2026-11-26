@@ -80,6 +80,12 @@ export interface TurnLoopInput {
 
 export interface TurnLoopPlan {
   /**
+   * The turn started with a plan from earlier in its request. Without one,
+   * Core is asked nothing until the turn calls update_plan itself, so a
+   * simple turn pays no extra call.
+   */
+  inherited: boolean;
+  /**
    * Asked once when a foreground turn is about to answer: a prompt sends it
    * back for one more round, null lets the answer through.
    */
@@ -193,6 +199,9 @@ export async function runTurnLoop(
   const compact = (history: readonly ModelMessage[]) =>
     compactHistory(history, undefined, historyOptions);
   let doneChecked = false;
+  // Core is asked about the plan only once there is one: inherited, or
+  // written in this turn.
+  let activePlan = input.plan?.inherited ? input.plan : undefined;
   /** The reply the done check sent back, kept in case the extra round fails. */
   let draft: TurnLoopResult | undefined;
   const roomForAnotherRound = () =>
@@ -242,6 +251,14 @@ export async function runTurnLoop(
       maxRetries: 1,
     }).finally(() => admission.release());
     bookUnreported(result.steps);
+    if (
+      input.plan &&
+      !activePlan &&
+      result.steps.some((step) =>
+        step.toolCalls.some((call) => call.toolName === "update_plan"),
+      )
+    )
+      activePlan = input.plan;
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
@@ -289,7 +306,7 @@ export async function runTurnLoop(
       // The done check: a foreground answer with open plan steps goes back
       // once, only while steps, time and tokens leave room for that round
       // and a wrap-up after it, checked again once Core has answered.
-      const plan = input.plan;
+      const plan = activePlan;
       if (
         plan &&
         !doneChecked &&
@@ -316,7 +333,7 @@ export async function runTurnLoop(
       role: "user",
       content: await withOpenSteps(
         KEEP_GOING_PROMPT,
-        input.plan,
+        activePlan,
         reportAt - now() - minRoundMs,
       ),
     });
@@ -351,7 +368,7 @@ export async function runTurnLoop(
           role: "user",
           content: await withOpenSteps(
             input.background ? TIME_UP_PROMPT : FOREGROUND_TIME_UP_PROMPT,
-            input.plan,
+            activePlan,
             Math.min(REPORT_PLAN_WAIT_MS, (input.deadline - now()) / 10),
           ),
         },
