@@ -30,7 +30,7 @@ after(() => browser.close());
 
 for (const { name: size, ...viewport } of PROJECTS) {
   describe(size, () => {
-    test("statuses and initials match the board", async () => {
+    test("the status picker finds Done, and initials read EN on three surfaces", async () => {
       const mailbox = await createMailbox();
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
@@ -79,7 +79,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .click();
       await page.getByRole("heading", { level: 1, name: TASK }).waitFor();
 
-      // The task page shows the same initials as the activity feed.
+      // The task page shows both initials, EN.
       const assignee = page
         .getByRole("combobox", { name: /^Assignee:/ })
         .filter({ visible: true });
@@ -95,7 +95,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("option", { name: /^Completed/ }).click();
       await page.getByText("Task status updated").waitFor();
 
-      // The board card and the Filters coworker list agree.
+      // The board card and the Filters coworker list show EN too.
       await page.goto(`${BASE_URL}/tasks`);
       const done = page.getByRole("region", { name: "Done" });
       await done.getByRole("link", { name: TASK }).waitFor();
