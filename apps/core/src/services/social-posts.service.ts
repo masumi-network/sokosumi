@@ -2130,33 +2130,33 @@ export async function restoreCanceledSocialPost(
     requireRevision(post, input.revision);
     // A quote carries the warning its quoted post's state calls for now:
     // still cancelled, failed, or none, so a flag from a cancel since taken
-    // back never blocks it, and one that still holds is never dropped.
+    // back never blocks it, and one that still holds is never dropped. A
+    // quote whose quoted post was deleted keeps its warning until the owner
+    // detaches or replaces the quote.
     const target = post.quotedPostId
       ? await tx.socialPost.findUnique({
           where: { id: post.quotedPostId },
           select: { status: true },
         })
       : null;
+    const settled = input.status === "FAILED" || input.status === "MISSED";
+    const own = (settled && input.diagnostics) || {
+      lastError: post.lastError,
+      needsAttentionReason: post.needsAttentionReason,
+    };
+    const quoteFlagged =
+      own.needsAttentionReason !== null &&
+      QUOTE_WARNINGS.has(own.needsAttentionReason);
     const warning = post.quotedPostId
       ? quoteWarning(target?.status ?? null)
-      : null;
+      : quoteFlagged
+        ? own.needsAttentionReason
+        : null;
     if (warning === QUOTED_POST_CANCELLED && input.status === "SCHEDULED")
       throw conflict(
         "The post it quotes is cancelled; restore that post first, then schedule this one",
       );
-    const settled = input.status === "FAILED" || input.status === "MISSED";
-    const own = settled
-      ? {
-          lastError: input.diagnostics?.lastError ?? null,
-          needsAttentionReason: input.diagnostics?.needsAttentionReason ?? null,
-        }
-      : {
-          lastError: post.lastError,
-          needsAttentionReason: post.needsAttentionReason,
-        };
-    const stale =
-      own.needsAttentionReason !== null &&
-      QUOTE_WARNINGS.has(own.needsAttentionReason);
+    const stale = quoteFlagged && post.quotedPostId !== null;
     const restored = await writeWithRevision(
       input,
       input.revision,
@@ -2166,7 +2166,11 @@ export async function restoreCanceledSocialPost(
         scheduledAt: input.scheduledAt,
         ...(input.timezone ? { timezone: input.timezone } : {}),
         ...(warning
-          ? { needsAttentionReason: warning, lastError: warning }
+          ? {
+              needsAttentionReason: warning,
+              lastError:
+                warning === own.needsAttentionReason ? own.lastError : warning,
+            }
           : stale
             ? { needsAttentionReason: null, lastError: null }
             : settled
