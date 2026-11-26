@@ -479,11 +479,7 @@ async function pollScenario(
     result.passed += extra.filter((check) => check.pass).length;
   }
   if (STRATEGY_REQUEST_CASE_IDS.includes(scenario.id)) {
-    const extra = await cmoStrategyRequestChecks(
-      scenario.id,
-      lane,
-      context.startedAt,
-    );
+    const extra = await cmoStrategyRequestChecks(scenario.id, lane, turnId);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

@@ -1,9 +1,39 @@
 import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { changeRequestPlan } from "./eval-cmo-runner";
 import {
+  cmoStrategyRequestChecks,
+  DELEGATED_CHOICE_CASE_ID,
   delegatedChoiceChecks,
+  MIXED_REQUEST_CASE_ID,
   mixedRequestChecks,
 } from "./eval-cmo-strategy-request";
+import type { EvalLaneRecord } from "./eval-lanes.service";
+
+type Row = { authorTurnId: string | null; plan: unknown; createdAt: number };
+const rows: Row[] = [];
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    marketingStrategy: {
+      // The two lookups the grader makes: by its turn, or by any other author.
+      findFirst: async ({
+        where,
+      }: {
+        where: {
+          authorTurnId?: string;
+          OR?: [unknown, { authorTurnId: { not: string } }];
+        };
+      }) =>
+        rows
+          .filter((row) =>
+            where.OR
+              ? row.authorTurnId !== where.OR[1].authorTurnId.not
+              : row.authorTurnId === where.authorTurnId,
+          )
+          .sort((a, b) => b.createdAt - a.createdAt)[0] ?? null,
+    },
+  },
+}));
 
 const entry = (id: string, channel: string, title: string) => ({
   id,
@@ -76,5 +106,74 @@ describe("a choice the owner left to Cuso", () => {
     expect(
       failedLabels(delegatedChoiceChecks({ before: BEFORE, saved: same })),
     ).toEqual(label);
+  });
+});
+
+describe("what the case's own turn saved", () => {
+  const TURN = "case-turn";
+  const lane = { cusoProjectId: "project" } as EvalLaneRecord;
+  const seed = changeRequestPlan(new Date("2026-12-01T00:00:00Z"));
+  const withCadence = (channel: string, cadence: string) => ({
+    ...seed,
+    channels: seed.channels.map((row) =>
+      row.channel === channel ? { ...row, cadence } : row,
+    ),
+  });
+  const failedLabels = async (caseId: string) =>
+    (await cmoStrategyRequestChecks(caseId, lane, TURN))
+      .filter((check) => !check.pass)
+      .map((check) => check.label);
+
+  beforeEach(() => {
+    rows.length = 0;
+    // The fixture's seed, made after the case clock started.
+    rows.push({ authorTurnId: null, plan: seed, createdAt: 1 });
+  });
+
+  it("never counts the fixture's seed as a save", async () => {
+    expect(await failedLabels(DELEGATED_CHOICE_CASE_ID)).toEqual([
+      "Saves a change to how often a network posts",
+    ]);
+    expect(await failedLabels(MIXED_REQUEST_CASE_ID)).toHaveLength(2);
+  });
+
+  it("passes the turn's own save against the seed", async () => {
+    rows.push({
+      authorTurnId: TURN,
+      plan: withCadence("linkedin", "2 posts a week"),
+      createdAt: 2,
+    });
+    expect(await failedLabels(MIXED_REQUEST_CASE_ID)).toEqual([]);
+    expect(await failedLabels(DELEGATED_CHOICE_CASE_ID)).toEqual([]);
+  });
+
+  it("fails rewritten X stories even with X's cadence and titles kept", async () => {
+    const saved = withCadence("linkedin", "2 posts a week");
+    rows.push({
+      authorTurnId: TURN,
+      plan: {
+        ...saved,
+        calendar: saved.calendar.map((entry) =>
+          entry.channel === "x" ? { ...entry, story: "A new story" } : entry,
+        ),
+      },
+      createdAt: 2,
+    });
+    expect(await failedLabels(MIXED_REQUEST_CASE_ID)).toEqual([
+      "Leaves X as it was until the owner answers",
+    ]);
+  });
+
+  it("ignores what Core fills in on a save", async () => {
+    const saved = withCadence("linkedin", "2 posts a week");
+    rows.push({
+      authorTurnId: TURN,
+      plan: {
+        ...saved,
+        calendar: saved.calendar.map((entry) => ({ ...entry, claim: "c1" })),
+      },
+      createdAt: 2,
+    });
+    expect(await failedLabels(MIXED_REQUEST_CASE_ID)).toEqual([]);
   });
 });

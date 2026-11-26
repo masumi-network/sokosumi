@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import type { MarketingStrategyPlan, ScenarioCheck } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { cadencePerWeek } from "@/services/evals/eval-cmo-change-then-drafts";
@@ -26,12 +27,32 @@ function cadences(plan: MarketingStrategyPlan | null): Map<string, string> {
   );
 }
 
+/** Fields Core fills in on a save; everything else in an entry is Cuso's plan. */
+const CORE_SET = new Set([
+  "claim",
+  "status",
+  "socialPostId",
+  "notSent",
+  "imageFileId",
+  "slideFileIds",
+  "fileId",
+  "visualFileIds",
+  "taskId",
+]);
+
+/** A channel's entries as Cuso planned them: id, date, title, story, script… */
 function entriesOn(plan: MarketingStrategyPlan | null, channel: string) {
   return JSON.stringify(
     (plan?.calendar ?? [])
       .filter((entry) => entry.channel === channel)
-      .map(({ id, date, title, format }) => ({ id, date, title, format }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .map((entry) =>
+        Object.fromEntries(
+          Object.entries(entry)
+            .filter(([key, value]) => !CORE_SET.has(key) && value !== undefined)
+            .sort(([a], [b]) => a.localeCompare(b)),
+        ),
+      )
+      .sort((a, b) => String(a.id).localeCompare(String(b.id))),
   );
 }
 
@@ -103,22 +124,27 @@ export function delegatedChoiceChecks(
 }
 
 /**
- * The newest version from before the case started, and the newest version
- * written since (a turn's saves go to a version of its own), if any.
+ * The version the case's turn saved (save_strategy and write_strategy both
+ * write the turn's own version, authorTurnId), and the newest version no
+ * turn of this case wrote: the fixture's seed. The case clock starts before
+ * the seed is made, so time alone would count the seed as saved.
  */
 async function strategyBeforeAfter(
   lane: EvalLaneRecord,
-  startedAt: Date,
+  turnId: string,
 ): Promise<StrategyBeforeAfter> {
-  const [before, saved] = await Promise.all(
-    [{ lt: startedAt }, { gte: startedAt }].map((createdAt) =>
-      prisma.marketingStrategy.findFirst({
-        where: { projectId: lane.cusoProjectId, createdAt },
-        orderBy: { createdAt: "desc" },
-        select: { plan: true },
-      }),
-    ),
-  );
+  const newest = (authorTurnId: Prisma.MarketingStrategyWhereInput) =>
+    prisma.marketingStrategy.findFirst({
+      where: { projectId: lane.cusoProjectId, ...authorTurnId },
+      orderBy: { createdAt: "desc" },
+      select: { plan: true },
+    });
+  const [before, saved] = await Promise.all([
+    newest({
+      OR: [{ authorTurnId: null }, { authorTurnId: { not: turnId } }],
+    }),
+    newest({ authorTurnId: turnId }),
+  ]);
   return {
     before: parseMarketingPlan(before?.plan),
     saved: parseMarketingPlan(saved?.plan),
@@ -128,9 +154,9 @@ async function strategyBeforeAfter(
 export async function cmoStrategyRequestChecks(
   caseId: string,
   lane: EvalLaneRecord,
-  startedAt: Date,
+  turnId: string,
 ): Promise<ScenarioCheck[]> {
-  const state = await strategyBeforeAfter(lane, startedAt);
+  const state = await strategyBeforeAfter(lane, turnId);
   return caseId === MIXED_REQUEST_CASE_ID
     ? mixedRequestChecks(state)
     : delegatedChoiceChecks(state);
