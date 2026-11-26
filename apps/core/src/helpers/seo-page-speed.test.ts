@@ -341,6 +341,81 @@ describe("imported full-audit PageSpeed evidence", () => {
     expect(read.data?.pageSpeed).toEqual([valid]);
   });
 
+  it("reads a measured lab without a Lighthouse version as version null, fresh and stored", () => {
+    const speed = readings(SEO_TEST_PAGE);
+    const { lighthouse: _, ...lab } = speed.mobile.lab as Record<
+      string,
+      unknown
+    >;
+    const fresh = readPageSpeed(
+      { mobile: { ...speed.mobile, lab } },
+      SEO_TEST_PAGE,
+    );
+    expect(fresh[0]?.lab).toMatchObject({
+      status: "measured",
+      lighthouse: null,
+    });
+    const stored = JSON.parse(
+      JSON.stringify(parsePublicSeoArtifact({ ...legacyReport(), speed })),
+    );
+    delete stored.pageSpeed[0].lab.lighthouse;
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.lab,
+    ).toMatchObject({
+      status: "measured",
+      lighthouse: null,
+    });
+  });
+
+  it("drops a stored insight the schema refuses and keeps its device and the other insights", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const row = stored.pageSpeed.find(
+      (item: { lab: { pageSpeed?: { insights: unknown[] } } }) =>
+        item.lab.pageSpeed?.insights.length,
+    );
+    const [valid] = row.lab.pageSpeed.insights;
+    row.lab.pageSpeed.insights = [
+      valid,
+      { ...valid, title: "" },
+      { ...valid, id: "Unknown" },
+      { ...valid, detail: "a".repeat(601) },
+    ];
+    const read = publicSeoPayloadSchema.parse(stored);
+    expect(read.pageSpeed).toHaveLength(stored.pageSpeed.length);
+    expect(
+      read.pageSpeed?.find((item) => item.device === row.device)?.lab,
+    ).toMatchObject({ pageSpeed: { insights: [valid] } });
+  });
+
+  it("reads a stored collection that is no array as absent and keeps the first 20 measurements", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const [valid] = stored.pageSpeed;
+    const none = publicSeoPayloadSchema.safeParse({
+      ...stored,
+      pageSpeed: null,
+    });
+    expect([none.success, none.data?.pageSpeed]).toEqual([true, undefined]);
+    const many = publicSeoPayloadSchema.safeParse({
+      ...stored,
+      pageSpeed: Array.from({ length: 21 }, () => valid),
+    });
+    expect([many.success, many.data?.pageSpeed?.length]).toEqual([true, 20]);
+  });
+
   it("stores the checked form of a field URL and reads a stored spelling with another host case", () => {
     const books = "https://example.test/books";
     const spelled = "https://EXAMPLE.test/books";

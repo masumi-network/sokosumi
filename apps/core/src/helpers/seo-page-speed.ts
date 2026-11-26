@@ -53,7 +53,7 @@ const labResult = z
     median: labTimings,
     runs: z.number().int().positive(),
     ok: z.number().int().positive(),
-    lighthouse: z.unknown().transform(speedLighthouseVersion),
+    lighthouse: z.unknown().transform(speedLighthouseVersion).default(null),
   })
   .refine((row) => row.ok <= row.runs);
 function gap(raw: unknown, isField: boolean) {
@@ -397,27 +397,39 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
   if (lab)
     read.lab = {
       ...lab,
-      ...("lighthouse" in lab && {
+      // A measured lab without the version reads as a fresh import reads it: null.
+      ...(("lighthouse" in lab || "median" in lab) && {
         lighthouse: speedLighthouseVersion(lab.lighthouse),
       }),
       ...(details &&
         Array.isArray(details.insights) && {
           pageSpeed: {
             ...details,
-            insights: details.insights.filter(publicSpeedInsight),
+            // An insight the schema refuses goes, as on a fresh import: not its device.
+            insights: details.insights.filter(
+              (item) =>
+                speedInsight.safeParse(item).success &&
+                publicSpeedInsight(item),
+            ),
           },
         }),
     };
   return [read];
 }
 
-/** Stored page speed rows before the schema reads them. A measurement the row schema refuses goes, not the audit. */
+const PAGE_SPEED_ROWS = 20;
+
+/**
+ * Stored page speed rows before the schema reads them. A measurement the row schema refuses goes, not the
+ * audit: so does a collection that is no array, and each readable measurement past the schema's 20.
+ */
 export function readableStoredPageSpeed(rows: unknown) {
   return Array.isArray(rows)
     ? rows
         .flatMap(readableStoredMeasurement)
         .filter((row) => seoPageSpeedRow.safeParse(row).success)
-    : rows;
+        .slice(0, PAGE_SPEED_ROWS)
+    : undefined;
 }
 
 export function scopedPageSpeed(
