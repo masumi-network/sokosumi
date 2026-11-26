@@ -64,6 +64,7 @@ import {
   changeRequestPlan,
   commentChecks,
   monthPlanFromTomorrow,
+  monthProductionTurns,
   newsletterIssueCheck,
   pollCmoCase,
   prepareCmoChatCase,
@@ -466,5 +467,51 @@ describe("the newsletter month", () => {
       false,
     );
     expect(check(null)).toBe(false);
+  });
+});
+
+describe("the month's own turns", () => {
+  it("keeps its runs and watch follow-ups, never another case's watch", async () => {
+    const PREFIX = "cmo:production:bot:1:";
+    const all = [
+      { id: "make", clientTurnId: `${PREFIX}0`, parentTurnId: null },
+      { id: "review", clientTurnId: `${PREFIX}review:0`, parentTurnId: null },
+      // A watch the month's run set fires as that run's background run.
+      { id: "watch-own", clientTurnId: "watch:w1", parentTurnId: "make" },
+      { id: "watch-run", clientTurnId: "lab:x", parentTurnId: "watch-own" },
+      // Fired during the month by a watch an earlier chat case left behind.
+      { id: "chat", clientTurnId: "lab:chat:1", parentTurnId: null },
+      { id: "watch-other", clientTurnId: "watch:w2", parentTurnId: "chat" },
+    ].map((turn) => ({ ...turn, status: "COMPLETED", source: "EVENT" }));
+    prisma.sokoBotTurn.findMany.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: {
+          clientTurnId?: { startsWith: string };
+          parentTurnId?: { in: string[] };
+        };
+      }) =>
+        all.filter((turn) =>
+          where.parentTurnId
+            ? turn.parentTurnId !== null &&
+              where.parentTurnId.in.includes(turn.parentTurnId)
+            : turn.clientTurnId.startsWith(
+                where.clientTurnId?.startsWith ?? "",
+              ),
+        ),
+    );
+    try {
+      const turns = await monthProductionTurns("bot", PREFIX);
+      expect(turns.map((turn) => turn.id).sort()).toEqual([
+        "make",
+        "review",
+        "watch-own",
+        "watch-run",
+      ]);
+    } finally {
+      prisma.sokoBotTurn.findMany.mockReset();
+      prisma.sokoBotTurn.findMany.mockResolvedValue([]);
+    }
   });
 });

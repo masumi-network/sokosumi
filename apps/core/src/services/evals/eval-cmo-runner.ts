@@ -865,7 +865,7 @@ async function cancelMonthPosts(strategyId: string) {
 
 // Scoped by the approval's id prefix and the parent chain, not by time: the
 // turns' createdAt is PostgreSQL time and the case start is the host's.
-async function monthProductionTurns(botId: string, prefix: string) {
+export async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
     clientTurnId: true,
@@ -1190,13 +1190,6 @@ async function pollMonth(
   if (!reviewed && !timedOut && production.state !== "stuck")
     return { kind: "waiting" };
 
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: {
-      sokoBotId: lane.cusoBotId,
-      createdAt: { gte: context.startedAt },
-    },
-    select: { id: true },
-  });
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
     select: {
@@ -1349,7 +1342,9 @@ async function pollMonth(
         files: files.filter((file) => file !== null),
         production: { pieces, ...metrics },
       },
-      turnIds: turns.map((turn) => turn.id),
+      // The month's own turns and every run or watch follow-up they started;
+      // a watch another case left on the lane is not this month's.
+      turnIds: productionTurns.map((turn) => turn.id),
     },
   };
 }
