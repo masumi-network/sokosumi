@@ -64,7 +64,7 @@ export const seoImpactDaysSchema = z.coerce
   .max(SEO_IMPACT_MAX_WINDOW_DAYS)
   .optional();
 
-/** The done actions on the audit's own pages, for the worker of that audit. */
+/** The done actions that have a page, each with its before and after. */
 const measuredActions = z.array(
   z.strictObject({
     id: z.string(),
@@ -73,10 +73,6 @@ const measuredActions = z.array(
     impact: seoActionImpactSchema,
   }),
 );
-export const seoTaskActionImpactSchema = z
-  .strictObject({ actions: measuredActions })
-  .openapi("SeoTaskActionImpact");
-export type SeoTaskActionImpact = z.infer<typeof seoTaskActionImpactSchema>;
 
 export const ADMIN_SEO_IMPACT_PAGE_SIZE = 10;
 export const adminSeoActionImpactQuery = z.object({
