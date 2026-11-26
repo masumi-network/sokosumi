@@ -79,6 +79,7 @@ import {
 } from "./acting-scope";
 import { chargeCheck } from "./cmo";
 import { type RuntimeOperations } from "./operations";
+import { requireChosenSocialDestination } from "./social-destination";
 
 /**
  * Every write locks the turn's row (`requireMutationAuthority`), so a model's
@@ -581,6 +582,11 @@ export async function executeSocialTool(
           postId: params.postId,
         });
       }
+      if (input.capability === "create_social_post")
+        await requireChosenSocialDestination(
+          authorized,
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.parse(input.input),
+        );
       // Resolved before the transaction: it reads the blob store, and a
       // serializable transaction should not wait on the network.
       let { media, threadParts } =

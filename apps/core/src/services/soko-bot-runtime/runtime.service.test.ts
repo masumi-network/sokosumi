@@ -555,6 +555,12 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     // The search for text only a full audit's hidden line holds finds none.
     $queryRaw: () => Promise.resolve([]),
+    // No account to choose between: the destination rule has nothing to ask
+    // (its own cases are in social-destination.test.ts).
+    projectSocialConnection: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     sokoBotMemoryRevision: { findFirst: memoryRevisionFindFirstMock },
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
