@@ -124,6 +124,7 @@ async function startStep(
   world: JourneyWorld,
   context: CaseContext,
   journeyStartedAt: Date,
+  memo: JourneyState["memo"],
 ): Promise<string | null | { error: string }> {
   const step = journey.steps[index]!;
   const botId = botOf(journey, lane);
@@ -152,7 +153,7 @@ async function startStep(
   }
   const schedule = await ownerSchedule(botId);
   if (!schedule) return { error: "No schedule to fire" };
-  return fireSchedule(schedule.id, botId);
+  return fireSchedule(schedule.id, botId, memo);
 }
 
 /**
@@ -215,6 +216,7 @@ async function whileUnpaused<T>(
 async function fireSchedule(
   scheduleId: string,
   botId: string,
+  memo: JourneyState["memo"],
 ): Promise<string | null | { error: string }> {
   await prisma.sokoBotSchedule.update({
     where: { id: scheduleId },
@@ -222,16 +224,23 @@ async function fireSchedule(
   });
   const run = await claimScheduleRun(scheduleId, botId);
   if (!run) return { error: "The schedule sync claimed nothing" };
+  // The step follows this run, not any scheduled turn of the bot.
+  memo.scheduleRun = [scheduleId, run.id];
+  if (FAILED_RUN.includes(run.status))
+    return { error: `The scheduled run ended ${run.status}` };
   // A busy bot defers the run, as the cron does; the step's polls claim it
   // again (`stepSettled`) until its turn starts.
   return run.turnId;
 }
 
+/** Schedule run states that will never start the run's turn. */
+const FAILED_RUN = ["FAILED", "DEAD_LETTER"];
+
 /** One scoped schedule sync: the run it claimed, due or recovered, if any. */
 async function claimScheduleRun(
   scheduleId: string,
   botId: string,
-): Promise<{ turnId: string | null; status: string } | null> {
+): Promise<{ id: string; turnId: string | null; status: string } | null> {
   let claims = 0;
   const leases: { turnId: string; leaseToken: string }[] = [];
   const synced = await whileUnpaused(botId, () =>
@@ -250,9 +259,50 @@ async function claimScheduleRun(
   return runId
     ? prisma.sokoBotScheduleRun.findUnique({
         where: { id: runId },
+        select: { id: true, turnId: true, status: true },
+      })
+    : null;
+}
+
+/**
+ * The run the step claimed: settled once its turn exists, or once it can
+ * never start one (FAILED, DEAD_LETTER); otherwise claimed again, as the
+ * next cron tick would.
+ */
+export async function claimedRunState(
+  memo: JourneyState["memo"],
+  botId: string,
+): Promise<"started" | "failed" | "waiting"> {
+  const [scheduleId, runId] = memo.scheduleRun ?? [];
+  if (!scheduleId || !runId) return "failed";
+  const run = await prisma.sokoBotScheduleRun.findUnique({
+    where: { id: runId },
+    select: { turnId: true, status: true },
+  });
+  if (!run || FAILED_RUN.includes(run.status)) return "failed";
+  if (run.turnId) return "started";
+  await claimScheduleRun(scheduleId, botId);
+  return "waiting";
+}
+
+/** The run the step claimed started its turn and did not fail. */
+export async function claimedRunCheck(
+  memo: JourneyState["memo"],
+): Promise<ScenarioCheck> {
+  const [, runId] = memo.scheduleRun ?? [];
+  const run = runId
+    ? await prisma.sokoBotScheduleRun.findUnique({
+        where: { id: runId },
         select: { turnId: true, status: true },
       })
     : null;
+  return {
+    label: "The claimed scheduled run ran",
+    pass: Boolean(run?.turnId) && !FAILED_RUN.includes(run?.status ?? ""),
+    actual: run
+      ? `${run.status}${run.turnId ? "" : ", no turn"}`
+      : "no run claimed",
+  };
 }
 
 /** The schedule the owner had the bot make, newest first. */
@@ -320,6 +370,7 @@ async function stepSettled(
   since: Date,
   now: Date,
   awaits: "wake" | "schedule" | null,
+  memo: JourneyState["memo"],
 ): Promise<boolean> {
   if (awaits === "wake") {
     await wakeOnDelegatedWork(botId);
@@ -329,20 +380,10 @@ async function stepSettled(
     if (woken === 0) return false;
   }
   if (awaits === "schedule") {
-    const started = await prisma.sokoBotTurn.count({
-      where: {
-        sokoBotId: botId,
-        source: "SCHEDULE",
-        createdAt: { gte: since },
-      },
-    });
-    if (started === 0) {
-      // Deferred while the bot was busy: claim it again, as the next cron
-      // tick would.
-      const schedule = await ownerSchedule(botId);
-      if (schedule) await claimScheduleRun(schedule.id, botId);
-      return false;
-    }
+    const run = await claimedRunState(memo, botId);
+    // A run that can never start ends the step now; finishStep says why.
+    if (run === "failed") return true;
+    if (run === "waiting") return false;
   }
   const active = await prisma.sokoBotTurn.count({
     where: {
@@ -493,6 +534,8 @@ async function finishStep(
         new Date(state.journeyStartedAt),
       ),
     );
+  if (step.kind === "schedule_fires")
+    checks.push(await claimedRunCheck(state.memo));
   if (step.kind === "coworker") {
     // The answer was delivered once and the scan ran twice: one wake is
     // right, none is a missing wake, more is a duplicate.
@@ -580,6 +623,7 @@ async function beginStep(
     state.world,
     context,
     new Date(state.journeyStartedAt),
+    state.memo,
   ).catch((error: unknown) => ({
     error: error instanceof Error ? error.message : String(error),
   }));
@@ -716,7 +760,7 @@ export async function pollJourney(
           : null;
     if (
       !timedOut &&
-      !(await stepSettled(botId, since, now, awaits)) &&
+      !(await stepSettled(botId, since, now, awaits, state.memo)) &&
       !(await coworkerCanAnswer(journey, current, lane, state))
     )
       return { kind: "waiting" };

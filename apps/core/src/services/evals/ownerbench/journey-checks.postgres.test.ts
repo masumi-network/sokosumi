@@ -11,7 +11,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import { type CheckContext, outcomeCheck } from "./journey-checks";
-import { freshConversationCheck } from "./journey-runner";
+import {
+  claimedRunCheck,
+  claimedRunState,
+  freshConversationCheck,
+} from "./journey-runner";
 import type { JourneyWorld } from "./journey-world";
 import { OWNER_JOURNEYS } from "./journeys";
 
@@ -288,6 +292,72 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         true,
       );
     });
+  });
+
+  it("follows the claimed scheduled run: a failed or dead-lettered one ends and fails the step", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const schedule = await prisma.sokoBotSchedule.create({
+      data: {
+        sokoBotId: botId,
+        workspaceId,
+        requestedByUserId: userId,
+        name: "Daily",
+        timezone: "UTC",
+        cronExpression: "0 9 * * *",
+        prompt: "Daily brief.",
+        nextRunAt: new Date(Date.now() + 86_400_000),
+      },
+      select: { id: true },
+    });
+    const run = (
+      status: "FAILED" | "DEAD_LETTER" | "COMPLETED",
+      turnId?: string,
+    ) =>
+      prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: schedule.id,
+          scheduledFor: new Date(Date.now() - Math.random() * 1e9),
+          status,
+          ...(turnId ? { turnId } : {}),
+        },
+        select: { id: true },
+      });
+    for (const status of ["FAILED", "DEAD_LETTER"] as const) {
+      const memo = { scheduleRun: [schedule.id, (await run(status)).id] };
+      expect(await claimedRunState(memo, botId)).toBe("failed");
+      expect(await claimedRunCheck(memo)).toMatchObject({
+        pass: false,
+        actual: `${status}, no turn`,
+      });
+    }
+    const turn = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: botId,
+        workspaceId,
+        requestedByUserId: userId,
+        source: "SCHEDULE",
+        status: "COMPLETED",
+        clientTurnId: `schedule:${randomUUID()}`,
+        userMessage: "Daily brief.",
+        capabilityNames: [],
+        deadlineAt: new Date(Date.now() + 60_000),
+      },
+      select: { id: true },
+    });
+    const ran = {
+      scheduleRun: [schedule.id, (await run("COMPLETED", turn.id)).id],
+    };
+    expect(await claimedRunState(ran, botId)).toBe("started");
+    expect((await claimedRunCheck(ran)).pass).toBe(true);
+    expect((await claimedRunCheck({})).actual).toBe("no run claimed");
+    await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });
 
   it("counts a file read only when it returned the file's text", async () => {
