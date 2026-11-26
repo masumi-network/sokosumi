@@ -440,28 +440,35 @@ const INPUT_DEPENDENT_EFFECT_CAPABILITIES = new Set<string>([
   "investor_warm_paths",
 ]);
 
+let cachedReadOnlyCapabilities: ReadonlySet<string> | null = null;
+
 /**
  * Canonical read-only allowlist reused from `@sokosumi/soko-bot` policy,
  * excluding action tools and input-dependent paid/writing tools
  * (`investor_warm_paths`), so write or paid modes can never slip through
- * `scope: "read_only"`.
+ * `scope: "read_only"`. Built lazily so tests that partially mock
+ * `./action-receipts` without calling owner-authority helpers stay isolated.
  */
-const READ_ONLY_CAPABILITIES = new Set<string>(
-  [
-    ...SOKO_BOT_DIRECT_READ_CAPABILITIES,
-    ...SOKO_BOT_CMO_READ_CAPABILITIES,
-    "find_coworkers",
-    "list_social_comments",
-    "read_seo",
-    "read_skill",
-    "read_writing_skill",
-    "find_style_references",
-  ].filter(
-    (capability) =>
-      !ACTION_CAPABILITIES.has(capability) &&
-      !INPUT_DEPENDENT_EFFECT_CAPABILITIES.has(capability),
-  ),
-);
+function readOnlyCapabilities(): ReadonlySet<string> {
+  if (cachedReadOnlyCapabilities) return cachedReadOnlyCapabilities;
+  cachedReadOnlyCapabilities = new Set<string>(
+    [
+      ...SOKO_BOT_DIRECT_READ_CAPABILITIES,
+      ...SOKO_BOT_CMO_READ_CAPABILITIES,
+      "find_coworkers",
+      "list_social_comments",
+      "read_seo",
+      "read_skill",
+      "read_writing_skill",
+      "find_style_references",
+    ].filter(
+      (capability) =>
+        !ACTION_CAPABILITIES.has(capability) &&
+        !INPUT_DEPENDENT_EFFECT_CAPABILITIES.has(capability),
+    ),
+  );
+  return cachedReadOnlyCapabilities;
+}
 
 /**
  * Denials where binding, bot liveness, actor identity, resource target, or
@@ -478,7 +485,7 @@ const ZERO_TOOL_DENIAL_REASONS: ReadonlySet<OwnerAuthorityDenialReason> =
   ]);
 
 function isReadOnlyCapability(capability: SokoBotCapability): boolean {
-  return READ_ONLY_CAPABILITIES.has(capability);
+  return readOnlyCapabilities().has(capability);
 }
 
 /**
@@ -491,7 +498,7 @@ export function isReadOnlyToolCall(
   capability: SokoBotCapability,
   rawInput: unknown,
 ): boolean {
-  if (READ_ONLY_CAPABILITIES.has(capability)) return true;
+  if (readOnlyCapabilities().has(capability)) return true;
   if (capability === "investor_warm_paths") {
     const parsed =
       SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.safeParse(rawInput);

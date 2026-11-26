@@ -30,12 +30,14 @@ import {
   followUpMessage,
 } from "@/services/soko-bot-watches.service";
 import {
+  type A2aCaseEnd,
+  type A2aPoll,
   a2aChecks,
   a2aRoomLog,
   closeA2aWorld,
+  endA2aCase,
   isA2aScenario,
   loadA2aChain,
-  otherAgentTurnIds,
   pollA2aChain,
   prepareA2aCase,
 } from "./eval-a2a";
@@ -88,7 +90,10 @@ import {
   CMO_WEEKLY_REVIEW_CASE_ID,
   weeklyReviewChecks,
 } from "./eval-cmo-weekly-review";
-import { infrastructureCaseOutcome } from "./eval-infrastructure";
+import {
+  type EvalInfrastructureFailure,
+  infrastructureCaseOutcome,
+} from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
@@ -540,13 +545,68 @@ async function pollA2aScenario(
     startedAt: context.startedAt,
   });
   if (step.kind === "waiting") return step;
-  const { turnIds, timedOut } = step;
-  if (timedOut)
-    await Promise.all(
-      turnIds.map((id) =>
-        sokoBotControlPlane.cancelTurn(lane.userId, id).catch(() => undefined),
-      ),
+  // Every exit ends the case first: nothing of it may still run, post or
+  // cost once it is scored, and its world closes whatever happens next.
+  try {
+    const end = await endA2aCase(step.turnIds);
+    return {
+      kind: "done",
+      outcome: await a2aOutcome(scenario, step, end, lane, context),
+    };
+  } finally {
+    await closeA2aWorld(lane);
+  }
+}
+
+function a2aInfrastructureError(
+  infrastructure: EvalInfrastructureFailure,
+  end: A2aCaseEnd,
+): CaseOutcome {
+  return {
+    status: "ERROR",
+    checks: [],
+    output: {
+      infrastructure,
+      notExecuted: false,
+      ...(end.unsettled.length
+        ? { unsettledTurnIds: end.unsettled, caseTurnIds: end.scope.turnIds }
+        : {}),
+    },
+    error: `${infrastructure.message}: ${infrastructure.detail}`,
+    turnIds: end.scope.turnIds,
+  };
+}
+
+async function a2aOutcome(
+  scenario: SokoBotScenario,
+  step: Exclude<A2aPoll, { kind: "waiting" }>,
+  end: A2aCaseEnd,
+  lane: EvalLaneRecord,
+  context: CaseContext,
+): Promise<CaseOutcome> {
+  if (step.kind === "undelivered")
+    return a2aInfrastructureError(
+      {
+        code: "chat_delivery_failed",
+        stopsRun: false,
+        message: "A chat message of the case was never delivered",
+        detail: step.detail,
+      },
+      end,
     );
+  // Still running after the wait: its score and cost would be read too early.
+  if (end.unsettled.length)
+    return a2aInfrastructureError(
+      {
+        code: "case_unsettled",
+        stopsRun: false,
+        message: "The case's turns were still running after it was cancelled",
+        detail: end.unsettled.join(", "),
+      },
+      end,
+    );
+  const { turnIds, timedOut } = step;
+  const { scope } = end;
   const { turns, merged } = await loadA2aChain(turnIds);
   const output = {
     ...scenarioOutput(merged),
@@ -558,7 +618,7 @@ async function pollA2aScenario(
     })),
   };
   const infrastructure = infrastructureCaseOutcome(turnIds[0]!, merged, output);
-  if (infrastructure) return { kind: "done", outcome: infrastructure };
+  if (infrastructure) return { ...infrastructure, turnIds: scope.turnIds };
   const result = evaluateScenario(scenario, merged);
   const extra = await a2aChecks({
     scenario,
@@ -570,7 +630,7 @@ async function pollA2aScenario(
   result.checks.push(...extra);
   result.total += extra.length;
   result.passed += extra.filter((check) => check.pass).length;
-  const roomLog = await a2aRoomLog(lane, context.startedAt);
+  const roomLog = await a2aRoomLog(lane, context.startedAt, scope);
   await closeA2aWorld(lane);
   const judged = await judgeEvalChain(
     turnIds,
@@ -596,18 +656,12 @@ async function pollA2aScenario(
   const passed =
     result.passed === result.total && judged?.verdict.verdict !== "fail";
   return {
-    kind: "done",
-    outcome: {
-      status: passed ? "PASSED" : "FAILED",
-      checks: result.checks,
-      judge: judged?.verdict ?? null,
-      judgeModel: judged?.model ?? null,
-      output: { ...output, roomLog },
-      turnIds: [
-        ...turnIds,
-        ...(await otherAgentTurnIds(lane, context.startedAt)),
-      ],
-    },
+    status: passed ? "PASSED" : "FAILED",
+    checks: result.checks,
+    judge: judged?.verdict ?? null,
+    judgeModel: judged?.model ?? null,
+    output: { ...output, roomLog },
+    turnIds: scope.turnIds,
   };
 }
 

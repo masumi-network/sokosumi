@@ -2276,7 +2276,7 @@
         },
         "files": "Files",
         "assignee": "Assignee",
-        "noAssignee": "No assignee",
+        "noAssignee": "Unassigned",
         "memberFallback": "Member",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
@@ -2726,7 +2726,7 @@
         "checkingTag": "Being checked",
         "label": "Tags",
         "empty": "No tags yet",
-        "showAll": "Show all {count} tags",
+        "moreTags": "+{count} more {count, plural, one {tag} other {tags}}",
         "noProject": "No project",
         "openProject": "Open project: {name}",
         "vocabulary": {

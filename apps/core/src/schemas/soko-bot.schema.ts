@@ -380,12 +380,58 @@ export const startSokoBotTurnResponseSchema = z
   })
   .openapi("StartSokoBotTurnResponse");
 
+const stopRuleEndsOnSchema = z
+  .preprocess(
+    (val) => (val instanceof Date ? val.toISOString() : val),
+    z.iso.datetime({ offset: true }),
+  )
+  .openapi({
+    example: "2026-12-31T23:59:59+01:00",
+    format: "date-time",
+  });
+
+export const sokoBotScheduleStopRuleInputSchema = z
+  .discriminatedUnion("mode", [
+    z.object({ mode: z.literal("never") }).strict(),
+    z
+      .object({
+        mode: z.literal("ends_on"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        endsOn: stopRuleEndsOnSchema,
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal("ends_after_runs"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        maxRuns: z.number().int().min(1).max(10_000),
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal("when_target_settled"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        targetKind: z.enum(["task", "job"]),
+        targetId: z.string().trim().min(1).max(120),
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal("owner_authorized_stop"),
+        scheduleId: z.string().trim().min(1).max(120).optional(),
+        condition: z.string().trim().min(1).max(300),
+      })
+      .strict(),
+  ])
+  .openapi("SokoBotScheduleStopRuleInput");
+
 export const createSokoBotScheduleRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     timezone: z.string().trim().min(1).max(100),
     cronExpression: z.string().trim().min(1).max(120),
     prompt: z.string().trim().min(1).max(20_000),
+    stopRule: sokoBotScheduleStopRuleInputSchema.optional(),
   })
   .strict()
   .openapi("CreateSokoBotScheduleRequest");
@@ -397,6 +443,7 @@ export const updateSokoBotScheduleRequestSchema = z
     timezone: z.string().trim().min(1).max(100).optional(),
     cronExpression: z.string().trim().min(1).max(120).optional(),
     prompt: z.string().trim().min(1).max(20_000).optional(),
+    stopRule: sokoBotScheduleStopRuleInputSchema.optional(),
     run: z
       .object({
         originalAt: dateTimeSchema.openapi({

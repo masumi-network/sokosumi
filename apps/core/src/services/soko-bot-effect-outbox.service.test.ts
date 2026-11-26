@@ -73,6 +73,7 @@ vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
 
 function effect(overrides = {}) {
@@ -305,13 +306,22 @@ describe("committed effect outbox", () => {
       expect.objectContaining({ expandAll: true }),
     );
   });
-  it.each(["publish", "invalidate", "emitMessages"] as const)(
-    "retains obligation when %s fails and retries same message",
-    async (key) => {
+  it.each([
+    ["publish", "realtime"],
+    ["invalidate", "readers"],
+    ["emitMessages", "notifications"],
+  ] as const)(
+    "retains obligation when %s fails, names the %s step and retries same message",
+    async (key, step) => {
+      expectCoreLogWhys(
+        "error",
+        "A committed Soko Bot effect was not published",
+        [`The ${step} step threw`],
+      );
       mocks[key].mockRejectedValueOnce(new Error("offline"));
       expect(await deliverSokoBotEffect("effect")).toBe(false);
       expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
-        lastErrorCategory: "EFFECT_PUBLICATION_FAILED",
+        lastErrorCategory: `EFFECT_PUBLICATION_FAILED:${step}`,
         leaseToken: null,
       });
       expect(await deliverSokoBotEffect("effect")).toBe(true);
@@ -321,6 +331,7 @@ describe("committed effect outbox", () => {
     },
   );
   it("dead letters exhausted publication without exposing error contents", async () => {
+    expectCoreLog("error", "A committed Soko Bot effect was not published");
     mocks.find.mockResolvedValue(
       effect({ createdAt: new Date(Date.now() - 90_000_000) }),
     );
@@ -362,6 +373,7 @@ describe("committed effect outbox", () => {
   });
 
   it("retries task notification failures using the same committed event", async () => {
+    expectCoreLog("error", "A committed Soko Bot effect was not published");
     mocks.find.mockResolvedValue(
       effect({
         purpose: "TASK_EVENT",

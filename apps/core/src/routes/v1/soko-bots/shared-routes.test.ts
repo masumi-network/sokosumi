@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   archiveMock,
   cancelTurnMock,
+  createScheduleMock,
   createSharedMock,
   decisionFindFirstMock,
   getStateMock,
@@ -15,9 +16,11 @@ const {
   resolveDecisionMock,
   resolveMock,
   turnFindFirstMock,
+  updateScheduleMock,
 } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
   cancelTurnMock: vi.fn(),
+  createScheduleMock: vi.fn(),
   createSharedMock: vi.fn(),
   decisionFindFirstMock: vi.fn(),
   getStateMock: vi.fn(),
@@ -28,6 +31,7 @@ const {
   resolveDecisionMock: vi.fn(),
   resolveMock: vi.fn(),
   turnFindFirstMock: vi.fn(),
+  updateScheduleMock: vi.fn(),
 }));
 
 const USER_ID = "user_1";
@@ -141,7 +145,9 @@ vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
       archive: archiveMock,
       cancelTurn: cancelTurnMock,
       create: personalCreateMock,
+      createSchedule: createScheduleMock,
       listTurns: listTurnsMock,
+      updateSchedule: updateScheduleMock,
     },
   };
 });
@@ -473,6 +479,136 @@ describe("shared Soko Bot routes", () => {
         where: { id: DECISION_ID, sokoBotId: BOT_ID },
         select: { id: true },
       });
+    });
+
+    it("accepts stopRule on console schedule create and rule-only patch routes", async () => {
+      const SCHEDULE_ID = "01960001-0001-7001-8001-000000000088";
+      const now = new Date("2026-11-26T08:00:00.000Z");
+      const scheduleResponse = {
+        id: SCHEDULE_ID,
+        name: "Monthly digest",
+        enabled: true,
+        timezone: "UTC",
+        cronExpression: "0 9 1 * *",
+        runOnce: false,
+        prompt: "Send the monthly digest.",
+        systemKey: null,
+        nextRunAt: now,
+        lastRunAt: null,
+        consecutiveFailures: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+      createScheduleMock.mockResolvedValue(scheduleResponse);
+      updateScheduleMock.mockResolvedValue(scheduleResponse);
+      resolveMock.mockResolvedValue({ id: BOT_ID });
+
+      const stopRule = { mode: "ends_after_runs" as const, maxRuns: 2 };
+
+      const createdMe = await post("/me/schedules", {
+        name: "Monthly digest",
+        timezone: "UTC",
+        cronExpression: "0 9 1 * *",
+        prompt: "Send the monthly digest.",
+        stopRule,
+      });
+      expect(createdMe.status).toBe(201);
+      expect(createScheduleMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: USER_ID,
+          workspaceId: WORKSPACE_ID,
+          stopRule,
+        }),
+      );
+
+      const createdById = await post(`/${BOT_ID}/schedules`, {
+        name: "Monthly digest",
+        timezone: "UTC",
+        cronExpression: "0 9 1 * *",
+        prompt: "Send the monthly digest.",
+        stopRule,
+      });
+      expect(createdById.status).toBe(201);
+      expect(createScheduleMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          userId: USER_ID,
+          workspaceId: WORKSPACE_ID,
+          sokoBotId: BOT_ID,
+          stopRule,
+        }),
+      );
+
+      // Rule-only PATCH on both /me/schedules/{id} and /{sokoBotId}/schedules/{id}.
+      const patchedMe = await createApp().request(
+        `http://localhost/me/schedules/${SCHEDULE_ID}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ stopRule }),
+        },
+      );
+      expect(patchedMe.status).toBe(200);
+      expect(updateScheduleMock).toHaveBeenCalledWith({
+        userId: USER_ID,
+        scheduleId: SCHEDULE_ID,
+        stopRule,
+      });
+
+      const patchedById = await createApp().request(
+        `http://localhost/${BOT_ID}/schedules/${SCHEDULE_ID}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ stopRule: { mode: "never" } }),
+        },
+      );
+      expect(patchedById.status).toBe(200);
+      expect(updateScheduleMock).toHaveBeenLastCalledWith({
+        userId: USER_ID,
+        workspaceId: WORKSPACE_ID,
+        sokoBotId: BOT_ID,
+        scheduleId: SCHEDULE_ID,
+        stopRule: { mode: "never" },
+      });
+
+      // Rule-only PATCH accepts ends_on with explicit timezone offset (+01:00),
+      // matching the shared OwnerAuthority datetime contract.
+      const offsetRule = {
+        mode: "ends_on" as const,
+        endsOn: "2026-12-31T23:59:59+01:00",
+      };
+      const patchedOffset = await createApp().request(
+        `http://localhost/me/schedules/${SCHEDULE_ID}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ stopRule: offsetRule }),
+        },
+      );
+      expect(patchedOffset.status).toBe(200);
+      expect(updateScheduleMock).toHaveBeenLastCalledWith({
+        userId: USER_ID,
+        scheduleId: SCHEDULE_ID,
+        stopRule: offsetRule,
+      });
+
+      // Combining run and stopRule stays rejected (run must be sent alone).
+      const combined = await createApp().request(
+        `http://localhost/me/schedules/${SCHEDULE_ID}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            stopRule,
+            run: {
+              originalAt: "2026-12-01T09:00:00.000Z",
+              expectedAt: "2026-12-01T09:00:00.000Z",
+              action: "skip",
+            },
+          }),
+        },
+      );
+      expect(combined.status).toBe(422);
     });
   });
 });
