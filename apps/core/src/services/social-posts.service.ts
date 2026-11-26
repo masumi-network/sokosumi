@@ -36,6 +36,11 @@ import {
   socialProviderProjectSelect,
   socialProviderWorkspaceForProject,
 } from "@/config/social-providers";
+import {
+  placeholderText,
+  postWritten,
+  spokenChanged,
+} from "@/helpers/cmo-post-plan";
 import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
@@ -47,6 +52,7 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import { jsonInput } from "@/helpers/prisma-json";
 import {
   socialPostConnectionSelect,
   socialPostConnectionSummary,
@@ -2231,8 +2237,6 @@ export interface CreatePlannedSocialPostInput
   marketingStrategyId: string;
   provider: string;
   socialConnectionId: string | null;
-  /** Its words until production writes them: the entry's placeholder. */
-  text: string;
   /** Its planned time; it stays a draft until production schedules it. */
   plannedAt: Date;
   timezone: string;
@@ -2242,9 +2246,10 @@ export interface CreatePlannedSocialPostInput
 }
 
 /**
- * A calendar entry's post, made as a draft at its planned time for
- * production to write and schedule. Made once per op: a retry of the same
- * op returns the post it made.
+ * A calendar entry's post, made as a draft at its planned time, its words
+ * the entry's placeholder, for production to write and schedule. Made once
+ * per op: a retry of the same op returns the post it made, whatever was
+ * written on it since.
  */
 export async function createPlannedSocialPost(
   input: CreatePlannedSocialPostInput,
@@ -2254,7 +2259,7 @@ export async function createPlannedSocialPost(
     const made = await tx.socialPost.findFirst({
       where: {
         projectId: input.projectId,
-        planning: { path: ["applyOpId"], equals: input.applyOpId },
+        planning: { path: ["applyCreateOpId"], equals: input.applyOpId },
       },
       include: socialPostInclude,
     });
@@ -2275,12 +2280,16 @@ export async function createPlannedSocialPost(
         marketingStrategyId: input.marketingStrategyId,
         socialConnectionId: connection?.id ?? null,
         provider: requireProvider(input.provider),
-        text: input.text,
+        text: placeholderText(input.planning, input.provider),
         status: "DRAFT",
         scheduledAt: input.plannedAt,
         timezone: input.timezone,
         creatorUserId: input.userId,
-        planning: { ...input.planning, applyOpId: input.applyOpId },
+        planning: jsonInput({
+          ...input.planning,
+          applyOpId: input.applyOpId,
+          applyCreateOpId: input.applyOpId,
+        }),
       },
       include: socialPostInclude,
     });
@@ -2294,16 +2303,26 @@ export interface PlanSocialPostInput extends ProjectScope {
   planning: SocialPostPlanning;
   /** The owner's change op that writes it, kept on the plan as its mark. */
   applyOpId: string;
-  /**
-   * Its words are to be written again: it goes back to a draft at its time
-   * with this placeholder, for production to rewrite.
-   */
-  rewrite?: { text: string };
+  /** A written post's words are to be written again for the new plan. */
+  rewrite?: boolean;
 }
+
+const UNWRITE = {
+  status: "DRAFT",
+  scheduledByUserId: null,
+  scheduledByCoworkerId: null,
+  nextAttemptAt: null,
+} as const;
 
 /**
  * Writes a post's plan, revision-checked: only while it has not gone out.
- * A rewrite takes it back to an unwritten draft at its time.
+ * - an unwritten post's placeholder follows the new plan;
+ * - a rewrite takes a written post back to an unwritten draft at its time;
+ * - a talking video that now speaks other words (or with another presenter
+ *   or voice) loses its recording, and so do the copies made from it on
+ *   other networks, so production records it again; other plan changes keep
+ *   it.
+ * The op that made the post stays on its plan.
  */
 export async function planSocialPost(
   input: PlanSocialPostInput,
@@ -2314,25 +2333,69 @@ export async function planSocialPost(
     if (!EDITABLE_STATUSES.includes(post.status) || post.leaseToken)
       throw conflict("Only a post that has not gone out can be planned again");
     requireRevision(post, input.revision);
+    const stored = socialPostPlanningSchema.safeParse(post.planning).data;
+    // A post without a plan holds the words someone wrote.
+    const written = !stored || postWritten(post, stored);
+    const rewrite = Boolean(input.rewrite) && written;
+    const spoken =
+      spokenChanged(stored, input.planning) &&
+      parseSocialPostMedia(post.media, post.id).length > 0;
     const planned = await writeWithRevision(
       input,
       input.revision,
       {
-        planning: { ...input.planning, applyOpId: input.applyOpId },
-        ...(input.rewrite
-          ? {
-              text: input.rewrite.text,
-              status: "DRAFT",
-              scheduledByUserId: null,
-              scheduledByCoworkerId: null,
-              nextAttemptAt: null,
-            }
+        planning: jsonInput({
+          ...input.planning,
+          applyOpId: input.applyOpId,
+          applyCreateOpId: stored?.applyCreateOpId,
+        }),
+        ...(!written || rewrite
+          ? { text: placeholderText(input.planning, post.provider) }
           : {}),
+        ...(rewrite || spoken ? UNWRITE : {}),
+        ...(spoken ? { media: [] } : {}),
       },
       tx,
     );
+    if (spoken && stored)
+      await dropCopiedRecordings(tx, post.projectId, stored.id, input.planning);
     return mapSocialPost(planned);
   }, "Project changed while planning a Social post");
+}
+
+/** A talking video's copies carry its recording: they lose it with it and speak the new words. */
+async function dropCopiedRecordings(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  entryId: string,
+  spoken: Pick<SocialPostPlanning, "script" | "presenter" | "voice">,
+): Promise<void> {
+  const copies = await tx.socialPost.findMany({
+    where: {
+      projectId,
+      planning: { path: ["videoOf"], equals: entryId },
+      status: { in: [...EDITABLE_STATUSES] },
+      leaseToken: null,
+    },
+    select: { id: true, planning: true },
+  });
+  for (const copy of copies) {
+    const planning = socialPostPlanningSchema.safeParse(copy.planning).data;
+    await tx.socialPost.updateMany({
+      where: { id: copy.id },
+      data: {
+        ...UNWRITE,
+        media: [],
+        planning: jsonInput({
+          ...planning,
+          script: spoken.script,
+          presenter: spoken.presenter,
+          voice: spoken.voice,
+        }),
+        revision: { increment: 1 },
+      },
+    });
+  }
 }
 
 export async function approveSocialPost(

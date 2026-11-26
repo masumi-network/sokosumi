@@ -601,6 +601,8 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema
   .extend({
     /** The owner's change op that last wrote it (design v5): recovery finds it by this. */
     applyOpId: z.string().optional(),
+    /** The owner's change op that made it; later writes keep it, so a replayed create finds it. */
+    applyCreateOpId: z.string().optional(),
   });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 

@@ -134,7 +134,6 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
       marketingStrategyId: world.versionId,
       provider: "x",
       socialConnectionId: world.socialConnectionId,
-      text: "Why now",
       plannedAt,
       timezone: "UTC",
       planning,
@@ -168,7 +167,6 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
         marketingStrategyId: world.versionId,
         provider: "linkedin",
         socialConnectionId: world.socialConnectionId,
-        text: "Why now",
         plannedAt: new Date(Date.now() + 86_400_000),
         timezone: "UTC",
         planning,
@@ -212,7 +210,7 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
       revision: kept.revision,
       planning: { ...planning, title: "Launch day" },
       applyOpId: "op-plan-2",
-      rewrite: { text: "Why now" },
+      rewrite: true,
     });
     expect(rewrite.status).toBe("DRAFT");
     expect(rewrite.text).toBe("Why now");
@@ -223,6 +221,121 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
     expect(row.planning).toMatchObject({
       title: "Launch day",
       applyOpId: "op-plan-2",
+    });
+  });
+
+  const planned = (
+    world: Awaited<ReturnType<typeof seed>>,
+    applyOpId: string,
+    plan: Parameters<typeof createPlannedSocialPost>[0]["planning"] = planning,
+  ) =>
+    createPlannedSocialPost({
+      ...world.scope,
+      marketingStrategyId: world.versionId,
+      provider: "x",
+      socialConnectionId: world.socialConnectionId,
+      plannedAt: new Date(Date.now() + 4 * 86_400_000),
+      timezone: "UTC",
+      planning: plan,
+      applyOpId,
+    });
+
+  it("finds the post an op made after a later op planned it again (Codex)", async () => {
+    const world = await seed();
+    const made = await planned(world, "op-create");
+    await planSocialPost({
+      ...world.scope,
+      postId: made.id,
+      revision: made.revision,
+      planning: { ...planning, title: "Launch day" },
+      applyOpId: "op-edit",
+    });
+    const again = await planned(world, "op-create");
+    expect(again.id).toBe(made.id);
+    expect(
+      await prisma.socialPost.count({
+        where: { projectId: world.scope.projectId },
+      }),
+    ).toBe(1);
+    const row = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: made.id },
+    });
+    expect(row.planning).toMatchObject({
+      title: "Launch day",
+      applyOpId: "op-edit",
+      applyCreateOpId: "op-create",
+    });
+  });
+
+  it("moves an unwritten post's placeholder with its plan, never keeps the old brief as words (Codex)", async () => {
+    const world = await seed();
+    const made = await planned(world, "op-create");
+    expect(made.text).toBe("Why now");
+    const replanned = await planSocialPost({
+      ...world.scope,
+      postId: made.id,
+      revision: made.revision,
+      planning: { ...planning, brief: "Launch checklist" },
+      applyOpId: "op-edit",
+    });
+    expect(replanned.text).toBe("Launch checklist");
+    expect(replanned.status).toBe("DRAFT");
+  });
+
+  it("drops a talking video's recording and its copies' when its script changes, keeps it otherwise (Codex)", async () => {
+    const world = await seed();
+    const video = {
+      pathname: "drive/users/plan/talk.mp4",
+      fileUrl: "https://example.test/talk.mp4",
+      name: "talk.mp4",
+      size: 1000,
+      mimeType: "video/mp4",
+      kind: "video" as const,
+    };
+    const talking = {
+      ...planning,
+      format: "talking_video",
+      script: "Start a one-week trial",
+      presenter: "Ava",
+    };
+    const made = await planned(world, "op-create", talking);
+    const copy = await planned(world, "op-copy", {
+      ...talking,
+      id: "entry-1-linkedin",
+      videoOf: "entry-1",
+    });
+    await prisma.socialPost.updateMany({
+      where: { id: { in: [made.id, copy.id] } },
+      data: { media: [video], text: "Our trial, in a minute" },
+    });
+    const withVideo = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: made.id },
+    });
+    const retitled = await planSocialPost({
+      ...world.scope,
+      postId: made.id,
+      revision: withVideo.revision,
+      planning: { ...talking, title: "Trial week" },
+      applyOpId: "op-title",
+    });
+    expect(retitled.media).toHaveLength(1);
+    expect(retitled.text).toBe("Our trial, in a minute");
+    const rescripted = await planSocialPost({
+      ...world.scope,
+      postId: made.id,
+      revision: retitled.revision,
+      planning: { ...talking, script: "Start a one-month trial" },
+      applyOpId: "op-script",
+    });
+    expect(rescripted.media).toHaveLength(0);
+    expect(rescripted.status).toBe("DRAFT");
+    const copied = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: copy.id },
+    });
+    expect(copied.media).toEqual([]);
+    expect(copied.planning).toMatchObject({
+      videoOf: "entry-1",
+      script: "Start a one-month trial",
     });
   });
 
