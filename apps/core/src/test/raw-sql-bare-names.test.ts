@@ -1,114 +1,110 @@
 import ts from "@typescript/typescript6";
 import { describe, expect, it } from "vitest";
 
-import { bareNames, sqlTexts } from "./raw-sql-bare-names";
+import { bareNames, type SqlText } from "./raw-sql-bare-names";
 
-/**
- * The bare names under the last statement of `code`, as the prepare step
- * reads it: `follow` is on for a `*RawUnsafe` statement only.
- */
-function found(code: string, follow = false) {
-  const host = ts.createCompilerHost({});
-  host.getSourceFile = (name, languageVersion) =>
-    name === "/fixture.ts"
-      ? ts.createSourceFile(name, code, languageVersion, true)
-      : undefined;
-  const program = ts.createProgram(
-    ["/fixture.ts"],
-    { noLib: true, noResolve: true },
-    host,
+/** The finding in the first string or template of `code`. */
+function found(code: string) {
+  const source = ts.createSourceFile(
+    "fixture.ts",
+    code,
+    ts.ScriptTarget.Latest,
+    true,
   );
-  const statement = program.getSourceFile("/fixture.ts")?.statements.at(-1);
-  if (!statement) throw new Error("The fixture has no statement");
-  return [
-    ...sqlTexts(statement, follow ? program.getTypeChecker() : undefined),
-  ].flatMap(bareNames);
+  let text: SqlText | undefined;
+  function visit(node: ts.Node) {
+    if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node))
+      text ??= node;
+    else ts.forEachChild(node, visit);
+  }
+  visit(source);
+  if (!text) throw new Error("The fixture has no string");
+  return bareNames(text);
 }
-
-const PIECES = `function joins(user: string) {
-  return \`LEFT JOIN TABLE_HERE r ON r."userId" = \${user}\`;
-}
-const order = "ORDER BY 1";
-tx.$queryRawUnsafe(\`SELECT 1 \${joins("$1")} \${order}\`);`;
 
 describe("bare names in raw SQL that PREPARE does not see", () => {
   it.each([
     [
-      "a Prisma.sql fragment",
-      'const where = Prisma.sql`EXISTS (SELECT 1 FROM "task" t WHERE t.id = ${id})`;',
+      'Prisma.sql`EXISTS (SELECT 1 FROM "task" t WHERE t.id = ${id})`',
       'FROM "task"',
     ],
     [
-      "a fragment with lowercase keywords",
-      "const where = Prisma.sql`exists (select 1 from task_file f where f.id = ${id})`;",
+      "Prisma.sql`exists (select 1 from task_file f where f.id = ${id})`",
       "from task_file",
     ],
+    ["Prisma.sql`SELECT id FROM WORKSPACE`", "FROM WORKSPACE"],
+    ['Prisma.sql`SELECT 1 FROM /* target */ "task"`', 'FROM "task"'],
+    ['tx.$executeRawUnsafe("TRUNCATE task CASCADE")', "TRUNCATE task"],
     [
-      "a *RawUnsafe string",
-      'tx.$executeRawUnsafe("TRUNCATE \\"Job\\" CASCADE");',
-      'TRUNCATE "Job"',
-    ],
-    [
-      "a command",
-      "tx.$executeRaw`LOCK TABLE credit_bucket IN EXCLUSIVE MODE`;",
+      "tx.$executeRaw`LOCK TABLE credit_bucket IN EXCLUSIVE MODE`",
       "TABLE credit_bucket",
     ],
-    [
-      "a cast to a type",
-      'const status = Prisma.sql`${value}::"TaskStatus"`;',
-      '::"TaskStatus"',
-    ],
-  ])("finds a bare name in %s", (_kind, code, name) => {
-    expect(found(code)).toEqual([{ line: 1, name }]);
+    ['Prisma.sql`${value}::"TaskStatus"`', '::"TaskStatus"'],
+    ['Prisma.sql`${value}::"AgentStatus"[]`', '::"AgentStatus"'],
+    ["Prisma.sql`'it''s' = ${a} AND EXISTS (SELECT 1 FROM task)`", "FROM task"],
+  ])("finds the bare name in %s", (code, message) => {
+    expect(found(code)).toEqual({ line: 1, message });
   });
 
   it.each([
-    'const where = Prisma.sql`EXISTS (SELECT 1 FROM ${sharedTable("task")} t WHERE t.id = ${id})`;',
-    'const where = Prisma.sql`EXISTS (SELECT 1 FROM "shared"."task" t)`;',
-    'tx.$executeRawUnsafe(`TRUNCATE ${netTable("mainnet", "Job").sql} CASCADE`);',
-    "tx.$executeRaw`SAVEPOINT vendor_grant_create`;",
-    'const status = Prisma.sql`${value}::${sharedType("TaskStatus")}`;',
-    'const status = Prisma.sql`${value}::"shared"."TaskStatus"`;',
-    'const age = Prisma.sql`EXTRACT(EPOCH FROM task."createdAt")`;',
-    'const set = Prisma.sql`DO UPDATE SET "refundedAt" = "polar_order"."refundedAt"`;',
-    "tx.$executeRaw`CREATE TEMP TABLE workspace (id uuid) ON COMMIT DROP`;",
-    "const from = Prisma.sql`SELECT id FROM bucket_avail`;",
+    'Prisma.sql`EXISTS (SELECT 1 FROM ${sharedTable("task")} t WHERE t.id = ${id})`',
+    'Prisma.sql`EXISTS (SELECT 1 FROM "shared"."task" t)`',
+    'Prisma.sql`EXISTS (SELECT 1 FROM "shared" . "task" t)`',
+    'tx.$executeRawUnsafe(`TRUNCATE ${netTable("mainnet", "Job").sql} CASCADE`)',
+    "tx.$executeRaw`SAVEPOINT vendor_grant_create`",
+    'Prisma.sql`${value}::${sharedType("TaskStatus")}`',
+    'Prisma.sql`${value}::"shared"."TaskStatus"`',
+    'Prisma.sql`${value}::"int4"`',
+    "Prisma.sql`'[1]'::\"vector\"`",
+    "Prisma.sql`note = 'copied from task'`",
+    "Prisma.sql`note = 'moved ${count} rows from task'`",
+    "Prisma.sql`note = 'cast::\"TaskStatus\"'`",
+    "Prisma.sql`-- copied from task\n  SELECT 1`",
+    "Prisma.sql`/* join workspace */ SELECT 1`",
+    "Prisma.sql`SELECT $body$ copied from task $body$`",
+    "Prisma.sql`a IS DISTINCT FROM organization AND b IS NOT DISTINCT FROM workspace`",
+    "Prisma.sql`a is distinct from organization`",
+    'tx.$queryRaw`SELECT ${flag ? "moved from task now" : "ok"} ${extra}`',
+    'Prisma.sql`SELECT id FROM "WORKSPACE"`',
+    'Prisma.sql`SELECT 1 FROM "task" . "in_a_schema_named_task"`',
+    "Prisma.sql`SELECT id FROM task$archive`",
+    "Prisma.sql`SELECT id FROM bucket_avail`",
+    'Prisma.sql`EXTRACT(EPOCH FROM task."createdAt")`',
+    'Prisma.sql`DO UPDATE SET "refundedAt" = "polar_order"."refundedAt"`',
+    "tx.$executeRaw`CREATE TEMP TABLE workspace (id uuid) ON COMMIT DROP`",
+    "tx.$executeRaw`CREATE LOCAL TEMPORARY TABLE workspace (id uuid)`",
   ])("passes %s", (code) => {
-    expect(found(code)).toEqual([]);
+    expect(found(code)).toBeUndefined();
   });
 
-  it("finds a bare name in a string piece a *RawUnsafe statement is built from", () => {
-    expect(
-      found(PIECES.replace("TABLE_HERE", "chat_room_read_state"), true),
-    ).toEqual([{ line: 2, name: "JOIN chat_room_read_state" }]);
-  });
-
-  it("passes a string piece that names its table through the helper", () => {
-    expect(
-      found(
-        PIECES.replace(
-          "TABLE_HERE",
-          '${sharedTable("chat_room_read_state").sql}',
-        ),
-        true,
-      ),
-    ).toEqual([]);
-  });
-
-  it("follows strings only, not every value a statement names", () => {
-    expect(
-      found(
-        'const labels = { note: "copied from task" };\ntx.$queryRawUnsafe(`SELECT ${labels.size}`);',
-        true,
-      ),
-    ).toEqual([]);
-  });
-
-  it("reports the line of the name, not of the statement", () => {
+  it("reports the line of the name, not of the keyword or the statement", () => {
     expect(
       found(
         'const where = Prisma.sql`\n  SELECT 1\n  FROM ${sharedTable("task")} t\n  JOIN\n    "Job" j ON true`;',
       ),
-    ).toEqual([{ line: 4, name: 'JOIN "Job"' }]);
+    ).toEqual({ line: 5, message: 'JOIN "Job"' });
+  });
+
+  it("keeps the line when a one-line string has an escaped newline", () => {
+    expect(found('tx.$queryRawUnsafe("SELECT 1\\nFROM task")')).toEqual({
+      line: 1,
+      message: "FROM task",
+    });
+  });
+
+  // Correct SQL that fails: the step's `EXCEPTIONS` takes the message as is.
+  it.each([
+    [
+      "a common table expression named like a table",
+      "Prisma.sql`WITH task AS (SELECT 1) SELECT * FROM task\n  JOIN workspace ON true`",
+      "FROM task, JOIN workspace",
+    ],
+    [
+      "a temporary table after its CREATE",
+      "tx.$executeRaw`INSERT INTO workspace SELECT 1`",
+      "INTO workspace",
+    ],
+  ])("gives one message for %s", (_what, code, message) => {
+    expect(found(code)?.message).toBe(message);
   });
 });

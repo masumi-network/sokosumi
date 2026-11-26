@@ -1,3 +1,4 @@
+import { $Enums } from "@sokosumi/database";
 import ts from "@typescript/typescript6";
 
 import tables from "../../../../packages/database/prisma/network-tables.json" with {
@@ -5,92 +6,84 @@ import tables from "../../../../packages/database/prisma/network-tables.json" wi
 };
 
 /**
- * Bare table and type names in the raw SQL that `scripts/prepare-raw-sql.ts`
- * cannot hand to PostgreSQL: statements built from pieces, `Prisma.sql`
- * fragments and commands. It reads only text the type checker found at a raw
- * SQL call site, so keywords match in any case.
+ * Bare table and enum type names in the raw SQL that
+ * `scripts/prepare-raw-sql.ts` cannot hand to PostgreSQL: `Prisma.sql`
+ * fragments, and the literal text of skipped statements and commands. A
+ * finding fails CI's job `Test Core PostgreSQL split layout`. That job is not
+ * a required check, so it turns red and does not block a merge.
  *
- * A finding is a keyword that takes a table, followed by the SQL name of one
- * of our tables (`network-tables.json`) with no schema before it, or a cast to
- * a quoted type with no schema (`::"TaskStatus"`). A name in a `${…}` hole is
- * never a finding: the text ends before it.
- * What it cannot see: a table after a comma (`FROM a, b`), after `ON`, `LOCK`,
- * `ANALYZE`, `VACUUM` or `COPY`; `CAST(x AS "Type")`; a name held in a
- * variable; a schema written out by hand (it counts as qualified).
- * False findings: a common table expression named like a table. The way out
- * is an entry in `EXCEPTIONS` of the script.
+ * A finding is a keyword that takes a table, in any case, followed by the SQL
+ * name of one of our tables (`network-tables.json`) with no schema before it,
+ * or a cast to one of our enum types with no schema (`::"TaskStatus"`). A
+ * quoted name must match exactly; a bare one folds to lowercase, as in
+ * PostgreSQL. Comments and strings of the SQL are not read, and neither is a
+ * `${…}` hole.
+ *
+ * False failures (waive them in `EXCEPTIONS` of the script): a common table
+ * expression or a temporary table named like one of our tables; `EXTRACT`,
+ * `TRIM` or `SUBSTRING(… FROM x)` where `x` is a bare column named like a
+ * table.
+ * Not seen: a name after a comma (`FROM a, b`), after `LOCK` without `TABLE`,
+ * `ANALYZE`, `VACUUM`, `COPY` or `ON`; `CAST(… AS "Type")`; a name split
+ * across pieces or held in a variable; a fragment imported from outside
+ * `SOURCE_PATHS`; all `*RawUnsafe` text built from pieces; a stored string
+ * passed to `Prisma.raw`; a quoted name in a string with escaped quotes.
  */
 const names = [
   ...Object.values(tables.network),
   ...tables.networkJoinTables,
   ...Object.values(tables.shared),
 ];
-// PostgreSQL folds a bare name to lowercase, so only an all-lowercase name
-// can be written without quotes.
 const unquoted = names.filter((name) => name === name.toLowerCase());
 const BARE = new RegExp(
-  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:FROM|JOIN|INTO|UPDATE|USING|TABLE|TRUNCATE|ONLY|REFERENCES)\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:"(?:${names.join("|")})"|(?:${unquoted.join("|")}))(?![\\w".])|::\\s*"\\w+"(?!\\.)`,
-  "gi",
+  `(?<!(?:temp|temporary|distinct)\\s+)\\b(?:from|join|into|update|using|table|truncate|only|references)\\s+(?:if\\s+(?:not\\s+)?exists\\s+)?(?:"(?:${names.join("|")})"|(?:${unquoted.join("|")}))(?![\\w$"]|\\s*\\.)|::\\s*"(?:${Object.keys($Enums).join("|")})"(?!\\s*\\.)`,
+  "g",
 );
+/**
+ * Line and block comments, single-quoted and dollar-quoted strings, and an
+ * escaped line break or tab of the TypeScript source.
+ */
+const NOT_SQL =
+  /--[^\n]*|\/\*[\s\S]*?\*\/|'(?:''|[^'])*'|\$(\w*)\$[\s\S]*?\$\1\$|\\[nrt]/g;
+const blank = (text: string) => text.replace(/[^\n]/g, " ");
 
 export type SqlText = ts.StringLiteralLike | ts.TemplateExpression;
 
-/** A string, or a function that returns one. */
-function isText(node: ts.Identifier, checker: ts.TypeChecker) {
-  const type = checker.getTypeAtLocation(node);
-  return checker.isTypeAssignableTo(
-    type.getCallSignatures()[0]?.getReturnType() ?? type,
-    checker.getStringType(),
-  );
-}
-
 /**
- * Every string and template in `root`. With a checker also those in the
- * string constants and string-returning functions `root` names, however deep:
- * the pieces a `*RawUnsafe` statement is built from.
+ * The bare names in one SQL text: the line of the first, and all of them as
+ * the message a waiver must repeat.
  */
-export function sqlTexts(root: ts.Node, checker?: ts.TypeChecker) {
-  const texts = new Set<SqlText>();
-  const followed = new Set<ts.Node>();
-  function visit(node: ts.Node) {
-    if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node))
-      texts.add(node);
-    if (checker && ts.isIdentifier(node) && isText(node, checker)) {
-      const named = checker.getSymbolAtLocation(node);
-      const symbol =
-        named && named.flags & ts.SymbolFlags.Alias
-          ? checker.getAliasedSymbol(named)
-          : named;
-      for (const declaration of symbol?.declarations ?? []) {
-        const body = ts.isVariableDeclaration(declaration)
-          ? declaration.initializer
-          : ts.isFunctionDeclaration(declaration) ||
-              ts.isMethodDeclaration(declaration)
-            ? declaration.body
-            : undefined;
-        if (!body || followed.has(body)) continue;
-        followed.add(body);
-        visit(body);
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(root);
-  return texts;
-}
-
-/** The bare names in one SQL text, each with its line in the file. */
-export function bareNames(text: SqlText): { line: number; name: string }[] {
+export function bareNames(text: SqlText) {
   const source = text.getSourceFile();
-  const parts = ts.isTemplateExpression(text)
-    ? [text.head, ...text.templateSpans.map((span) => span.literal)]
-    : [text];
-  return parts.flatMap((part) =>
-    [...part.text.matchAll(BARE)].map((match) => ({
-      line:
-        source.getLineAndCharacterOfPosition(part.getStart(source)).line +
-        part.text.slice(0, match.index).split("\n").length,
-      name: match[0].replace(/\s+/g, " "),
-    })),
+  const start = text.getStart(source) + 1;
+  // The source as written, so every offset is a place in the file.
+  let sql = source.text.slice(start, text.end - 1);
+  for (const { expression, literal } of ts.isTemplateExpression(text)
+    ? text.templateSpans
+    : []) {
+    const [from, to] = [
+      expression.pos - start,
+      literal.getStart(source) - start,
+    ];
+    sql = sql.slice(0, from) + blank(sql.slice(from, to)) + sql.slice(to);
+  }
+  sql = sql.replace(NOT_SQL, blank);
+  // Everything outside double quotes in lowercase, as PostgreSQL reads it.
+  const folded = sql.replace(/"[^"]*"|[^"]+/g, (part) =>
+    part.startsWith('"') ? part : part.toLowerCase(),
   );
+  const found = [...folded.matchAll(BARE)];
+  const [first] = found;
+  if (!first) return;
+  return {
+    line:
+      source.getLineAndCharacterOfPosition(
+        start + first.index + first[0].length - 1,
+      ).line + 1,
+    message: found
+      .map(({ 0: match, index }) =>
+        sql.slice(index, index + match.length).replace(/\s+/g, " "),
+      )
+      .join(", "),
+  };
 }

@@ -33,12 +33,15 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 // False findings: a common table expression named like a table, a statement
 // on a temporary table after its `CREATE`, and prose in a comment or string
 // that happens to read like SQL. These are why it does not fail the build.
-// What fails the build is CI's job `Test Core PostgreSQL split layout`
-// (`scripts/prepare-raw-sql.ts`): PostgreSQL resolves every complete
-// statement of production code, and `src/test/raw-sql-bare-names.ts` reads
-// the fragments and assembled statements there, keywords in any case. This
-// scan stays for what that step does not read: tests, `.sql`, `.sh` and
-// `.mjs` files, and code outside its `SOURCE_PATHS`.
+// A bare name in production code fails CI's job `Test Core PostgreSQL split
+// layout` instead (`scripts/prepare-raw-sql.ts`); that job is not a required
+// check, so it turns red and does not block a merge. There PostgreSQL
+// resolves every statement it can prepare, and
+// `src/test/raw-sql-bare-names.ts` reads the `Prisma.sql` fragments and the
+// literal text of the statements and commands it cannot, keywords in any
+// case. This scan stays for what that step does not read: `*RawUnsafe` text
+// built from pieces, tests, `.sql`, `.sh` and `.mjs` files, and code outside
+// its `SOURCE_PATHS`.
 const KEYWORDS = "FROM|JOIN|INTO|UPDATE|USING|TABLE|TRUNCATE|ONLY|REFERENCES";
 
 /**
@@ -72,7 +75,7 @@ const EXCLUDED: Record<string, string> = {
 
 /**
  * Where a finding of this scan fails the build: nowhere, it only reports.
- * Production raw SQL is enforced by the prepare step instead (see above).
+ * Production raw SQL is checked by the prepare step instead (see above).
  * Should a group be listed here after all: Turbo replays a cached pass of
  * Core's tests when only files outside Core and its dependencies changed
  * (root `scripts/`), so "scripts" also needs those paths in the inputs of
