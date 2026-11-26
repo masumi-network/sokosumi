@@ -51,6 +51,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     description:
       'Show the person agents they can hire, as cards with price and rating; their Hire click asks you in the conversation to open the hire form. Takes agents_list\'s arguments and returns its result. Pass `limit: 8` and `kind: "cardano"`: the view shows up to 8 agents, and only those a person hires. Pass `workspace` when the person hires for an organization, so Hire names it. Use it when the person wants to browse or pick an agent; use agents_list when you only need the data.',
   },
+  {
+    name: "workspaces_show_social_posts",
+    data: "workspaces_social_posts",
+    ui: "social-posts",
+    description:
+      "Show the person the workspace's Social posts that need approval: each post's text, account, Project and schedule, with Review in Sokosumi and a Cancel the person confirms in the view. Pass `status: \"NEEDS_APPROVAL\"` and `limit: 100`. A person approves and publishes in Sokosumi; the view only cancels, through projects_social_post_cancel, which needs the social toolset. Takes workspaces_social_posts's arguments and returns its result. Use it when the person wants to review the posts waiting for them; use workspaces_social_posts when you only need the data.",
+  },
 ];
 
 /** The MCP Apps MIME type of a view (SEP-1865). */

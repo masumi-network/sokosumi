@@ -45,6 +45,7 @@ import {
   checkCompetitorsInputSchema,
   saveCompetitorFeedInputSchema,
 } from "./competitors.js";
+import { ownerAuthorityStopRuleInputSchema } from "./owner-authority.js";
 import type { SokoBotCapability } from "./policy.js";
 import {
   brandBrainSchema,
@@ -152,6 +153,16 @@ export const sokoBotCreateScheduleInputSchema = z
     taskId: z.string().min(1).optional(),
     /** The Job this schedule watches; Core deletes the schedule once it finishes. */
     jobId: z.string().min(1).optional(),
+    /**
+     * Explicit owner-authorized stop condition persisted on the schedule's
+     * OwnerAuthority (settable only on a direct top-level owner chat turn).
+     */
+    stopRule: ownerAuthorityStopRuleInputSchema.optional(),
+    /**
+     * Explicitly authorizes a personal schedule to schedule social posts
+     * (settable only on a direct top-level owner chat turn).
+     */
+    allowScheduledPosts: z.boolean().optional(),
   })
   .strict()
   .refine((value) => Boolean(value.cronExpression) !== Boolean(value.runAt), {
@@ -179,6 +190,16 @@ export const sokoBotUpdateScheduleInputSchema = z
     cronExpression: cronExpressionSchema.optional(),
     timezone: timezoneSchema.optional(),
     prompt: z.string().trim().min(1).max(4_000).optional(),
+    /**
+     * Updates or clears (`{ mode: "never" }`) the schedule's persisted stop
+     * condition (settable/clearable only on a direct top-level owner chat turn).
+     */
+    stopRule: ownerAuthorityStopRuleInputSchema.optional(),
+    /**
+     * Updates whether a personal schedule is authorized to schedule social posts
+     * (changeable only on a direct top-level owner chat turn).
+     */
+    allowScheduledPosts: z.boolean().optional(),
   })
   .strict()
   .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
@@ -2224,15 +2245,15 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_schedules:
     "List schedules with who created each, when, which bot runs it, the last run and its result, and youCanChange. Default: yours. scope workspace: also the workspace's Task Schedules and other bots' schedules the member may see; query narrows by name or prompt. Change only schedules with youCanChange; when askOwnerFirst or createdBySomeoneElse is set, ask the owner and change it on their yes. For the rest, propose the change.",
   create_schedule:
-    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
+    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. When the owner directly asks for a recurring schedule to stop after a date, run count, or settled Task/Job, pass `stopRule` (`ends_on`, `ends_after_runs`, or `when_target_settled`; settable only on a direct owner chat turn). To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
   update_schedule:
-    "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
+    "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name, or `stopRule` on a direct owner chat turn). Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
   save_task_schedule:
     "Create or change a Task Schedule (the Schedules page): each run creates a Task with the brief for its assignee, a Coworker (find_coworkers) or a Soko Bot; people cannot be assignees. Recurring work a Coworker does belongs here, not in your own schedule. Without scheduleId: create (name, brief, cron and timezone needed). With it: change only what you pass; state PAUSED, ACTIVE or ENDED pauses, resumes or ends it. Runs with the owner's rights; changing one someone else made needs the owner's yes in their own chat.",
   delete_task_schedule:
     "Delete a Task Schedule by scheduleId from list_schedules (scope workspace). Tasks it already made stay. One someone else made needs the owner's yes in their own chat.",
   delete_schedule:
-    "Remove a follow-up schedule once its work is done or the owner no longer wants it. A scheduled run removes or switches off only its own schedule, and only when its brief says to; otherwise it reports and the owner decides. Address it by scheduleId or scheduleName exactly as list_schedules returned it. One-time schedules remove themselves after they ran.",
+    "Remove a follow-up schedule once its work is done or the owner no longer wants it. A scheduled run removes or switches off only its own schedule, and only when its owner-authorized stop rule is satisfied; otherwise it reports and the owner decides. Address it by scheduleId or scheduleName exactly as list_schedules returned it. One-time schedules remove themselves after they ran.",
   list_announcements:
     "List Sokosumi's announcements, newest first, each with announcementId, live (true while users see it; false for a draft or an ended one), title, summary, body, coverUrl, action and how many people closed it. To change a draft, pass every field again with save_announcement; leave coverFileId out to keep its cover. Read-only.",
   save_announcement:

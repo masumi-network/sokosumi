@@ -65,4 +65,31 @@ describe("persistedToolResult", () => {
       url: "https://example.com/a",
     });
   });
+
+  it("keeps canonicalInputHash within the 16 KB audit limit when clipping a long create_task input", () => {
+    const hash = "a".repeat(64);
+    const stored = persistedToolResult(
+      {
+        name: "Long brief",
+        coworkerId: null,
+        description: "x".repeat(18_000),
+      },
+      "create_task",
+      { canonicalInputHash: hash },
+    );
+    expect(stored).toMatchObject({
+      truncated: true,
+      name: "Long brief",
+      canonicalInputHash: hash,
+    });
+    expect(
+      Buffer.byteLength(JSON.stringify(stored), "utf8"),
+    ).toBeLessThanOrEqual(16_384);
+    // Unclipped inputs stay unmodified.
+    expect(
+      persistedToolResult({ name: "Short" }, "create_task", {
+        canonicalInputHash: hash,
+      }),
+    ).toEqual({ name: "Short" });
+  });
 });

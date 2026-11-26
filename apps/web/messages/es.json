@@ -2276,7 +2276,7 @@
         },
         "files": "Archivos",
         "assignee": "Responsable",
-        "noAssignee": "Sin responsable",
+        "noAssignee": "Sin asignar",
         "memberFallback": "Miembro",
         "schedule": "Programación",
         "privateSchedule": "Programación privada",
@@ -2726,7 +2726,7 @@
         "checkingTag": "En revisión",
         "label": "Etiquetas",
         "empty": "Sin etiquetas todavía",
-        "showAll": "Mostrar las {count} etiquetas",
+        "moreTags": "+{count} {count, plural, one {etiqueta más} other {etiquetas más}}",
         "noProject": "Sin proyecto",
         "openProject": "Abrir proyecto: {name}",
         "vocabulary": {

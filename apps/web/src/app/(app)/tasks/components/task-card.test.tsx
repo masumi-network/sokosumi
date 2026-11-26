@@ -434,11 +434,11 @@ describe("TaskCard density", () => {
       if (compact) {
         expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
         expect(
-          screen.queryByRole("button", { name: "showAll" }),
+          screen.queryByRole("button", { name: "moreTags" }),
         ).not.toBeInTheDocument();
       } else {
         expect(screen.getByText("vocabulary.design")).toBeInTheDocument();
-        const overflow = screen.getByRole("button", { name: "showAll" });
+        const overflow = screen.getByRole("button", { name: "moreTags" });
         expect(overflow).toHaveTextContent("+2");
         fireEvent.pointerDown(overflow);
         fireEvent.keyDown(overflow, { key: "Enter" });

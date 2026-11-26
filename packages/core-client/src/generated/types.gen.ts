@@ -16478,6 +16478,28 @@ export type CreateSokoBotScheduleRequest = {
     timezone: string;
     cronExpression: string;
     prompt: string;
+    stopRule?: SokoBotScheduleStopRuleInput;
+};
+
+export type SokoBotScheduleStopRuleInput = {
+    mode: 'never';
+} | {
+    mode: 'ends_on';
+    scheduleId?: string;
+    endsOn: Date;
+} | {
+    mode: 'ends_after_runs';
+    scheduleId?: string;
+    maxRuns: number;
+} | {
+    mode: 'when_target_settled';
+    scheduleId?: string;
+    targetKind: 'task' | 'job';
+    targetId: string;
+} | {
+    mode: 'owner_authorized_stop';
+    scheduleId?: string;
+    condition: string;
 };
 
 export type UpdateSokoBotScheduleRequest = {
@@ -16486,6 +16508,7 @@ export type UpdateSokoBotScheduleRequest = {
     timezone?: string;
     cronExpression?: string;
     prompt?: string;
+    stopRule?: SokoBotScheduleStopRuleInput;
     /**
      * Skip, move or restore one run; the cron stays as it is. Sent alone.
      */
