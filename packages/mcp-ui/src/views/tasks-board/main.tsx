@@ -2,6 +2,7 @@ import { mountView } from "../../shell/mount.tsx";
 import { BOARD_EMPTY, TasksBoard, TasksList } from "./TasksBoard.tsx";
 
 mountView("tasks-board", {
+  skeleton: "cards",
   schema: TasksList,
   isEmpty: (data) => data.data.length === 0,
   empty: BOARD_EMPTY,

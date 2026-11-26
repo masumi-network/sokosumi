@@ -440,10 +440,15 @@ const toolResult = (structuredContent: Record<string, unknown>) => ({
   structuredContent,
 });
 
-const DESCRIPTION = `Compare our plans with the three closest competitors in Germany, Austria and Switzerland.
+const DESCRIPTION = `Compare our plans with the **three closest competitors** in Germany, Austria and Switzerland.
+
+## What to collect
 
 - List each plan's monthly price and what it includes.
 - Note any free tier.
+
+Start from the [pricing brief](https://app.sokosumi.com/tasks/0196a000-0000-7000-8000-000000000012), not [the competitor's site](https://example.com/pricing).
+
 <b>Markup stays text.</b>`;
 
 const LONG_DESCRIPTION = `${DESCRIPTION}

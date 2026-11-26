@@ -86,6 +86,12 @@ async function buildView(id: string): Promise<string> {
       cssCodeSplit: false,
       assetsInlineLimit: Number.MAX_SAFE_INTEGER,
       reportCompressedSize: false,
+      rollupOptions: {
+        // lucide-react marks its modules "use client"; views have no server.
+        onwarn(warning, warn) {
+          if (warning.code !== "MODULE_LEVEL_DIRECTIVE") warn(warning);
+        },
+      },
     },
   });
   const outputs = Array.isArray(result) ? result : [result];
