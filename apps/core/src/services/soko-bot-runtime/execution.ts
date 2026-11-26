@@ -68,6 +68,54 @@ import {
   createTaskInputIdentity,
 } from "./task-policy";
 
+const TERMINAL_COMMIT_MAX_ATTEMPTS = 3;
+
+async function persistTerminalToolOutcome(options: {
+  where: Prisma.SokoBotToolCallWhereInput;
+  data: Prisma.SokoBotToolCallUpdateManyMutationInput;
+  spend: {
+    turnId: string;
+    toolCallId: string;
+    outcome: "SETTLED" | "UNKNOWN" | "RELEASED";
+  } | null;
+}): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= TERMINAL_COMMIT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      if (options.spend) {
+        const spend = options.spend;
+        const commit = async (tx: typeof prisma) => {
+          await tx.sokoBotToolCall.updateMany({
+            where: options.where,
+            data: options.data,
+          });
+          await settleAuthoritySpend(
+            tx,
+            { turnId: spend.turnId, toolCallId: spend.toolCallId },
+            spend.outcome,
+          );
+        };
+        if (typeof prisma.$transaction === "function") {
+          await prisma.$transaction((tx) =>
+            commit(tx as unknown as typeof prisma),
+          );
+        } else {
+          await commit(prisma);
+        }
+      } else {
+        await prisma.sokoBotToolCall.updateMany({
+          where: options.where,
+          data: options.data,
+        });
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 /** A refusal Core meant is stored as such, so a report can tell it from a failure. */
 export function toolErrorKind(error: unknown): string {
   if (error instanceof SokoBotFeatureOffError) return SOKO_BOT_FEATURE_OFF;
@@ -762,112 +810,93 @@ export async function executeTool(
       throw error;
     }
   }
+  // Separate provider execution from terminal receipt/ledger persistence so a
+  // transient DB rollback on commit retries only the database transaction with
+  // the exact observed provider outcome rather than overwriting a confirmed
+  // refund or queued job with UNKNOWN.
+  let providerOutcome:
+    | { ok: true; result: unknown }
+    | { ok: false; error: unknown };
   try {
-    const result = await runtime.executeAuthorizedTool(input);
-    const receipt = externalEffect
-      ? externalActionReceipt(input.capability, result)
-      : null;
-    const completionWhere: Prisma.SokoBotToolCallWhereInput = {
-      turnId: input.turnId,
-      toolCallId: input.toolCallId,
-      ...(externalEffect
-        ? {
-            status: { in: ["PENDING", "COMPLETED"] },
-            disposition: "UNKNOWN",
-            verification: "NONE",
-          }
-        : { status: "PENDING" }),
+    providerOutcome = {
+      ok: true,
+      result: await runtime.executeAuthorizedTool(input),
     };
+  } catch (error) {
+    providerOutcome = { ok: false, error };
+  }
+
+  const terminalWhere: Prisma.SokoBotToolCallWhereInput = {
+    turnId: input.turnId,
+    toolCallId: input.toolCallId,
+    ...(externalEffect
+      ? {
+          status: { in: ["PENDING", "COMPLETED"] },
+          disposition: "UNKNOWN",
+          verification: "NONE",
+        }
+      : { status: "PENDING" }),
+  };
+
+  if (providerOutcome.ok) {
+    const receipt = externalEffect
+      ? externalActionReceipt(input.capability, providerOutcome.result)
+      : null;
     const completionData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
       ...(receipt ?? {}),
       ...(receipt?.disposition === "REJECTED" ? { operationKey: null } : {}),
       status: "COMPLETED",
-      result: persistedToolResult(result ?? null, input.capability),
+      result: persistedToolResult(
+        providerOutcome.result ?? null,
+        input.capability,
+      ),
     };
-    if (spendReserved) {
-      const spendOutcome =
-        receipt?.disposition === "REJECTED"
-          ? "RELEASED"
-          : receipt?.disposition === "UNKNOWN"
-            ? "UNKNOWN"
-            : "SETTLED";
-      const commitCompletion = async (tx: typeof prisma) => {
-        await tx.sokoBotToolCall.updateMany({
-          where: completionWhere,
-          data: completionData,
-        });
-        await settleAuthoritySpend(
-          tx,
-          { turnId: input.turnId, toolCallId: input.toolCallId },
-          spendOutcome,
-        );
-      };
-      if (typeof prisma.$transaction === "function") {
-        await prisma.$transaction((tx) =>
-          commitCompletion(tx as unknown as typeof prisma),
-        );
-      } else {
-        await commitCompletion(prisma);
-      }
-    } else {
-      await prisma.sokoBotToolCall.updateMany({
-        where: completionWhere,
-        data: completionData,
-      });
-    }
-    return result;
-  } catch (error) {
-    const refusedUnsent = error instanceof SokoBotRefusedUnsentError;
-    const failureWhere: Prisma.SokoBotToolCallWhereInput = {
-      turnId: input.turnId,
-      toolCallId: input.toolCallId,
-      ...(externalEffect
+    const spendOutcome =
+      receipt?.disposition === "REJECTED"
+        ? "RELEASED"
+        : receipt?.disposition === "UNKNOWN"
+          ? "UNKNOWN"
+          : "SETTLED";
+    await persistTerminalToolOutcome({
+      where: terminalWhere,
+      data: completionData,
+      spend: spendReserved
         ? {
-            status: { in: ["PENDING", "COMPLETED"] },
-            disposition: "UNKNOWN",
-            verification: "NONE",
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            outcome: spendOutcome,
           }
-        : { status: "PENDING" }),
-    };
-    const failureData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
-      status: "FAILED",
-      // A rolled-back local attempt is not an enduring semantic
-      // reservation, and neither is an effect refused before it was sent.
-      ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-      ...(action
-        ? {
-            disposition:
-              externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
-          }
-        : {}),
-      errorKind: toolErrorKind(error),
-      errorDetail: persistedErrorDetail(error),
-    };
-    if (spendReserved) {
-      const commitFailure = async (tx: typeof prisma) => {
-        await tx.sokoBotToolCall.updateMany({
-          where: failureWhere,
-          data: failureData,
-        });
-        await settleAuthoritySpend(
-          tx,
-          { turnId: input.turnId, toolCallId: input.toolCallId },
-          refusedUnsent ? "RELEASED" : "UNKNOWN",
-        );
-      };
-      if (typeof prisma.$transaction === "function") {
-        await prisma.$transaction((tx) =>
-          commitFailure(tx as unknown as typeof prisma),
-        );
-      } else {
-        await commitFailure(prisma);
-      }
-    } else {
-      await prisma.sokoBotToolCall.updateMany({
-        where: failureWhere,
-        data: failureData,
-      });
-    }
-    throw error;
+        : null,
+    });
+    return providerOutcome.result;
   }
+
+  const refusedUnsent =
+    providerOutcome.error instanceof SokoBotRefusedUnsentError;
+  const failureData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
+    status: "FAILED",
+    // A rolled-back local attempt is not an enduring semantic
+    // reservation, and neither is an effect refused before it was sent.
+    ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
+    ...(action
+      ? {
+          disposition:
+            externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
+        }
+      : {}),
+    errorKind: toolErrorKind(providerOutcome.error),
+    errorDetail: persistedErrorDetail(providerOutcome.error),
+  };
+  await persistTerminalToolOutcome({
+    where: terminalWhere,
+    data: failureData,
+    spend: spendReserved
+      ? {
+          turnId: input.turnId,
+          toolCallId: input.toolCallId,
+          outcome: refusedUnsent ? "RELEASED" : "UNKNOWN",
+        }
+      : null,
+  });
+  throw providerOutcome.error;
 }

@@ -32,6 +32,8 @@ const provider = vi.hoisted(() => ({
   downloadMedia: vi.fn(),
   nextCreateImageJobError: null as Error | null,
   nextCreateImageJobStatus: null as string | null,
+  createImageJobCalls: 0,
+  onAfterCreateImageJob: null as (() => void) | null,
 }));
 
 const enabled =
@@ -121,6 +123,7 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
       modelId: string;
       idempotencyKey: string;
     }) => {
+      provider.createImageJobCalls += 1;
       if (provider.nextCreateImageJobError) {
         const error = provider.nextCreateImageJobError;
         provider.nextCreateImageJobError = null;
@@ -128,7 +131,7 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
       }
       const status = provider.nextCreateImageJobStatus ?? "QUEUED";
       provider.nextCreateImageJobStatus = null;
-      return db.projectImageJob.create({
+      const job = await db.projectImageJob.create({
         data: {
           projectId: input.projectId,
           workspaceId: input.workspaceId,
@@ -145,6 +148,10 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
           submittedAt: new Date(),
         },
       });
+      const hook = provider.onAfterCreateImageJob;
+      provider.onAfterCreateImageJob = null;
+      hook?.();
+      return job;
     },
   };
 });
@@ -1184,5 +1191,171 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
         maxCredits: credits,
       }),
     ).rejects.toThrow("The owner asked for 1 image in this plan");
+
+    // 11. Two Projects authorized by ONE shared grantId retain both scopes
+    //     independent of row order and charge one shared 2-image balance.
+    const sharedMultiProjGrant = randomUUID();
+    const sharedMultiProjTurn = await eventTurn();
+    await prisma.sokoBotDelegation.createMany({
+      data: [
+        {
+          turnId: ownerChatId,
+          toolCallId: `shared-multi-a-${sharedMultiProjTurn}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Make image for Project A",
+          authority: ownerAuthoritySchema.parse({
+            ...sharedAuthority,
+            grantId: sharedMultiProjGrant,
+            targetScope: { kind: "project", projectId },
+            limits: {
+              grantId: sharedMultiProjGrant,
+              period: "lifetime",
+              images: 2,
+              maxMediaCredits: 2 * credits,
+            },
+          }),
+          followUpTurnId: sharedMultiProjTurn,
+        },
+        {
+          turnId: ownerChatId,
+          toolCallId: `shared-multi-b-${sharedMultiProjTurn}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Make image for Project B",
+          authority: ownerAuthoritySchema.parse({
+            ...sharedAuthority,
+            grantId: sharedMultiProjGrant,
+            targetScope: { kind: "project", projectId: projectB },
+            limits: {
+              grantId: sharedMultiProjGrant,
+              period: "lifetime",
+              images: 2,
+              maxMediaCredits: 2 * credits,
+            },
+          }),
+          followUpTurnId: sharedMultiProjTurn,
+        },
+      ],
+    });
+    // Project B (second delegation row) succeeds first, then Project A takes
+    // the second image under the same shared grantId; a 3rd image is refused.
+    const sharedImgB = (await call(sharedMultiProjTurn, "generate_image", {
+      projectId: projectB,
+      prompt: "Shared multi-project image on B",
+      maxCredits: credits,
+    })) as { status: string };
+    expect(sharedImgB.status).toBe("QUEUED");
+    const sharedImgA = (await call(sharedMultiProjTurn, "generate_image", {
+      projectId,
+      prompt: "Shared multi-project image on A",
+      maxCredits: credits,
+    })) as { status: string };
+    expect(sharedImgA.status).toBe("QUEUED");
+    expect(
+      await prisma.sokoBotAuthoritySpend.count({
+        where: {
+          sokoBotId,
+          grantId: sharedMultiProjGrant,
+          status: "SETTLED",
+        },
+      }),
+    ).toBe(2);
+    await expect(
+      call(sharedMultiProjTurn, "generate_image", {
+        projectId: projectB,
+        prompt: "Third image past shared 2-image grant",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("The owner asked for 2 images in this plan");
+
+    // 12. A transient rollback on the terminal receipt-and-ledger transaction
+    //     retries ONLY the DB commit with the exact observed Studio outcome
+    //     (never re-running the provider and never overwriting a confirmed
+    //     refund or queued job with UNKNOWN).
+    const rollbackGrantId = randomUUID();
+    const rollbackTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `rollback-${rollbackTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Rollback resilience test",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: rollbackGrantId,
+          limits: {
+            grantId: rollbackGrantId,
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: credits,
+          },
+        }),
+        followUpTurnId: rollbackTurn,
+      },
+    });
+    const origTransaction = prisma.$transaction.bind(prisma);
+    let failNextTerminalTx = false;
+    let rolledBackCount = 0;
+    const txSpy = vi.spyOn(prisma, "$transaction").mockImplementation(((
+      ...args: unknown[]
+    ) => {
+      if (failNextTerminalTx) {
+        failNextTerminalTx = false;
+        rolledBackCount += 1;
+        return Promise.reject(
+          new Error("transient database rollback on terminal commit"),
+        );
+      }
+      return (origTransaction as (...a: unknown[]) => unknown)(...args);
+    }) as typeof prisma.$transaction);
+    try {
+      // 12a. Confirmed Studio refund (returned FAILED) survives a terminal tx rollback.
+      const callsBeforeRefund = provider.createImageJobCalls;
+      provider.nextCreateImageJobStatus = "FAILED";
+      provider.onAfterCreateImageJob = () => {
+        failNextTerminalTx = true;
+      };
+      const rolledBackRefund = (await call(rollbackTurn, "generate_image", {
+        projectId,
+        prompt: "Refunded image with terminal tx rollback",
+        maxCredits: credits,
+      })) as { status: string };
+      expect(rolledBackRefund.status).toBe("FAILED");
+      expect(rolledBackCount).toBe(1);
+      expect(provider.createImageJobCalls).toBe(callsBeforeRefund + 1);
+      expect(
+        await prisma.sokoBotAuthoritySpend.findMany({
+          where: { sokoBotId, grantId: rollbackGrantId },
+          select: { status: true, operationKey: true },
+        }),
+      ).toEqual([{ status: "RELEASED", operationKey: null }]);
+
+      // 12b. Confirmed queued job also survives a terminal tx rollback (stays SETTLED, not UNKNOWN)
+      //      AND succeeds on the allowance freed by 12a's refund!
+      const callsBeforeQueued = provider.createImageJobCalls;
+      provider.onAfterCreateImageJob = () => {
+        failNextTerminalTx = true;
+      };
+      const rolledBackQueued = (await call(rollbackTurn, "generate_image", {
+        projectId,
+        prompt: "Corrected queued image with terminal tx rollback",
+        maxCredits: credits,
+      })) as { status: string; jobId: string };
+      expect(rolledBackQueued.status).toBe("QUEUED");
+      expect(rolledBackCount).toBe(2);
+      expect(provider.createImageJobCalls).toBe(callsBeforeQueued + 1);
+      expect(
+        await prisma.sokoBotAuthoritySpend.findMany({
+          where: { sokoBotId, grantId: rollbackGrantId },
+          orderBy: { createdAt: "asc" },
+          select: { status: true },
+        }),
+      ).toEqual([{ status: "RELEASED" }, { status: "SETTLED" }]);
+    } finally {
+      provider.onAfterCreateImageJob = null;
+      txSpy.mockRestore();
+    }
   });
 });

@@ -369,5 +369,69 @@ describe("mayMakeMediaForOwner", () => {
       "grant-project-a",
       "grant-project-b",
     ]);
+
+    // Two Projects authorized under ONE shared grantId keep both Projects in
+    // allowedProjectIds regardless of delegation order.
+    const sharedRows = [
+      {
+        id: "del-shared-a",
+        authority: {
+          ...projectGrant,
+          grantId: "shared-root-grant",
+          targetScope: { kind: "project", projectId: "project-a" },
+          limits: {
+            grantId: "shared-root-grant",
+            period: "lifetime",
+            images: 2,
+            maxMediaCredits: 10,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-shared",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+      {
+        id: "del-shared-b",
+        authority: {
+          ...projectGrant,
+          grantId: "shared-root-grant",
+          targetScope: { kind: "project", projectId: "project-b" },
+          limits: {
+            grantId: "shared-root-grant",
+            period: "lifetime",
+            images: 2,
+            maxMediaCredits: 10,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-shared",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+    ];
+    for (const ordered of [sharedRows, [...sharedRows].reverse()]) {
+      delegationFindManyMock.mockResolvedValue(ordered);
+      const allowanceB = await mayMakeMediaForOwner(runtime, personalWake, {
+        projectId: "project-b",
+      });
+      expect(allowanceB).toMatchObject({ images: 2, maxCredits: 10 });
+      expect(allowanceB?.grants).toHaveLength(1);
+      expect(allowanceB?.grants?.[0]?.allowedProjectIds).toEqual([
+        "project-a",
+        "project-b",
+      ]);
+      await expect(
+        mayMakeMediaForOwner(runtime, personalWake, { projectId: "project-c" }),
+      ).rejects.toThrow("scoped to a different Project");
+    }
   });
 });

@@ -31,6 +31,13 @@ export interface MediaSpendGrant {
   videos?: number;
   maxMediaCredits?: number;
   targetScope: OwnerAuthorityTargetScope;
+  /**
+   * When multiple delegations from the same owner request share one `grantId`
+   * across distinct Projects (e.g. Project A and Project B sharing one 2-image
+   * balance), lists every authorized `projectId` in sorted order so evaluation
+   * is independent of row order while still rejecting unauthorized Projects.
+   */
+  allowedProjectIds?: readonly string[];
   /** Pre-migration turns whose legacy `sokoBotToolCall` rows may lack a ledger row. */
   legacyTurnIds?: readonly string[];
 }
@@ -94,44 +101,87 @@ export function summarizeGrantBuckets(
   if (!items.length) {
     return { unboundedPerTurn: false, grants: [] };
   }
-  const byGrant = new Map<string, MediaSpendGrant>();
+  const byGrantItems = new Map<
+    string,
+    {
+      authority: OwnerAuthority;
+      legacyTurnIds?: readonly string[];
+    }[]
+  >();
   for (const item of items) {
     const grantId = item.authority.limits?.grantId ?? item.authority.grantId;
-    const existing = byGrant.get(grantId);
-    const nextLegacyTurns = [
-      ...new Set([
-        ...(existing?.legacyTurnIds ?? []),
-        ...(item.legacyTurnIds ?? []),
-      ]),
-    ];
-    if (!existing) {
-      byGrant.set(grantId, {
-        grantId,
-        images: item.authority.limits?.images,
-        videos: item.authority.limits?.videos,
-        maxMediaCredits: item.authority.limits?.maxMediaCredits,
-        targetScope: item.authority.targetScope,
-        ...(nextLegacyTurns.length ? { legacyTurnIds: nextLegacyTurns } : {}),
-      });
-      continue;
+    const list = byGrantItems.get(grantId);
+    if (list) {
+      list.push(item);
+    } else {
+      byGrantItems.set(grantId, [item]);
     }
-    const targetScope =
-      existing.targetScope.kind === "project"
-        ? existing.targetScope
-        : item.authority.targetScope;
-    byGrant.set(grantId, {
-      grantId,
-      images: minOptional(existing.images, item.authority.limits?.images),
-      videos: minOptional(existing.videos, item.authority.limits?.videos),
-      maxMediaCredits: minOptional(
-        existing.maxMediaCredits,
+  }
+
+  const all: MediaSpendGrant[] = [];
+  for (const [grantId, group] of byGrantItems) {
+    let images: number | undefined;
+    let videos: number | undefined;
+    let maxMediaCredits: number | undefined;
+    const legacyTurnsSet = new Set<string>();
+    for (const item of group) {
+      images = minOptional(images, item.authority.limits?.images);
+      videos = minOptional(videos, item.authority.limits?.videos);
+      maxMediaCredits = minOptional(
+        maxMediaCredits,
         item.authority.limits?.maxMediaCredits,
-      ),
+      );
+      for (const turnId of item.legacyTurnIds ?? []) {
+        legacyTurnsSet.add(turnId);
+      }
+    }
+
+    // Scope union is computed order-independently across the group's
+    // limit-bearing items (if any), so parallel delegations from one owner
+    // request targeting Project A and Project B retain both Projects under
+    // their single shared grantId regardless of row order.
+    const limitedInGroup = group.filter((item) =>
+      item.authority.limits
+        ? hasExplicitMediaLimit(item.authority.limits)
+        : false,
+    );
+    const scopeItems = limitedInGroup.length > 0 ? limitedInGroup : group;
+    const nonProjectScope = scopeItems.find(
+      (item) => item.authority.targetScope.kind !== "project",
+    )?.authority.targetScope;
+
+    let targetScope: OwnerAuthorityTargetScope;
+    let allowedProjectIds: string[] | undefined;
+    if (nonProjectScope) {
+      targetScope = nonProjectScope;
+    } else {
+      const projectIds = [
+        ...new Set(
+          scopeItems.flatMap((item) =>
+            item.authority.targetScope.kind === "project"
+              ? [item.authority.targetScope.projectId]
+              : [],
+          ),
+        ),
+      ].sort();
+      targetScope = { kind: "project", projectId: projectIds[0]! };
+      if (projectIds.length > 1) {
+        allowedProjectIds = projectIds;
+      }
+    }
+
+    const legacyTurnIds = [...legacyTurnsSet];
+    all.push({
+      grantId,
+      images,
+      videos,
+      maxMediaCredits,
       targetScope,
-      ...(nextLegacyTurns.length ? { legacyTurnIds: nextLegacyTurns } : {}),
+      ...(allowedProjectIds ? { allowedProjectIds } : {}),
+      ...(legacyTurnIds.length ? { legacyTurnIds } : {}),
     });
   }
-  const all = Array.from(byGrant.values());
+
   const limited = all.filter(hasExplicitMediaLimit);
   if (limited.length > 0) {
     return { unboundedPerTurn: false, grants: limited };
@@ -147,10 +197,24 @@ function formatCredits(value: number): string {
 }
 
 function grantAllowsProject(
-  scope: OwnerAuthorityTargetScope,
+  grant: Pick<MediaSpendGrant, "targetScope" | "allowedProjectIds">,
   projectId: string,
 ): boolean {
-  return scope.kind !== "project" || scope.projectId === projectId;
+  if (grant.allowedProjectIds) {
+    return grant.allowedProjectIds.includes(projectId);
+  }
+  return (
+    grant.targetScope.kind !== "project" ||
+    grant.targetScope.projectId === projectId
+  );
+}
+
+function isProjectScopedGrant(
+  grant: Pick<MediaSpendGrant, "targetScope" | "allowedProjectIds">,
+): boolean {
+  return (
+    Boolean(grant.allowedProjectIds) || grant.targetScope.kind === "project"
+  );
 }
 
 /**
@@ -162,18 +226,10 @@ export function selectEligibleGrantsForProject(
   projectId: string,
 ): MediaSpendGrant[] {
   return grants
-    .filter((grant) => grantAllowsProject(grant.targetScope, projectId))
+    .filter((grant) => grantAllowsProject(grant, projectId))
     .sort((left, right) => {
-      const leftExact =
-        left.targetScope.kind === "project" &&
-        left.targetScope.projectId === projectId
-          ? 0
-          : 1;
-      const rightExact =
-        right.targetScope.kind === "project" &&
-        right.targetScope.projectId === projectId
-          ? 0
-          : 1;
+      const leftExact = isProjectScopedGrant(left) ? 0 : 1;
+      const rightExact = isProjectScopedGrant(right) ? 0 : 1;
       if (leftExact !== rightExact) return leftExact - rightExact;
       return left.grantId.localeCompare(right.grantId);
     });
@@ -539,6 +595,72 @@ function remainingCredits(grant: MediaSpendGrant, usage: GrantUsage): number {
     : grant.maxMediaCredits - usage.credits;
 }
 
+function grantHasCountRoom(
+  grant: MediaSpendGrant,
+  usage: GrantUsage,
+  requested: GrantUsage,
+): boolean {
+  if (
+    grant.images !== undefined &&
+    requested.images > 0 &&
+    usage.images + requested.images > grant.images
+  ) {
+    return false;
+  }
+  if (
+    grant.videos !== undefined &&
+    requested.videos > 0 &&
+    usage.videos + requested.videos > grant.videos
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function buildPooledLegacyCreditDeltas(
+  slotGrant: MediaSpendGrant,
+  item: LegacySpendItem,
+  usageByGrant: Map<string, GrantUsage>,
+): { grantId: string; credits: number }[] | null {
+  const slotUsage = usageByGrant.get(slotGrant.grantId)!;
+  const slotCap = Math.max(0, remainingCredits(slotGrant, slotUsage));
+  const slotTake = Math.min(item.cost.credits, slotCap);
+  let remaining = item.cost.credits - slotTake;
+  const deltas: { grantId: string; credits: number }[] = [];
+  if (slotTake > 0) {
+    deltas.push({ grantId: slotGrant.grantId, credits: slotTake });
+  }
+  if (remaining <= CREDIT_EPSILON) return deltas;
+
+  // Already-incurred pre-migration calls could legitimately draw credits from
+  // the pooled total across multiple compatible legacy grants on the same wake.
+  const otherGrants = item.compatibleGrants
+    .filter((grant) => grant.grantId !== slotGrant.grantId)
+    .sort((left, right) => {
+      const leftRem = remainingCredits(left, usageByGrant.get(left.grantId)!);
+      const rightRem = remainingCredits(
+        right,
+        usageByGrant.get(right.grantId)!,
+      );
+      if (Math.abs(leftRem - rightRem) > CREDIT_EPSILON) {
+        return leftRem - rightRem;
+      }
+      return left.grantId.localeCompare(right.grantId);
+    });
+  for (const other of otherGrants) {
+    if (remaining <= CREDIT_EPSILON) break;
+    const otherCap = Math.max(
+      0,
+      remainingCredits(other, usageByGrant.get(other.grantId)!),
+    );
+    if (otherCap <= CREDIT_EPSILON) continue;
+    const take = Math.min(remaining, otherCap);
+    deltas.push({ grantId: other.grantId, credits: take });
+    remaining -= take;
+  }
+  return remaining <= CREDIT_EPSILON ? deltas : null;
+}
+
 function canPlaceLegacyItems(
   items: readonly LegacySpendItem[],
   usageByGrant: Map<string, GrantUsage>,
@@ -551,8 +673,8 @@ function canPlaceLegacyItems(
     // Try tightest-fitting compatible grants first so smaller legacy calls
     // leave larger grants available for higher-cost calls.
     const orderedGrants = [...item.compatibleGrants].sort((left, right) => {
-      const leftExact = left.targetScope.kind === "project" ? 0 : 1;
-      const rightExact = right.targetScope.kind === "project" ? 0 : 1;
+      const leftExact = isProjectScopedGrant(left) ? 0 : 1;
+      const rightExact = isProjectScopedGrant(right) ? 0 : 1;
       if (leftExact !== rightExact) return leftExact - rightExact;
       const leftRem = remainingCredits(left, usageByGrant.get(left.grantId)!);
       const rightRem = remainingCredits(
@@ -565,34 +687,9 @@ function canPlaceLegacyItems(
       return left.grantId.localeCompare(right.grantId);
     });
 
-    if (nodesRemaining <= 0) {
-      // Deterministic tightest-fit greedy fallback if node cap is ever hit.
-      const chosen = orderedGrants.find(
-        (grant) =>
-          grantRefusalMessage(
-            grant,
-            usageByGrant.get(grant.grantId)!,
-            item.cost,
-          ) === null,
-      );
-      if (!chosen) return false;
-      const bucket = usageByGrant.get(chosen.grantId)!;
-      bucket.images += item.cost.images;
-      bucket.videos += item.cost.videos;
-      bucket.credits += item.cost.credits;
-      const ok = search(index + 1);
-      if (!ok) {
-        bucket.images -= item.cost.images;
-        bucket.videos -= item.cost.videos;
-        bucket.credits -= item.cost.credits;
-      }
-      return ok;
-    }
-
-    for (const grant of orderedGrants) {
+    const tryWholeGrant = (grant: MediaSpendGrant): boolean => {
       const bucket = usageByGrant.get(grant.grantId)!;
-      if (grantRefusalMessage(grant, bucket, item.cost) !== null) continue;
-      nodesRemaining -= 1;
+      if (grantRefusalMessage(grant, bucket, item.cost) !== null) return false;
       bucket.images += item.cost.images;
       bucket.videos += item.cost.videos;
       bucket.credits += item.cost.credits;
@@ -600,7 +697,77 @@ function canPlaceLegacyItems(
       bucket.images -= item.cost.images;
       bucket.videos -= item.cost.videos;
       bucket.credits -= item.cost.credits;
+      return false;
+    };
+
+    const trySpilloverGrant = (slotGrant: MediaSpendGrant): boolean => {
+      if (item.compatibleGrants.length < 2 || item.cost.credits <= 0) {
+        return false;
+      }
+      const slotBucket = usageByGrant.get(slotGrant.grantId)!;
+      if (!grantHasCountRoom(slotGrant, slotBucket, item.cost)) return false;
+      // Only spill when this grant couldn't absorb the whole call on its own.
+      if (grantRefusalMessage(slotGrant, slotBucket, item.cost) === null) {
+        return false;
+      }
+      const creditDeltas = buildPooledLegacyCreditDeltas(
+        slotGrant,
+        item,
+        usageByGrant,
+      );
+      if (!creditDeltas) return false;
+      slotBucket.images += item.cost.images;
+      slotBucket.videos += item.cost.videos;
+      for (const delta of creditDeltas) {
+        usageByGrant.get(delta.grantId)!.credits += delta.credits;
+      }
+      if (search(index + 1)) return true;
+      slotBucket.images -= item.cost.images;
+      slotBucket.videos -= item.cost.videos;
+      for (const delta of creditDeltas) {
+        usageByGrant.get(delta.grantId)!.credits -= delta.credits;
+      }
+      return false;
+    };
+
+    if (nodesRemaining <= 0) {
+      for (const grant of orderedGrants) {
+        if (tryWholeGrant(grant)) return true;
+      }
+      for (const grant of orderedGrants) {
+        if (trySpilloverGrant(grant)) return true;
+      }
+      return false;
     }
+
+    for (const grant of orderedGrants) {
+      if (
+        grantRefusalMessage(
+          grant,
+          usageByGrant.get(grant.grantId)!,
+          item.cost,
+        ) !== null
+      ) {
+        continue;
+      }
+      nodesRemaining -= 1;
+      if (tryWholeGrant(grant)) return true;
+    }
+
+    for (const grant of orderedGrants) {
+      const slotBucket = usageByGrant.get(grant.grantId)!;
+      if (
+        item.compatibleGrants.length < 2 ||
+        item.cost.credits <= 0 ||
+        !grantHasCountRoom(grant, slotBucket, item.cost) ||
+        grantRefusalMessage(grant, slotBucket, item.cost) === null
+      ) {
+        continue;
+      }
+      nodesRemaining -= 1;
+      if (trySpilloverGrant(grant)) return true;
+    }
+
     return false;
   };
 

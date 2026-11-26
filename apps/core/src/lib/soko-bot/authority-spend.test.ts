@@ -1143,4 +1143,210 @@ describe("authority-spend", () => {
     expect(r2).toEqual({ grantId: "grant-fractional", reused: false });
     expect(db.rows[1]?.credits).toBe(2.75);
   });
+
+  it("retains both Projects when one shared grantId authorizes Project A and Project B in either row order", async () => {
+    const PROJECT_C = "0193a000-0000-7000-8000-0000000000cc";
+    const authA = makeDelegationAuthority({
+      grantId: "shared-two-proj-grant",
+      images: 2,
+      maxMediaCredits: 10,
+      projectId: PROJECT_A,
+    });
+    const authB = makeDelegationAuthority({
+      grantId: "shared-two-proj-grant",
+      images: 2,
+      maxMediaCredits: 10,
+      projectId: PROJECT_B,
+    });
+
+    const summarizedAB = summarizeGrantBuckets([
+      { authority: authA },
+      { authority: authB },
+    ]);
+    const summarizedBA = summarizeGrantBuckets([
+      { authority: authB },
+      { authority: authA },
+    ]);
+    expect(summarizedAB).toEqual(summarizedBA);
+    expect(summarizedAB.grants).toHaveLength(1);
+    expect(summarizedAB.grants[0]?.allowedProjectIds).toEqual([
+      PROJECT_A,
+      PROJECT_B,
+    ]);
+
+    for (const summarized of [summarizedAB, summarizedBA]) {
+      const db = createInMemorySpendDb();
+      // First 5-credit image on Project B succeeds in both [A,B] and [B,A] order.
+      const firstB = await reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "shared-proj-wake",
+        toolCallId: "img-b-1",
+        operationKey: "op-b-1",
+        capability: "generate_image",
+        projectId: PROJECT_B,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: summarized.grants,
+      });
+      expect(firstB).toEqual({
+        grantId: "shared-two-proj-grant",
+        reused: false,
+      });
+      await settleAuthoritySpend(
+        db as never,
+        { turnId: "shared-proj-wake", toolCallId: "img-b-1" },
+        "SETTLED",
+      );
+
+      // Second legitimate 5-credit image on Project A shares the same grant balance.
+      const secondA = await reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "shared-proj-wake",
+        toolCallId: "img-a-2",
+        operationKey: "op-a-2",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: summarized.grants,
+      });
+      expect(secondA).toEqual({
+        grantId: "shared-two-proj-grant",
+        reused: false,
+      });
+
+      // Third image exhausts the shared 2-image balance.
+      await expect(
+        reserveAuthoritySpend(db as never, {
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          turnId: "shared-proj-wake",
+          toolCallId: "img-b-3",
+          operationKey: "op-b-3",
+          capability: "generate_image",
+          projectId: PROJECT_B,
+          images: 1,
+          videos: 0,
+          credits: 1,
+          grants: summarized.grants,
+        }),
+      ).rejects.toThrow("The owner asked for 2 images in this plan");
+
+      // An unauthorized Project C is still refused.
+      await expect(
+        checkGrantSpendPreflight(db as never, {
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          turnId: "shared-proj-wake",
+          toolCallId: "img-c",
+          operationKey: "op-c",
+          capability: "generate_image",
+          projectId: PROJECT_C,
+          images: 1,
+          videos: 0,
+          credits: 1,
+          grants: summarized.grants,
+        }),
+      ).rejects.toThrow("scoped to a different Project");
+    }
+  });
+
+  it("preserves pooled credit accounting for an already-incurred pre-migration image spanning two 5-credit legacy grants", async () => {
+    const db = createInMemorySpendDb();
+    const legacyA: MediaSpendGrant = {
+      grantId: "legacy-delegation:a",
+      images: 1,
+      maxMediaCredits: 5,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["pooled-old-wake"],
+    };
+    const legacyB: MediaSpendGrant = {
+      grantId: "legacy-delegation:b",
+      images: 1,
+      maxMediaCredits: 5,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["pooled-old-wake"],
+    };
+
+    // Under the pre-migration pooled rules (2 images, 10 credits total), a
+    // 7-credit image legitimately ran, leaving 1 image and 3 credits.
+    db.legacyCalls.push({
+      turnId: "pooled-old-wake",
+      toolCallId: "legacy-seven",
+      capability: "generate_image",
+      disposition: "APPLIED",
+      replayedReceiptId: null,
+      input: { maxCredits: 7, projectId: PROJECT_A },
+    });
+
+    // A 4-credit image exceeds the remaining 3 pooled credits and is refused.
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "pooled-old-wake",
+        toolCallId: "new-four",
+        operationKey: "op-four",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 4,
+        grants: [legacyA, legacyB],
+      }),
+    ).rejects.toThrow();
+
+    // A 3-credit image fits the remaining 1 image & 3 credits and reserves cleanly.
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "pooled-old-wake",
+        toolCallId: "new-three",
+        operationKey: "op-three",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 3,
+        grants: [legacyA, legacyB],
+      }),
+    ).resolves.toBeUndefined();
+
+    const reservedThree = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "pooled-old-wake",
+      toolCallId: "new-three",
+      operationKey: "op-three",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 3,
+      grants: [legacyA, legacyB],
+    });
+    expect(reservedThree?.reused).toBe(false);
+
+    // A 3rd image is refused because both image slots and all 10 credits are spent.
+    await expect(
+      reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "pooled-old-wake",
+        toolCallId: "new-third",
+        operationKey: "op-third",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 1,
+        grants: [legacyA, legacyB],
+      }),
+    ).rejects.toThrow();
+  });
 });
