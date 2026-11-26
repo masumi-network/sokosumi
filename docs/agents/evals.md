@@ -8,7 +8,12 @@ Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. E
 - **The PR also commits the run as a file.** `sokosumi evals show RUN_ID --summary-md --slug SLUG` writes `docs/evals/runs/YYYY-MM-DD-SLUG.md` from the run. Fill in its "Why the failures happened" and "Verdict" sections, commit it in the PR that needed the run, and link it from the PR's Evidence. Local databases and scratchpads disappear; this file is what stays. Format and template: [`docs/evals/runs/README.md`](../evals/runs/README.md).
 - **A new tool gets a case.** `apps/core/src/services/evals/eval-cases.test.ts` fails when a capability is in no case's `tools`, `anyTools` or `forbiddenTools`. Its `NOT_YET_COVERED` list only shrinks.
 - **Local and agent-run evals are judged by Claude Code.** Set `SOKO_BOT_JUDGE_RUNNER=claude-code` in `apps/core/.env`: the judge then runs through the local `claude` CLI on Patrick's Claude Code subscription, and the run records it as `claude-code:<model>`. The weekly run and every run on mainnet, preprod or a preview keep the Gateway judge; Core refuses `claude-code` on Vercel. The bots under test always run on their real models.
-- **Spend the bot's model on what the change touches.** The bot under test runs on the AI Gateway even locally, so every case costs real tokens. While working, run only the cases the change touches, one repeat each. A PR's Evidence is the touched cases on its final commit. The full suite (CMO or Soko Bot, about $12 for CMO's 52 cases) runs once per new bot version (cmo-v5, v34 …), on the PR that adds it, and that run goes in its Evidence. Repeat a case three times only when it failed, to tell chance from a regression; never rerun the full suite to settle one case.
+- **Local and agent runs use the ChatGPT plan by default: `pnpm evals:local --plan`.** See [On your own ChatGPT plan](#on-your-own-chatgpt-plan). Run only the cases the change touches, one repeat each. Repeat a case three times only when it failed, to tell chance from a regression; never rerun a suite to settle one case. Run one plan run at a time per machine.
+- **A PR's Evidence may be a plan run.** Run the touched cases on the final commit, and state the run's environment, `local-chatgpt-plan`, beside the table.
+- **The Gateway is for the final cost and cache proof only.** Run on the Gateway (mainnet or without `--plan`) only for a new bot version's final cost and cache proof, or for a case that cannot run on the plan. Each Gateway run costs real tokens from a shared budget, and an empty team budget fails customer turns. So before every Gateway run:
+  - Check the team and evals key budgets with `vercel ai-gateway budgets ls` (amounts only).
+  - Never start one while another Gateway run is going.
+  - Run at most one full suite per bot version (about $12 for CMO's 52 cases), on the PR that adds the version.
 - **A regression is fixed or explained before merge.** "Flaky" means the case already failed in recent weekly runs; a "regressed" case passed every recent weekly run.
 
 ## Where runs happen
@@ -68,7 +73,7 @@ pnpm chatgpt-plan:logout                    # revoke and forget the session
 - The session is per machine, in `~/.sokosumi/chatgpt-plan.json` (mode 0600), outside every checkout. Tokens are never printed. Each person signs in with their own account. Never share a session file.
 - `SOKO_BOT_LOCAL_CHATGPT_PLAN=1` turns the switch on for any local Core process (`evals:local --plan` sets it). Core refuses the flag on Vercel and in production.
 - When the plan's usage limit is hit, the call fails with "ChatGPT plan usage limit reached". Nothing falls back to the paid Gateway. Wait for the limit to reset (ChatGPT settings, Usage), then run again. On Plus the 5-hour limit is shared with Codex and every other app on your plan.
-- Plan runs do not count as Evidence for a default-deciding run, such as a new version's full suite or a model change. Those stay on the Gateway, because the plan differs from production:
+- A plan run is enough Evidence for ordinary changes. A default-deciding run, such as a new version's final cost and cache proof or a model change, stays on the Gateway (see [The rule](#the-rule)), because the plan differs from production:
   - Cost and cache numbers are zero or missing.
   - The plan ignores the output cap (`max_output_tokens`), `temperature` and prompt-cache retention.
   - Every request is stateless (`store: false`).
