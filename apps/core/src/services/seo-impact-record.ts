@@ -48,39 +48,43 @@ export function trackedSeoChange(
  * Every suggestion status write goes through here: while impact tracking is
  * on, a transition to done or verified records its change in the same
  * transaction, so a reopen and a second done before the daily sync keep both.
+ * A caller that writes more rows with it passes its transaction.
  */
-export async function updateSeoSuggestion(args: {
-  where: Prisma.ProjectSeoSuggestionWhereUniqueInput;
-  data: Prisma.ProjectSeoSuggestionUpdateInput;
-}): Promise<ProjectSeoSuggestion> {
+export async function updateSeoSuggestion(
+  args: {
+    where: Prisma.ProjectSeoSuggestionWhereUniqueInput;
+    data: Prisma.ProjectSeoSuggestionUpdateInput;
+  },
+  tx?: Prisma.TransactionClient,
+): Promise<ProjectSeoSuggestion> {
   if (!getEnv().SEO_IMPACT_TRACKING_ENABLED)
-    return await prisma.projectSeoSuggestion.update(args);
-  return await prisma.$transaction(async (tx) => {
-    const suggestion = await tx.projectSeoSuggestion.update({
-      ...args,
-      include: {
-        project: { select: { workspaceId: true, testCopyOfProjectId: true } },
-      },
-    });
-    const { project, ...row } = suggestion;
-    const change = trackedSeoChange(row, project);
-    if (!change) return row;
-    // An eval project is no customer. Read on this transaction's connection:
-    // the global client would ask the pool for a second one per status write.
-    const evalLanes = await tx.evalLane.count({
-      where: {
-        OR: [
-          { workspaceId: project.workspaceId },
-          { cusoProjectId: row.projectId },
-        ],
-      },
-    });
-    // The cron backfill can have recorded this change already.
-    if (evalLanes === 0)
-      await tx.projectSeoImpactVerdict.createMany({
-        data: [change],
-        skipDuplicates: true,
-      });
-    return row;
+    return await (tx ?? prisma).projectSeoSuggestion.update(args);
+  if (!tx)
+    return await prisma.$transaction((own) => updateSeoSuggestion(args, own));
+  const suggestion = await tx.projectSeoSuggestion.update({
+    ...args,
+    include: {
+      project: { select: { workspaceId: true, testCopyOfProjectId: true } },
+    },
   });
+  const { project, ...row } = suggestion;
+  const change = trackedSeoChange(row, project);
+  if (!change) return row;
+  // An eval project is no customer. Read on this transaction's connection:
+  // the global client would ask the pool for a second one per status write.
+  const evalLanes = await tx.evalLane.count({
+    where: {
+      OR: [
+        { workspaceId: project.workspaceId },
+        { cusoProjectId: row.projectId },
+      ],
+    },
+  });
+  // The cron backfill can have recorded this change already.
+  if (evalLanes === 0)
+    await tx.projectSeoImpactVerdict.createMany({
+      data: [change],
+      skipDuplicates: true,
+    });
+  return row;
 }

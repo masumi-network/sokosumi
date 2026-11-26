@@ -12,6 +12,7 @@ import {
 import { sameHost, toSuggestion } from "@/services/cmo-seo.service";
 import { normalizeKeyword } from "@/services/cmo-seo-research.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
+import { updateSeoSuggestion } from "@/services/seo-impact-record";
 
 /**
  * The owner published a landing page: it is done at that address, and every
@@ -60,18 +61,21 @@ export async function markCmoLandingPageLive(
       })
     : [];
   const waiting = ads.filter((file) => !file.adCampaignId);
-  const [page] = await prisma.$transaction([
-    prisma.projectSeoSuggestion.update({
-      where: { id },
-      data: { pageUrl: url, status: "done", doneAt: now },
-    }),
-    ...waiting.map((file) =>
-      prisma.marketingStrategyFile.update({
+  const page = await prisma.$transaction(async (tx) => {
+    const page = await updateSeoSuggestion(
+      {
+        where: { id },
+        data: { pageUrl: url, status: "done", doneAt: now },
+      },
+      tx,
+    );
+    for (const file of waiting)
+      await tx.marketingStrategyFile.update({
         where: { id: file.id },
         data: { searchAd: { ...file.ad, finalUrl: url } },
-      }),
-    ),
-  ]);
+      });
+    return page;
+  });
   return {
     page: toSuggestion(page),
     adsUpdated: waiting.length,
