@@ -6,6 +6,8 @@ import mountUnassignAdminOrganizationMemberSeat from "./[slug]/members/[memberId
 import mountAssignAdminOrganizationMemberSeat from "./[slug]/members/[memberId]/seat/put.js";
 import mountListAdminOrganizationMembers from "./[slug]/members/get.js";
 import mountAddAdminOrganizationMember from "./[slug]/members/post.js";
+import mountGetAdminOrganizationPreprodAccess from "./[slug]/preprod-access/get.js";
+import mountSetAdminOrganizationPreprodAccess from "./[slug]/preprod-access/put.js";
 import mountListAdminOrganizations from "./get.js";
 
 const app = createNestedOpenAPIHono();
@@ -18,5 +20,7 @@ mountRemoveAdminOrganizationMember(app);
 mountUpdateAdminOrganizationMemberRole(app);
 mountAssignAdminOrganizationMemberSeat(app);
 mountUnassignAdminOrganizationMemberSeat(app);
+mountGetAdminOrganizationPreprodAccess(app);
+mountSetAdminOrganizationPreprodAccess(app);
 
 export default app;

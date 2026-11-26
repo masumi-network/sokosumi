@@ -1444,6 +1444,37 @@ export const StripeSubscriptionStatus = {
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
+export type AdminPreprodAccess = {
+    enabled: boolean;
+    /**
+     * The 20 most recent changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        enabled: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodAccessBody = {
+    /**
+     * Whether the user or Organization may use Preprod
+     */
+    enabled: boolean;
+    /**
+     * Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.
+     */
+    reason: string;
+};
+
 export type AdminMatchedChannelOption = {
     id: string;
     name: string;
@@ -22054,6 +22085,171 @@ export type ListAdminUsersResponses = {
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
 
+export type GetAdminUserPreprodAccessData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type GetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessError = GetAdminUserPreprodAccessErrors[keyof GetAdminUserPreprodAccessErrors];
+
+export type GetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessResponse = GetAdminUserPreprodAccessResponses[keyof GetAdminUserPreprodAccessResponses];
+
+export type SetAdminUserPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type SetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessError = SetAdminUserPreprodAccessErrors[keyof SetAdminUserPreprodAccessErrors];
+
+export type SetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessResponse = SetAdminUserPreprodAccessResponses[keyof SetAdminUserPreprodAccessResponses];
+
 export type ListAdminMatchedChannelsData = {
     body?: never;
     path?: never;
@@ -23535,6 +23731,171 @@ export type AssignAdminOrganizationMemberSeatResponses = {
 };
 
 export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
+
+export type GetAdminOrganizationPreprodAccessData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type GetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessError = GetAdminOrganizationPreprodAccessErrors[keyof GetAdminOrganizationPreprodAccessErrors];
+
+export type GetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessResponse = GetAdminOrganizationPreprodAccessResponses[keyof GetAdminOrganizationPreprodAccessResponses];
+
+export type SetAdminOrganizationPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type SetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessError = SetAdminOrganizationPreprodAccessErrors[keyof SetAdminOrganizationPreprodAccessErrors];
+
+export type SetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessResponse = SetAdminOrganizationPreprodAccessResponses[keyof SetAdminOrganizationPreprodAccessResponses];
 
 export type ListAdminInvoicesData = {
     body?: never;

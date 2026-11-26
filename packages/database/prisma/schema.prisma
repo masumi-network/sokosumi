@@ -138,6 +138,10 @@ model Organization {
 
   stripeCustomerId String?
 
+  /// Preprod access, switched by a platform admin (PreprodAccessChange records
+  /// each change). Not a Better Auth field: never writable by a client.
+  preprodEnabled Boolean @default(false)
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -3536,6 +3540,28 @@ model SokoBotAdminAction {
   @@index([operatorId, createdAt(sort: Desc)])
   @@index([traceId, createdAt(sort: Desc)])
   @@map("soko_bot_admin_action")
+}
+
+/// Append-only record of Preprod access changes: who switched it, for whom and
+/// why. No foreign keys, like the other operator audit tables: a record
+/// outlives the user, the Organization and the admin it names. Nothing sweeps
+/// it, so `reason` takes a ticket id, no personal details.
+model PreprodAccessChange {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  /// "user" | "organization"
+  targetType String
+  /// User.id or Organization.id. Intentionally not a relation.
+  targetId   String
+  /// The value the flag was switched to.
+  enabled    Boolean
+  /// User.id of the admin. Intentionally not a relation.
+  operatorId String
+  reason     String @db.VarChar(500)
+
+  @@index([targetType, targetId, createdAt])
+  @@map("preprod_access_change")
 }
 
 /// A member closed CMO's "Cuso got better" dialog for this Cuso's move onto
