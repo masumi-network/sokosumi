@@ -23,6 +23,7 @@ const SOURCE_PATHS = [
   "apps/core/src/services",
   "apps/core/src/lib",
   "apps/core/src/types",
+  "apps/core/scripts",
 ];
 const RAW = new Set(["$queryRaw", "$executeRaw"]);
 const UNSAFE = new Set(["$queryRawUnsafe", "$executeRawUnsafe"]);
