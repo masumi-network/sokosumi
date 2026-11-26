@@ -20,6 +20,12 @@ export interface SeoRunDiffSource {
   payload: PublicSeoPayload;
 }
 
+/** What the workspace read adds to its own checks for the comparison. */
+export interface SeoRunDiffInput {
+  /** Checks older than a full evidence list: a check can compare with one of them, and they show nowhere else. */
+  diffBaselines?: SeoRunDiffSource[];
+}
+
 type Issue = SeoRunDiff["new"][number];
 type Selected = (pageUrl: string) => boolean;
 

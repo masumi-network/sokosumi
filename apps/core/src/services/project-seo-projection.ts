@@ -45,7 +45,7 @@ import {
   projectSeoMetricsRow,
   type SeoMetricsProjection,
 } from "./project-seo-metrics-projection";
-import { type SeoRunDiffSource, withSeoRunDiffs } from "./project-seo-run-diff";
+import { type SeoRunDiffInput, withSeoRunDiffs } from "./project-seo-run-diff";
 import {
   projectSearchEvidence,
   type SearchEvidenceSource,
@@ -67,7 +67,7 @@ import {
   projectSeoReviewHistory,
 } from "./seo-recommendation-history";
 
-interface ProjectionInput {
+interface ProjectionInput extends SeoRunDiffInput {
   sharing?: "organization" | "personal";
   project: {
     id: string;
@@ -161,7 +161,7 @@ export function projectSeoProjection(
     taskStatuses.has(link.taskId),
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
-  const diffSources: SeoRunDiffSource[] = [];
+  const diffSources = [...(input.diffBaselines ?? [])];
   let strategy: ProjectSeoWorkspace["strategy"] = null;
   const decisions = new SeoAuditDecisions(
     selectedUrls,

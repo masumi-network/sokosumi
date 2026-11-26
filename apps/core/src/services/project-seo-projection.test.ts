@@ -441,6 +441,25 @@ describe("stored SEO workspace projections", () => {
     expect(first.runDiff).toBeUndefined();
   });
 
+  it("compares the oldest check it shows with an older check that only the comparison reads", () => {
+    const input = fixture();
+    const audit = (at: string) =>
+      observation(input, parsePublicSeoArtifact(legacyReport()), at);
+    const older = audit("2026-11-01T12:00:00Z");
+    input.observations = [audit("2026-11-02T12:00:00Z")];
+    input.diffBaselines = [
+      { ...older, payload: parsePublicSeoArtifact(legacyReport()) },
+    ];
+    const runs = projectSeoProjection(input).runs ?? [];
+    // The older check is no run of its own: it is the base of the one shown.
+    expect(runs).toHaveLength(1);
+    expect(runs[0].runDiff).toMatchObject({
+      from: "2026-11-01T12:00:00.000Z",
+      comparable: true,
+      stillOpenCount: 1,
+    });
+  });
+
   it("shows the newest site audit's strategy with the keyword groups of the selected pages", () => {
     const input = fixture();
     expect(projectSeoProjection(input).strategy).toBeNull();
