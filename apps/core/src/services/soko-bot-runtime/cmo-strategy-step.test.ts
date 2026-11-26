@@ -13,6 +13,7 @@ import {
 } from "@/services/marketing-strategy.service";
 import {
   cmoFitStrategy,
+  cmoOwnerLine,
   cmoStrategyChangeBrief,
   cmoStrategyRepairPrompt,
   cmoStrategyStepSystem,
@@ -58,6 +59,18 @@ describe("Core's strategy step", () => {
       ["b", "Second, sharper"],
       ["d", "Fourth"],
     ]);
+  });
+
+  it("tells the owner what a new strategy does, never what its repair fixed", () => {
+    expect(
+      cmoOwnerLine("all", "It leads with demos.", "Instagram now has Reels."),
+    ).toBe("It leads with demos.");
+    expect(
+      cmoOwnerLine("patch", "LinkedIn changed.", "LinkedIn is weekly."),
+    ).toBe("LinkedIn is weekly.");
+    expect(cmoOwnerLine("all", "", "It leads with demos.")).toBe(
+      "It leads with demos.",
+    );
   });
 
   it("names every problem in one repair message", () => {
