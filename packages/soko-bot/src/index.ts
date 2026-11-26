@@ -244,6 +244,7 @@ export {
 } from "./task-tool-contracts.js";
 export {
   isSokoBotDecisionTarget,
+  SOKO_BOT_CONTEXT_SECTIONS,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
   SOKO_BOT_PLAN_STEP_STATUSES,
@@ -285,6 +286,7 @@ export {
   sokoBotPostChatInputSchema,
   sokoBotProvideJobInputSchema,
   sokoBotReadChatInputSchema,
+  sokoBotReadContextInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
   sokoBotRemoveSkillInputSchema,
@@ -370,6 +372,10 @@ export {
   CMO_VIDEO_SHAPES_SKILL,
   cmoPostsVideoShapes,
 } from "./versions/cmo-video-shapes-skill.js";
+export {
+  CONTEXT_ON_DEMAND_SKILL,
+  readsContextOnDemand,
+} from "./versions/context-on-demand-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

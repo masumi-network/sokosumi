@@ -92,6 +92,10 @@ import {
   weeklyReviewChecks,
 } from "./eval-cmo-weekly-review";
 import {
+  isContextOnDemandCase,
+  prepareContextOnDemandCase,
+} from "./eval-context-on-demand";
+import {
   type EvalInfrastructureFailure,
   infrastructureCaseOutcome,
   judgeUnlessExcluded,
@@ -301,6 +305,8 @@ async function startScenario(
     await prepareSokoBotCompetitorCase(lane);
   if (bot === "soko-bot" && isSchedulesCase(scenario.id))
     await prepareSchedulesCase(lane, scenario.id);
+  if (bot === "soko-bot" && isContextOnDemandCase(scenario.id))
+    await prepareContextOnDemandCase(lane, scenario.id);
   if (bot === "soko-bot" && isA2aScenario(scenario))
     state = { ...state, ...(await prepareA2aCase(lane, scenario)) };
   if (seoCase) {

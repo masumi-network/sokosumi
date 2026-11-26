@@ -22,6 +22,17 @@ import {
 } from "@/services/brand-brain.service";
 import { listHireableAgents } from "./agent-search";
 import {
+  loadPacketMapFacts,
+  scheduleKeyOf,
+  WAITING_TASK_STATUSES,
+} from "./context-map";
+import {
+  organizePacket,
+  packetMap,
+  sokoBotPacketKind,
+  sokoBotPacketPlan,
+} from "./context-organizer";
+import {
   type ContextPacketReaderInput,
   contextPacketScope,
 } from "./context-packet-scope";
@@ -122,6 +133,11 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   turnMessage?: string;
   /** The bot's own last reply here, for a message that only answers it. */
   previousReply?: string | null;
+  /**
+   * The version reads context on demand (v38): a small packet with a map,
+   * sized by the turn's kind (`context-organizer.ts`).
+   */
+  onDemand?: boolean;
 }
 
 /** A signal at or above this becomes a hint. */
@@ -360,53 +376,55 @@ function calculateOmissions(
 
 function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
   const privateAudience = packetWithoutHash.trigger.askedBy.kind !== "OWNER";
-  packetWithoutHash.sourceCoverage = Object.fromEntries(
-    ["projects", "tasks", "jobs", "recentTurns", "mail", "calendar"].map(
-      (source) => {
-        const external = source === "mail" || source === "calendar";
-        const forbidden =
-          privateAudience && (external || source === "recentTurns");
-        const included =
-          external || forbidden
-            ? 0
-            : packetWithoutHash[source as PacketCollectionKey].length;
-        const omitted =
-          external || forbidden
-            ? 0
-            : (packetWithoutHash.omissions[source] ?? 0);
-        return [
-          source,
-          buildSourceCoverage({
+  // A small packet's map says the same, per source, with how to read it.
+  if (!packetWithoutHash.map)
+    packetWithoutHash.sourceCoverage = Object.fromEntries(
+      ["projects", "tasks", "jobs", "recentTurns", "mail", "calendar"].map(
+        (source) => {
+          const external = source === "mail" || source === "calendar";
+          const forbidden =
+            privateAudience && (external || source === "recentTurns");
+          const included =
+            external || forbidden
+              ? 0
+              : packetWithoutHash[source as PacketCollectionKey].length;
+          const omitted =
+            external || forbidden
+              ? 0
+              : (packetWithoutHash.omissions[source] ?? 0);
+          return [
             source,
-            checkedAt:
-              external || forbidden ? null : packetWithoutHash.generatedAt,
-            filters: {
-              scope:
-                source === "recentTurns"
-                  ? "Current room and requester only"
-                  : external
-                    ? "No integration window queried"
-                    : "Authorized workspace records; bounded summaries, not complete artifacts",
-            },
-            scannedCount: included + omitted,
-            includedCount: included,
-            omittedCount: omitted,
-            completeness:
-              external || forbidden
-                ? "NOT_CHECKED"
-                : omitted > 0
-                  ? "TRUNCATED"
-                  : "COMPLETE",
-            availability: forbidden
-              ? "PERMISSION_DENIED"
-              : external
-                ? "NOT_FETCHED"
-                : "AVAILABLE",
-          }),
-        ];
-      },
-    ),
-  );
+            buildSourceCoverage({
+              source,
+              checkedAt:
+                external || forbidden ? null : packetWithoutHash.generatedAt,
+              filters: {
+                scope:
+                  source === "recentTurns"
+                    ? "Current room and requester only"
+                    : external
+                      ? "No integration window queried"
+                      : "Authorized workspace records; bounded summaries, not complete artifacts",
+              },
+              scannedCount: included + omitted,
+              includedCount: included,
+              omittedCount: omitted,
+              completeness:
+                external || forbidden
+                  ? "NOT_CHECKED"
+                  : omitted > 0
+                    ? "TRUNCATED"
+                    : "COMPLETE",
+              availability: forbidden
+                ? "PERMISSION_DENIED"
+                : external
+                  ? "NOT_FETCHED"
+                  : "AVAILABLE",
+            }),
+          ];
+        },
+      ),
+    );
 
   const packet: SokoBotContextPacket = {
     ...packetWithoutHash,
@@ -452,6 +470,7 @@ function fitPacketToBudget(
   initial: ContextPacketWithoutHash,
   counts: Record<string, number>,
   memoryBytes: number,
+  map?: (packet: ContextPacketWithoutHash) => Record<string, unknown>,
 ) {
   let packetWithoutHash = initial;
   packetWithoutHash.omissions = calculateOmissions(
@@ -459,6 +478,7 @@ function fitPacketToBudget(
     packetWithoutHash,
     memoryBytes,
   );
+  if (map) packetWithoutHash.map = map(packetWithoutHash);
   let serialized = serializePacket(packetWithoutHash);
 
   while (serialized.byteSize > SOKO_BOT_CONTEXT_PACKET_MAX_BYTES) {
@@ -501,6 +521,7 @@ function fitPacketToBudget(
       packetWithoutHash,
       memoryBytes,
     );
+    if (map) packetWithoutHash.map = map(packetWithoutHash);
     serialized = serializePacket(packetWithoutHash);
   }
 
@@ -593,19 +614,75 @@ export class ContextPacketBuilder {
       projectId: input.sharedScope?.projectId,
       tx: prisma,
     });
+    // A small packet (v38) shows what the turn's kind needs; the map counts
+    // the rest.
+    const plan = input.onDemand
+      ? sokoBotPacketPlan(
+          sokoBotPacketKind({
+            source: input.source,
+            scheduleKey: await scheduleKeyOf(input),
+          }),
+          input.classification,
+        )
+      : null;
     // Only routes that can hire carry the marketplace; the count still goes in.
-    const hiring = MARKETPLACE_ROUTES.has(input.classification.route);
-    const agentsPromise = listHireableAgents(hiring ? LIMITS.agents : 0);
+    const hiring = plan
+      ? plan.agents > 0
+      : MARKETPLACE_ROUTES.has(input.classification.route);
+    const agentsPromise = listHireableAgents(
+      hiring ? (plan?.agents ?? LIMITS.agents) : 0,
+    );
 
     const scope = contextPacketScope(input);
     const { askedByKind } = scope;
     // The bot can list Tasks itself; a message about something else leaves
     // their room to the conversation.
-    const taskLimit =
-      input.personAsked &&
-      (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
+    const taskLimit = plan
+      ? plan.waitingTasks + plan.tasks + LIMITS.tasks
+      : input.personAsked &&
+          (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
         ? OFF_TOPIC_TASKS
         : LIMITS.tasks;
+    // What waits on the owner comes first and is never cut silently: the map
+    // counts every one the packet leaves out.
+    const waitingWhere: Prisma.TaskWhereInput = {
+      status: { in: [...WAITING_TASK_STATUSES] },
+      ...(input.userId !== null && scope.askedByKind === "OWNER"
+        ? { ownerId: input.userId }
+        : {}),
+    };
+    const taskPages: { where: Prisma.TaskWhereInput; take: number }[] = plan
+      ? [
+          { where: waitingWhere, take: plan.waitingTasks },
+          {
+            where: { status: { notIn: [...SETTLED_TASK_STATUSES] } },
+            take: Math.max(plan.tasks - LIMITS.finishedTasks, 0),
+          },
+          {
+            where: {
+              status: { in: [...SETTLED_TASK_STATUSES] },
+              updatedAt: {
+                gte: new Date(Date.now() - FINISHED_TASK_WINDOW_MS),
+              },
+            },
+            take: Math.min(plan.tasks, LIMITS.finishedTasks),
+          },
+        ]
+      : [
+          {
+            where: { status: { notIn: [...SETTLED_TASK_STATUSES] } },
+            take: Math.max(taskLimit - LIMITS.finishedTasks, 1),
+          },
+          {
+            where: {
+              status: { in: [...SETTLED_TASK_STATUSES] },
+              updatedAt: {
+                gte: new Date(Date.now() - FINISHED_TASK_WINDOW_MS),
+              },
+            },
+            take: LIMITS.finishedTasks,
+          },
+        ];
     const globalCoworkers = await globalCoworkersFor(input.workspaceId);
     const [
       user,
@@ -661,81 +738,71 @@ export class ContextPacketBuilder {
                 },
               ]
             : []),
-          {
-            where: { status: { notIn: [...SETTLED_TASK_STATUSES] } },
-            take: Math.max(taskLimit - LIMITS.finishedTasks, 1),
-          },
-          {
-            where: {
-              status: { in: [...SETTLED_TASK_STATUSES] },
-              updatedAt: {
-                gte: new Date(Date.now() - FINISHED_TASK_WINDOW_MS),
+          ...taskPages,
+        ]
+          .filter((page) => page.take > 0)
+          .map((page: { where: Prisma.TaskWhereInput; take: number }) =>
+            prisma.task.findMany({
+              where: {
+                ...page.where,
+                workspaceId: input.workspaceId,
+                archivedAt: null,
+                ...scope.taskWhere,
               },
-            },
-            take: LIMITS.finishedTasks,
-          },
-        ].map((page: { where: Prisma.TaskWhereInput; take: number }) =>
-          prisma.task.findMany({
-            where: {
-              ...page.where,
-              workspaceId: input.workspaceId,
-              archivedAt: null,
-              ...scope.taskWhere,
-            },
-            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-            take: page.take,
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              status: true,
-              ownerId: true,
-              owner: { select: { name: true } },
-              projectId: true,
-              assigneeId: true,
-              assigneeSokoBotId: true,
-              runAt: true,
-              scheduleId: true,
-              updatedAt: true,
-              events: {
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                take: 1,
-                select: { status: true, comment: true, createdAt: true },
-              },
-              linksTo: {
-                where: {
-                  type: "BLOCKS",
-                  fromTask: {
-                    workspaceId: input.workspaceId,
-                    archivedAt: null,
-                    ...scope.taskWhere,
+              orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+              take: page.take,
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                status: true,
+                ownerId: true,
+                owner: { select: { name: true } },
+                projectId: true,
+                assigneeId: true,
+                assigneeSokoBotId: true,
+                runAt: true,
+                scheduleId: true,
+                updatedAt: true,
+                events: {
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  take: 1,
+                  select: { status: true, comment: true, createdAt: true },
+                },
+                linksTo: {
+                  where: {
+                    type: "BLOCKS",
+                    fromTask: {
+                      workspaceId: input.workspaceId,
+                      archivedAt: null,
+                      ...scope.taskWhere,
+                    },
+                  },
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  take: LIMITS.blockersPerTask,
+                  select: {
+                    fromTask: {
+                      select: { id: true, name: true, status: true },
+                    },
                   },
                 },
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                take: LIMITS.blockersPerTask,
-                select: {
-                  fromTask: {
-                    select: { id: true, name: true, status: true },
-                  },
-                },
-              },
-              _count: {
-                select: {
-                  linksTo: {
-                    where: {
-                      type: "BLOCKS",
-                      fromTask: {
-                        workspaceId: input.workspaceId,
-                        archivedAt: null,
-                        ...scope.taskWhere,
+                _count: {
+                  select: {
+                    linksTo: {
+                      where: {
+                        type: "BLOCKS",
+                        fromTask: {
+                          workspaceId: input.workspaceId,
+                          archivedAt: null,
+                          ...scope.taskWhere,
+                        },
                       },
                     },
                   },
                 },
               },
-            },
-          }),
-        ),
+            }),
+          ),
       ).then((pages) =>
         [
           ...new Map(pages.flat().map((task) => [task.id, task])).values(),
@@ -755,7 +822,7 @@ export class ContextPacketBuilder {
           ],
         },
         orderBy: [{ priority: "desc" }, { name: "asc" }, { id: "asc" }],
-        take: LIMITS.coworkers,
+        take: plan?.coworkers ?? LIMITS.coworkers,
         select: {
           id: true,
           name: true,
@@ -788,7 +855,7 @@ export class ContextPacketBuilder {
       prisma.job.findMany({
         where: { ...scope.jobWhere, workspaceId: input.workspaceId },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: LIMITS.jobs,
+        take: plan?.jobs ?? LIMITS.jobs,
         select: {
           id: true,
           name: true,
@@ -819,7 +886,7 @@ export class ContextPacketBuilder {
       prisma.sokoBotTurn.findMany({
         where: scope.recentTurnWhere,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: LIMITS.recentTurns,
+        take: plan?.recentTurns ?? LIMITS.recentTurns,
         select: {
           id: true,
           source: true,
@@ -1177,11 +1244,26 @@ export class ContextPacketBuilder {
       counts,
       omissions: {},
     };
-    const fitted = fitPacketToBudget(
-      packetWithoutHash,
-      counts,
-      Buffer.byteLength(storedMemory, "utf8"),
-    );
+    const memoryBytes = Buffer.byteLength(storedMemory, "utf8");
+    const facts = plan
+      ? await loadPacketMapFacts({
+          plan,
+          sokoBotId: input.sokoBotId,
+          workspaceId: input.workspaceId,
+          scope,
+          waitingWhere,
+          memoryMarkdown: storedMemory,
+          privateAudience: askedByKind !== "OWNER",
+        })
+      : null;
+    const fitted = facts
+      ? fitPacketToBudget(
+          organizePacket(packetWithoutHash, brandBrainProjectId),
+          counts,
+          memoryBytes,
+          (packet) => packetMap(packet, facts),
+        )
+      : fitPacketToBudget(packetWithoutHash, counts, memoryBytes);
 
     return {
       packet: fitted.packet,

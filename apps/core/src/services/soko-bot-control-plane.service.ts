@@ -21,6 +21,7 @@ import {
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   type OwnerAuthorityStopRuleInput,
+  readsContextOnDemand,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -2786,6 +2787,8 @@ export class SokoBotControlPlane {
         (askedByTeammate
           ? (input.background?.destinationRoomId ?? null)
           : null),
+      onDemand:
+        version.profile !== "cmo" && readsContextOnDemand(version.skills),
       referencedTaskIds: [
         ...new Set([
           ...classifierContext.namedTaskIds,

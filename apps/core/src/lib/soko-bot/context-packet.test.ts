@@ -58,6 +58,10 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     sokoBot: { findUnique: sokoBotFindUniqueMock },
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
+    sokoBotIntegration: {
+      findMany: vi.fn().mockResolvedValue([{ provider: "gmail" }]),
+    },
+    sokoBotSchedule: { findUnique: vi.fn().mockResolvedValue(null) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
@@ -80,6 +84,13 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     workspace: { findFirst: workspaceFindFirstMock },
   },
+}));
+
+vi.mock("@/services/soko-bot-integrations.service", () => ({
+  resolveProvider: (id: string) => ({
+    id,
+    kinds: id === "gmail" ? ["email"] : [],
+  }),
 }));
 
 import {
@@ -1213,5 +1224,77 @@ describe("triggerHints", () => {
         { personAsked: false },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("ContextPacketBuilder on demand (v38)", () => {
+  const onDemand = (route: string) => ({
+    ...buildInput(),
+    onDemand: true,
+    classification: { ...CLASSIFICATION, route: route as "MANAGE_WORK" },
+  });
+
+  it("fetches what waits on the owner and no board for a plain question", async () => {
+    taskFindManyMock.mockResolvedValueOnce([
+      { ...task("waiting"), status: "INPUT_REQUIRED" },
+    ]);
+    taskCountMock.mockResolvedValue(1_534);
+    const result = await new ContextPacketBuilder().build(
+      onDemand("DIRECT_RESPONSE"),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledTimes(1);
+    const [waitingQuery] = taskFindManyMock.mock.calls[0];
+    expect(waitingQuery.where.status).toEqual({
+      in: expect.arrayContaining(["INPUT_REQUIRED", "APPROVAL_REQUIRED"]),
+    });
+    expect(waitingQuery.where.ownerId).toBe("user-1");
+    expect(result.packet.tasks.map((item) => item.id)).toEqual(["waiting"]);
+    expect(result.packet.map).toEqual(
+      expect.objectContaining({
+        tasks: expect.objectContaining({ total: 1_534, shown: 1 }),
+        mail: { connected: ["gmail"], read: "search_inbox, read_email" },
+      }),
+    );
+  });
+
+  it("labels trust once, not on every item, and drops sourceCoverage", async () => {
+    taskFindManyMock.mockResolvedValue([task("open")]);
+    coworkerFindManyMock.mockResolvedValue([coworker("c1")]);
+    recentTurnFindManyMock.mockResolvedValue([recentTurn("turn-1")]);
+    const result = await new ContextPacketBuilder().build(
+      onDemand("DELEGATE_TASK"),
+    );
+    const json = JSON.stringify(result.packet);
+    expect(json.match(/untrusted-data/g)).toHaveLength(1);
+    expect(result.packet.sourceCoverage).toBeUndefined();
+    expect(result.packet.coworkers[0]).toEqual({
+      id: "c1",
+      name: "Coworker c1",
+      caption: "Project specialist",
+    });
+  });
+
+  it("is far smaller than the full packet on the same board", async () => {
+    const board = Array.from({ length: 24 }, (_, i) => task(`t-${i}`));
+    const upTo =
+      <T>(items: T[]) =>
+      async ({ take }: { take?: number }) =>
+        items.slice(0, take ?? items.length);
+    const fill = () => {
+      taskFindManyMock.mockImplementation(upTo(board));
+      coworkerFindManyMock.mockImplementation(
+        upTo(Array.from({ length: 24 }, (_, i) => coworker(`c-${i}`))),
+      );
+      recentTurnFindManyMock.mockImplementation(
+        upTo(Array.from({ length: 12 }, (_, i) => recentTurn(`r-${i}`))),
+      );
+    };
+    fill();
+    const full = await new ContextPacketBuilder().build(buildInput());
+    fill();
+    const small = await new ContextPacketBuilder().build(
+      onDemand("DIRECT_RESPONSE"),
+    );
+    expect(small.byteSize).toBeLessThan(full.byteSize / 2);
   });
 });
