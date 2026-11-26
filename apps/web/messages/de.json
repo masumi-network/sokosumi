@@ -3804,7 +3804,8 @@
         "bots": {
           "title": "Bots für dieses Projekt",
           "empty": "Noch keine Bots für dieses Projekt. Ein Projekt-Bot sieht die öffentlichen Tasks des Projekts, und alle sprechen in einem Raum mit ihm."
-        }
+        },
+        "sectionTitle": "{section} · {project}"
       },
       "Newsletter": {
         "title": "Newsletter",
@@ -4673,14 +4674,16 @@
         "voiceover": "Geschichte mit Stimme",
         "site_tour": "Website-Tour",
         "top_three": "Top-3-Liste",
-        "slideshow": "Foto-Slideshow"
+        "slideshow": "Foto-Slideshow",
+        "launch": "Ankündigung"
       },
       "kindHints": {
         "presenter": "Eine Person spricht dein Skript in die Kamera.",
         "voiceover": "Eine Stimme erzählt eine kurze Geschichte zu deinen Bildern und deiner Website.",
         "site_tour": "Eine Stimme führt durch deine Website.",
         "top_three": "Eine Stimme nennt drei nummerierte Punkte.",
-        "slideshow": "Deine Bilder mit Musik, auf jedem eine Zeile."
+        "slideshow": "Deine Bilder mit Musik, auf jedem eine Zeile.",
+        "launch": "Eine Stimme kündigt etwas Neues an, das Datum steht auf einer Karte."
       },
       "kindNeedsSite": "Füge dem Projekt zuerst deine Website hinzu.",
       "stepShows": "Was es zeigt",
@@ -4697,17 +4700,23 @@
         "voiceover": "Das machen die meisten falsch bei…",
         "site_tour": "Das ist unsere Website. Das kannst du hier tun…",
         "top_three": "Drei Wege, um… Erstens, … Zweitens, … Drittens, … Probier es heute aus.",
-        "slideshow": "Code fertig?\nJetzt die Seite.\nHeute kostenlos testen"
+        "slideshow": "Code fertig?\nJetzt die Seite.\nHeute kostenlos testen",
+        "launch": "Unsere Winterkarte ist da. Sie startet am 3. Dezember. Sechs warme Gerichte, jeden Morgen frisch. Reserviere heute deinen Tisch."
       },
       "scriptHints": {
         "voiceover": "Der erste Satz ist der Hook.",
         "site_tour": "Sag, was man auf deiner Website sieht, von oben nach unten.",
         "top_three": "Ein Satz, der die Liste nennt, einer pro Punkt, dann der nächste Schritt.",
-        "slideshow": "Eine kurze Zeile pro Bild, eine pro Zeile."
+        "slideshow": "Eine kurze Zeile pro Bild, eine pro Zeile.",
+        "launch": "Sag, was neu ist, dann wann. Das Datum steht auf einer Karte, während der zweite Satz gesprochen wird."
       },
       "hookLine": "Text im Bild am Anfang",
       "hookLinePlaceholder": "Leer lassen, dann schreiben wir ihn für dich",
       "hookLineHint": "Bis zu sechs Wörter, die sagen, warum man weiterschauen soll.",
+      "launchDate": "Datum",
+      "launchDatePlaceholder": "3. Dezember",
+      "launchDateHint": "Wann es startet, so wie es auf der Karte stehen soll.",
+      "launchDateMissing": "Gib das Datum an, um das es geht.",
       "shortIncludes": "Untertitel, Musik und dein Logo am Ende sind inbegriffen.",
       "slideshowIncludes": "Musik und dein Logo am Ende sind inbegriffen.",
       "costDetailShort": "wird erst berechnet, wenn das Video fertig ist, in etwa einer Minute",
@@ -8769,7 +8778,8 @@
           "key": "Key",
           "status": "Status",
           "actions": "Aktionen",
-          "created": "Erstellt"
+          "created": "Erstellt",
+          "lastUsed": "Zuletzt verwendet"
         },
         "Status": {
           "enabled": "Aktiviert",
@@ -8799,7 +8809,8 @@
           "confirmLabelPrefix": "Tippe",
           "confirmLabelSuffix": "zur Bestätigung der Löschung:",
           "cancelButton": "Abbrechen",
-          "deleteButton": "API-Key löschen"
+          "deleteButton": "API-Key löschen",
+          "recentUse": "Dieser Schlüssel wurde {when} verwendet. Alles, was ihn noch nutzt, funktioniert dann nicht mehr."
         },
         "Messages": {
           "loadError": "API-Keys konnten nicht geladen werden",
@@ -8820,7 +8831,11 @@
           "keyIdRequired": "API-Key-ID ist erforderlich",
           "confirmNameRequired": "Bitte bestätige den API-Key-Namen"
         },
-        "retry": "Erneut versuchen"
+        "retry": "Erneut versuchen",
+        "LastUsed": {
+          "used": "Verwendet {when}",
+          "none": "Keine Nutzung erfasst"
+        }
       },
       "AuthorizedClients": {
         "title": "Autorisierte Anwendungen",
@@ -11988,7 +12003,13 @@
       "tables": "Tabellen",
       "newTable": "Neue Tabelle",
       "openAsTable": "Als Tabelle öffnen",
-      "loadingCsv": "CSV wird gelesen…",
+      "loadingFile": "Datei wird gelesen…",
+      "sheet": "Blatt",
+      "sheetCutRows": "Dieses Blatt hat {count, number} Datenzeilen. Nur die ersten {limit, number} werden importiert.",
+      "sheetCutColumns": "Dieses Blatt hat {count, number} Spalten. Nur die ersten {limit, number} werden importiert.",
+      "sheetEmpty": "Dieses Blatt hat keine Zeilen zum Importieren. Wähle ein anderes Blatt.",
+      "workbookEmpty": "Diese Arbeitsmappe hat keine Zeilen zum Importieren.",
+      "untitledColumn": "Spalte {number}",
       "fileMissing": "Die Datei konnte nicht geöffnet werden. Sie ist nicht mehr verfügbar.",
       "createDescription": "Mit einer leeren Tabelle beginnen oder eine CSV-Datei importieren.",
       "title": "Titel",
@@ -11998,6 +12019,8 @@
       "firstColumn": "Name",
       "importCsv": "CSV importieren (optional)",
       "chooseCsv": "CSV-Datei wählen",
+      "importXlsx": "Excel-Datei",
+      "chooseXlsx": "Excel-Datei auswählen",
       "noFileChosen": "Keine Datei ausgewählt",
       "csvLimit": "Bis zu 5 MB, 10.000 Zeilen und 100 Spalten. Die erste Zeile enthält Spaltennamen.",
       "numberGuess": "Jede ausgefüllte Zelle ist eine Zahl, daher ist hier Zahl voreingestellt. Ändere es, wenn die Ziffern ein Code sind.",
@@ -12158,6 +12181,7 @@
         "csvColumns": "CSV-Dateien dürfen bis zu 100 Spalten enthalten.",
         "csvRows": "CSV-Dateien dürfen bis zu 10.000 Datenzeilen enthalten.",
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
+        "sheet": "Diese Excel-Datei konnte nicht gelesen werden. Prüfe, ob sie sich in Excel öffnen lässt, und versuche es erneut.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
         "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}",
@@ -13489,6 +13513,8 @@
         "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen",
+        "trendTruncated": "Eine Search-Console-Abfrage hat ihr Zeilenlimit erreicht. Einige Tage können fehlen.",
+        "trendNoPosition": "Keine Position gemeldet",
         "summary": "In den ersten Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}}",
         "firstPage": "{count} auf der ersten Seite",
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
@@ -13604,9 +13630,11 @@
         "historyShow": "Verlauf",
         "historyPaidTitle": "Positionen in bezahlten Prüfungen",
         "historyPaidNote": "Jeder Punkt ist eine Prüfung der Suchergebnisse an diesem Tag.",
+        "historyOlderHidden": "Ältere Prüfungen werden nicht angezeigt.",
         "historyPaidLabel": "{device, select, mobile {Mobil} desktop {Desktop} other {Alle Geräte}}: Position in bezahlten Prüfungen für „{keyword}“",
         "historyNotInRange": "Nicht in den geprüften Ergebnissen",
-        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine Prüfung, die die Seite nicht in ihren Ergebnissen fand, hat keine Position.",
+        "historyNotInTop": "Nicht in den Top {count}",
+        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine hohle Markierung unten ist eine Prüfung, die die Seite nicht in ihren Ergebnissen fand: Sie hat keine Position.",
         "historyGscTitle": "Durchschnittliche Position in der Search Console, täglich",
         "historyGscNote": "Ein Durchschnitt über alle Impressionen des Tages, keine einzelne Prüfung.",
         "serp": {
@@ -13756,6 +13784,7 @@
         "copyFix": "Änderung kopieren",
         "copyInstructions": "Anweisungen für Agenten kopieren",
         "copyPage": "Seite",
+        "copyTarget": "Was zu ändern ist",
         "copied": "In die Zwischenablage kopiert",
         "copyFailed": "Kopieren nicht möglich. Text markieren und von Hand kopieren.",
         "copyAgentLead": "Setze diese SEO-Änderung auf der Website um. Ändere nur, was sie nennt, und prüfe danach die Seite.",
@@ -14971,6 +15000,7 @@
         "brandLimited": "Es gibt mehr Zeilen mit Suchanfragen, als die Aufteilung lesen kann. Die Zahlen mit Marke und ohne Marke sind eine Untergrenze.",
         "brandListedOnly": "Diese Zahlen zählen nur die aufgeführten Suchanfragen. Die Tagessummen konnten nicht verglichen werden, deshalb gibt es keine Anteile.",
         "brandUnavailable": "Die Suchanfragen für diesen Zeitraum konnten nicht gelesen werden. Deshalb gibt es keine Markenaufteilung.",
+        "brandLoading": "Die Markenaufteilung wird gelesen…",
         "brandEmpty": "Fügen Sie Ihre Markenbegriffe hinzu. Dann sehen Sie, wie viele Zugriffe aus Suchen nach Ihrem Namen kommen."
       },
       "traffic": {
@@ -15022,6 +15052,7 @@
           "non_branded": "Ohne Marke"
         },
         "brandTotals": "Aufgeführte Suchanfragen: {branded} Klicks mit Marke ({brandedShare}), {nonBranded} Klicks ohne Marke ({nonBrandedShare})",
+        "brandTotalsNoShare": "Aufgeführte Suchanfragen: {branded} Klicks mit Marke, {nonBranded} Klicks ohne Marke",
         "brandSuggested": "Vorschlag aus dem Namen Ihrer Website. Prüfen Sie die Begriffe vor dem Speichern.",
         "editBrandTerms": "Markenbegriffe bearbeiten",
         "addBrandTerms": "Markenbegriffe hinzufügen",

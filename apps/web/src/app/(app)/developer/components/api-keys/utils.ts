@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import type { TranslationFunction } from "./types";
+import type { ApiKeyRecord, TranslationFunction } from "./types";
 
 export function createApiKeySchema(t: TranslationFunction) {
   return z.object({
@@ -44,3 +44,19 @@ export const DEFAULT_CREATE_FORM_VALUES = {
 };
 
 export const DIALOG_CLEANUP_TIMEOUT = 300;
+
+const RECENT_USE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Better Auth stamps `lastRequest` on every verified request. Keys made
+ * without a rate-limit window are never stamped, so an empty value means no
+ * recorded use, not "never used".
+ */
+export function lastUsedAt(apiKey: ApiKeyRecord): Date | null {
+  return apiKey.lastRequest ? new Date(apiKey.lastRequest) : null;
+}
+
+export function usedInLastWeek(apiKey: ApiKeyRecord, now: number): boolean {
+  const at = lastUsedAt(apiKey);
+  return at !== null && now - at.getTime() < RECENT_USE_MS;
+}

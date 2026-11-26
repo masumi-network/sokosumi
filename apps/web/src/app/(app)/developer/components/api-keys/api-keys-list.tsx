@@ -11,7 +11,11 @@ import {
 } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 
-import { ApiKeyActions, ApiKeyStatus } from "./api-key-row-parts";
+import {
+  ApiKeyActions,
+  ApiKeyLastUsed,
+  ApiKeyStatus,
+} from "./api-key-row-parts";
 import { getApiKeyColumns } from "./api-keys-columns";
 import type { ApiKeysListProps } from "./types";
 
@@ -69,8 +73,10 @@ export function ApiKeysList({
 
   return (
     <>
-      {/* Phones: one stacked row per key, so status and actions stay on screen. */}
-      <ul className="divide-border divide-y rounded-lg border md:hidden">
+      {/* Phones and tablets: one stacked row per key, so status, last use and
+          actions stay on screen; the six-column table fits beside the sidebar
+          from xl up (at lg it overflowed by about 36px). */}
+      <ul className="divide-border divide-y rounded-lg border xl:hidden">
         {visible.map((apiKey) => (
           <li key={apiKey.id} className="flex items-center gap-3 p-3">
             <div className="min-w-0 flex-1 space-y-1">
@@ -78,13 +84,14 @@ export function ApiKeysList({
                 <p className="min-w-0 truncate font-medium">{apiKey.name}</p>
                 <ApiKeyStatus apiKey={apiKey} t={t} />
               </div>
-              <p className="text-muted-foreground flex items-center gap-2 text-xs">
+              <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <code className="bg-muted rounded px-1 font-mono">
                   {apiKey.start ?? "••••••••"}
                 </code>
                 {formatter.dateTime(new Date(apiKey.createdAt), {
                   dateStyle: "medium",
                 })}
+                <ApiKeyLastUsed apiKey={apiKey} t={t} />
               </p>
             </div>
             <ApiKeyActions
@@ -115,7 +122,7 @@ export function ApiKeysList({
                 },
               ]
         }
-        containerClassName="hidden rounded-lg md:flex"
+        containerClassName="hidden rounded-lg xl:flex"
       />
     </>
   );

@@ -1,4 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/client";
+import { TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
@@ -13,7 +14,7 @@ import {
   isUnderBase,
   t,
 } from "../../shell/text.ts";
-import { Message, PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import { Badge, Button, PrimaryButton, StateMessage } from "../../shell/ui.tsx";
 
 /** `agents_input_schema`'s result, which `agents_show_hire` returns unchanged. */
 export const HireResult = z.object({ data: InputSchema });
@@ -178,7 +179,11 @@ export function AgentsHire({
 
   if (!agentId) {
     return (
-      <Message title={t("shell.error.title")} body={t("shell.error.body")} />
+      <StateMessage
+        icon={TriangleAlert}
+        title={t("shell.error.title")}
+        body={t("shell.error.body")}
+      />
     );
   }
   if (!canCall) {
@@ -200,7 +205,7 @@ export function AgentsHire({
       <article data-step={step.kind} className="flex flex-col gap-5">
         <header className="flex flex-col gap-0.5">
           {title}
-          <p className="text-muted-foreground text-xs">{workspaceName}</p>
+          <p className="text-muted-foreground text-sm">{workspaceName}</p>
         </header>
         <SchemaForm
           schema={data.data}
@@ -242,12 +247,12 @@ export function AgentsHire({
             {step.message && (
               <p className="text-muted-foreground text-sm">{step.message}</p>
             )}
-            <QuietButton
+            <Button
               onClick={() => setStep({ kind: "form" })}
-              className="border-border w-full border sm:w-auto sm:self-start"
+              className="w-full sm:w-auto sm:self-start"
             >
               {t("agentsHire.back")}
-            </QuietButton>
+            </Button>
           </>
         )}
       </article>
@@ -277,12 +282,12 @@ export function AgentsHire({
           <dd className="font-mono text-sm break-all">{jobId}</dd>
         </dl>
         {isPlainReference(jobId) && (
-          <QuietButton
+          <Button
             onClick={showStatus}
-            className="border-border w-full border sm:w-auto sm:self-start"
+            className="w-full sm:w-auto sm:self-start"
           >
             {t("agentsHire.showStatus")}
-          </QuietButton>
+          </Button>
         )}
       </article>
     );
@@ -298,14 +303,16 @@ export function AgentsHire({
       <h1 className="text-base font-semibold tracking-tight">
         {t("agentsHire.confirmTitle")}
       </h1>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
+      <dl className="bg-background border-border grid grid-cols-[auto_1fr] items-center gap-x-6 gap-y-3 rounded-lg border p-4 text-sm">
         <dt className="text-muted-foreground">{t("agentsHire.agent")}</dt>
-        <dd className="min-w-0 break-words">{current.name}</dd>
+        <dd className="min-w-0 font-medium break-words">{current.name}</dd>
         <dt className="text-muted-foreground">{t("agentsHire.workspace")}</dt>
         <dd className="min-w-0 break-words">{workspaceName}</dd>
         <dt className="text-muted-foreground">{t("agentsHire.price")}</dt>
-        <dd className="font-medium tabular-nums">
-          {current.price > 0 ? credits(current.price) : t("agentsHire.free")}
+        <dd>
+          <Badge>
+            {current.price > 0 ? credits(current.price) : t("agentsHire.free")}
+          </Badge>
         </dd>
         {current.balance !== undefined && (
           <>
@@ -318,13 +325,13 @@ export function AgentsHire({
         <p className="text-destructive text-sm">{t("agentsHire.short")}</p>
       )}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
-        <QuietButton
+        <Button
           onClick={() => setStep({ kind: "form" })}
           disabled={busy}
           className="w-full sm:w-auto"
         >
           {t("agentsHire.edit")}
-        </QuietButton>
+        </Button>
         <PrimaryButton
           onClick={() => hire(current)}
           disabled={busy || short}

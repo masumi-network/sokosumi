@@ -5,7 +5,29 @@ import {
   validateTableValues,
 } from "@sokosumi/utils";
 import type { z } from "zod";
+import type { SpreadsheetCell } from "@/lib/spreadsheet-file";
 import { parseTableInput } from "./table-value";
+
+/**
+ * A workbook sheet as import rows, shaped like a parsed CSV: blank rows go, as
+ * they do in a CSV, every row is as wide as the widest, and a blank header is
+ * named by its position so no column is left out for want of a name.
+ */
+export function sheetTableRows(
+  sheet: SpreadsheetCell[][],
+  blankHeader: (number: number) => string,
+): string[][] {
+  const rows = sheet
+    .map((row) => row.map((cell) => cell.text))
+    .filter((row) => row.some((text) => text.trim()));
+  if (!rows.length) return [];
+  const width = Math.max(...rows.map((row) => row.length));
+  return rows.map((row, r) =>
+    Array.from({ length: width }, (_, i) =>
+      r === 0 && !row[i]?.trim() ? blankHeader(i + 1) : (row[i] ?? ""),
+    ),
+  );
+}
 
 /** Deterministic chunks leave headroom for the Core operation envelope as well as HTTP JSON. */
 export function tableImportBatches(

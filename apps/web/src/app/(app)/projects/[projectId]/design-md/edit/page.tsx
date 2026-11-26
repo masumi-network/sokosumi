@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { projectPageMetadata } from "@/app/projects/[projectId]/project-page-metadata";
 
 import {
   DesignMdLoadError,
@@ -10,6 +12,19 @@ import { projectService } from "@/lib/services/project.service";
 
 interface ProjectDesignMdEditPageProps {
   params: Promise<{ projectId: string }>;
+}
+
+/** The section's name, then the project's, as the tab title. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const [{ projectId }, t] = await Promise.all([
+    params,
+    getTranslations("App.DesignMd"),
+  ]);
+  return projectPageMetadata(projectId, t("editPageTitle"));
 }
 
 export default async function ProjectDesignMdEditPage({

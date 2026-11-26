@@ -578,6 +578,37 @@ describe("GET /tasks", () => {
     });
   });
 
+  it("sends each description as null with includeDescription=false (SOKD-496)", async () => {
+    taskFindManyMock.mockResolvedValue([
+      { ...createTask(), description: "A long runbook" },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const lean = await createApp().request(
+      "http://localhost/?includeDescription=false",
+    );
+    const full = await createApp().request("http://localhost/");
+
+    expect(lean.status).toBe(200);
+    const leanBody = (await lean.json()) as {
+      data: { description: unknown }[];
+    };
+    const fullBody = (await full.json()) as {
+      data: { description: unknown }[];
+    };
+    expect(leanBody.data[0]?.description).toBeNull();
+    expect(fullBody.data[0]?.description).toBe("A long runbook");
+  });
+
+  it("rejects an includeDescription that is not true or false", async () => {
+    const response = await createApp().request(
+      "http://localhost/?includeDescription=no",
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("names open sub-tasks to people only", async () => {
     taskFindManyMock.mockResolvedValue([
       {

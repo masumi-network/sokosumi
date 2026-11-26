@@ -48,7 +48,7 @@ export interface MediaSpendRequest {
   turnId: string;
   toolCallId: string;
   operationKey: string | null;
-  capability: "generate_image" | "generate_video";
+  capability: "generate_image" | "generate_video" | "generate_talking_video";
   projectId: string;
   images: number;
   videos: number;
@@ -450,7 +450,9 @@ async function loadGrantAccounting(
     const legacyCalls = await client.sokoBotToolCall.findMany({
       where: {
         turnId: { in: allLegacyTurnIds },
-        capability: { in: ["generate_image", "generate_video"] },
+        capability: {
+          in: ["generate_image", "generate_video", "generate_talking_video"],
+        },
         replayedReceiptId: null,
         OR: [
           { disposition: null },
@@ -528,7 +530,11 @@ async function loadGrantAccounting(
         key: `${call.turnId}:${call.toolCallId}`,
         cost: {
           images: call.capability === "generate_image" ? 1 : 0,
-          videos: call.capability === "generate_video" ? 1 : 0,
+          videos:
+            call.capability === "generate_video" ||
+            call.capability === "generate_talking_video"
+              ? 1
+              : 0,
           credits: parsedInput?.maxCredits ?? 0,
         },
         compatibleGrants,
@@ -561,14 +567,14 @@ function grantRefusalMessage(
     requested.images > 0 &&
     usage.images + requested.images > grant.images
   ) {
-    return `The owner asked for ${grant.images} image${grant.images > 1 ? "s" : ""} in this plan. Use those in the draft.`;
+    return `The owner asked for ${grant.images} image${grant.images === 1 ? "" : "s"} in this plan. Use those in the draft.`;
   }
   if (
     grant.videos !== undefined &&
     requested.videos > 0 &&
     usage.videos + requested.videos > grant.videos
   ) {
-    return `The owner asked for ${grant.videos} video${grant.videos > 1 ? "s" : ""} in this plan. Use those in the draft.`;
+    return `The owner asked for ${grant.videos} video${grant.videos === 1 ? "" : "s"} in this plan. Use those in the draft.`;
   }
   if (
     grant.maxMediaCredits !== undefined &&

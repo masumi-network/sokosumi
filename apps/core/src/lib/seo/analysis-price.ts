@@ -7,6 +7,7 @@ import {
   convertCreditsToCents,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
   SEO_PAGE_CEILING_CENTS,
   seoCreditsForCents,
   seoMaxCredits,
@@ -43,6 +44,16 @@ export function seoAnalysisAdmissionCredits(
       });
 }
 
+/** The cost-plus terms a new full audit sends, as JSON for error messages. */
+const SEO_FULL_AUDIT_PRICE_TERMS = JSON.stringify({
+  kind: "cost_plus",
+  version: 1,
+  minimumCredits: SEO_FULL_AUDIT_CREDITS,
+  markupPercent: SEO_FULL_AUDIT_MARKUP_PERCENT,
+})
+  .replaceAll(":", ": ")
+  .replaceAll(",", ", ");
+
 /** A stale client must reload its quote before it creates paid work. Legacy scheduled releases bypass this new-approval gate. */
 export function requireSeoFullAuditPriceApproval(
   input: RequestSeoAnalysis,
@@ -55,10 +66,20 @@ export function requireSeoFullAuditPriceApproval(
     !input.fullAuditPrice
   )
     return;
-  if (!input.fullAuditPrice || input.fullAuditPrice.maxCredits !== undefined)
+  // Stale browsers sent a cap; agents read it as a spending limit (SOKD-483).
+  if (input.fullAuditPrice?.maxCredits !== undefined)
+    throw conflict(
+      `Leave out fullAuditPrice.maxCredits: a full audit has no credit cap. Send fullAuditPrice as ${SEO_FULL_AUDIT_PRICE_TERMS}, after the person approves that price.`,
+    );
+  if (input.fullAuditPrice) return;
+  // A client that still sends the old fixed credits needs to reload its quote.
+  if (input.fullAuditCredits !== undefined)
     throw conflict(
       "The full-audit price changed. Review the new price before you start.",
     );
+  throw conflict(
+    `A full audit needs fullAuditPrice: send ${SEO_FULL_AUDIT_PRICE_TERMS}, after the person approves that price.`,
+  );
 }
 
 /**

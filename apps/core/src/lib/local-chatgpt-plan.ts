@@ -102,10 +102,41 @@ function guardGateway(): void {
     const url = new URL(
       typeof input === "string" || input instanceof URL ? input : input.url,
     );
-    if (url.hostname === GATEWAY_HOST)
+    if (url.hostname === GATEWAY_HOST && !allowedRealJev(url, input, init))
       return Promise.reject(new ChatGptPlanGatewayCallError(url.pathname));
     return send(input, init);
   };
+}
+
+/** Jev's Gateway model id; the only model `SOKO_BOT_PLAN_REAL_JEV` lets out. */
+const REAL_JEV_MODEL = "typesafe-ai/jev";
+
+/**
+ * Plan runs that call real Jev (`typesafe-ai/jev`) through the Gateway, as
+ * production routes with it; every other model stays on the plan. Opt-in:
+ * `SOKO_BOT_PLAN_REAL_JEV=1` (`evals:local --plan` turns it on).
+ */
+export function planRealJevEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (
+    localChatGptPlanEnabled(env) &&
+    ["1", "true"].includes(env.SOKO_BOT_PLAN_REAL_JEV ?? "")
+  );
+}
+
+/** A Gateway request the guard lets through: Jev's decision model only. */
+function allowedRealJev(
+  url: URL,
+  input: Parameters<typeof fetch>[0],
+  init: Parameters<typeof fetch>[1],
+): boolean {
+  if (!planRealJevEnabled() || !url.pathname.endsWith("/decision-model"))
+    return false;
+  const headers = new Headers(
+    init?.headers ?? (input instanceof Request ? input.headers : undefined),
+  );
+  return headers.get("ai-model-id") === REAL_JEV_MODEL;
 }
 
 localChatGptPlanEnabled();

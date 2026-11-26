@@ -1,4 +1,7 @@
-import { SHORT_VIDEO_FORMAT_GUIDE, SHORT_VIDEO_FORMATS } from "@sokosumi/utils";
+import {
+  CMO_WRITTEN_SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_FORMAT_GUIDE,
+} from "@sokosumi/utils";
 import { CMO_PRODUCTION_TURN_PREFIX } from "../cmo.js";
 import { LINKEDIN_HOOK_RULE } from "../writing-skills/social.js";
 import type { WritingSkill } from "../writing-skills/types.js";
@@ -229,8 +232,8 @@ const NEW_MENU =
  */
 export const CMO_SHORTS_WRITING_GUIDE = `## Short videos
 A short video (tiktok video, instagram reel, youtube short) has no person on camera. Core cuts it from the brand's pictures and its website to a voice, so it gets these besides its visual:
-- shortFormat, one of ${SHORT_VIDEO_FORMATS.join(", ")}. Vary them across the month: no two short videos in a row take the same kind, and every kind is used. site_tour only when the brand has a website.
-${SHORT_VIDEO_FORMATS.map((format) => `  - ${format}: ${SHORT_VIDEO_FORMAT_GUIDE[format]}`).join("\n")}
+- shortFormat, one of ${CMO_WRITTEN_SHORT_VIDEO_FORMATS.join(", ")}. Vary them across the month: no two short videos in a row take the same kind, and every kind is used. site_tour only when the brand has a website.
+${CMO_WRITTEN_SHORT_VIDEO_FORMATS.map((format) => `  - ${format}: ${SHORT_VIDEO_FORMAT_GUIDE[format]}`).join("\n")}
 - script: for a voiced kind, the spoken words, hook first, 150 to 400 characters, in the brand's own voice, never as a customer and never describing music, footage or cuts. For a slideshow, its lines, one per row.
 - hookLine: at most six words on screen over the first seconds, saying what the viewer gets; not the hook sentence word for word. Null for a slideshow.
 - visual: one scene from the buyer's world that the short opens on, a place, hands, an object, light. Never a screen, a phone or a laptop showing anything: the website is shown from its real page.

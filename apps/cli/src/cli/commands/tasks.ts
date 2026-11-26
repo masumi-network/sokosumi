@@ -201,6 +201,11 @@ function printTask(
     `status: ${String(value.status || "unknown")}`,
     value.priority ? `priority: ${String(value.priority)}` : undefined,
     `assignee: ${taskAssignee(value)}`,
+    value.dueOn ? `due: ${String(value.dueOn)}` : undefined,
+    value.parentTaskId ? `parent: ${String(value.parentTaskId)}` : undefined,
+    value.archivedAt
+      ? `archived: ${formatDate(value.archivedAt) || String(value.archivedAt)}`
+      : undefined,
     value.name ? `name: ${String(value.name)}` : undefined,
     value.description
       ? `description: ${truncate(value.description, 240)}`

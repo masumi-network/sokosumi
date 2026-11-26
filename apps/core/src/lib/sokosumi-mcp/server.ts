@@ -125,7 +125,11 @@ export function createSokosumiMcpServer(
         `Unknown tool: ${params.name}`,
       );
     }
-    const result = await callTool(uiTool.twin.input, args, caller);
+    const result = await callTool(
+      uiTool.twin.input,
+      { ...args, ...uiTool.args },
+      caller,
+    );
     return {
       ...result,
       _meta: {

@@ -1,12 +1,16 @@
 import { getEnv } from "@/config/env";
-import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import {
+  localChatGptPlanEnabled,
+  planRealJevEnabled,
+} from "@/lib/local-chatgpt-plan";
 
 export type EvalEnvironment =
   | "mainnet"
   | "preprod"
   | "preview"
   | "local"
-  | "local-chatgpt-plan";
+  | "local-chatgpt-plan"
+  | "local-chatgpt-plan-real-jev";
 
 /**
  * Where this Core runs, as an eval run records it. A ChatGPT plan run is its
@@ -16,7 +20,19 @@ export function evalEnvironment(): EvalEnvironment {
   if (process.env.VERCEL_ENV === "production")
     return getEnv().NETWORK === "Mainnet" ? "mainnet" : "preprod";
   if (process.env.VERCEL_ENV === "preview") return "preview";
-  return localChatGptPlanEnabled() ? "local-chatgpt-plan" : "local";
+  if (!localChatGptPlanEnabled()) return "local";
+  // Real Jev routes like production; the stand-in doesn't. Never compare them.
+  return planRealJevEnabled()
+    ? "local-chatgpt-plan-real-jev"
+    : "local-chatgpt-plan";
+}
+
+/** A local ChatGPT plan run, with real Jev or the stand-in. */
+export function isPlanEnvironment(environment: string): boolean {
+  return (
+    environment === "local-chatgpt-plan" ||
+    environment === "local-chatgpt-plan-real-jev"
+  );
 }
 
 /**
@@ -27,11 +43,14 @@ export function comparableRuns(run: {
   environment: string;
   label: string | null;
 }):
-  | { environment: "local-chatgpt-plan" }
+  | { environment: "local-chatgpt-plan" | "local-chatgpt-plan-real-jev" }
   | { environment: "local"; label: typeof LEGACY_PLAN_LABEL }
   | { trigger: "DAILY" } {
-  if (run.environment === "local-chatgpt-plan")
-    return { environment: "local-chatgpt-plan" };
+  if (
+    run.environment === "local-chatgpt-plan" ||
+    run.environment === "local-chatgpt-plan-real-jev"
+  )
+    return { environment: run.environment };
   // Older plan runs still used Jev and the Gateway's checks: their own group.
   if (isLegacyPlanRun(run))
     return { environment: "local", label: LEGACY_PLAN_LABEL };

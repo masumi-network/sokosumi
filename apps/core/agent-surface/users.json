@@ -31,7 +31,7 @@
       "mcp": "organizations_memberships"
     },
     "GET /users/{id}/organizations": {
-      "cli": "workspaces list",
+      "cli": "organizations list",
       "mcp": "organizations_list"
     },
     "GET /users/{id}/organizations/{organizationId}/credits": {

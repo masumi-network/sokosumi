@@ -822,6 +822,7 @@ export const OWNER_AUTHORITY_TURN_SELECT = {
   workspaceId: true,
   versionId: true,
   source: true,
+  status: true,
   clientTurnId: true,
   parentTurnId: true,
   askedByUserId: true,
@@ -835,6 +836,7 @@ export interface TurnAuthorityNode extends OwnerRequestTurn {
   sokoBotId: string;
   workspaceId: string;
   versionId: string | null;
+  status?: string | null;
   clientTurnId?: string | null;
   parentTurnId: string | null;
   sokoBot?: { userId?: string | null } | null;
@@ -918,6 +920,9 @@ export function deriveTurnOwnerAuthority(
   if (root.parentTurnId !== null) {
     return systemTurnAuthority(leaf);
   }
+  if (chainFromLeafToRoot.length > 1 && root.status === "CANCELLED") {
+    return systemTurnAuthority(leaf);
+  }
   for (const hop of chainFromLeafToRoot) {
     if (
       hop.sokoBotId !== leaf.sokoBotId ||
@@ -983,6 +988,7 @@ export async function resolveTurnOwnerAuthority(
     workspaceId: turn.workspaceId,
     versionId: turn.versionId,
     source: turn.source,
+    status: turn.status,
     clientTurnId: turn.clientTurnId,
     parentTurnId: turn.parentTurnId,
     askedByUserId: turn.askedByUserId,
@@ -1109,6 +1115,9 @@ export const SCHEDULE_AUTHORITY_INVALID_MESSAGE =
 export const SCHEDULE_AUTHORITY_EXPIRED_MESSAGE =
   "This schedule's owner authorization has expired. Ask the owner in chat to renew it.";
 
+export const SCHEDULE_AUTHORITY_REVOKED_MESSAGE =
+  "This schedule's owner authorization was revoked. Ask the owner in chat to re-enable or recreate it.";
+
 export const SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE =
   "This schedule's owner authorization is scoped to a different Project.";
 
@@ -1123,6 +1132,30 @@ export const SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE =
 
 export const SCHEDULE_SOCIAL_DENIED_MESSAGE =
   "This schedule is not authorized to perform that social write.";
+
+export const WATCH_AUTHORITY_UNAVAILABLE_MESSAGE =
+  "Could not verify this follow-up's owner authorization. Ask the owner in chat to confirm or start it again.";
+
+export const WATCH_AUTHORITY_INVALID_MESSAGE =
+  "This follow-up's persisted owner authorization is invalid. Ask the owner in chat to confirm or start it again.";
+
+export const WATCH_AUTHORITY_EXPIRED_MESSAGE =
+  "This follow-up's owner authorization has expired. Ask the owner in chat to renew it.";
+
+export const WATCH_AUTHORITY_REVOKED_MESSAGE =
+  "This follow-up's owner authorization was revoked. Ask the owner in chat to start it again.";
+
+export const WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE =
+  "This follow-up's owner authorization is scoped to a different Project.";
+
+export const WATCH_SOCIAL_DRAFT_ONLY_MESSAGE =
+  "This follow-up can only create social posts as drafts for the owner's approval: create it without scheduledAt, and tell the owner it is ready to approve.";
+
+export const WATCH_SOCIAL_PUBLISH_BLOCKED_MESSAGE =
+  "This follow-up may create and schedule posts, not publish immediately or cancel existing posts.";
+
+export const WATCH_SOCIAL_DENIED_MESSAGE =
+  "This follow-up is not authorized to perform that social write.";
 
 const SCHEDULE_META_CAPABILITIES: ReadonlySet<string> = new Set([
   "create_schedule",
@@ -1355,6 +1388,7 @@ export interface ScheduleRouteAuthorityInput {
   botProjectId: string | null;
   botVersionId: string | null;
   offeredCapabilities: readonly SokoBotCapability[];
+  revoked?: boolean;
   now?: Date;
 }
 
@@ -1413,6 +1447,7 @@ export function intersectScheduleRouteCapabilities(
     targetScope: liveTargetScope,
     hasWorkspaceAccess: true,
     botAlive: true,
+    ...(input.revoked ? { revoked: true } : {}),
     offeredCapabilities: input.offeredCapabilities,
     now: input.now,
   });
@@ -1430,6 +1465,27 @@ export type ScheduleSocialAuthorityResolution =
       scheduleId: string;
       authority: unknown;
       botProjectId: string | null;
+      /** Canonical per-occurrence key shared across initial runs, admin retries, and child work. */
+      occurrenceKey?: string;
+      /** True when the schedule was disabled/deleted or its root turn was cancelled. */
+      revoked?: boolean;
+    }
+  | {
+      kind: "unresolved";
+      detail: string;
+    };
+
+export type WatchSocialAuthorityResolution =
+  | { kind: "none" }
+  | {
+      kind: "watch";
+      watchId: string;
+      watchKind: string;
+      authority: unknown;
+      watchProjectId: string | null;
+      botProjectId: string | null;
+      /** True when the originating schedule was disabled/deleted or root turn was cancelled. */
+      revoked?: boolean;
     }
   | {
       kind: "unresolved";
@@ -1439,11 +1495,15 @@ export type ScheduleSocialAuthorityResolution =
 export interface ResolvedSocialWriteOrigin {
   source: string | null;
   scheduleAuthority: ScheduleSocialAuthorityResolution;
+  watchAuthority?: WatchSocialAuthorityResolution;
 }
 
 export type ScheduleSocialAuthorityClient = OwnerAuthorityTurnClient &
   Partial<
-    Pick<Prisma.TransactionClient, "sokoBotScheduleRun" | "sokoBotSchedule">
+    Pick<
+      Prisma.TransactionClient,
+      "sokoBotScheduleRun" | "sokoBotSchedule" | "sokoBotWatch"
+    >
   >;
 
 export interface SocialWriteAuthorityInput {
@@ -1463,6 +1523,7 @@ export interface SocialWriteAuthorityInput {
   tainted: boolean;
   turnAuthority?: OwnerAuthority | null;
   scheduleAuthority?: ScheduleSocialAuthorityResolution;
+  watchAuthority?: WatchSocialAuthorityResolution;
   now?: Date;
 }
 
@@ -1476,6 +1537,11 @@ export type SocialWriteAuthorityDecision =
   | {
       allowed: false;
       kind: "schedule_authority";
+      detail: string;
+    }
+  | {
+      allowed: false;
+      kind: "watch_authority";
       detail: string;
     }
   | {
@@ -1496,6 +1562,8 @@ function scheduleDenialDetail(
   reason: OwnerAuthorityDenialReason | null,
 ): string {
   switch (reason) {
+    case "revoked":
+      return SCHEDULE_AUTHORITY_REVOKED_MESSAGE;
     case "expired":
       return SCHEDULE_AUTHORITY_EXPIRED_MESSAGE;
     case "target_scope_mismatch":
@@ -1508,17 +1576,34 @@ function scheduleDenialDetail(
   }
 }
 
+function watchDenialDetail(reason: OwnerAuthorityDenialReason | null): string {
+  switch (reason) {
+    case "revoked":
+      return WATCH_AUTHORITY_REVOKED_MESSAGE;
+    case "expired":
+      return WATCH_AUTHORITY_EXPIRED_MESSAGE;
+    case "target_scope_mismatch":
+      return WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE;
+    default:
+      return WATCH_SOCIAL_DENIED_MESSAGE;
+  }
+}
+
 /**
  * Single OwnerAuthority evaluator for all social write tools (`social.ts`):
  * 1. Enforces web-taint attenuation (owner-directed CHAT -> `edit_drafts`,
  *    blocking `create_social_post({ scheduledAt })`, scheduling, publishing,
  *    canceling, and requiring `DRAFT`/`NEEDS_APPROVAL` on edits; non-owner
  *    turns -> `none`, blocking every social write).
- * 2. Enforces persisted `SokoBotSchedule.authority` on `SCHEDULE` turns (and
+ * 2. Enforces persisted `SokoBotWatch.authority` on watch wakes (and
+ *    `ADMIN_RETRY` replays of watch wakes): `chat_reply` untrusted-content
+ *    `draft_only` ceiling, live Project `targetScope`, expiry, and fail-closed
+ *    malformed/unresolved watches.
+ * 3. Enforces persisted `SokoBotSchedule.authority` on `SCHEDULE` turns (and
  *    `ADMIN_RETRY` replays of scheduled runs): `draft_only` vs `schedule_posts`
  *    vs `full`, live Project `targetScope`, `scheduleId` binding, expiry, and
  *    fail-closed malformed/unresolved schedules.
- * 3. Enforces non-CMO `EVENT` draft-only ceiling (`socialMode: "draft_only"`),
+ * 4. Enforces non-CMO `EVENT` draft-only ceiling (`socialMode: "draft_only"`),
  *    permitting unscheduled `create_social_post` drafts while refusing
  *    `scheduledAt`, scheduling, publishing, canceling, and existing-post edits.
  */
@@ -1568,6 +1653,76 @@ export function evaluateSocialWriteAuthority(
       effective.authority.socialMode === "edit_drafts";
   }
 
+  if (input.watchAuthority && input.watchAuthority.kind !== "none") {
+    if (input.watchAuthority.kind === "unresolved") {
+      return {
+        allowed: false,
+        kind: "watch_authority",
+        detail: input.watchAuthority.detail,
+      };
+    }
+    const persisted = parseOwnerAuthority(input.watchAuthority.authority);
+    if (!persisted) {
+      return {
+        allowed: false,
+        kind: "watch_authority",
+        detail: WATCH_AUTHORITY_INVALID_MESSAGE,
+      };
+    }
+    const liveProjectId =
+      extractProjectIdFromInput(rawInput) ??
+      input.watchAuthority.watchProjectId ??
+      input.watchAuthority.botProjectId;
+    const liveTargetScope: OwnerAuthorityTargetScope | undefined = liveProjectId
+      ? { kind: "project", projectId: liveProjectId }
+      : undefined;
+    const effective = intersectOwnerAuthority(persisted, {
+      sokoBotId: turn.sokoBotId,
+      workspaceId: turn.workspaceId,
+      versionId: turn.versionId,
+      actingUserId: turn.actingUserId,
+      askedByKind: turn.askedByKind ?? (turn.sharedBot ? "TEAMMATE" : "OWNER"),
+      sharedBot: turn.sharedBot ?? false,
+      source: turn.source,
+      ...(persisted.scheduleId ? { scheduleId: persisted.scheduleId } : {}),
+      targetScope: liveTargetScope,
+      hasWorkspaceAccess: true,
+      botAlive: true,
+      ...(input.watchAuthority.revoked ? { revoked: true } : {}),
+      webTainted: tainted,
+      carriedUntrustedContent: input.watchAuthority.watchKind === "chat_reply",
+      offeredCapabilities: [capability],
+      now: input.now,
+    });
+    if (!effective.effective) {
+      return {
+        allowed: false,
+        kind: "watch_authority",
+        detail: watchDenialDetail(effective.denialReason),
+      };
+    }
+    if (!isToolCallAllowedByAuthority(effective, capability, rawInput)) {
+      const detail =
+        effective.authority.socialMode === "draft_only"
+          ? WATCH_SOCIAL_DRAFT_ONLY_MESSAGE
+          : effective.authority.socialMode === "schedule_posts"
+            ? WATCH_SOCIAL_PUBLISH_BLOCKED_MESSAGE
+            : WATCH_SOCIAL_DENIED_MESSAGE;
+      return {
+        allowed: false,
+        kind: "watch_authority",
+        detail,
+      };
+    }
+    return {
+      allowed: true,
+      requireUnapprovedDraft:
+        requireUnapprovedDraft ||
+        (SOCIAL_EDIT.has(capability) &&
+          effective.authority.socialMode === "edit_drafts"),
+    };
+  }
+
   if (
     turn.source === "SCHEDULE" &&
     input.scheduleAuthority &&
@@ -1608,6 +1763,7 @@ export function evaluateSocialWriteAuthority(
       targetScope: liveTargetScope,
       hasWorkspaceAccess: true,
       botAlive: true,
+      ...(input.scheduleAuthority.revoked ? { revoked: true } : {}),
       offeredCapabilities: [capability],
       now: input.now,
     });
@@ -1689,49 +1845,414 @@ export function evaluateSocialWriteAuthority(
 const ADMIN_RETRY_TURN_KIND = "admin-retry";
 const ADMIN_SCHEDULE_RETRY_KIND = "admin-schedule-retry";
 const SCHEDULE_CLIENT_TURN_PATTERN = /^schedule:([^:]+):(.+)$/;
+const WATCH_CLIENT_TURN_PATTERN = /^watch:(.+)$/;
 const uuidSchema = z.string().uuid();
+
+export function isWatchClientTurnId(
+  clientTurnId: string | null | undefined,
+): boolean {
+  return (
+    typeof clientTurnId === "string" &&
+    WATCH_CLIENT_TURN_PATTERN.test(clientTurnId)
+  );
+}
 
 const SCHEDULE_SOCIAL_AUTHORITY_SELECT = {
   id: true,
+  enabled: true,
+  runOnce: true,
+  lastRunAt: true,
   systemKey: true,
   authority: true,
   sokoBot: { select: { projectId: true } },
 } as const satisfies Prisma.SokoBotScheduleSelect;
 
-function scheduleRowToSocialAuthority(schedule: {
-  id: string;
-  systemKey: string | null;
-  authority: unknown;
-  sokoBot?: { projectId: string | null } | null;
-}): ScheduleSocialAuthorityResolution {
+/**
+ * Returns true when a `SokoBotSchedule` row is disabled as a revocation.
+ * A one-time schedule (`runOnce: true`) flips `enabled: false` and sets
+ * `lastRunAt` the moment its single occurrence is claimed, so its in-flight
+ * run, retries, and child work remain live until the row is deleted or its
+ * `rootTurnId` is cancelled. A one-time schedule disabled before running
+ * (`lastRunAt == null`) or any disabled recurring schedule is revoked.
+ */
+export function isScheduleRowRevoked(schedule: {
+  enabled?: boolean;
+  runOnce?: boolean;
+  lastRunAt?: Date | null;
+}): boolean {
+  if (schedule.enabled !== false) return false;
+  if (schedule.runOnce === true && schedule.lastRunAt != null) {
+    return false;
+  }
+  return true;
+}
+
+export type OwnerAuthorityRevocationClient = Partial<
+  Pick<Prisma.TransactionClient, "sokoBotTurn" | "sokoBotSchedule">
+>;
+
+export interface RevokedAuthoritySources {
+  revokedScheduleKeys: ReadonlySet<string>;
+  revokedRootTurnKeys: ReadonlySet<string>;
+}
+
+const EMPTY_REVOKED_SOURCES: RevokedAuthoritySources = {
+  revokedScheduleKeys: new Set<string>(),
+  revokedRootTurnKeys: new Set<string>(),
+};
+
+export function isAuthorityRevokedInSources(
+  authority: Pick<
+    OwnerAuthority,
+    "origin" | "sokoBotId" | "scheduleId" | "rootTurnId"
+  >,
+  sources: RevokedAuthoritySources,
+): boolean {
+  if (authority.origin === "system") return false;
+  if (
+    authority.scheduleId &&
+    sources.revokedScheduleKeys.has(
+      `${authority.sokoBotId}:${authority.scheduleId}`,
+    )
+  ) {
+    return true;
+  }
+  if (
+    authority.rootTurnId &&
+    sources.revokedRootTurnKeys.has(
+      `${authority.sokoBotId}:${authority.rootTurnId}`,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Batch-checks live revocation state for carried OwnerAuthority grants:
+ * - Any bound `scheduleId` whose `SokoBotSchedule` row was deleted, disabled
+ *   (`enabled === false`), or belongs to another bot is revoked.
+ * - Any `rootTurnId` whose `SokoBotTurn` row is `CANCELLED` is revoked (a
+ *   completed, failed, or retention-pruned root turn stays valid).
+ * Uses at most two batched queries (zero N+1) and validates UUID segments
+ * before touching Postgres.
+ */
+export async function loadRevokedAuthoritySources(
+  authorities: readonly Pick<
+    OwnerAuthority,
+    "origin" | "sokoBotId" | "scheduleId" | "rootTurnId"
+  >[],
+  client: OwnerAuthorityRevocationClient = prisma,
+): Promise<RevokedAuthoritySources> {
+  const schedulePairs = new Map<
+    string,
+    { sokoBotId: string; scheduleId: string }
+  >();
+  const rootTurnPairs = new Map<
+    string,
+    { sokoBotId: string; rootTurnId: string }
+  >();
+  for (const authority of authorities) {
+    if (authority.origin === "system") continue;
+    if (
+      authority.scheduleId &&
+      uuidSchema.safeParse(authority.scheduleId).success
+    ) {
+      schedulePairs.set(`${authority.sokoBotId}:${authority.scheduleId}`, {
+        sokoBotId: authority.sokoBotId,
+        scheduleId: authority.scheduleId,
+      });
+    }
+    if (
+      authority.rootTurnId &&
+      uuidSchema.safeParse(authority.rootTurnId).success
+    ) {
+      rootTurnPairs.set(`${authority.sokoBotId}:${authority.rootTurnId}`, {
+        sokoBotId: authority.sokoBotId,
+        rootTurnId: authority.rootTurnId,
+      });
+    }
+  }
+  if (schedulePairs.size === 0 && rootTurnPairs.size === 0) {
+    return EMPTY_REVOKED_SOURCES;
+  }
+  const revokedScheduleKeys = new Set<string>();
+  const revokedRootTurnKeys = new Set<string>();
+
+  if (schedulePairs.size > 0) {
+    if (typeof client.sokoBotSchedule?.findMany === "function") {
+      const uniqueIds = [
+        ...new Set(
+          [...schedulePairs.values()].map((entry) => entry.scheduleId),
+        ),
+      ];
+      const rows = await client.sokoBotSchedule.findMany({
+        where: { id: { in: uniqueIds } },
+        select: {
+          id: true,
+          sokoBotId: true,
+          enabled: true,
+          runOnce: true,
+          lastRunAt: true,
+        },
+      });
+      if (Array.isArray(rows)) {
+        const liveKeys = new Set(
+          rows
+            .filter((row) => !isScheduleRowRevoked(row))
+            .map((row) => `${row.sokoBotId}:${row.id}`),
+        );
+        for (const key of schedulePairs.keys()) {
+          if (!liveKeys.has(key)) revokedScheduleKeys.add(key);
+        }
+      }
+    } else if (typeof client.sokoBotSchedule?.findFirst === "function") {
+      for (const [key, entry] of schedulePairs) {
+        const row = await client.sokoBotSchedule.findFirst({
+          where: { id: entry.scheduleId, sokoBotId: entry.sokoBotId },
+          select: { enabled: true, runOnce: true, lastRunAt: true },
+        });
+        if (row !== undefined && (row === null || isScheduleRowRevoked(row))) {
+          revokedScheduleKeys.add(key);
+        }
+      }
+    }
+  }
+
+  if (rootTurnPairs.size > 0) {
+    if (typeof client.sokoBotTurn?.findMany === "function") {
+      const uniqueIds = [
+        ...new Set(
+          [...rootTurnPairs.values()].map((entry) => entry.rootTurnId),
+        ),
+      ];
+      const rows = await client.sokoBotTurn.findMany({
+        where: { id: { in: uniqueIds }, status: "CANCELLED" },
+        select: { id: true, sokoBotId: true },
+      });
+      if (Array.isArray(rows)) {
+        for (const row of rows) {
+          revokedRootTurnKeys.add(`${row.sokoBotId}:${row.id}`);
+        }
+      }
+    } else if (typeof client.sokoBotTurn?.findFirst === "function") {
+      for (const [key, entry] of rootTurnPairs) {
+        const row = await client.sokoBotTurn.findFirst({
+          where: { id: entry.rootTurnId, sokoBotId: entry.sokoBotId },
+          select: { status: true },
+        });
+        if (row !== undefined && row?.status === "CANCELLED") {
+          revokedRootTurnKeys.add(key);
+        }
+      }
+    }
+  }
+
+  return { revokedScheduleKeys, revokedRootTurnKeys };
+}
+
+export async function isOwnerAuthorityRevoked(
+  authority: Pick<
+    OwnerAuthority,
+    "origin" | "sokoBotId" | "scheduleId" | "rootTurnId"
+  >,
+  client: OwnerAuthorityRevocationClient = prisma,
+): Promise<boolean> {
+  if (
+    authority.origin === "system" ||
+    (!authority.scheduleId && !authority.rootTurnId)
+  ) {
+    return false;
+  }
+  const sources = await loadRevokedAuthoritySources([authority], client);
+  return isAuthorityRevokedInSources(authority, sources);
+}
+
+const WATCH_SOCIAL_AUTHORITY_SELECT = {
+  id: true,
+  kind: true,
+  projectId: true,
+  sokoBotId: true,
+  authority: true,
+  turn: {
+    select: {
+      id: true,
+      requestedByUserId: true,
+      askedByUserId: true,
+      chainDepth: true,
+      workspaceId: true,
+      source: true,
+      versionId: true,
+      sokoBot: { select: { userId: true, projectId: true } },
+    },
+  },
+} as const satisfies Prisma.SokoBotWatchSelect;
+
+export async function isScheduleAuthorityRevoked(
+  schedule: {
+    enabled?: boolean;
+    runOnce?: boolean;
+    lastRunAt?: Date | null;
+    authority?: unknown;
+  },
+  client: OwnerAuthorityRevocationClient = prisma,
+): Promise<boolean> {
+  if (isScheduleRowRevoked(schedule)) return true;
+  const persisted = parseOwnerAuthority(schedule.authority);
+  if (!persisted || persisted.origin === "system" || !persisted.rootTurnId) {
+    return false;
+  }
+  return isOwnerAuthorityRevoked(
+    {
+      origin: persisted.origin,
+      sokoBotId: persisted.sokoBotId,
+      scheduleId: undefined,
+      rootTurnId: persisted.rootTurnId,
+    },
+    client,
+  );
+}
+
+async function scheduleRowToSocialAuthority(
+  schedule: {
+    id: string;
+    enabled?: boolean;
+    runOnce?: boolean;
+    lastRunAt?: Date | null;
+    systemKey: string | null;
+    authority: unknown;
+    sokoBot?: { projectId: string | null } | null;
+  },
+  occurrenceKey: string | undefined,
+  client: ScheduleSocialAuthorityClient,
+): Promise<ScheduleSocialAuthorityResolution> {
   // Built-in rhythms and legacy schedules created before OwnerAuthority
   // persistence (#8321) retain existing behavior.
   if (schedule.systemKey !== null || schedule.authority === null) {
     return { kind: "none" };
   }
+  const revoked = await isScheduleAuthorityRevoked(schedule, client);
   return {
     kind: "schedule",
     scheduleId: schedule.id,
     authority: schedule.authority,
     botProjectId: schedule.sokoBot?.projectId ?? null,
+    ...(occurrenceKey ? { occurrenceKey } : {}),
+    ...(revoked ? { revoked: true } : {}),
+  };
+}
+
+function scheduleOccurrenceKey(input: {
+  scheduledFor?: Date | null;
+  slot?: string | null;
+  runId?: string | null;
+  turnId: string;
+}): string {
+  if (input.scheduledFor instanceof Date) {
+    return `slot:${input.scheduledFor.toISOString()}`;
+  }
+  if (input.slot && input.slot.trim().length > 0) {
+    return `slot:${input.slot.trim()}`;
+  }
+  if (input.runId) {
+    return `run:${input.runId}`;
+  }
+  return `turn:${input.turnId}`;
+}
+
+async function resolveWatchRowForClientTurnId(
+  clientTurnId: string,
+  sokoBotId: string,
+  client: ScheduleSocialAuthorityClient,
+): Promise<WatchSocialAuthorityResolution> {
+  const match = WATCH_CLIENT_TURN_PATTERN.exec(clientTurnId);
+  const watchId = match?.[1];
+  if (
+    !watchId ||
+    !uuidSchema.safeParse(watchId).success ||
+    typeof client.sokoBotWatch?.findFirst !== "function"
+  ) {
+    return {
+      kind: "unresolved",
+      detail: WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+    };
+  }
+  const watch = await client.sokoBotWatch.findFirst({
+    where: { id: watchId, sokoBotId },
+    select: WATCH_SOCIAL_AUTHORITY_SELECT,
+  });
+  if (!watch) {
+    return {
+      kind: "unresolved",
+      detail: WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+    };
+  }
+  // Pre-migration legacy watches (`authority === null`) derive deterministically;
+  // non-null payloads pass straight to strict validation so corrupt JSONB fails closed.
+  const authority =
+    watch.authority === null
+      ? resolveWatchWakeAuthority(watch)
+      : watch.authority;
+  const persisted = parseOwnerAuthority(authority);
+  const revoked =
+    persisted && persisted.origin !== "system"
+      ? await isOwnerAuthorityRevoked(persisted, client)
+      : false;
+  return {
+    kind: "watch",
+    watchId: watch.id,
+    watchKind: watch.kind,
+    authority,
+    watchProjectId: watch.projectId,
+    botProjectId: watch.turn.sokoBot?.projectId ?? null,
+    ...(revoked ? { revoked: true } : {}),
   };
 }
 
 async function resolveScheduleRowForTurn(
   turn: { id: string; sokoBotId: string; clientTurnId?: string | null },
   client: ScheduleSocialAuthorityClient,
-): Promise<ScheduleSocialAuthorityResolution> {
+): Promise<{
+  scheduleAuthority: ScheduleSocialAuthorityResolution;
+  watchAuthority: WatchSocialAuthorityResolution;
+}> {
+  if (isWatchClientTurnId(turn.clientTurnId)) {
+    return {
+      scheduleAuthority: { kind: "none" },
+      watchAuthority: await resolveWatchRowForClientTurnId(
+        turn.clientTurnId!,
+        turn.sokoBotId,
+        client,
+      ),
+    };
+  }
   if (typeof client.sokoBotScheduleRun?.findFirst === "function") {
     const run = await client.sokoBotScheduleRun.findFirst({
       where: { turnId: turn.id, schedule: { sokoBotId: turn.sokoBotId } },
-      select: { schedule: { select: SCHEDULE_SOCIAL_AUTHORITY_SELECT } },
+      select: {
+        id: true,
+        scheduledFor: true,
+        schedule: { select: SCHEDULE_SOCIAL_AUTHORITY_SELECT },
+      },
     });
     if (run?.schedule) {
-      return scheduleRowToSocialAuthority(run.schedule);
+      return {
+        scheduleAuthority: await scheduleRowToSocialAuthority(
+          run.schedule,
+          scheduleOccurrenceKey({
+            scheduledFor: run.scheduledFor,
+            runId: run.id,
+            turnId: turn.id,
+          }),
+          client,
+        ),
+        watchAuthority: { kind: "none" },
+      };
     }
   }
-  // Fallback when the occurrence row was rebound to a later admin retry turn
-  // or pruned by retention (mirrors soko-bot-admin-retry.service.ts).
+  // Fallback when the occurrence row was rebound to a later admin retry turn,
+  // pruned by retention (mirrors soko-bot-admin-retry.service.ts), or when a
+  // watch wake ran with source "SCHEDULE" and `clientTurnId` was not preloaded.
   const clientTurnId =
     turn.clientTurnId ??
     (
@@ -1741,6 +2262,16 @@ async function resolveScheduleRowForTurn(
       })
     )?.clientTurnId ??
     null;
+  if (isWatchClientTurnId(clientTurnId)) {
+    return {
+      scheduleAuthority: { kind: "none" },
+      watchAuthority: await resolveWatchRowForClientTurnId(
+        clientTurnId!,
+        turn.sokoBotId,
+        client,
+      ),
+    };
+  }
   const match = clientTurnId
     ? SCHEDULE_CLIENT_TURN_PATTERN.exec(clientTurnId)
     : null;
@@ -1754,24 +2285,35 @@ async function resolveScheduleRowForTurn(
       select: SCHEDULE_SOCIAL_AUTHORITY_SELECT,
     });
     if (schedule) {
-      return scheduleRowToSocialAuthority(schedule);
+      return {
+        scheduleAuthority: await scheduleRowToSocialAuthority(
+          schedule,
+          scheduleOccurrenceKey({ slot: match[2], turnId: turn.id }),
+          client,
+        ),
+        watchAuthority: { kind: "none" },
+      };
     }
   }
   return {
-    kind: "unresolved",
-    detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+    scheduleAuthority: {
+      kind: "unresolved",
+      detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+    },
+    watchAuthority: { kind: "none" },
   };
 }
 
 /**
- * Resolves the underlying `SokoBotTurnSource` and persisted schedule authority
- * behind a `SCHEDULE` or `ADMIN_RETRY` turn (`admin-retry:<turnId>:<op>` or
+ * Resolves the underlying `SokoBotTurnSource` and persisted watch/schedule
+ * authority behind a watch wake (`watch:<watchId>`), `SCHEDULE`, or
+ * `ADMIN_RETRY` turn (`admin-retry:<turnId>:<op>` or
  * `admin-schedule-retry:<runId>:<op>`), validating UUID segments and scoping
  * every lookup to `turn.sokoBotId`.
- * - Ordinary `CHAT` / `EVENT` turns return immediately with zero DB queries.
+ * - Ordinary non-watch `CHAT` / `EVENT` turns return immediately with zero DB queries.
  * - Missing, malformed, cross-bot, or cyclic `admin-retry` targets fail closed
  *   to `"EVENT"` (keeping non-CMO social writes `draft_only`).
- * - Missing, malformed, or cross-bot schedule runs/schedules fail closed via
+ * - Missing, malformed, or cross-bot watches and schedules fail closed via
  *   `{ kind: "unresolved" }`.
  */
 export async function resolveSocialWriteOrigin(
@@ -1783,16 +2325,29 @@ export async function resolveSocialWriteOrigin(
   },
   client: ScheduleSocialAuthorityClient = prisma,
 ): Promise<ResolvedSocialWriteOrigin> {
+  if (isWatchClientTurnId(turn.clientTurnId)) {
+    return {
+      source: turn.source,
+      scheduleAuthority: { kind: "none" },
+      watchAuthority: await resolveWatchRowForClientTurnId(
+        turn.clientTurnId!,
+        turn.sokoBotId,
+        client,
+      ),
+    };
+  }
   if (turn.source === "SCHEDULE") {
+    const resolved = await resolveScheduleRowForTurn(turn, client);
     return {
       source: "SCHEDULE",
-      scheduleAuthority: await resolveScheduleRowForTurn(turn, client),
+      ...resolved,
     };
   }
   if (turn.source !== "ADMIN_RETRY") {
     return {
       source: turn.source,
       scheduleAuthority: { kind: "none" },
+      watchAuthority: { kind: "none" },
     };
   }
   const seen = new Set<string>([turn.id]);
@@ -1815,20 +2370,34 @@ export async function resolveSocialWriteOrigin(
             kind: "unresolved",
             detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
           },
+          watchAuthority: { kind: "none" },
         };
       }
       const run = await client.sokoBotScheduleRun.findFirst({
         where: { id: targetId, schedule: { sokoBotId: turn.sokoBotId } },
-        select: { schedule: { select: SCHEDULE_SOCIAL_AUTHORITY_SELECT } },
+        select: {
+          id: true,
+          scheduledFor: true,
+          schedule: { select: SCHEDULE_SOCIAL_AUTHORITY_SELECT },
+        },
       });
       return {
         source: "SCHEDULE",
         scheduleAuthority: run?.schedule
-          ? scheduleRowToSocialAuthority(run.schedule)
+          ? await scheduleRowToSocialAuthority(
+              run.schedule,
+              scheduleOccurrenceKey({
+                scheduledFor: run.scheduledFor,
+                runId: run.id ?? targetId,
+                turnId: turn.id,
+              }),
+              client,
+            )
           : {
               kind: "unresolved",
               detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
             },
+        watchAuthority: { kind: "none" },
       };
     }
     if (
@@ -1838,7 +2407,11 @@ export async function resolveSocialWriteOrigin(
       seen.has(targetId) ||
       ++hops > MAX_OWNER_AUTHORITY_PARENT_HOPS
     ) {
-      return { source: "EVENT", scheduleAuthority: { kind: "none" } };
+      return {
+        source: "EVENT",
+        scheduleAuthority: { kind: "none" },
+        watchAuthority: { kind: "none" },
+      };
     }
     seen.add(targetId);
     const next = await client.sokoBotTurn.findFirst({
@@ -1846,19 +2419,36 @@ export async function resolveSocialWriteOrigin(
       select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
     });
     if (!next) {
-      return { source: "EVENT", scheduleAuthority: { kind: "none" } };
+      return {
+        source: "EVENT",
+        scheduleAuthority: { kind: "none" },
+        watchAuthority: { kind: "none" },
+      };
     }
     current = next;
   }
+  if (current && isWatchClientTurnId(current.clientTurnId)) {
+    return {
+      source: current.source,
+      scheduleAuthority: { kind: "none" },
+      watchAuthority: await resolveWatchRowForClientTurnId(
+        current.clientTurnId,
+        turn.sokoBotId,
+        client,
+      ),
+    };
+  }
   if (current?.source === "SCHEDULE") {
+    const resolved = await resolveScheduleRowForTurn(current, client);
     return {
       source: "SCHEDULE",
-      scheduleAuthority: await resolveScheduleRowForTurn(current, client),
+      ...resolved,
     };
   }
   return {
     source: current?.source ?? "EVENT",
     scheduleAuthority: { kind: "none" },
+    watchAuthority: { kind: "none" },
   };
 }
 
@@ -1885,6 +2475,7 @@ export interface WorkItemParentTurnInput {
   workspaceId: string;
   versionId: string | null;
   source: string | null;
+  clientTurnId?: string | null;
   parentTurnId: string | null;
   askedByUserId: string | null;
   requestedByUserId: string | null;
@@ -1904,6 +2495,8 @@ function scheduleOccurrenceAuthority(
     authority: unknown;
   },
   turn: TurnAuthorityNode,
+  scheduledFor?: Date | null,
+  occurrenceKeyOverride?: string,
 ): OwnerAuthority {
   const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
   const persisted = parseOwnerAuthority(schedule.authority);
@@ -1920,15 +2513,22 @@ function scheduleOccurrenceAuthority(
       return systemTurnAuthority(turn);
     }
     // Lifetime schedule allowances share one grantId across all occurrences;
-    // per-occurrence or unbounded schedules scope spend to this firing's turn
-    // so parallel children of one firing share a balance while later runs get
-    // their own.
-    const perOccurrenceGrantId = `${persisted.grantId}:turn:${turn.id}`;
+    // per-occurrence or unbounded schedules scope spend to this occurrence's
+    // canonical slot (or turn id when slot is unavailable) so the run, admin
+    // retries, and parallel children of one firing share a single balance while
+    // later runs get their own.
+    const occurrenceSuffix =
+      occurrenceKeyOverride ??
+      scheduleOccurrenceKey({
+        scheduledFor,
+        turnId: turn.id,
+      });
+    const perOccurrenceGrantId = `${persisted.grantId}:${occurrenceSuffix}`;
     const keepLifetime = persisted.limits?.period === "lifetime";
     return ownerAuthoritySchema.parse({
       ...persisted,
       grantId: keepLifetime ? persisted.grantId : perOccurrenceGrantId,
-      scheduleId: undefined,
+      scheduleId: persisted.scheduleId ?? schedule.id,
       stopRule: { mode: "never" },
       ...(persisted.limits
         ? {
@@ -1957,6 +2557,7 @@ function scheduleOccurrenceAuthority(
       workspaceId: turn.workspaceId,
       ownerUserId: schedule.requestedByUserId,
       rootTurnId: turn.id,
+      scheduleId: schedule.id,
       targetScope: { kind: "workspace" },
       scope: "owner_writes",
       socialMode: isCmo ? "full" : "draft_only",
@@ -1981,7 +2582,7 @@ function scheduleOccurrenceAuthority(
  */
 export async function resolveWorkItemParentAuthority(
   turn: WorkItemParentTurnInput,
-  client: Partial<OwnerAuthorityTurnClient> = prisma,
+  client: Partial<ScheduleSocialAuthorityClient> = prisma,
 ): Promise<OwnerAuthority> {
   const leafNode: TurnAuthorityNode = {
     id: turn.id,
@@ -1998,6 +2599,124 @@ export async function resolveWorkItemParentAuthority(
   const targetScope: OwnerAuthorityTargetScope = turn.botProjectId
     ? { kind: "project", projectId: turn.botProjectId }
     : { kind: "workspace" };
+
+  // Watch wakes (`watch:<watchId>`) and `ADMIN_RETRY` replays must propagate
+  // their persisted watch/schedule authority (including `chat_reply` draft_only,
+  // Project scope, expiry, and occurrence-scoped media limits) rather than
+  // re-widening by walking `parentTurnId` back to an unrestricted root CHAT turn.
+  const resolveWatchParent = async (
+    clientTurnId: string,
+  ): Promise<OwnerAuthority> => {
+    const watchRes = await resolveWatchRowForClientTurnId(
+      clientTurnId,
+      turn.sokoBotId,
+      client as ScheduleSocialAuthorityClient,
+    );
+    if (watchRes.kind !== "watch" || watchRes.revoked) {
+      return systemTurnAuthority(leafNode);
+    }
+    const persisted = parseOwnerAuthority(watchRes.authority);
+    if (
+      !persisted ||
+      persisted.sokoBotId !== turn.sokoBotId ||
+      persisted.workspaceId !== turn.workspaceId
+    ) {
+      return systemTurnAuthority(leafNode);
+    }
+    let narrowed = persisted;
+    if (watchRes.watchKind === "chat_reply") {
+      narrowed = narrowOwnerAuthority(narrowed, { socialMode: "draft_only" });
+    }
+    const projectScopeId = watchRes.watchProjectId ?? turn.botProjectId ?? null;
+    if (projectScopeId && narrowed.targetScope.kind === "workspace") {
+      narrowed = narrowOwnerAuthority(narrowed, {
+        targetScope: { kind: "project", projectId: projectScopeId },
+      });
+    }
+    return narrowed;
+  };
+
+  let knownClientTurnId: string | null | undefined = turn.clientTurnId;
+  if (
+    knownClientTurnId === undefined &&
+    (turn.parentTurnId !== null ||
+      turn.source === "SCHEDULE" ||
+      turn.source === "ADMIN_RETRY") &&
+    typeof client.sokoBotWatch?.findFirst === "function" &&
+    typeof client.sokoBotTurn?.findUnique === "function"
+  ) {
+    const row = (await client.sokoBotTurn.findUnique({
+      where: { id: turn.id },
+      select: { clientTurnId: true },
+    })) as { clientTurnId?: string | null } | null;
+    knownClientTurnId = row?.clientTurnId ?? null;
+  }
+
+  if (isWatchClientTurnId(knownClientTurnId)) {
+    return resolveWatchParent(knownClientTurnId!);
+  }
+
+  if (turn.source === "ADMIN_RETRY") {
+    const origin = await resolveSocialWriteOrigin(
+      {
+        id: turn.id,
+        sokoBotId: turn.sokoBotId,
+        source: turn.source,
+        clientTurnId: knownClientTurnId,
+      },
+      client as ScheduleSocialAuthorityClient,
+    );
+    if (origin.watchAuthority && origin.watchAuthority.kind !== "none") {
+      if (
+        origin.watchAuthority.kind !== "watch" ||
+        origin.watchAuthority.revoked
+      ) {
+        return systemTurnAuthority(leafNode);
+      }
+      const persisted = parseOwnerAuthority(origin.watchAuthority.authority);
+      if (
+        !persisted ||
+        persisted.sokoBotId !== turn.sokoBotId ||
+        persisted.workspaceId !== turn.workspaceId
+      ) {
+        return systemTurnAuthority(leafNode);
+      }
+      let narrowed =
+        origin.watchAuthority.watchKind === "chat_reply"
+          ? narrowOwnerAuthority(persisted, { socialMode: "draft_only" })
+          : persisted;
+      const projectScopeId =
+        origin.watchAuthority.watchProjectId ?? turn.botProjectId ?? null;
+      if (projectScopeId && narrowed.targetScope.kind === "workspace") {
+        narrowed = narrowOwnerAuthority(narrowed, {
+          targetScope: { kind: "project", projectId: projectScopeId },
+        });
+      }
+      return narrowed;
+    }
+    if (
+      origin.scheduleAuthority.kind === "schedule" &&
+      !origin.scheduleAuthority.revoked
+    ) {
+      const resolved = scheduleOccurrenceAuthority(
+        {
+          id: origin.scheduleAuthority.scheduleId,
+          sokoBotId: turn.sokoBotId,
+          workspaceId: turn.workspaceId,
+          requestedByUserId: turn.requestedByUserId,
+          systemKey: null,
+          authority: origin.scheduleAuthority.authority,
+        },
+        leafNode,
+        null,
+        origin.scheduleAuthority.occurrenceKey,
+      );
+      return turn.botProjectId && resolved.targetScope.kind === "workspace"
+        ? narrowOwnerAuthority(resolved, { targetScope })
+        : resolved;
+    }
+    return systemTurnAuthority(leafNode);
+  }
 
   if (turn.source === "CHAT" && turn.parentTurnId === null) {
     const askedByKind =
@@ -2040,9 +2759,13 @@ export async function resolveWorkItemParentAuthority(
           ...OWNER_AUTHORITY_TURN_SELECT,
           scheduleRun: {
             select: {
+              scheduledFor: true,
               schedule: {
                 select: {
                   id: true,
+                  enabled: true,
+                  runOnce: true,
+                  lastRunAt: true,
                   sokoBotId: true,
                   workspaceId: true,
                   requestedByUserId: true,
@@ -2055,9 +2778,18 @@ export async function resolveWorkItemParentAuthority(
         },
       });
       if (scheduled?.scheduleRun?.schedule) {
+        if (
+          await isScheduleAuthorityRevoked(
+            scheduled.scheduleRun.schedule,
+            client,
+          )
+        ) {
+          return systemTurnAuthority(leafNode);
+        }
         const resolved = scheduleOccurrenceAuthority(
           scheduled.scheduleRun.schedule,
           scheduled,
+          scheduled.scheduleRun.scheduledFor,
         );
         return turn.botProjectId && resolved.targetScope.kind === "workspace"
           ? narrowOwnerAuthority(resolved, { targetScope })
@@ -2172,9 +2904,10 @@ export function resolveDelegationWakeAuthority(
   const workspaceId =
     delegation.turn.workspaceId ?? fallbackContext.workspaceId;
   const versionId = delegation.turn.versionId ?? fallbackContext.versionId;
-  const persisted = parseOwnerAuthority(delegation.authority);
-  if (persisted) {
+  if (delegation.authority !== null && delegation.authority !== undefined) {
+    const persisted = parseOwnerAuthority(delegation.authority);
     if (
+      !persisted ||
       persisted.sokoBotId !== sokoBotId ||
       persisted.workspaceId !== workspaceId
     ) {
@@ -2315,9 +3048,10 @@ export interface WatchAuthorityRecord {
 export function resolveWatchWakeAuthority(
   watch: WatchAuthorityRecord,
 ): OwnerAuthority {
-  const persisted = parseOwnerAuthority(watch.authority);
-  if (persisted) {
+  if (watch.authority !== null && watch.authority !== undefined) {
+    const persisted = parseOwnerAuthority(watch.authority);
     if (
+      !persisted ||
       persisted.sokoBotId !== watch.sokoBotId ||
       persisted.workspaceId !== watch.turn.workspaceId
     ) {

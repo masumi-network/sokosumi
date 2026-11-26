@@ -7029,7 +7029,7 @@ export type ProjectTalkingVideo = {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch' | null;
     shape: '9:16' | '4:5' | '1:1' | '16:9';
     sourceJobId: string | null;
 };
@@ -9693,6 +9693,34 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             costUsd?: number;
             floorAlertAt?: string;
         };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -10044,6 +10072,34 @@ export type MarketingStrategyRequest = {
             error?: string;
             costUsd?: number;
             floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
         };
         patched?: Array<{
             id: string;
@@ -12315,13 +12371,14 @@ export type CreateProjectTalkingVideoJobRequest = {
 };
 
 export type CreateProjectShortVideoJobRequest = {
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     script: string;
     hookLine?: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    launchDate?: string;
     shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
@@ -12336,7 +12393,7 @@ export type ProjectTalkingVideoScripts = {
 
 export type WriteProjectTalkingVideoScriptsRequest = {
     topic?: string;
-    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     languageCode?: string;
 };
 
@@ -13019,6 +13076,7 @@ export type ProjectSeoKeyword = {
     priority: 'low' | 'medium' | 'high';
     version: number;
     positionHistory?: Array<ProjectSeoPositionPoint>;
+    positionHistoryCut?: boolean;
 };
 
 export type ProjectSeoPositionPoint = {
@@ -13026,6 +13084,7 @@ export type ProjectSeoPositionPoint = {
     observationId: string;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    checkedResults?: number | null;
     device: 'mobile' | 'desktop' | null;
 };
 
@@ -15613,6 +15672,34 @@ export type CmoPlan = {
         costUsd?: number;
         floorAlertAt?: string;
     };
+    applyLog?: {
+        baseVersionId: string;
+        baseUpdatedAt: string;
+        state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+        startedAt: string;
+        updatedAt: string;
+        endedAt?: string;
+        ops?: Array<{
+            opId: string;
+            entryId: string;
+            kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+            postId: string | null;
+            prior: {
+                status: string;
+                scheduledAt: string | null;
+                text: string;
+                planning: string | null;
+                socialConnectionId: string | null;
+                revision: number;
+            } | null;
+            state: 'intent' | 'done' | 'refused';
+            reason?: string;
+            after?: {
+                revision: number | null;
+                postId: string | null;
+            };
+        }>;
+    };
     patched?: Array<{
         id: string;
         was: {
@@ -16644,7 +16731,10 @@ export type SokoBotVersion = {
     }>;
     capabilities: Array<string> | null;
     inferenceRegion?: 'eu' | 'us' | null;
-    systemPrompt: string;
+    /**
+     * The composed system prompt. Sent to platform admins only, for the behaviour lab.
+     */
+    systemPrompt?: string;
 };
 
 export type UpdateSokoBotProactiveRequest = {
@@ -106664,6 +106754,10 @@ export type GetTasksData = {
          * true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.
          */
         includeSubtasks?: 'true' | 'false';
+        /**
+         * false sends each Task's `description` as null, for a list of many Tasks such as a board. A description can be long; read one with GET /tasks/{id}. Defaults to true.
+         */
+        includeDescription?: 'true' | 'false';
         /**
          * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
          */

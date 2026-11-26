@@ -34,12 +34,6 @@ const {
 }));
 
 vi.mock("@/helpers/data-table", () => ({
-  resolveTableActor: vi.fn(async (_auth: unknown, workspaceId: string) => ({
-    workspaceId,
-    userId: "user_123",
-    actorId: "user_123",
-    actorKind: "user",
-  })),
   listDataTables: listDataTablesMock,
 }));
 
@@ -66,6 +60,8 @@ vi.mock("@/lib/db/prisma", () => ({
     fileResource: {
       findMany: prismaFileResourceFindManyMock,
     },
+    // No data room hides a folder of the org Drive.
+    dataRoom: { findMany: () => Promise.resolve([]) },
   },
 }));
 
@@ -630,5 +626,35 @@ describe("GET /v1/drive/recents", () => {
     const app = createRecentsApp();
     const response = await app.request("/?scope=me&tags=not-an-id");
     expect(response.status).toBe(422);
+  });
+
+  // SOKD-484: the table lookup asked for the X-Organization-Slug header too.
+  it("lists an org's recents and tables for a member without the workspace header", async () => {
+    workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
+      id: "ws_org",
+      userId: null,
+      organizationId: "org_123",
+    });
+    prismaMemberFindUniqueMock.mockResolvedValue({ id: "member_1" });
+    listMock.mockResolvedValue({ blobs: [], hasMore: false });
+
+    const app = createRecentsApp({
+      ...USER_AUTH_CONTEXT,
+      authenticationMethod: "api_key",
+    });
+    const response = await app.request(
+      "/?scope=org&organizationId=org_123&limit=20",
+    );
+
+    expect(response.status).toBe(200);
+    expect(listDataTablesMock).toHaveBeenCalledWith(
+      {
+        workspaceId: "ws_org",
+        userId: "user_123",
+        actorId: "user_123",
+        actorKind: "user",
+      },
+      expect.anything(),
+    );
   });
 });

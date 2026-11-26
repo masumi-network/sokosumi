@@ -8,6 +8,8 @@
 
 /** The slice of one run's report this reads (`sokosumi evals show RUN_ID --json`). */
 export interface ParityReport {
+  /** The run's environment (getEvalRunReport); older reports may lack it. */
+  run?: { environment?: string | null };
   cases: {
     caseId: string;
     results: {

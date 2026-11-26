@@ -236,6 +236,7 @@ describe("native SEO audit entry", () => {
       body: {
         name: "Launch pages",
         firstPage: { url: "https://example.test/launch" },
+        idempotencyKey: expect.any(String),
       },
     });
     expect(m.push).toHaveBeenCalledWith(`/seo?auditId=${SEO_TEST_AUDIT}`);
@@ -458,6 +459,7 @@ describe("native SEO audit entry", () => {
         name: "Launch pages",
         firstPage: { url: "https://example.test/launch" },
         projectId: SEO_TEST_PROJECT,
+        idempotencyKey: expect.any(String),
       },
     });
     expect(m.push).toHaveBeenCalledWith(
@@ -478,6 +480,7 @@ describe("native SEO audit entry", () => {
       body: {
         name: "example.test",
         firstPage: { url: "https://www.example.test/launch" },
+        idempotencyKey: expect.any(String),
       },
     });
   });

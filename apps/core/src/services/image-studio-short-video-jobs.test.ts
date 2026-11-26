@@ -371,6 +371,32 @@ describe("starting a short", () => {
     expect(jobCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a launch without the date of what it announces", async () => {
+    await expect(
+      createShortVideoJob({ ...BASE_INPUT, format: "launch", launchDate: " " }),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(jobCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a launch's date, and no date on any other short", async () => {
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      format: "launch",
+      launchDate: "3 December",
+    });
+    expect(stored.settings).toMatchObject({
+      format: "launch",
+      launchDate: "3 December",
+    });
+
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      idempotencyKey: "short-other-1",
+      launchDate: "3 December",
+    });
+    expect(stored.settings).not.toHaveProperty("launchDate");
+  });
+
   it("refuses a short with nothing to show", async () => {
     projectFindUniqueMock.mockResolvedValue({ websiteUrl: null });
 
@@ -448,6 +474,36 @@ describe("a short's music arriving", () => {
       expect.any(String),
       new Uint8Array([8]),
       expect.objectContaining({ contentType: "video/mp4" }),
+    );
+  });
+
+  it("gives a launch its date and the brand's colours and font for its card", async () => {
+    stored = {
+      ...stored,
+      settings: {
+        ...(stored.settings as object),
+        format: "launch",
+        launchDate: "3 December",
+      },
+    };
+    loadStudioBrandMock.mockResolvedValue({
+      look: { colors: ["#6400FF", "#FFFFFF"], fonts: ["Inter"] },
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+
+    expect(editShortVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: "launch",
+        launch: {
+          date: "3 December",
+          brand: { colors: ["#6400FF", "#FFFFFF"], font: "Inter" },
+        },
+      }),
     );
   });
 

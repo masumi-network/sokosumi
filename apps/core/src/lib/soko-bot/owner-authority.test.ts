@@ -19,22 +19,33 @@ import {
   intersectOwnerAuthority,
   intersectScheduleRouteCapabilities,
   isCapabilityWebTaintSensitive,
+  isOwnerAuthorityRevoked,
   isReadOnlyToolCall,
+  isScheduleRowRevoked,
   isToolCallAllowedByAuthority,
+  loadRevokedAuthoritySources,
   mintTurnOwnerAuthority,
   mintUiOwnerAuthority,
   resolveDelegationWakeAuthority,
   resolveSocialWriteOrigin,
   resolveSocialWriteOriginSource,
   resolveWatchWakeAuthority,
+  resolveWorkItemParentAuthority,
   SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
   SCHEDULE_AUTHORITY_INVALID_MESSAGE,
   SCHEDULE_AUTHORITY_MISMATCH_MESSAGE,
+  SCHEDULE_AUTHORITY_REVOKED_MESSAGE,
   SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
   SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
   SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
   SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
   TAINTED_SOCIAL_SCHEDULE_DETAIL,
+  WATCH_AUTHORITY_EXPIRED_MESSAGE,
+  WATCH_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_REVOKED_MESSAGE,
+  WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+  WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
 } from "./owner-authority";
 
 const BOT_ID = "01960000-0000-7000-8000-000000000001";
@@ -2422,9 +2433,11 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       scheduleAuthority: {
         kind: "schedule",
         scheduleId: SCHED_ID,
+        occurrenceKey: `run:${RUN_ID}`,
         authority,
         botProjectId: null,
       },
+      watchAuthority: { kind: "none" },
     });
 
     // admin-schedule-retry:<runId>:<op>
@@ -2438,9 +2451,11 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       scheduleAuthority: {
         kind: "schedule",
         scheduleId: SCHED_ID,
+        occurrenceKey: `run:${RUN_ID}`,
         authority,
         botProjectId: null,
       },
+      watchAuthority: { kind: "none" },
     });
 
     // admin-retry:<scheduleTurnId>:<op> even when run.turnId was rebound elsewhere (fallback via schedule:<id>:<iso>)
@@ -2454,9 +2469,11 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       scheduleAuthority: {
         kind: "schedule",
         scheduleId: SCHED_ID,
+        occurrenceKey: "slot:2026-11-26T11:00:00.000Z",
         authority,
         botProjectId: null,
       },
+      watchAuthority: { kind: "none" },
     });
 
     // Legacy authority=null schedule resolves to { kind: "none" }
@@ -2468,6 +2485,7 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
     ).toEqual({
       source: "SCHEDULE",
       scheduleAuthority: { kind: "none" },
+      watchAuthority: { kind: "none" },
     });
 
     // Cross-bot and malformed admin-schedule-retry fail closed without throwing 22P02
@@ -2486,6 +2504,7 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
         kind: "unresolved",
         detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
       },
+      watchAuthority: { kind: "none" },
     });
     expect(
       await resolveSocialWriteOrigin(
@@ -2498,6 +2517,7 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
         kind: "unresolved",
         detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
       },
+      watchAuthority: { kind: "none" },
     });
   });
 
@@ -2780,5 +2800,1056 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       ok: false,
       droppedWriteCapabilities: ["publish_social_post"],
     });
+  });
+
+  it("resolves and enforces SokoBotWatch OwnerAuthority across chat_reply, SCHEDULE wakes, ADMIN_RETRY, Project scope, expiry, and malformed/missing rows", async () => {
+    const WATCH_ID = "01960000-0000-7000-8000-000000000101";
+    const LEGACY_WATCH_ID = "01960000-0000-7000-8000-000000000102";
+    const CORRUPT_WATCH_ID = "01960000-0000-7000-8000-000000000103";
+    const WAKE_TURN_ID = "01960000-0000-7000-8000-000000000104";
+    const RETRY_TURN_ID = "01960000-0000-7000-8000-000000000105";
+    const SCHED_WATCH_TURN_ID = "01960000-0000-7000-8000-000000000106";
+    const RUN_ID = "01960000-0000-7000-8000-000000000107";
+    const PROJECT_ID = PROJECT_A;
+    const OTHER_PROJECT_ID = "01960000-0000-7000-8000-000000000037";
+    const SLOT_TIME = new Date("2026-11-26T09:00:00.000Z");
+
+    const projectWatchAuthority = {
+      version: 1 as const,
+      grantId: "watch-grant-1",
+      origin: "owner_chat" as const,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      ownerUserId: OWNER_ID,
+      rootTurnId: TURN_ID,
+      targetScope: { kind: "project" as const, projectId: PROJECT_ID },
+      scope: "draft_and_workspace" as const,
+      socialMode: "full" as const,
+      stopRule: { mode: "never" as const },
+    };
+
+    const watchRows = new Map<string, Record<string, unknown>>([
+      [
+        WATCH_ID,
+        {
+          id: WATCH_ID,
+          kind: "chat_reply",
+          projectId: PROJECT_ID,
+          sokoBotId: BOT_ID,
+          authority: projectWatchAuthority,
+          turn: {
+            id: TURN_ID,
+            requestedByUserId: OWNER_ID,
+            askedByUserId: OWNER_ID,
+            chainDepth: 0,
+            workspaceId: WS_ID,
+            source: "CHAT",
+            versionId: "v36",
+            sokoBot: { userId: OWNER_ID, projectId: null },
+          },
+        },
+      ],
+      [
+        LEGACY_WATCH_ID,
+        {
+          id: LEGACY_WATCH_ID,
+          kind: "chat_reply",
+          projectId: null,
+          sokoBotId: BOT_ID,
+          authority: null,
+          turn: {
+            id: TURN_ID,
+            requestedByUserId: OWNER_ID,
+            askedByUserId: OWNER_ID,
+            chainDepth: 0,
+            workspaceId: WS_ID,
+            source: "CHAT",
+            versionId: "v36",
+            sokoBot: { userId: OWNER_ID, projectId: null },
+          },
+        },
+      ],
+      [
+        CORRUPT_WATCH_ID,
+        {
+          id: CORRUPT_WATCH_ID,
+          kind: "studio_job",
+          projectId: PROJECT_ID,
+          sokoBotId: BOT_ID,
+          authority: { invalid: true },
+          turn: {
+            id: TURN_ID,
+            requestedByUserId: OWNER_ID,
+            askedByUserId: OWNER_ID,
+            chainDepth: 0,
+            workspaceId: WS_ID,
+            source: "CHAT",
+            versionId: "v36",
+            sokoBot: { userId: OWNER_ID, projectId: null },
+          },
+        },
+      ],
+    ]);
+
+    const turnRows = new Map<
+      string,
+      { id: string; sokoBotId: string; source: string; clientTurnId: string }
+    >([
+      [
+        WAKE_TURN_ID,
+        {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "CHAT",
+          clientTurnId: `watch:${WATCH_ID}`,
+        },
+      ],
+      [
+        RETRY_TURN_ID,
+        {
+          id: RETRY_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${WAKE_TURN_ID}:op-1`,
+        },
+      ],
+      [
+        SCHED_WATCH_TURN_ID,
+        {
+          id: SCHED_WATCH_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "SCHEDULE",
+          clientTurnId: `watch:${WATCH_ID}`,
+        },
+      ],
+    ]);
+
+    let watchLookups = 0;
+    const mockClient = {
+      sokoBotTurn: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          const row = turnRows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+        findUnique: async () => null,
+      },
+      sokoBotWatch: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          watchLookups += 1;
+          const row = watchRows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+      },
+      sokoBotScheduleRun: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id?: string; turnId?: string };
+        }) =>
+          where.id === RUN_ID || where.turnId === TURN_ID
+            ? {
+                id: RUN_ID,
+                scheduledFor: SLOT_TIME,
+                schedule: {
+                  id: SCHED_ID,
+                  systemKey: null,
+                  authority: {
+                    ...projectWatchAuthority,
+                    scheduleId: SCHED_ID,
+                    socialMode: "draft_only",
+                  },
+                  sokoBot: { projectId: null },
+                },
+              }
+            : null,
+      },
+    } as never;
+
+    // 1. chat_reply watch wake (direct CHAT, SCHEDULE, and ADMIN_RETRY) resolves
+    //    watchAuthority and clamps social writes to draft_only on the scoped Project.
+    for (const candidate of [
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${WATCH_ID}`,
+      },
+      {
+        id: SCHED_WATCH_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "SCHEDULE",
+        clientTurnId: `watch:${WATCH_ID}`,
+      },
+      {
+        id: RETRY_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-retry:${WAKE_TURN_ID}:op-1`,
+      },
+    ]) {
+      const origin = await resolveSocialWriteOrigin(candidate, mockClient);
+      expect(origin.watchAuthority?.kind).toBe("watch");
+      expect(origin.scheduleAuthority.kind).toBe("none");
+
+      const baseTurn = {
+        id: candidate.id,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: origin.source,
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER" as const,
+        sharedBot: false,
+      };
+      // Unscheduled draft on matching Project allowed.
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: baseTurn,
+          capability: "create_social_post",
+          rawInput: { projectId: PROJECT_ID, text: "Draft" },
+          tainted: false,
+          watchAuthority: origin.watchAuthority,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+
+      // Scheduled create, schedule_social_post, and update_social_post refused (draft_only).
+      for (const [capability, rawInput] of [
+        [
+          "create_social_post",
+          {
+            projectId: PROJECT_ID,
+            text: "Scheduled",
+            scheduledAt: "2026-12-01T10:00:00Z",
+          },
+        ],
+        ["schedule_social_post", { projectId: PROJECT_ID, postId: "post-1" }],
+        ["update_social_post", { projectId: PROJECT_ID, postId: "post-1" }],
+      ] as const) {
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: baseTurn,
+            capability,
+            rawInput,
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+        });
+      }
+
+      // Wrong Project refused.
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: baseTurn,
+          capability: "create_social_post",
+          rawInput: { projectId: OTHER_PROJECT_ID, text: "Wrong project" },
+          tainted: false,
+          watchAuthority: origin.watchAuthority,
+        }),
+      ).toEqual({
+        allowed: false,
+        kind: "watch_authority",
+        detail: WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+      });
+    }
+
+    // 2. Expired watch authority refuses even unscheduled drafts.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_ID, text: "Expired" },
+        tainted: false,
+        watchAuthority: {
+          kind: "watch",
+          watchId: WATCH_ID,
+          watchKind: "studio_job",
+          authority: {
+            ...projectWatchAuthority,
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+          watchProjectId: PROJECT_ID,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "watch_authority",
+      detail: WATCH_AUTHORITY_EXPIRED_MESSAGE,
+    });
+
+    // 3. Corrupt non-null JSONB fails closed in BOTH resolveWatchWakeAuthority and social writes.
+    const corruptWake = resolveWatchWakeAuthority(
+      watchRows.get(CORRUPT_WATCH_ID) as never,
+    );
+    expect(corruptWake.origin).toBe("system");
+    expect(corruptWake.scope).toBe("read_only");
+    expect(corruptWake.socialMode).toBe("none");
+
+    const corruptOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${CORRUPT_WATCH_ID}`,
+      },
+      mockClient,
+    );
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_ID, text: "Corrupt" },
+        tainted: false,
+        watchAuthority: corruptOrigin.watchAuthority,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "watch_authority",
+      detail: WATCH_AUTHORITY_INVALID_MESSAGE,
+    });
+
+    // 4. Legacy authority === null watch still derives chat_reply draft_only safely.
+    const legacyOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${LEGACY_WATCH_ID}`,
+      },
+      mockClient,
+    );
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: {
+          id: WAKE_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "schedule_social_post",
+        rawInput: { projectId: PROJECT_ID, postId: "post-1" },
+        tainted: false,
+        watchAuthority: legacyOrigin.watchAuthority,
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "watch_authority",
+      detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+    });
+
+    // 5. Malformed non-UUID watch clientTurnId fails closed WITHOUT hitting DB;
+    //    missing/cross-bot watch fails closed too.
+    const lookupsBeforeMalformed = watchLookups;
+    const malformedOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        source: "CHAT",
+        clientTurnId: "watch:not-a-uuid",
+      },
+      mockClient,
+    );
+    expect(watchLookups).toBe(lookupsBeforeMalformed);
+    expect(malformedOrigin.watchAuthority).toEqual({
+      kind: "unresolved",
+      detail: WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+    });
+    const crossBotOrigin = await resolveSocialWriteOrigin(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: OTHER_BOT_ID,
+        source: "CHAT",
+        clientTurnId: `watch:${WATCH_ID}`,
+      },
+      mockClient,
+    );
+    expect(crossBotOrigin.watchAuthority).toEqual({
+      kind: "unresolved",
+      detail: WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+    });
+
+    // 6. Canonical per-occurrence key matches across initial SCHEDULE run,
+    //    admin-schedule-retry, and deriveWatchAuthority on that scheduled run.
+    const directSchedOrigin = await resolveSocialWriteOrigin(
+      { id: TURN_ID, sokoBotId: BOT_ID, source: "SCHEDULE" },
+      mockClient,
+    );
+    const adminSchedRetryTurnId = "01960000-0000-7000-8000-000000000108";
+    turnRows.set(adminSchedRetryTurnId, {
+      id: adminSchedRetryTurnId,
+      sokoBotId: BOT_ID,
+      source: "ADMIN_RETRY",
+      clientTurnId: `admin-schedule-retry:${RUN_ID}:op-1`,
+    });
+    const retrySchedOrigin = await resolveSocialWriteOrigin(
+      { id: adminSchedRetryTurnId, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+      mockClient,
+    );
+    expect(directSchedOrigin.scheduleAuthority).toMatchObject({
+      kind: "schedule",
+      occurrenceKey: `slot:${SLOT_TIME.toISOString()}`,
+    });
+    expect(retrySchedOrigin.scheduleAuthority).toMatchObject({
+      kind: "schedule",
+      occurrenceKey: `slot:${SLOT_TIME.toISOString()}`,
+    });
+
+    // 7. Chained child work (resolveWorkItemParentAuthority) created inside a
+    //    chat_reply watch wake or schedule admin-retry preserves narrowed authority
+    //    (draft_only, Project scope, occurrence-scoped grantId) and fails closed
+    //    on corrupt watches rather than re-widening to root CHAT.
+    const chainedWatchParent = await resolveWorkItemParentAuthority(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        clientTurnId: `watch:${WATCH_ID}`,
+        parentTurnId: TURN_ID,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(chainedWatchParent.socialMode).toBe("draft_only");
+    expect(chainedWatchParent.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_ID,
+    });
+    const corruptWatchParent = await resolveWorkItemParentAuthority(
+      {
+        id: WAKE_TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        clientTurnId: `watch:${CORRUPT_WATCH_ID}`,
+        parentTurnId: TURN_ID,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(corruptWatchParent.origin).toBe("system");
+    expect(corruptWatchParent.scope).toBe("read_only");
+    const retrySchedParent = await resolveWorkItemParentAuthority(
+      {
+        id: adminSchedRetryTurnId,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-schedule-retry:${RUN_ID}:op-1`,
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(retrySchedParent.grantId).toBe(
+      `watch-grant-1:slot:${SLOT_TIME.toISOString()}`,
+    );
+    expect(retrySchedParent.scheduleId).toBe(SCHED_ID);
+  });
+
+  it("propagates live schedule disable/delete and cancelled rootTurnId revocation across schedules, child watches, retries, and background runs", async () => {
+    const ACTIVE_SCHED_ID = "01960000-0000-7000-8000-000000000801";
+    const PAUSED_SCHED_ID = "01960000-0000-7000-8000-000000000802";
+    const SPENT_ONCE_SCHED_ID = "01960000-0000-7000-8000-000000000803";
+    const DELETED_SCHED_ID = "01960000-0000-7000-8000-000000000804";
+    const CROSS_BOT_SCHED_ID = "01960000-0000-7000-8000-000000000805";
+    const CANCELLED_ROOT_ID = "01960000-0000-7000-8000-000000000811";
+    const COMPLETED_ROOT_ID = "01960000-0000-7000-8000-000000000812";
+    const WATCH_ACTIVE_ID = "01960000-0000-7000-8000-000000000821";
+    const WATCH_PAUSED_ID = "01960000-0000-7000-8000-000000000822";
+    const WATCH_CANCELLED_ID = "01960000-0000-7000-8000-000000000823";
+    const SCHED_TURN_PAUSED = "01960000-0000-7000-8000-000000000831";
+    const SCHED_TURN_SPENT = "01960000-0000-7000-8000-000000000832";
+    const SCHED_TURN_CANCELLED_ROOT = "01960000-0000-7000-8000-000000000833";
+    const RUN_PAUSED = "01960000-0000-7000-8000-000000000841";
+    const RUN_SPENT = "01960000-0000-7000-8000-000000000842";
+    const RUN_CANCELLED_ROOT = "01960000-0000-7000-8000-000000000843";
+    const SLOT = new Date("2026-11-30T09:00:00.000Z");
+
+    // 1. One-time schedule revocation semantics: spent one-time (`runOnce: true`
+    //    with `lastRunAt`) stays live; unrun disabled one-time and disabled
+    //    recurring schedules are revoked.
+    expect(isScheduleRowRevoked({ enabled: true, runOnce: false })).toBe(false);
+    expect(isScheduleRowRevoked({ enabled: false, runOnce: false })).toBe(true);
+    expect(
+      isScheduleRowRevoked({ enabled: false, runOnce: true, lastRunAt: null }),
+    ).toBe(true);
+    expect(
+      isScheduleRowRevoked({ enabled: false, runOnce: true, lastRunAt: SLOT }),
+    ).toBe(false);
+
+    // 2. Batched revocation loader (`loadRevokedAuthoritySources`): at most two
+    //    queries (schedules + cancelled root turns), skips system & non-UUIDs.
+    let scheduleFindManyCalls = 0;
+    let turnFindManyCalls = 0;
+    const batchClient = {
+      sokoBotSchedule: {
+        findMany: async () => {
+          scheduleFindManyCalls += 1;
+          return [
+            {
+              id: ACTIVE_SCHED_ID,
+              sokoBotId: BOT_ID,
+              enabled: true,
+              runOnce: false,
+              lastRunAt: null,
+            },
+            {
+              id: PAUSED_SCHED_ID,
+              sokoBotId: BOT_ID,
+              enabled: false,
+              runOnce: false,
+              lastRunAt: SLOT,
+            },
+            {
+              id: SPENT_ONCE_SCHED_ID,
+              sokoBotId: BOT_ID,
+              enabled: false,
+              runOnce: true,
+              lastRunAt: SLOT,
+            },
+            {
+              id: CROSS_BOT_SCHED_ID,
+              sokoBotId: OTHER_BOT_ID,
+              enabled: true,
+              runOnce: false,
+              lastRunAt: null,
+            },
+          ];
+        },
+      },
+      sokoBotTurn: {
+        findMany: async () => {
+          turnFindManyCalls += 1;
+          return [{ id: CANCELLED_ROOT_ID, sokoBotId: BOT_ID }];
+        },
+      },
+    } as unknown as Parameters<typeof loadRevokedAuthoritySources>[1];
+
+    const sources = await loadRevokedAuthoritySources(
+      [
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: ACTIVE_SCHED_ID,
+          rootTurnId: COMPLETED_ROOT_ID,
+        },
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: PAUSED_SCHED_ID,
+          rootTurnId: COMPLETED_ROOT_ID,
+        },
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: SPENT_ONCE_SCHED_ID,
+          rootTurnId: COMPLETED_ROOT_ID,
+        },
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: DELETED_SCHED_ID,
+          rootTurnId: COMPLETED_ROOT_ID,
+        },
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: CROSS_BOT_SCHED_ID,
+          rootTurnId: COMPLETED_ROOT_ID,
+        },
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: undefined,
+          rootTurnId: CANCELLED_ROOT_ID,
+        },
+        {
+          origin: "system",
+          sokoBotId: BOT_ID,
+          scheduleId: DELETED_SCHED_ID,
+          rootTurnId: CANCELLED_ROOT_ID,
+        },
+        {
+          origin: "owner_chat",
+          sokoBotId: BOT_ID,
+          scheduleId: "not-a-uuid",
+          rootTurnId: "also-not-a-uuid",
+        },
+      ],
+      batchClient,
+    );
+    expect(scheduleFindManyCalls).toBe(1);
+    expect(turnFindManyCalls).toBe(1);
+    expect(
+      sources.revokedScheduleKeys.has(`${BOT_ID}:${ACTIVE_SCHED_ID}`),
+    ).toBe(false);
+    expect(
+      sources.revokedScheduleKeys.has(`${BOT_ID}:${SPENT_ONCE_SCHED_ID}`),
+    ).toBe(false);
+    expect(
+      sources.revokedScheduleKeys.has(`${BOT_ID}:${PAUSED_SCHED_ID}`),
+    ).toBe(true);
+    expect(
+      sources.revokedScheduleKeys.has(`${BOT_ID}:${DELETED_SCHED_ID}`),
+    ).toBe(true);
+    expect(
+      sources.revokedScheduleKeys.has(`${BOT_ID}:${CROSS_BOT_SCHED_ID}`),
+    ).toBe(true);
+    expect(
+      sources.revokedRootTurnKeys.has(`${BOT_ID}:${CANCELLED_ROOT_ID}`),
+    ).toBe(true);
+    expect(
+      sources.revokedRootTurnKeys.has(`${BOT_ID}:${COMPLETED_ROOT_ID}`),
+    ).toBe(false);
+    expect(
+      await isOwnerAuthorityRevoked(
+        {
+          origin: "system",
+          sokoBotId: BOT_ID,
+          scheduleId: DELETED_SCHED_ID,
+          rootTurnId: CANCELLED_ROOT_ID,
+        },
+        batchClient,
+      ),
+    ).toBe(false);
+
+    // 3. intersectScheduleRouteCapabilities degrades revoked schedules to read-only.
+    const baseSchedAuthority = {
+      version: 1 as const,
+      grantId: "sched-rev-grant",
+      origin: "owner_chat" as const,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      ownerUserId: OWNER_ID,
+      rootTurnId: COMPLETED_ROOT_ID,
+      targetScope: { kind: "project" as const, projectId: PROJECT_A },
+      scheduleId: PAUSED_SCHED_ID,
+      scope: "owner_writes" as const,
+      socialMode: "schedule_posts" as const,
+      stopRule: { mode: "never" as const },
+    };
+    const revokedRoute = intersectScheduleRouteCapabilities({
+      scheduleId: PAUSED_SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: baseSchedAuthority,
+      actingUserId: OWNER_ID,
+      botUserId: OWNER_ID,
+      botProjectId: null,
+      botVersionId: "v36",
+      offeredCapabilities: [
+        "list_social_posts",
+        "create_social_post",
+        "create_task",
+      ],
+      revoked: true,
+    });
+    expect(revokedRoute.effective).toBe(false);
+    expect(revokedRoute.denialReason).toBe("revoked");
+    expect(revokedRoute.capabilities).toEqual(["list_social_posts"]);
+
+    // 4. resolveSocialWriteOrigin + evaluateSocialWriteAuthority + resolveWorkItemParentAuthority
+    const activeWatchAuthority = {
+      ...baseSchedAuthority,
+      grantId: "sched-active-grant:slot:2026-11-30T09:00:00.000Z",
+      scheduleId: ACTIVE_SCHED_ID,
+    };
+    const pausedWatchAuthority = {
+      ...baseSchedAuthority,
+      grantId: "sched-paused-grant:slot:2026-11-30T09:00:00.000Z",
+      scheduleId: PAUSED_SCHED_ID,
+    };
+    const cancelledRootWatchAuthority = {
+      ...baseSchedAuthority,
+      grantId: "chat-cancelled-grant",
+      scheduleId: undefined,
+      rootTurnId: CANCELLED_ROOT_ID,
+    };
+    const mockClient = {
+      sokoBotSchedule: {
+        findMany: batchClient!.sokoBotSchedule!.findMany,
+        findFirst: async () => null,
+      },
+      sokoBotTurn: {
+        findMany: batchClient!.sokoBotTurn!.findMany,
+        findFirst: async () => null,
+        findUnique: async (args: { where: { id: string } }) => {
+          if (args.where.id === SCHED_TURN_PAUSED) {
+            return {
+              id: SCHED_TURN_PAUSED,
+              sokoBotId: BOT_ID,
+              workspaceId: WS_ID,
+              versionId: "v36",
+              source: "SCHEDULE",
+              status: "RUNNING",
+              parentTurnId: null,
+              askedByUserId: null,
+              requestedByUserId: OWNER_ID,
+              chainDepth: 0,
+              sokoBot: { userId: OWNER_ID },
+              scheduleRun: {
+                scheduledFor: SLOT,
+                schedule: {
+                  id: PAUSED_SCHED_ID,
+                  enabled: false,
+                  runOnce: false,
+                  lastRunAt: SLOT,
+                  sokoBotId: BOT_ID,
+                  workspaceId: WS_ID,
+                  requestedByUserId: OWNER_ID,
+                  systemKey: null,
+                  authority: baseSchedAuthority,
+                },
+              },
+            };
+          }
+          if (args.where.id === SCHED_TURN_SPENT) {
+            return {
+              id: SCHED_TURN_SPENT,
+              sokoBotId: BOT_ID,
+              workspaceId: WS_ID,
+              versionId: "v36",
+              source: "SCHEDULE",
+              status: "RUNNING",
+              parentTurnId: null,
+              askedByUserId: null,
+              requestedByUserId: OWNER_ID,
+              chainDepth: 0,
+              sokoBot: { userId: OWNER_ID },
+              scheduleRun: {
+                scheduledFor: SLOT,
+                schedule: {
+                  id: SPENT_ONCE_SCHED_ID,
+                  enabled: false,
+                  runOnce: true,
+                  lastRunAt: SLOT,
+                  sokoBotId: BOT_ID,
+                  workspaceId: WS_ID,
+                  requestedByUserId: OWNER_ID,
+                  systemKey: null,
+                  authority: {
+                    ...baseSchedAuthority,
+                    scheduleId: SPENT_ONCE_SCHED_ID,
+                  },
+                },
+              },
+            };
+          }
+          return null;
+        },
+      },
+      sokoBotScheduleRun: {
+        findFirst: async (args: { where: { turnId?: string } }) => {
+          if (args.where.turnId === SCHED_TURN_PAUSED) {
+            return {
+              id: RUN_PAUSED,
+              scheduledFor: SLOT,
+              schedule: {
+                id: PAUSED_SCHED_ID,
+                enabled: false,
+                runOnce: false,
+                lastRunAt: SLOT,
+                systemKey: null,
+                authority: baseSchedAuthority,
+                sokoBot: { projectId: null },
+              },
+            };
+          }
+          if (args.where.turnId === SCHED_TURN_SPENT) {
+            return {
+              id: RUN_SPENT,
+              scheduledFor: SLOT,
+              schedule: {
+                id: SPENT_ONCE_SCHED_ID,
+                enabled: false,
+                runOnce: true,
+                lastRunAt: SLOT,
+                systemKey: null,
+                authority: {
+                  ...baseSchedAuthority,
+                  scheduleId: SPENT_ONCE_SCHED_ID,
+                },
+                sokoBot: { projectId: null },
+              },
+            };
+          }
+          if (args.where.turnId === SCHED_TURN_CANCELLED_ROOT) {
+            return {
+              id: RUN_CANCELLED_ROOT,
+              scheduledFor: SLOT,
+              schedule: {
+                id: ACTIVE_SCHED_ID,
+                enabled: true,
+                runOnce: false,
+                lastRunAt: null,
+                systemKey: null,
+                authority: {
+                  ...baseSchedAuthority,
+                  scheduleId: ACTIVE_SCHED_ID,
+                  rootTurnId: CANCELLED_ROOT_ID,
+                },
+                sokoBot: { projectId: null },
+              },
+            };
+          }
+          return null;
+        },
+      },
+      sokoBotWatch: {
+        findFirst: async (args: { where: { id: string } }) => {
+          const baseRow = {
+            kind: "studio_job",
+            projectId: PROJECT_A,
+            sokoBotId: BOT_ID,
+            turn: {
+              id: COMPLETED_ROOT_ID,
+              requestedByUserId: OWNER_ID,
+              askedByUserId: OWNER_ID,
+              chainDepth: 0,
+              workspaceId: WS_ID,
+              source: "SCHEDULE",
+              versionId: "v36",
+              sokoBot: { userId: OWNER_ID, projectId: null },
+            },
+          };
+          if (args.where.id === WATCH_ACTIVE_ID) {
+            return {
+              ...baseRow,
+              id: WATCH_ACTIVE_ID,
+              authority: activeWatchAuthority,
+            };
+          }
+          if (args.where.id === WATCH_PAUSED_ID) {
+            return {
+              ...baseRow,
+              id: WATCH_PAUSED_ID,
+              authority: pausedWatchAuthority,
+            };
+          }
+          if (args.where.id === WATCH_CANCELLED_ID) {
+            return {
+              ...baseRow,
+              id: WATCH_CANCELLED_ID,
+              authority: cancelledRootWatchAuthority,
+            };
+          }
+          return null;
+        },
+      },
+    } as unknown as Parameters<typeof resolveSocialWriteOrigin>[1];
+
+    // Disabled recurring schedule -> revoked; spent one-time -> allowed; cancelled root -> revoked.
+    for (const [turnId, expectedAllowed] of [
+      [SCHED_TURN_PAUSED, false],
+      [SCHED_TURN_SPENT, true],
+      [SCHED_TURN_CANCELLED_ROOT, false],
+    ] as const) {
+      const origin = await resolveSocialWriteOrigin(
+        { id: turnId, sokoBotId: BOT_ID, source: "SCHEDULE" },
+        mockClient,
+      );
+      const decision = evaluateSocialWriteAuthority({
+        turn: {
+          id: turnId,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: origin.source,
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "create_social_post",
+        rawInput: {
+          projectId: PROJECT_A,
+          text: "Hello",
+          scheduledAt: "2026-12-01T10:00:00Z",
+        },
+        tainted: false,
+        scheduleAuthority: origin.scheduleAuthority,
+      });
+      expect(decision.allowed).toBe(expectedAllowed);
+      if (!decision.allowed) {
+        expect(decision.detail).toBe(SCHEDULE_AUTHORITY_REVOKED_MESSAGE);
+      }
+    }
+
+    // Watch wakes carrying scheduleId or rootTurnId: active allowed, paused/cancelled revoked.
+    for (const [watchId, expectedAllowed] of [
+      [WATCH_ACTIVE_ID, true],
+      [WATCH_PAUSED_ID, false],
+      [WATCH_CANCELLED_ID, false],
+    ] as const) {
+      const origin = await resolveSocialWriteOrigin(
+        {
+          id: "wake-turn",
+          sokoBotId: BOT_ID,
+          source: "SCHEDULE",
+          clientTurnId: `watch:${watchId}`,
+        },
+        mockClient,
+      );
+      const decision = evaluateSocialWriteAuthority({
+        turn: {
+          id: "wake-turn",
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: origin.source,
+          actingUserId: OWNER_ID,
+          askedByKind: "OWNER",
+          sharedBot: false,
+        },
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_A, text: "From watch" },
+        tainted: false,
+        watchAuthority: origin.watchAuthority,
+      });
+      expect(decision.allowed).toBe(expectedAllowed);
+      if (!decision.allowed) {
+        expect(decision.detail).toBe(WATCH_AUTHORITY_REVOKED_MESSAGE);
+      }
+    }
+
+    // resolveWorkItemParentAuthority: paused schedule & paused watch fail closed;
+    // spent one-time schedule keeps scheduleId for its child work.
+    const pausedSchedParent = await resolveWorkItemParentAuthority(
+      {
+        id: SCHED_TURN_PAUSED,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(pausedSchedParent.origin).toBe("system");
+    expect(pausedSchedParent.scope).toBe("read_only");
+
+    const spentSchedParent = await resolveWorkItemParentAuthority(
+      {
+        id: SCHED_TURN_SPENT,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(spentSchedParent.origin).toBe("owner_chat");
+    expect(spentSchedParent.scheduleId).toBe(SPENT_ONCE_SCHED_ID);
+
+    const pausedWatchParent = await resolveWorkItemParentAuthority(
+      {
+        id: "wake-paused",
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "SCHEDULE",
+        clientTurnId: `watch:${WATCH_PAUSED_ID}`,
+        parentTurnId: SCHED_TURN_PAUSED,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        actingUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      mockClient,
+    );
+    expect(pausedWatchParent.origin).toBe("system");
+    expect(pausedWatchParent.scope).toBe("read_only");
+
+    // 5. Child background CHAT turn degrades to system when its root CHAT turn is CANCELLED.
+    const childBg = {
+      id: "bg-child-1",
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      status: "RUNNING",
+      parentTurnId: CANCELLED_ROOT_ID,
+      askedByUserId: OWNER_ID,
+      requestedByUserId: OWNER_ID,
+      chainDepth: 0,
+      sokoBot: { userId: OWNER_ID },
+    };
+    const cancelledRoot = {
+      id: CANCELLED_ROOT_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "CHAT",
+      status: "CANCELLED",
+      parentTurnId: null,
+      askedByUserId: OWNER_ID,
+      requestedByUserId: OWNER_ID,
+      chainDepth: 0,
+      sokoBot: { userId: OWNER_ID },
+    };
+    expect(deriveTurnOwnerAuthority([childBg, cancelledRoot])?.origin).toBe(
+      "system",
+    );
+    expect(
+      deriveTurnOwnerAuthority([
+        childBg,
+        { ...cancelledRoot, status: "COMPLETED" },
+      ])?.origin,
+    ).toBe("owner_chat");
   });
 });

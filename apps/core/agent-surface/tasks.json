@@ -49,7 +49,7 @@
       "mcp": "tasks_move"
     },
     "GET /tasks/{id}/receipt": {
-      "cli": "runtime receipt",
+      "cli": "tasks receipt",
       "mcp": "tasks_receipt"
     },
     "GET /tasks/summary": {

@@ -1,4 +1,8 @@
-import { type AuthEnvironment, getAuthManager } from "../auth/auth-manager.js";
+import {
+  type AuthEnvironment,
+  envBearerCredential,
+  getAuthManager,
+} from "../auth/auth-manager.js";
 import {
   type AuthBootstrapManager,
   resolveInitialAuth,
@@ -57,7 +61,7 @@ export async function runAuthStatus({
     authMethod: auth.authMethod,
     apiKeyAvailable: Boolean(
       String(env.SOKOSUMI_API_KEY || "").trim() ||
-        manager.getApiKeyCredentials()?.apiKey,
+        (!envBearerCredential(env) && manager.getApiKeyCredentials()?.apiKey),
     ),
     target: resolvedConfig.target,
     apiUrl: sanitizeApiUrl(resolvedConfig.apiUrl),

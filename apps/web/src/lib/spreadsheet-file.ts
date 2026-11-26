@@ -28,6 +28,11 @@ export interface Spreadsheet {
   rows: SpreadsheetCell[][];
   /** Rows or columns past the caps were left out. */
   truncated: boolean;
+  /**
+   * The sheet's own size, caps aside: rows with values and the width of its
+   * values. An import says from it what a cut leaves out.
+   */
+  size: { rows: number; columns: number };
   /** Pictures on the sheet as data URLs, such as the charts Google Sheets exports. */
   images: string[];
 }
@@ -45,9 +50,26 @@ export function spreadsheetKind(
   return null;
 }
 
+/**
+ * How much of a sheet to read. The viewer's defaults keep a preview quick; an
+ * import reads the whole sheet up to a Table's own limits, hidden rows and
+ * columns included, so nothing the file holds is left out unannounced.
+ */
+export interface SpreadsheetLimits {
+  maxRows: number;
+  maxColumns: number;
+  keepHidden?: boolean;
+}
+
+const VIEWER_LIMITS: SpreadsheetLimits = {
+  maxRows: MAX_ROWS,
+  maxColumns: MAX_COLUMNS,
+};
+
 export async function readSpreadsheet(
   kind: "xlsx" | "csv",
   bytes: ArrayBuffer,
+  limits: SpreadsheetLimits = VIEWER_LIMITS,
 ): Promise<Spreadsheet[]> {
   if (kind === "csv") {
     const rows = readCsvRows(new TextDecoder().decode(bytes), {
@@ -55,21 +77,29 @@ export async function readSpreadsheet(
     }).map((row) =>
       row.map((text) => ({ text, numeric: isNumberText(text), bold: false })),
     );
-    return [capped("", rows)];
+    return [capped("", rows, limits)];
   }
-  return readXlsx(bytes);
+  return readXlsx(bytes, limits);
 }
 
 function isNumberText(text: string): boolean {
   return /^[-+(]?[$€£¥]?\s?[\d.,]+%?\)?$/.test(text.trim());
 }
 
-function capped(name: string, rows: SpreadsheetCell[][]): Spreadsheet {
-  const wide = rows.some((row) => row.length > MAX_COLUMNS);
+function capped(
+  name: string,
+  rows: SpreadsheetCell[][],
+  { maxRows, maxColumns }: SpreadsheetLimits,
+): Spreadsheet {
+  const wide = rows.some((row) => row.length > maxColumns);
   return {
     name,
-    rows: rows.slice(0, MAX_ROWS).map((row) => row.slice(0, MAX_COLUMNS)),
-    truncated: wide || rows.length > MAX_ROWS,
+    rows: rows.slice(0, maxRows).map((row) => row.slice(0, maxColumns)),
+    truncated: wide || rows.length > maxRows,
+    size: {
+      rows: rows.length,
+      columns: Math.max(0, ...rows.map((row) => row.length)),
+    },
     images: [],
   };
 }
@@ -103,7 +133,10 @@ interface CellStyle {
   bold: boolean;
 }
 
-async function readXlsx(bytes: ArrayBuffer): Promise<Spreadsheet[]> {
+async function readXlsx(
+  bytes: ArrayBuffer,
+  limits: SpreadsheetLimits,
+): Promise<Spreadsheet[]> {
   const zip = await JSZip.loadAsync(bytes);
   const workbook = await part(zip, "xl/workbook.xml");
   if (!workbook) throw new Error("Not an Excel workbook");
@@ -148,6 +181,7 @@ async function readXlsx(bytes: ArrayBuffer): Promise<Spreadsheet[]> {
         strings,
         styles,
         date1904,
+        limits,
       }),
       images: await sheetImages(zip, path),
     });
@@ -238,40 +272,58 @@ function position(ref: string): [number, number] | null {
 function readSheet(
   name: string,
   doc: Document,
-  context: { strings: string[]; styles: CellStyle[]; date1904: boolean },
+  context: {
+    strings: string[];
+    styles: CellStyle[];
+    date1904: boolean;
+    limits: SpreadsheetLimits;
+  },
 ): Spreadsheet {
+  const { maxRows, maxColumns, keepHidden } = context.limits;
   const hiddenColumns = new Set<number>();
-  for (const col of elements(doc, "col")) {
+  for (const col of keepHidden ? [] : elements(doc, "col")) {
     if (col.getAttribute("hidden") !== "1") continue;
     const min = Number(col.getAttribute("min"));
-    const max = Math.min(Number(col.getAttribute("max")), MAX_COLUMNS + 1);
+    const max = Math.min(Number(col.getAttribute("max")), maxColumns + 1);
     for (let index = min; index <= max; index++) hiddenColumns.add(index - 1);
   }
 
   const grid: SpreadsheetCell[][] = [];
-  let truncated = false;
   let width = 0;
+  // Only rows with values count toward the cap: spacer and format-only rows
+  // neither use it up nor, past it, make a sheet look cut. Past the caps the
+  // sheet is still counted, so a cut can say how much it leaves out.
+  let filled = 0;
+  let columns = 0;
   for (const row of elements(doc, "row")) {
-    if (row.getAttribute("hidden") === "1") continue;
-    if (grid.length >= MAX_ROWS) {
-      truncated = true;
-      break;
-    }
+    if (!keepHidden && row.getAttribute("hidden") === "1") continue;
     const cells: SpreadsheetCell[] = [];
+    let hasValue = false;
+    // Past the caps a cell is only counted, not formatted.
+    const past = filled >= maxRows;
+    // A cell without an `r` reference sits right after the one before it.
+    let next = 0;
     for (const cell of Array.from(row.children)) {
       if (localName(cell) !== "c") continue;
       const at = position(cell.getAttribute("r") ?? "");
-      const column = at ? at[1] : cells.length;
+      const column = at ? at[1] : next;
+      next = column + 1;
       if (hiddenColumns.has(column)) continue;
-      if (column >= MAX_COLUMNS) {
-        truncated = true;
+      if (past || column >= maxColumns) {
+        if (cell.textContent) {
+          columns = Math.max(columns, column + 1);
+          hasValue = true;
+        }
         continue;
       }
       const value = readCell(cell, context);
       if (!value.text) continue;
+      columns = Math.max(columns, column + 1);
+      hasValue = true;
       while (cells.length < column) cells.push(EMPTY);
       cells[column] = value;
     }
+    if (hasValue && ++filled > maxRows) continue;
     grid.push(cells);
     width = Math.max(width, cells.length);
   }
@@ -283,7 +335,8 @@ function readSheet(
   return {
     name,
     rows: grid.map((cells) => visible.map((index) => cells[index] ?? EMPTY)),
-    truncated,
+    truncated: filled > maxRows || columns > maxColumns,
+    size: { rows: filled, columns },
     images: [],
   };
 }

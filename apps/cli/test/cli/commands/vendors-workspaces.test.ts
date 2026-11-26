@@ -144,73 +144,109 @@ test("vendors create uses the last repeated option value", async () => {
   assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
 });
 
-test("workspaces JSON allowlists organization identity fields", async () => {
+const USER_WORKSPACES = {
+  data: {
+    workspaces: [
+      {
+        id: "ws-personal",
+        kind: "personal",
+        name: "Ada",
+        organizationId: null,
+        slug: null,
+        role: "owner",
+        preferred: false,
+      },
+      {
+        id: "ws-acme",
+        kind: "organization",
+        name: "Acme Organization",
+        organizationId: "org-1",
+        slug: "acme",
+        role: "owner",
+        preferred: true,
+        metadata: { apiKey: "must-not-appear" },
+      },
+    ],
+    pendingInvitationCount: 0,
+  },
+};
+
+test("workspaces list JSON gives each workspace id next to its organization id (SOKD-469)", async () => {
   const output: string[] = [];
+  const paths: string[] = [];
+  const client = clientWith(USER_WORKSPACES);
+  const get = client.get;
+  client.get = async <T>(path: string) => {
+    paths.push(path);
+    return get<T>(path);
+  };
   await runWorkspacesCommand({
-    client: clientWith({
-      data: [
-        {
-          id: "org-1",
-          name: "Acme Organization",
-          slug: "acme",
-          role: "owner",
-          metadata: { apiKey: "must-not-appear" },
-        },
-      ],
-    }),
+    client,
     stdout: { write: (value) => output.push(value) },
     json: true,
     subcommand: "list",
   });
+  assert.deepEqual(paths, ["/v1/users/me/workspaces"]);
   assert.equal(output.length, 1);
   assert.deepEqual(JSON.parse(output[0]!), {
     workspaces: [
       {
-        organizationId: "org-1",
-        createdAt: null,
-        name: "Acme Organization",
-        slug: "acme",
-        logo: null,
+        workspaceId: "ws-personal",
+        kind: "personal",
+        name: "Ada",
+        organizationId: null,
+        slug: null,
         role: "owner",
+        preferred: false,
+      },
+      {
+        workspaceId: "ws-acme",
+        kind: "organization",
+        name: "Acme Organization",
+        organizationId: "org-1",
+        slug: "acme",
+        role: "owner",
+        preferred: true,
       },
     ],
   });
   assert.equal(output[0]?.includes("must-not-appear"), false);
 });
 
-test("workspaces list emits stable organization workspace text output", async () => {
+test("workspaces list text shows workspace and organization ids", async () => {
   const output: string[] = [];
   await runWorkspacesCommand({
-    client: clientWith({
-      data: [
-        {
-          id: "org-1",
-          name: "Acme Organization",
-          slug: "acme",
-          role: "owner",
-        },
-      ],
-    }),
+    client: clientWith(USER_WORKSPACES),
     stdout: { write: (value) => output.push(value) },
     subcommand: "list",
   });
 
-  assert.equal(output.length, 1);
   assert.equal(
-    output[0],
-    "Organization workspaces\nAcme Organization [organization: org-1]\n  slug: acme\n  role: owner\n",
+    output.join(""),
+    [
+      "Workspaces",
+      "Ada [workspace: ws-personal]",
+      "  kind: personal",
+      "  role: owner",
+      "Acme Organization [workspace: ws-acme] (preferred)",
+      "  kind: organization",
+      "  organization: org-1",
+      "  slug: acme",
+      "  role: owner",
+      "",
+    ].join("\n"),
   );
 });
 
-test("workspaces list describes an empty organization workspace candidate result", async () => {
+test("workspaces list describes an empty result", async () => {
   const output: string[] = [];
   await runWorkspacesCommand({
-    client: clientWith({ data: [] }),
+    client: clientWith({ data: { workspaces: [], pendingInvitationCount: 0 } }),
     stdout: { write: (value) => output.push(value) },
     subcommand: "list",
   });
 
-  assert.deepEqual(output, ["No organization workspaces found.\n"]);
+  assert.deepEqual(output, ["No workspaces found.\n"]);
 });
 
 test("workspaces check emits one JSON result without claiming runtime or credit readiness", async () => {

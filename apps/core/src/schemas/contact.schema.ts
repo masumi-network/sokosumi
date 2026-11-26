@@ -186,7 +186,11 @@ export const contactActivitySchema = z
 
 export const contactMergeSuggestionSchema = z
   .object({
-    reason: z.enum(["shared_channel", "same_name"]),
+    // Closed for shipped Apple builds: a new value would fail their contact read.
+    reason: z.enum(["shared_channel", "same_name"]).openapi({
+      description:
+        "`same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.",
+    }),
     contactIds: z.array(z.uuid()),
   })
   .openapi("ContactMergeSuggestion");
@@ -234,6 +238,10 @@ export const contactListSchema = z
 export const contactDuplicateGroupSchema = z
   .object({
     name: z.string(),
+    reason: z.enum(["same_name", "same_company"]).openapi({
+      description:
+        "Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).",
+    }),
     contacts: z.array(contactSchema),
   })
   .openapi("ContactDuplicateGroup");

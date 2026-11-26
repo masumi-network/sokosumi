@@ -507,6 +507,37 @@ describe("SEO audit list", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it("retries a failed create with the same key, and uses a new key for other input", async () => {
+    vi.mocked(createSeoAuditAction)
+      .mockResolvedValueOnce({ ok: false } as never)
+      .mockResolvedValueOnce({ ok: false } as never)
+      .mockResolvedValueOnce({ ok: false } as never)
+      .mockResolvedValueOnce({ ok: false } as never);
+    show([], false);
+    const url = screen.getByRole("textbox", { name: /URL/ });
+    await userEvent.type(url, "example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(createSeoAuditAction).toHaveBeenCalledTimes(1));
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(createSeoAuditAction).toHaveBeenCalledTimes(2));
+    await userEvent.clear(url);
+    await userEvent.type(url, "example.org");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(createSeoAuditAction).toHaveBeenCalledTimes(3));
+    // Back to the first input: its first create may exist, so the same key again.
+    await userEvent.clear(url);
+    await userEvent.type(url, "example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(createSeoAuditAction).toHaveBeenCalledTimes(4));
+    const keys = vi
+      .mocked(createSeoAuditAction)
+      .mock.calls.map(([request]) => request.body.idempotencyKey);
+    expect(keys[0]).toBeTruthy();
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
+    expect(keys[3]).toBe(keys[0]);
+  });
+
   it("takes a website typed without https://", async () => {
     vi.mocked(createSeoAuditAction).mockResolvedValue({
       ok: true,
