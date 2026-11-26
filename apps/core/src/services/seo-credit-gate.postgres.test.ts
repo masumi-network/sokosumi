@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { createPrismaClient } from "@sokosumi/database/client";
 import {
   CORE_API_ERROR_KINDS,
   seoFullAuditPrice,
@@ -26,6 +27,7 @@ import {
   type SeoActor,
 } from "@/schemas/project-seo.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
+import { testSchemaNames } from "@/test/split-layout";
 import { drainWaitUntil } from "@/test/wait-until";
 import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
@@ -72,9 +74,26 @@ vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
 
+const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
-  process.env.DATABASE_URL?.startsWith("postgres");
+  url?.startsWith("postgres");
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_MAINNET,
+      })
+    : null;
+
+afterAll(async () => {
+  await mainnet?.$disconnect();
+});
+
+function networkDatabase() {
+  if (!mainnet) throw new Error("Missing integration database");
+  return mainnet;
+}
+
 const CREDIT = 10n ** 10n;
 const userId = randomUUID(),
   workspaceId = randomUUID(),
@@ -130,13 +149,13 @@ const counts = async () => ({
   schedules: await prisma.taskSchedule.count({ where: { workspaceId } }),
 });
 async function setBalance(credits: bigint) {
-  await prisma.creditBucket.deleteMany({ where: { userId } });
+  await networkDatabase().creditBucket.deleteMany({ where: { userId } });
   if (credits === 0n) return;
-  const topUp = await prisma.transaction.create({
+  const topUp = await networkDatabase().transaction.create({
     data: { amount: credits * CREDIT, userId },
     select: { id: true },
   });
-  await prisma.creditBucket.create({
+  await networkDatabase().creditBucket.create({
     data: { amount: credits * CREDIT, userId, sourceTransactionId: topUp.id },
   });
 }
@@ -203,8 +222,8 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
     await prisma.task.deleteMany({ where: { workspaceId } });
     await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
-    await prisma.creditBucket.deleteMany({ where: { userId } });
-    await prisma.transaction.deleteMany({ where: { userId } });
+    await networkDatabase().creditBucket.deleteMany({ where: { userId } });
+    await networkDatabase().transaction.deleteMany({ where: { userId } });
     await prisma.workspace.delete({ where: { id: workspaceId } });
     await prisma.user.delete({ where: { id: userId } });
     await prisma.coworker.deleteMany({ where: { vendorId } });
@@ -588,7 +607,9 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
           jsonRequest("POST", { status: "RUNNING" }),
         );
       const debits = () =>
-        prisma.transaction.count({ where: { userId, amount: { lt: 0 } } });
+        networkDatabase().transaction.count({
+          where: { userId, amount: { lt: 0 } },
+        });
       const charged = await debits();
       read.mockResolvedValueOnce({ siteEntry: [] });
       const held = await start();
@@ -769,7 +790,9 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       fullAuditCost,
     };
     const debits = () =>
-      prisma.transaction.count({ where: { userId, amount: { lt: 0 } } });
+      networkDatabase().transaction.count({
+        where: { userId, amount: { lt: 0 } },
+      });
     const before = await debits();
     expect((await post("", { credits: 1 })).status).toBe(422);
     expect((await post("/context-v1", body)).status).toBe(422);
@@ -810,7 +833,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     ).toHaveLength(1);
     expect(await debits()).toBe(before + 1);
     expect(
-      await prisma.transaction.findFirst({
+      await networkDatabase().transaction.findFirst({
         where: { userId, amount: -901n * CREDIT },
       }),
     ).toBeTruthy();
@@ -1093,12 +1116,14 @@ describe.skipIf(!enabled)("SEO credit ceiling of a Project's check", () => {
   };
   let projectPageId: string;
   async function setProjectCredits(credits: bigint) {
-    await prisma.creditBucket.deleteMany({ where: { organizationId } });
-    const topUp = await prisma.transaction.create({
+    await networkDatabase().creditBucket.deleteMany({
+      where: { organizationId },
+    });
+    const topUp = await networkDatabase().transaction.create({
       data: { amount: credits * CREDIT, organizationId },
       select: { id: true },
     });
-    await prisma.creditBucket.create({
+    await networkDatabase().creditBucket.create({
       data: {
         amount: credits * CREDIT,
         organizationId,
@@ -1168,8 +1193,12 @@ describe.skipIf(!enabled)("SEO credit ceiling of a Project's check", () => {
     env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
     await prisma.task.deleteMany({ where: { workspaceId: orgWorkspaceId } });
-    await prisma.creditBucket.deleteMany({ where: { organizationId } });
-    await prisma.transaction.deleteMany({ where: { organizationId } });
+    await networkDatabase().creditBucket.deleteMany({
+      where: { organizationId },
+    });
+    await networkDatabase().transaction.deleteMany({
+      where: { organizationId },
+    });
     await prisma.project.deleteMany({ where: { id: projectId } });
     await prisma.organization.delete({ where: { id: organizationId } });
     await prisma.user.delete({ where: { id: memberId } });

@@ -17,6 +17,7 @@
 # 33): then change its ticket instead of deleting the line.
 #   19  a trigger or function body names `public.` or an unqualified table
 #   30, 29  the shared client reads a Network table (Soko Bot, Coworker usage)
+#   27  the shared client reaches tables for Network credit balances
 #   18  the test replays a migration written for one schema
 #   17  unqualified raw SQL, or the test's own client or SQL on `public`
 #
@@ -24,14 +25,14 @@
 src/helpers/__tests__/task-parent-links-to-subtasks.postgres.test.ts 19  # trigger body
 src/helpers/__tests__/task-subtask-reparent-migration.postgres.test.ts 18  # replays a migration written for one schema
 src/helpers/access-control.postgres.test.ts 19  # trigger body
-src/helpers/calendar-erasure.postgres.test.ts 17  # its own client or SQL names public
-src/helpers/calendar-feature-invalidation.postgres.test.ts 17  # its own client or SQL names public
-src/helpers/cuso-project-credits.postgres.test.ts 17  # unqualified raw SQL; its own client names public
+src/helpers/calendar-erasure.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/helpers/calendar-feature-invalidation.postgres.test.ts 19  # membership fence trigger names bare workspace
+src/helpers/cuso-project-credits.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
 src/helpers/data-table-layout.postgres.test.ts 19  # trigger body
-src/helpers/history-sort-at.postgres.test.ts 17  # unqualified raw SQL
+src/helpers/history-sort-at.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
 src/helpers/project-identifier.postgres.test.ts 19  # trigger body
-src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 17  # unqualified raw SQL
-src/helpers/soko-bot-turn-authority.postgres.test.ts 17  # unqualified raw SQL
+src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 18  # replayed migration names bare soko_bot
+src/helpers/soko-bot-turn-authority.postgres.test.ts 19  # membership fence trigger names bare workspace
 src/helpers/task-number.postgres.test.ts 19  # trigger body
 src/helpers/task-ref.postgres.test.ts 19  # trigger body
 src/helpers/task-reopen-instructions.postgres.test.ts 19  # trigger body
@@ -39,28 +40,24 @@ src/helpers/task-subtask-move.postgres.test.ts 19  # trigger body
 src/helpers/task-subtasks.postgres.test.ts 19  # trigger body
 src/helpers/task-tag-catalog.postgres.test.ts 19  # trigger body
 src/helpers/task-visibility.postgres.test.ts 19  # trigger body
-src/helpers/task-workspace-tags.postgres.test.ts 17  # its own client or SQL names public
-src/helpers/transaction-history.postgres.test.ts 17  # unqualified raw SQL
-src/helpers/user-deletion-tasks.postgres.test.ts 17  # its own client or SQL names public
+src/helpers/task-workspace-tags.postgres.test.ts 19  # task trigger names bare task_schedule_run
+src/helpers/transaction-history.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/helpers/user-deletion-tasks.postgres.test.ts 19  # membership fence trigger names bare workspace
 src/lib/files/evidence-scope.postgres.test.ts 19  # trigger body
 src/lib/image-studio/ad-eval-budget.postgres.test.ts 19  # trigger body
-src/lib/soko-bot/context-packet-scope.postgres.test.ts 17  # unqualified raw SQL
-src/lib/soko-bot/preference-capture.postgres.test.ts 17  # unqualified raw SQL
-src/routes/sync/drive-index/result-window-never-pruned.postgres.test.ts 17  # its own client or SQL names public
-src/routes/v1/chats/rooms/direct-reachable.postgres.test.ts 17  # its own client or SQL names public
-src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 17  # unqualified raw SQL
-src/routes/v1/chats/rooms/room-visibility.postgres.test.ts 17  # its own client or SQL names public
-src/routes/v1/chats/rooms/shared-soko-bot-room-exit.postgres.test.ts 17  # unqualified raw SQL
-src/routes/v1/chats/rooms/shared-soko-bot-room-join.postgres.test.ts 17  # unqualified raw SQL
-src/routes/v1/chats/saved-messages/readable.postgres.test.ts 17  # its own client or SQL names public
+src/lib/soko-bot/preference-capture.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/routes/sync/drive-index/result-window-never-pruned.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 19  # membership fence trigger names bare workspace
+src/routes/v1/chats/rooms/shared-soko-bot-room-exit.postgres.test.ts 19  # membership fence trigger names bare workspace
+src/routes/v1/chats/rooms/shared-soko-bot-room-join.postgres.test.ts 19  # membership fence trigger names bare workspace
 src/routes/v1/contacts/contacts.routes.postgres.test.ts 19  # trigger body
 src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client reads coworker_usage, Transaction
 src/routes/v1/drive/labels/[id]/patch.postgres.test.ts 19  # trigger body
 src/routes/v1/projects/[id]/tasks/subtask-guards.postgres.test.ts 19  # trigger body
 src/routes/v1/projects/get.postgres.test.ts 19  # trigger body
-src/routes/v1/soko-bots/mcp-servers.postgres.test.ts 17  # unqualified raw SQL
-src/routes/v1/soko-bots/secrets.postgres.test.ts 17  # unqualified raw SQL
-src/routes/v1/tasks/[id]/chat-messages/send-lock.postgres.test.ts 17  # unqualified raw SQL
+src/routes/v1/soko-bots/mcp-servers.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/routes/v1/soko-bots/secrets.postgres.test.ts 19  # membership fence trigger names bare workspace
+src/routes/v1/tasks/[id]/chat-messages/send-lock.postgres.test.ts 19  # room discoverability trigger names bare chat_room_user_member
 src/routes/v1/tasks/[id]/get.seo-audit.postgres.test.ts 19  # trigger body
 src/routes/v1/tasks/[id]/integrations/search-console/reads/post.boundaries.postgres.test.ts 19  # trigger body
 src/routes/v1/tasks/[id]/integrations/search-console/reads/post.postgres.test.ts 19  # trigger body
@@ -74,11 +71,11 @@ src/routes/v1/tasks/post.postgres.test.ts 19  # trigger body
 src/routes/v1/tasks/task-worker-context.postgres.test.ts 19  # trigger body
 src/routes/v1/tasks/view/view.postgres.test.ts 19  # trigger body
 src/routes/v1/transactions/task-filter.postgres.test.ts 19  # trigger body
-src/routes/v1/webhooks/polar-refund.postgres.test.ts 17  # unqualified raw SQL; its own client names public
-src/routes/v1/webhooks/polar-top-up.postgres.test.ts 17  # unqualified raw SQL; its own client names public
-src/routes/v1/webhooks/polar.postgres.test.ts 17  # unqualified raw SQL; its own client names public
-src/routes/v1/webhooks/polar.renewals.postgres.test.ts 17  # unqualified raw SQL; its own client names public
-src/schemas/default-coworker-chat-examples-migration.postgres.test.ts 17  # unqualified raw SQL
+src/routes/v1/webhooks/polar-refund.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/routes/v1/webhooks/polar-top-up.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/routes/v1/webhooks/polar.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/routes/v1/webhooks/polar.renewals.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/schemas/default-coworker-chat-examples-migration.postgres.test.ts 18  # replayed migration names bare coworker
 src/services/chat-room-soko-bot-retry.postgres.test.ts 19  # trigger body
 src/services/chat-signal-effects.postgres.test.ts 19  # trigger body
 src/services/chat-signals.postgres.test.ts 19  # trigger body
@@ -86,7 +83,7 @@ src/services/cmo-free-hiring.postgres.test.ts 19  # trigger body
 src/services/cmo-month-calendar.postgres.test.ts 30  # the shared client writes Organization, Workspace and reads Soko Bot
 src/services/cmo-seo.postgres.test.ts 19  # trigger body
 src/services/cmo-test-copy.postgres.test.ts 19  # trigger body
-src/services/cmo-tester-credits.postgres.test.ts 17  # unqualified raw SQL; its own client names public
+src/services/cmo-tester-credits.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
 src/services/competitor-check-project.postgres.test.ts 19  # trigger body
 src/services/competitor-feed.postgres.test.ts 19  # trigger body
 src/services/competitors-overview.postgres.test.ts 19  # trigger body
@@ -113,31 +110,31 @@ src/services/fts-document-drop.postgres.test.ts 19  # trigger body
 src/services/fts-tiebreak-both-sites.postgres.test.ts 19  # trigger body
 src/services/fundraising.postgres.test.ts 19  # trigger body
 src/services/image-studio-recovery.postgres.test.ts 19  # trigger body
-src/services/jev-failure-loses-labels.postgres.test.ts 17  # its own client or SQL names public
+src/services/jev-failure-loses-labels.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
 src/services/newsletter-issue-search.postgres.test.ts 19  # trigger body
-src/services/no-vocabulary-indistinguishable.postgres.test.ts 17  # unqualified raw SQL
-src/services/paging-reports-deterministic.postgres.test.ts 17  # its own client or SQL names public
-src/services/polar-credit-grant.postgres.test.ts 17  # its own client or SQL names public
-src/services/polar-plan-change.postgres.test.ts 17  # unqualified raw SQL; its own client names public
-src/services/polar-subscription-end.postgres.test.ts 17  # unqualified raw SQL; its own client names public
-src/services/polar-yearly-grant-sync.postgres.test.ts 17  # unqualified raw SQL; its own client names public
+src/services/no-vocabulary-indistinguishable.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/services/paging-reports-deterministic.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/services/polar-credit-grant.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/services/polar-plan-change.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/services/polar-subscription-end.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
+src/services/polar-yearly-grant-sync.postgres.test.ts 19  # project identifier trigger calls bare project_default_identifier
 src/services/project-seo-close.postgres.test.ts 19  # trigger body
-src/services/project-seo-owner-background.postgres.test.ts 19  # trigger body
+src/services/project-seo-owner-background.postgres.test.ts 19  # Task Calendar trigger names bare task_schedule_run
 src/services/project-seo-page-changes.postgres.test.ts 19  # trigger body
 src/services/project-seo-statistics-cache.postgres.test.ts 19  # trigger body
 src/services/project-seo.postgres.test.ts 19  # trigger body
-src/services/relevance-order-is-oldest-first.postgres.test.ts 17  # its own client or SQL names public
-src/services/seo-analysis-concurrency.postgres.test.ts 19  # trigger body
+src/services/relevance-order-is-oldest-first.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/services/seo-analysis-concurrency.postgres.test.ts 19  # Task Calendar trigger names bare task_schedule_run
 src/services/seo-analysis-executor.postgres.test.ts 19  # trigger body
 src/services/seo-audit-brief.postgres.test.ts 19  # trigger body
 src/services/seo-audit-task-archive.postgres.test.ts 19  # trigger body
-src/services/seo-audit.postgres.test.ts 19  # trigger body
+src/services/seo-audit.postgres.test.ts 19  # Task Calendar trigger names bare task_schedule_run
 src/services/seo-chat-billing.postgres.test.ts 19  # trigger body
 src/services/seo-chat-quota.postgres.test.ts 19  # trigger body
 src/services/seo-chat.postgres.test.ts 19  # trigger body
 src/services/seo-connections.postgres.test.ts 19  # trigger body
 src/services/seo-console-export.postgres.test.ts 19  # trigger body
-src/services/seo-credit-gate.postgres.test.ts 19  # trigger body
+src/services/seo-credit-gate.postgres.test.ts 19  # transaction history trigger names bare Job
 src/services/seo-shared-context.postgres.test.ts 19  # trigger body
 src/services/seo-task-execution.postgres.test.ts 19  # trigger body
 src/services/social-post-restore.postgres.test.ts 19  # trigger body
@@ -145,17 +142,17 @@ src/services/soko-bot-archive.postgres.test.ts 19  # trigger body
 src/services/soko-bot-conversation.postgres.test.ts 19  # trigger body
 src/services/soko-bot-fleet-days.postgres.test.ts 19  # trigger body
 src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reads Transaction
-src/services/soko-bot-integrations.service.postgres.test.ts 19  # trigger body
+src/services/soko-bot-integrations.service.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
 src/services/soko-bot-lease-clock.postgres.test.ts 19  # trigger body
 src/services/soko-bot-reconcile-writers.postgres.test.ts 19  # trigger body
 src/services/soko-bot-requester.postgres.test.ts 19  # trigger body
 src/services/soko-bot-runtime/calendar.postgres.test.ts 19  # trigger body
 src/services/soko-bot-runtime/task-schedules.postgres.test.ts 19  # trigger body
-src/services/soko-bot-sandbox-turn-cancellation.postgres.test.ts 19  # trigger body
-src/services/soko-bot-schedule-run-changes.postgres.test.ts 19  # trigger body
-src/services/soko-bot-schedules-sync-scope.postgres.test.ts 17  # unqualified raw SQL
+src/services/soko-bot-sandbox-turn-cancellation.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/services/soko-bot-schedule-run-changes.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
+src/services/soko-bot-schedules-sync-scope.postgres.test.ts 19  # workspace erasure trigger names bare calendar_invalidation_outbox
 src/services/soko-bot-shared-background-runs.postgres.test.ts 19  # trigger body
-src/services/soko-bot-shared-create.postgres.test.ts 17  # unqualified raw SQL
+src/services/soko-bot-shared-create.postgres.test.ts 19  # membership fence trigger names bare workspace
 src/services/soko-bot-shared-tables.postgres.test.ts 19  # trigger body
 src/services/source-import.service.postgres.test.ts 19  # trigger body
 src/services/studio-campaign.postgres.test.ts 19  # trigger body
@@ -167,7 +164,6 @@ src/services/task-interest-delivery.postgres.test.ts 19  # trigger body
 src/services/task-schedule-name-search.postgres.test.ts 19  # trigger body
 src/services/task-subtask-lifecycle.postgres.test.ts 19  # trigger body
 src/services/task-tag-classification.postgres.test.ts 19  # trigger body
-src/services/task-work-type-presets.postgres.test.ts 17  # its own client or SQL names public
 src/services/team-standup-week.postgres.test.ts 19  # trigger body
 src/services/team-standup.postgres.test.ts 19  # trigger body
 src/services/vocabulary-truncation-reaches-the-caller.postgres.test.ts 19  # trigger body

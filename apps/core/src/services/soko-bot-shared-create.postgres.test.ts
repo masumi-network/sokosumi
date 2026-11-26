@@ -3,6 +3,7 @@ import { createPrismaClient } from "@sokosumi/database/client";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { testSchemaNames } from "@/test/split-layout";
 import { requestProjectClose } from "./project-close-lifecycle.service";
 import {
   createSharedSokoBot,
@@ -42,7 +43,7 @@ function addMember(
   userId: string,
   role: string,
 ) {
-  return client.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${userId}, ${fixture.org}, ${role}, now())`;
+  return client.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${userId}, ${fixture.org}, ${role}, now())`;
 }
 
 async function seed(fixture: Fixture) {
@@ -52,10 +53,10 @@ async function seed(fixture: Fixture) {
     fixture.outsider,
     fixture.joiner,
   ]) {
-    await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
   }
-  await prisma.$executeRaw`INSERT INTO organization (id, name, slug) VALUES (${fixture.org}, 'Org', ${fixture.org})`;
-  await prisma.$executeRaw`INSERT INTO workspace (id, "organizationId", "updatedAt") VALUES (${fixture.workspace}::uuid, ${fixture.org}, now())`;
+  await prisma.$executeRaw`INSERT INTO ${sharedTable("organization")} (id, name, slug) VALUES (${fixture.org}, 'Org', ${fixture.org})`;
+  await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "organizationId", "updatedAt") VALUES (${fixture.workspace}::uuid, ${fixture.org}, now())`;
   await addMember(prisma, fixture, fixture.owner, "owner");
   await addMember(prisma, fixture, fixture.member, "member");
 }
@@ -108,7 +109,9 @@ async function cleanUp(fixture: Fixture) {
  */
 async function holdRowLock(lockSql: string) {
   if (!url) throw new Error("Missing integration database");
-  const client = createPrismaClient(url);
+  const client = createPrismaClient(url, {
+    schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+  });
   let release = () => {};
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -314,7 +317,9 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
   // organization lock waits, then its member read sees the joiner.
   it("puts a member whose join was in flight into the room", async () => {
     if (!url) throw new Error("Missing integration database");
-    const joinClient = createPrismaClient(url);
+    const joinClient = createPrismaClient(url, {
+      schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+    });
     let releaseJoin = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseJoin = resolve;
@@ -368,7 +373,7 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
     // The bot insert checks its creator row; holding it parks the create
     // after its member read.
     const hold = await holdRowLock(
-      `SELECT id FROM "user" WHERE id = '${fixture.member}' FOR UPDATE`,
+      `SELECT id FROM ${sharedTable("user").sql} WHERE id = '${fixture.member}' FOR UPDATE`,
     );
     let creation: ReturnType<typeof createSharedSokoBot> | undefined;
     let leave: Promise<number> | undefined;
@@ -380,7 +385,7 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
         name: "Leaver bot",
       });
       await waitForLockWait('%insert into%soko_bot"%');
-      leave = prisma.$executeRaw`DELETE FROM member WHERE "userId" = ${fixture.owner} AND "organizationId" = ${fixture.org}`;
+      leave = prisma.$executeRaw`DELETE FROM ${sharedTable("member")} WHERE "userId" = ${fixture.owner} AND "organizationId" = ${fixture.org}`;
       await Promise.race([
         leave,
         new Promise((resolve) => setTimeout(resolve, BLOCKED_PROOF_MS)),
@@ -439,7 +444,7 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
     // The bot insert checks its creator row; holding it parks the create
     // after its project step.
     const hold = await holdRowLock(
-      `SELECT id FROM "user" WHERE id = '${fixture.member}' FOR UPDATE`,
+      `SELECT id FROM ${sharedTable("user").sql} WHERE id = '${fixture.member}' FOR UPDATE`,
     );
     let creation: ReturnType<typeof createSharedSokoBot> | undefined;
     let close: ReturnType<typeof closeProject> | undefined;
@@ -476,7 +481,7 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
       data: { workspaceId: fixture.workspace, name: "Race", identifier: "RCD" },
     });
     const hold = await holdRowLock(
-      `SELECT id FROM workspace WHERE id = '${fixture.workspace}' FOR UPDATE`,
+      `SELECT id FROM ${sharedTable("workspace").sql} WHERE id = '${fixture.workspace}' FOR UPDATE`,
     );
     let creation: Promise<unknown> | undefined;
     let close: ReturnType<typeof closeProject> | undefined;
@@ -524,7 +529,7 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
       where: { sokoBotId: bot.id },
     });
     const deletion = await holdRowLock(
-      `UPDATE soko_bot SET "deletedAt" = now() WHERE id = '${bot.id}'`,
+      `UPDATE ${sharedTable("soko_bot").sql} SET "deletedAt" = now() WHERE id = '${bot.id}'`,
     );
     let reactivation: Promise<unknown> | undefined;
     try {
@@ -572,7 +577,7 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
     // The participant insert checks its room row; holding it parks the
     // reactivation after its project step and bot update.
     const hold = await holdRowLock(
-      `SELECT id FROM chat_room WHERE id = '${bot.sharedRoomId}' FOR UPDATE`,
+      `SELECT id FROM ${sharedTable("chat_room").sql} WHERE id = '${bot.sharedRoomId}' FOR UPDATE`,
     );
     let reactivation: ReturnType<typeof reactivateSharedSokoBot> | undefined;
     let close: ReturnType<typeof closeProject> | undefined;
