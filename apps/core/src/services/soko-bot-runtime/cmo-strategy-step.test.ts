@@ -1,6 +1,7 @@
 import {
   applyVersionCapabilities,
   getSokoBotVersion,
+  type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import { chooseTurnModel } from "@/lib/soko-bot/turn-model";
@@ -11,6 +12,7 @@ import {
   cmoStrategyBrief,
   cmoStrategyStepTurn,
   cmoStrategyStepTurnId,
+  withMarketingFiles,
 } from "@/services/marketing-strategy.service";
 import {
   type CmoStepAnswer,
@@ -174,6 +176,31 @@ describe("Core's strategy step", () => {
     expect(
       cmoStepChange("Add TikTok", { clientTurnId: "chat:1", userMessage: "" }),
     ).toBe("Add TikTok");
+  });
+
+  it("shows a written piece filed as a Project file as the owner sees it (Codex)", () => {
+    const article = {
+      ...entry("seo-1", "Calendly alternative for teams"),
+      channel: "seo",
+      format: "article",
+    };
+    const hydrated = withMarketingFiles(
+      { calendar: [article] } as unknown as MarketingStrategyPlan,
+      new Map([
+        [
+          "seo-1",
+          { fileId: "file-1", media: [], searchAd: null, adCampaign: null },
+        ],
+      ]),
+    );
+    const brief = cmoStrategyChangeBrief(
+      "Cal.com",
+      "Retitle the article",
+      cmoChangeCalendar(hydrated.calendar, []),
+    );
+    expect(brief).toContain(
+      "- seo-1 · 2026-11-27 · seo/article · draft ·  · Calendly alternative for teams",
+    );
   });
 
   it("lists every entry of a long month, never cutting the last", () => {

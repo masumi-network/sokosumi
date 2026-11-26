@@ -39,9 +39,11 @@ import { cmoWorkingStrategy } from "@/services/cmo-strategy.service";
 import {
   cmoStrategyBrief,
   cmoStrategyStepTurn,
+  listMarketingStrategyFiles,
   listMarketingStrategyPosts,
   type MarketingStrategyPost,
   parseMarketingPlan,
+  withMarketingFiles,
 } from "@/services/marketing-strategy.service";
 import {
   type AuthorizedSokoBotRuntime,
@@ -483,12 +485,20 @@ async function runStep(context: StepContext): Promise<StepEnd> {
   // the owner sees it once its posts are made.
   const working =
     change && cuso ? await cmoWorkingStrategy(cuso.projectId, false) : null;
-  const calendar = working
-    ? cmoChangeCalendar(
-        parseMarketingPlan(working.plan)?.calendar ?? [],
-        working.approvedAt ? await listMarketingStrategyPosts(working) : [],
-      )
-    : [];
+  const plan = parseMarketingPlan(working?.plan);
+  // Hydrated as readMarketingPlan does for the owner: written pieces from
+  // their Files (an approved article reads "draft", not "idea"), social
+  // entries from their posts.
+  const calendar =
+    working && plan
+      ? working.approvedAt
+        ? cmoChangeCalendar(
+            withMarketingFiles(plan, await listMarketingStrategyFiles(working))
+              .calendar,
+            await listMarketingStrategyPosts(working),
+          )
+        : cmoChangeCalendar(plan.calendar, [])
+      : [];
   const brief = change
     ? cmoStrategyChangeBrief(
         cuso?.businessName ?? "the business",
