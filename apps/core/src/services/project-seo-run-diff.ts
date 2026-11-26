@@ -136,8 +136,21 @@ const measuredRules = (payload: PublicSeoPayload) =>
 const ruleOnPage = (row: { pageUrl: string; rowId: string }) =>
   `${normalizeSeoUrl(row.pageUrl)}\n${row.rowId}`;
 
+const testedCache = new WeakMap<
+  Selected,
+  WeakMap<PublicSeoPayload, Set<string>>
+>();
+/** The rules a check read, once for each selection: the pairing asks it for every earlier check. */
+function testedRules(payload: PublicSeoPayload, selected: Selected) {
+  const cache = testedCache.get(selected) ?? new WeakMap();
+  testedCache.set(selected, cache);
+  const rules = cache.get(payload) ?? readTestedRules(payload, selected);
+  cache.set(payload, rules);
+  return rules;
+}
+
 /** The rules a check read on the selected pages, each with its page: a row that passed or fired, or a finding. A blocked row read nothing. */
-const testedRules = (payload: PublicSeoPayload, selected: Selected) =>
+const readTestedRules = (payload: PublicSeoPayload, selected: Selected) =>
   new Set(
     [
       ...payload.checks.filter(
