@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { buildOrganizationDriveFilePathname } from "@sokosumi/utils";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { channelSlugWithId } from "@/helpers/channel-slug";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
@@ -13,10 +15,11 @@ import { ensureA2aWorld } from "../eval-a2a";
 import { seedCmoReports } from "../eval-cmo-runner";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import { upcomingByNetwork } from "./journey-checks";
-import type {
-  JourneyCoworker,
-  JourneyPrepare,
-  JourneyProject,
+import {
+  INVESTOR_FIXTURE,
+  type JourneyCoworker,
+  type JourneyPrepare,
+  type JourneyProject,
 } from "./journeys";
 
 /**
@@ -40,6 +43,39 @@ export interface JourneyWorld {
   seededWeekdayPostIds?: string[];
   /** Upcoming Cuso posts per network when the journey started. */
   upcomingByNetwork?: Record<string, number>;
+  /** Cuso's home room for this journey: its conversation starts empty. */
+  cusoRoomId?: string;
+}
+
+/**
+ * A new home room for the lane's Cuso, made as hiring makes one, so the
+ * journey is a new conversation: a shared bot's recent turns are the turns
+ * of its room, and the old room keeps the earlier journeys' history. Runs
+ * before the Cuso world is prepared, which seeds reports into this room.
+ */
+export async function freshCusoRoom(
+  lane: EvalLaneRecord,
+  journeyId: string,
+): Promise<string> {
+  const name = `Cuso (${journeyId})`;
+  const room = await prisma.chatRoom.create({
+    data: {
+      organizationId: lane.organizationId,
+      createdByUserId: lane.userId,
+      name,
+      slug: channelSlugWithId(name, randomUUID(), "bot"),
+      discoverability: "public",
+      userMembers: { create: { userId: lane.userId, access: "member" } },
+      readStates: { create: { userId: lane.userId } },
+      sokoBotMembers: { create: { sokoBotId: lane.cusoBotId } },
+    },
+    select: { id: true },
+  });
+  await prisma.sokoBot.update({
+    where: { id: lane.cusoBotId },
+    data: { sharedRoomId: room.id },
+  });
+  return room.id;
 }
 
 export interface SeededSchedule {
@@ -348,6 +384,18 @@ async function seedPdf(
   lane: EvalLaneRecord,
   file: { name: string; title: string; lines: string[] },
 ): Promise<string> {
+  return seedFile(lane, {
+    name: file.name,
+    bytes: await pdf(file.title, file.lines),
+    contentType: "application/pdf",
+  });
+}
+
+/** A file in the owner's Files, as an upload puts it there. */
+async function seedFile(
+  lane: EvalLaneRecord,
+  file: { name: string; bytes: Uint8Array; contentType: string },
+): Promise<string> {
   const written = await writeOwnerDriveFile({
     workspaceId: lane.workspaceId,
     organizationId: lane.organizationId,
@@ -356,9 +404,7 @@ async function seedPdf(
       lane.organizationId,
       file.name,
     ),
-    name: file.name,
-    bytes: await pdf(file.title, file.lines),
-    contentType: "application/pdf",
+    ...file,
   });
   if (!written) throw new Error(`Could not seed ${file.name} in Files`);
   return written.id;
@@ -461,6 +507,39 @@ async function seedFridayAndLinkedInPosts(
   return fridays;
 }
 
+const PARTNERS = [
+  "Mara Lind",
+  "Jonas Aalto",
+  "Ines Duarte",
+  "Pieter Smit",
+  "Clara Novak",
+  "Emil Berg",
+  "Sofia Ricci",
+  "Lukas Brandt",
+  "Nora Haugen",
+  "Kai Tamm",
+  "Lea Vogel",
+  "Tomas Silva",
+];
+
+/** The owner's research notes: every fitting investor, then the two misfits. */
+export function investorNotes(): string {
+  const fits = INVESTOR_FIXTURE.fits.map((fund, index) => {
+    const slug = fund.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `- **${fund}** (Europe, seed). Partner: ${PARTNERS[index]}. Recent deal: led the seed round of an AI-agent startup (Agentic${index + 1}) in ${["March", "May", "July", "September"][index % 4]} 2026. Source: https://example.com/notes/${slug}`;
+  });
+  return [
+    "# Seed investor notes",
+    "",
+    "Collected for our seed round. All rounds below are from the last 12 months.",
+    "",
+    ...fits,
+    "- **Bayline Capital** (San Francisco, Series B only). Partner: Dana West. Recent deal: Series B of an AI-agent company. Source: https://example.com/notes/bayline-capital",
+    "- **Ironforge Growth** (Munich, growth stage, no seed). Partner: Felix Kern. Recent deal: growth round of an AI-agent platform. Source: https://example.com/notes/ironforge-growth",
+    "",
+  ].join("\n");
+}
+
 /** The journey's world, made fresh before its first step. */
 export async function prepareJourneyWorld(
   lane: EvalLaneRecord,
@@ -485,6 +564,12 @@ export async function prepareJourneyWorld(
     world.seededFileId = await seedPdf(lane, CUSTOMER_STORY);
   if (prepare.includes("outdated-price-post"))
     world.seededPostId = await seedOutdatedPricePost(lane);
+  if (prepare.includes("investor-notes"))
+    world.seededFileId = await seedFile(lane, {
+      name: "Seed investor notes.md",
+      bytes: new TextEncoder().encode(investorNotes()),
+      contentType: "text/markdown",
+    });
   if (prepare.includes("weekly-reports")) await seedCmoReports(lane);
   if (prepare.includes("friday-and-linkedin-posts"))
     world.seededWeekdayPostIds = await seedFridayAndLinkedInPosts(lane);

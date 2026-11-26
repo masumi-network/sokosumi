@@ -5,7 +5,6 @@ import {
   type SokoBotJudgeVerdict,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
-import { getEnv } from "@/config/env";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -13,8 +12,13 @@ import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
 import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
+import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
-import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
+import {
+  SOKO_EVENTS_SYNC_KEY,
+  sokoBotEventsSyncService,
+} from "@/services/soko-bot-events-sync.service";
 import { judgeEvalChain } from "@/services/soko-bot-lab-judge.service";
 import { startLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
@@ -32,7 +36,11 @@ import {
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
 import { coworkerTasks, outcomeCheck } from "./journey-checks";
-import { type JourneyWorld, prepareJourneyWorld } from "./journey-world";
+import {
+  freshCusoRoom,
+  type JourneyWorld,
+  prepareJourneyWorld,
+} from "./journey-world";
 import {
   type JourneyStep,
   journeyJudgeScenario,
@@ -130,15 +138,8 @@ async function startStep(
         },
         clientTurnId,
       );
-    return reconcile(
-      await sokoBotControlPlane.startTurn({
-        userId: lane.userId,
-        workspaceId: lane.workspaceId,
-        sokoBotId: botId,
-        clientTurnId,
-        message: step.message,
-      }),
-    );
+    if (!world.cusoRoomId) return { error: "The journey has no Cuso room" };
+    return askInRoom(world.cusoRoomId, lane, botId, step.message);
   }
   if (step.kind === "coworker") {
     const [task] = await coworkerTasks(
@@ -155,6 +156,35 @@ async function startStep(
   });
   if (!schedule) return { error: "No schedule to fire" };
   return fireSchedule(schedule.id, botId);
+}
+
+/**
+ * The owner writes to Cuso as the CMO chat does: a message in his home room
+ * that mentions him, answered through the chat route's own dispatch.
+ */
+async function askInRoom(
+  roomId: string,
+  lane: EvalLaneRecord,
+  botId: string,
+  content: string,
+): Promise<string | { error: string }> {
+  const message = await prisma.chatRoomMessage.create({
+    data: {
+      roomId,
+      senderUserId: lane.userId,
+      content,
+      mentionsAsSource: { create: { sokoBotId: botId, coworkerId: null } },
+    },
+    select: { mentionsAsSource: { select: { id: true } } },
+  });
+  const [mention] = message.mentionsAsSource;
+  if (!mention) return { error: "The message mentions nobody" };
+  await dispatchChatRoomMention(mention.id);
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: { chatMentionId: mention.id },
+    select: { id: true },
+  });
+  return turn?.id ?? { error: "The mention started no turn" };
 }
 
 /** Runs a production sync with the lane's bot unpaused, as a live bot is. */
@@ -355,8 +385,48 @@ async function journeyToolCalls(state: JourneyState, current: string[]) {
   return prisma.sokoBotToolCall.findMany({
     where: { turnId: { in: ids } },
     orderBy: { createdAt: "asc" },
-    select: { capability: true, status: true, input: true },
+    select: { capability: true, status: true, input: true, result: true },
   });
+}
+
+/**
+ * The first turn's context holds no turn from before the journey: an earlier
+ * case's launch or video in it measures the bench, not the bot.
+ */
+async function freshConversationCheck(
+  turnId: string,
+  journeyStartedAt: Date,
+): Promise<ScenarioCheck> {
+  const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { packet: true },
+  });
+  const ids = packetTurnIds(snapshot?.packet);
+  const foreign = await prisma.sokoBotTurn.count({
+    where: { id: { in: ids }, createdAt: { lt: journeyStartedAt } },
+  });
+  return {
+    label: "Starts a fresh conversation",
+    pass: foreign === 0,
+    actual: snapshot
+      ? `${foreign} of ${ids.length} recent turn(s) from before the journey`
+      : "no context snapshot",
+  };
+}
+
+/** The turn ids a context packet's recentTurns names. */
+export function packetTurnIds(packet: unknown): string[] {
+  const recent =
+    packet && typeof packet === "object" && "recentTurns" in packet
+      ? (packet as { recentTurns: unknown }).recentTurns
+      : null;
+  return Array.isArray(recent)
+    ? recent.flatMap((turn) =>
+        turn && typeof turn === "object" && "id" in turn
+          ? [String(turn.id)]
+          : [],
+      )
+    : [];
 }
 
 /** Scores a settled step: its tools and answer, then the world it left. */
@@ -387,6 +457,13 @@ async function finishStep(
       ...result.checks.filter((check) => !check.label.startsWith("Route ")),
     );
   } else checks.push({ label: "Completed", pass: false, actual: "no turn" });
+  if (record.index === 0 && turnIds[0])
+    checks.push(
+      await freshConversationCheck(
+        turnIds[0],
+        new Date(state.journeyStartedAt),
+      ),
+    );
   if (step.kind === "coworker") {
     // The answer was delivered once and the scan ran twice: one wake is
     // right, none is a missing wake, more is a duplicate.
@@ -522,11 +599,23 @@ export async function startJourney(
   )
     return { kind: "busy" };
   if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
+  const cusoRoomId =
+    journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
   await forgetEarlierJourneys(lane, botId);
-  const world = await prepareJourneyWorld(lane, journey.prepare ?? []);
+  const world = {
+    ...(await prepareJourneyWorld(lane, journey.prepare ?? [])),
+    cusoRoomId,
+  };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
   await setEvalCoworkerScript(world.coworkers.CodePat, []);
+  // On a fresh database the first scan would make its cutover after the
+  // Coworker's answer and baseline it: the row exists before the journey.
+  await prisma.syncMetadata.upsert({
+    where: { key: SOKO_EVENTS_SYNC_KEY },
+    create: { key: SOKO_EVENTS_SYNC_KEY, lastSyncedAt: new Date() },
+    update: {},
+  });
   const journeyStartedAt = await databaseNow();
   const state: JourneyState = {
     world,
@@ -652,7 +741,7 @@ export async function pollJourney(
  */
 export function journeyRuntime(): { adapter: string; models: string } {
   return {
-    adapter: getEnv().SOKO_BOT_RUNTIME_ADAPTER,
+    adapter: effectiveSokoBotRuntimeAdapter(),
     models: localChatGptPlanEnabled() ? "chatgpt-plan" : "gateway",
   };
 }

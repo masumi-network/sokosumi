@@ -4,67 +4,104 @@ import { journeyParity, type ParityReport } from "./parity";
 const local = { adapter: "in-process", models: "chatgpt-plan" };
 const deployed = { adapter: "sandbox", models: "gateway" };
 
-function report(rows: [string, string, number, typeof local][]): ParityReport {
+type Repeat = {
+  status: string;
+  failed?: number[];
+  runtime?: typeof local | null;
+};
+
+function report(cases: Record<string, Repeat[]>): ParityReport {
   return {
-    cases: rows.map(([caseId, status, stepsPassed, runtime]) => ({
+    cases: Object.entries(cases).map(([caseId, repeats]) => ({
       caseId,
-      results: [
-        {
-          status,
-          output: { score: { stepsPassed, stepsTotal: 3 }, runtime },
+      results: repeats.map(({ status, failed = [], runtime }) => ({
+        status,
+        output: {
+          ...(runtime === null ? {} : { runtime: runtime ?? local }),
+          steps: [0, 1, 2].map((index) => ({
+            index,
+            passed: !failed.includes(index + 1),
+          })),
         },
-      ],
+      })),
     })),
   };
 }
 
+const verdicts = (a: ParityReport, b: ParityReport) =>
+  Object.fromEntries(
+    journeyParity(a, b).map((row) => [row.caseId, row.verdict]),
+  );
+
 describe("journeyParity", () => {
-  it("flags a journey that passes on one runtime only, and differing steps", () => {
-    const rows = journeyParity(
-      report([
-        ["owner-a", "PASSED", 3, local],
-        ["owner-b", "FAILED", 1, local],
-        ["owner-c", "FAILED", 1, local],
-        ["owner-d", "FAILED", 2, local],
-      ]),
-      report([
-        ["owner-a", "FAILED", 2, deployed],
-        ["owner-b", "FAILED", 1, deployed],
-        ["owner-c", "PASSED", 3, deployed],
-        ["owner-e", "PASSED", 1, deployed],
-      ]),
-    );
+  it("agrees only when two different runtimes fail the same steps", () => {
     expect(
-      Object.fromEntries(rows.map((row) => [row.caseId, row.flag])),
+      verdicts(
+        report({
+          "owner-same": [{ status: "FAILED", failed: [2] }],
+          "owner-other-step": [{ status: "FAILED", failed: [2] }],
+          "owner-pass-fail": [{ status: "PASSED" }],
+        }),
+        report({
+          "owner-same": [{ status: "FAILED", failed: [2], runtime: deployed }],
+          "owner-other-step": [
+            { status: "FAILED", failed: [3], runtime: deployed },
+          ],
+          "owner-pass-fail": [
+            { status: "FAILED", failed: [1], runtime: deployed },
+          ],
+        }),
+      ),
     ).toEqual({
-      "owner-a": "passes only on in-process/chatgpt-plan",
-      "owner-b": "",
-      "owner-c": "fails only on in-process/chatgpt-plan",
-      "owner-d": "only ran on in-process/chatgpt-plan",
-      "owner-e": "only ran on sandbox/gateway",
+      "owner-same": "agree",
+      "owner-other-step": "divergent",
+      "owner-pass-fail": "divergent",
     });
   });
 
-  it("flags agreeing statuses with different progress", () => {
-    const [row] = journeyParity(
-      report([["owner-a", "FAILED", 1, local]]),
-      report([["owner-a", "FAILED", 2, deployed]]),
-    );
-    expect(row?.flag).toBe(
-      "steps 1 on in-process/chatgpt-plan, 2 on sandbox/gateway",
-    );
+  it("leaves unverified what cannot show a runtime difference", () => {
+    expect(
+      verdicts(
+        report({
+          "owner-same-adapter": [{ status: "PASSED" }],
+          "owner-no-runtime": [{ status: "PASSED", runtime: null }],
+          "owner-unscored": [{ status: "ERROR" }],
+          "owner-one-side": [{ status: "PASSED" }],
+        }),
+        report({
+          "owner-same-adapter": [{ status: "PASSED" }],
+          "owner-no-runtime": [{ status: "PASSED", runtime: deployed }],
+          "owner-unscored": [{ status: "PASSED", runtime: deployed }],
+        }),
+      ),
+    ).toEqual({
+      "owner-same-adapter": "unverified",
+      "owner-no-runtime": "unverified",
+      "owner-unscored": "unverified",
+      "owner-one-side": "unverified",
+    });
   });
 
-  it("ignores cases that are not owner journeys or never finished", () => {
+  it("compares every scored repeat, not the first", () => {
     const rows = journeyParity(
-      {
-        cases: [
-          { caseId: "chat-post", results: [{ status: "PASSED" }] },
-          { caseId: "owner-x", results: [{ status: "ERROR" }] },
+      report({
+        "owner-a": [{ status: "PASSED" }, { status: "FAILED", failed: [2] }],
+      }),
+      report({
+        "owner-a": [
+          { status: "PASSED", runtime: deployed },
+          { status: "PASSED", runtime: deployed },
         ],
-      },
-      { cases: [] },
+      }),
     );
-    expect(rows).toEqual([]);
+    expect(rows[0]?.verdict).toBe("divergent");
+  });
+
+  it("ignores cases that are not owner journeys", () => {
+    expect(
+      journeyParity(report({ "chat-post": [{ status: "PASSED" }] }), {
+        cases: [],
+      }),
+    ).toEqual([]);
   });
 });

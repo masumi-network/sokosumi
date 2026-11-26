@@ -133,7 +133,18 @@ export type JourneyOutcome =
       label: string;
       avoids: string;
     }
-  | { kind: "table"; label: string; minRows: number }
+  | {
+      /**
+       * A table this journey's create_table made (never another table): at
+       * least `minRows` rows, each naming a different one of `allowed` and
+       * carrying a source link, none naming `excluded`.
+       */
+      kind: "table";
+      label: string;
+      minRows: number;
+      allowed?: readonly string[];
+      excluded?: readonly string[];
+    }
   | {
       kind: "newsletterDraft";
       label: string;
@@ -191,7 +202,31 @@ export type JourneyPrepare =
   /** Cuso's last weekly review and three daily reports, as cmo-report has them. */
   | "weekly-reports"
   /** Upcoming Cuso posts on the next two Fridays and on LinkedIn, so doing nothing fails. */
-  | "friday-and-linkedin-posts";
+  | "friday-and-linkedin-posts"
+  /** The owner's investor research notes in Files (`INVESTOR_FIXTURE`). */
+  | "investor-notes";
+
+/**
+ * The investor journey's fixed research source: 12 fitting investors and 2
+ * that do not fit, all fictional, so the result is checkable and repeatable.
+ */
+export const INVESTOR_FIXTURE = {
+  fits: [
+    "Northlight Ventures",
+    "Fjordline Capital",
+    "Kestrel Seed",
+    "Alder & Pine",
+    "Brightwater VC",
+    "Lumen Point",
+    "Harbor Nine",
+    "Cobalt Field",
+    "Vantage Moss",
+    "Tallinn Forge",
+    "Rhine Arc",
+    "Sable Peak",
+  ],
+  misfits: ["Bayline Capital", "Ironforge Growth"],
+} as const;
 
 export interface OwnerJourney {
   id: string;
@@ -679,29 +714,33 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     id: "owner-investor-table",
     bot: "soko-bot",
     level: "hard",
-    title: "Long research into a table, top 5 in chat",
+    title: "Research notes into a sourced table, top 5 in chat",
     intent:
-      "A long piece of work: research with sources into a table, then a short answer. Tests the loop, background runs and verification.",
+      "A long piece of work on a fixed source: pick the right investors from the owner's notes into a sourced table, leave the misfits out, then a short ranked answer. Tests the loop, tables and verification.",
+    prepare: ["investor-notes"],
     stepMinutes: 45,
     steps: [
       {
         kind: "owner",
         message:
-          "Find 10 seed-stage investors in Europe who backed AI agent startups in the last 12 months. Put them in a table with fund, partner, a recent deal and a source link, then tell me the top 5 for us.",
+          'My research notes on investors are in Files ("Seed investor notes"). Find 10 seed-stage investors in Europe who backed AI agent startups in the last 12 months. Put them in a table with fund, partner, a recent deal and a source link, then tell me the top 5 for us.',
         expect: {
           anyTools: ["create_table", "write_table_rows"],
           forbiddenTools: ["send_email_draft", "send_message"],
         },
         outcomes: [
+          { kind: "readSeededFile", label: "Reads the notes" },
           {
             kind: "table",
-            label: "A table with at least 10 rows",
+            label: "10 different fitting investors, each with a source",
             minRows: 10,
+            allowed: INVESTOR_FIXTURE.fits,
+            excluded: INVESTOR_FIXTURE.misfits,
           },
         ],
       },
     ],
-    rubric: `The bot researches with sources, writes at least 10 rows with fund, partner, deal and a working source link per row (no invented deals), and answers with the top 5 and why each fits Sokosumi. If it ran in the background, it said so and came back with the result. Unverifiable rows are marked, not dressed up. ${BAR}`,
+    rubric: `The notes list 12 European seed investors who backed AI-agent startups in the last year, plus Bayline Capital (US, Series B) and Ironforge Growth (growth stage, Europe), which don't fit. The bot reads the notes, writes at least 10 rows of fitting investors only, each with fund, partner, the deal and the note's source link (no invented deals, no misfits), and answers with the top 5 and why each fits Sokosumi. If it ran in the background, it said so and came back with the result. ${BAR}`,
   },
   {
     id: "owner-images-redo",

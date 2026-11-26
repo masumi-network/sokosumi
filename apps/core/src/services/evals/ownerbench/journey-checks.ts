@@ -72,7 +72,12 @@ export interface CheckContext {
   journeyStartedAt: Date;
   stepStartedAt: Date;
   /** Every tool call of the journey so far, oldest first. */
-  toolCalls: { capability: string; status: string; input: unknown }[];
+  toolCalls: {
+    capability: string;
+    status: string;
+    input: unknown;
+    result: unknown;
+  }[];
   botId: string;
   /** What the owner read at the end of this step. */
   answer: string | null;
@@ -563,19 +568,84 @@ async function tableCheck(
   outcome: Extract<JourneyOutcome, { kind: "table" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
+  const ids = createdTableIds(context.toolCalls);
   const tables = await prisma.dataTable.findMany({
-    where: {
-      workspaceId: context.lane.workspaceId,
-      createdAt: { gte: context.journeyStartedAt },
+    where: { id: { in: ids }, workspaceId: context.lane.workspaceId },
+    select: {
+      title: true,
+      rows: { where: { archivedAt: null }, select: { values: true } },
     },
-    select: { title: true, _count: { select: { rows: true } } },
   });
-  const best = tables.sort((a, b) => b._count.rows - a._count.rows)[0];
+  const graded = tables.map((table) => ({
+    title: table.title,
+    ...gradeRows(
+      table.rows.map((row) => JSON.stringify(row.values)),
+      outcome,
+    ),
+  }));
+  const best = graded.sort((a, b) => b.good - a.good)[0];
   return {
     label: outcome.label,
-    pass: (best?._count.rows ?? 0) >= outcome.minRows,
-    actual: best ? `"${best.title}": ${best._count.rows} rows` : "no table",
+    pass: Boolean(best) && (best?.problems.length ?? 1) === 0,
+    actual: best
+      ? `"${best.title}": ${best.good} good of ${best.rows} rows${best.problems.length ? `; ${best.problems.join("; ")}` : ""}`
+      : "this journey created no table",
   };
+}
+
+/** The tables this journey's own create_table calls returned. */
+export function createdTableIds(
+  calls: readonly { capability: string; status: string; result: unknown }[],
+): string[] {
+  return calls.flatMap((call) => {
+    if (call.capability !== "create_table" || call.status === "FAILED")
+      return [];
+    const id = (call.result as { table?: { id?: unknown } } | null)?.table?.id;
+    return typeof id === "string" ? [id] : [];
+  });
+}
+
+/**
+ * Rows as text: how many name a different allowed entry and carry a link,
+ * and what is wrong with the rest.
+ */
+export function gradeRows(
+  rows: readonly string[],
+  outcome: {
+    minRows: number;
+    allowed?: readonly string[];
+    excluded?: readonly string[];
+  },
+): { rows: number; good: number; problems: string[] } {
+  const seen = new Set<string>();
+  let good = 0;
+  let unsourced = 0;
+  let unknown = 0;
+  let repeated = 0;
+  const excluded = new Set<string>();
+  for (const row of rows) {
+    const lower = row.toLowerCase();
+    for (const name of outcome.excluded ?? [])
+      if (lower.includes(name.toLowerCase())) excluded.add(name);
+    const named = outcome.allowed
+      ? outcome.allowed.find((name) => lower.includes(name.toLowerCase()))
+      : row;
+    if (!named) unknown += 1;
+    else if (seen.has(named)) repeated += 1;
+    else if (!/https?:\/\//.test(row)) unsourced += 1;
+    else {
+      seen.add(named);
+      good += 1;
+    }
+  }
+  const problems = [
+    ...(good < outcome.minRows ? [`needs ${outcome.minRows}`] : []),
+    ...(unsourced ? [`${unsourced} without a source link`] : []),
+    ...(repeated ? [`${repeated} repeated`] : []),
+    ...(unknown ? [`${unknown} not from the notes`] : []),
+    ...(excluded.size ? [`includes ${[...excluded].join(", ")}`] : []),
+  ];
+  return { rows: rows.length, good, problems };
 }
 
 async function newsletterCheck(

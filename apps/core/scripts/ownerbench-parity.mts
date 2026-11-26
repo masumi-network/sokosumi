@@ -1,7 +1,8 @@
 /**
- * Compares the owner journeys of two eval runs, usually a local in-process
- * run and the same journeys on a deployment (sandbox runtime), and flags
- * each journey whose outcome depends on the runtime. See docs/agents/evals.md.
+ * Compares the owner journeys of two eval runs on different runtimes (a local
+ * in-process run and the same journeys on a sandbox deployment) and says per
+ * journey whether they agree, diverge, or cannot be compared. See
+ * docs/agents/evals.md.
  *
  *   pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-parity.mts local.json deployed.json
  *
@@ -22,13 +23,9 @@ if (!first || !second) {
 const read = async (path: string) =>
   JSON.parse(await readFile(path, "utf8")) as ParityReport;
 const rows = journeyParity(await read(first), await read(second));
-const cell = (row: (typeof rows)[number]["a"]) =>
-  row
-    ? `${row.status} ${row.stepsPassed ?? "?"}/${row.stepsTotal ?? "?"}`
-    : "-";
 for (const row of rows)
-  console.log([row.caseId, cell(row.a), cell(row.b), row.flag].join("\t"));
-const split = rows.filter((row) => row.flag).length;
+  console.log([row.caseId, row.verdict, row.reason].join("\t"));
+const agree = rows.filter((row) => row.verdict === "agree").length;
 console.log(
-  `\n${rows.length - split} of ${rows.length} journeys agree across runtimes; trust deltas only on those.`,
+  `\n${agree} of ${rows.length} journeys agree across runtimes; trust deltas only on those.`,
 );

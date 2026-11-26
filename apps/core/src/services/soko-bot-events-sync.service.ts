@@ -87,6 +87,13 @@ function readSawChange(
   };
 }
 
+/**
+ * The scan's sync row. Its `createdAt` is the cutover: Task events older than
+ * it are baselined, never woken. Whoever writes events before a first scan
+ * (the owner benchmark) creates the row first.
+ */
+export const SOKO_EVENTS_SYNC_KEY = "soko-events-v2";
+
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
@@ -323,8 +330,8 @@ export class SokoBotEventsSyncService {
     if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return result;
 
     const scan = await prisma.syncMetadata.upsert({
-      where: { key: "soko-events-v2" },
-      create: { key: "soko-events-v2", lastSyncedAt: new Date() },
+      where: { key: SOKO_EVENTS_SYNC_KEY },
+      create: { key: SOKO_EVENTS_SYNC_KEY, lastSyncedAt: new Date() },
       update: {},
     });
     const readPage = (cursor?: string | null) =>

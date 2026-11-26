@@ -306,13 +306,24 @@ export function selectEvalCases(input: {
   if (unknown.length)
     throw new Error(`Unknown eval cases: ${unknown.join(", ")}`);
   // Owner journeys run many turns each, so a suite run leaves them out.
-  return EVAL_CASES.filter(
+  const selected = EVAL_CASES.filter(
     (evalCase) =>
       input.suites.includes(evalCase.suite) &&
       (input.caseIds.length === 0
         ? evalCase.kind !== "journey"
         : input.caseIds.includes(evalCase.id)),
   );
+  // Other cases build on each other in registry order. Each journey sets up
+  // its own world, so named journeys run in the order named: running two
+  // both ways shows whether one leaks into the other.
+  const rank = (evalCase: EvalCase) =>
+    evalCase.kind === "journey" ? input.caseIds.indexOf(evalCase.id) : -1;
+  return [
+    ...selected.filter((evalCase) => evalCase.kind !== "journey"),
+    ...selected
+      .filter((evalCase) => evalCase.kind === "journey")
+      .sort((a, b) => rank(a) - rank(b)),
+  ];
 }
 
 /** Scenario cases end in a judge's verdict; the others are scored by checks alone. */
