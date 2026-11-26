@@ -6,6 +6,7 @@ import { turnTokenBudget } from "../lib/soko-bot/turn-budget";
 import { runTurnLoop } from "./loop";
 import {
   FOREGROUND_TIME_UP_PROMPT,
+  KEEP_GOING_PROMPT,
   REPORT_RESERVE_MS,
   TIME_UP_PROMPT,
 } from "./rounds";
@@ -768,5 +769,144 @@ describe("runTurnLoop", () => {
     const last = prompts.at(-1) ?? "";
     expect(last).toContain("LAST RULE: never post on Sundays.");
     expect(last).toContain("shortened to save room");
+  });
+});
+
+describe("the done check (planLoop)", () => {
+  /** A model that answers in text every time; the user prompts it saw. */
+  function answeringModel() {
+    const seen: string[] = [];
+    const model = new MockLanguageModelV3({
+      doStream: async (options) => {
+        const last = options.prompt.findLast((m) => m.role === "user");
+        seen.push(
+          last && Array.isArray(last.content)
+            ? last.content.map((p) => ("text" in p ? p.text : "")).join("")
+            : "",
+        );
+        return streamOf({
+          content: [{ type: "text", text: `Answer ${seen.length}.` }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+    return { model, seen };
+  }
+
+  const loopInput = (
+    model: MockLanguageModelV3,
+    plan: Parameters<typeof runTurnLoop>[0]["plan"],
+    extra: Partial<Parameters<typeof runTurnLoop>[0]> = {},
+  ) => ({
+    model,
+    system: "You are a bot.",
+    message: "Do the three things.",
+    tools,
+    maxSteps: 50,
+    background: false,
+    deadline: 60 * MINUTE,
+    stopped: new AbortController().signal,
+    now: () => 0,
+    plan,
+    ...extra,
+  });
+
+  it("sends a foreground answer back once while the plan has open steps", async () => {
+    const { model, seen } = answeringModel();
+    const drafts: string[] = [];
+    const result = await runTurnLoop(
+      loopInput(model, {
+        doneCheck: async (draft) => {
+          drafts.push(draft);
+          return "Your plan still lists open steps: s2.";
+        },
+        openSteps: async () => null,
+      }),
+    );
+    expect(drafts).toEqual(["Answer 1."]);
+    expect(seen).toEqual([
+      "Do the three things.",
+      "Your plan still lists open steps: s2.",
+    ]);
+    expect(result.text).toBe("Answer 2.");
+  });
+
+  it("lets the answer through when Core does or cannot answer", async () => {
+    for (const doneCheck of [
+      async () => null,
+      async () => {
+        throw new Error("Core is down");
+      },
+    ]) {
+      const { model } = answeringModel();
+      const result = await runTurnLoop(
+        loopInput(model, { doneCheck, openSteps: async () => null }),
+      );
+      expect(result.text).toBe("Answer 1.");
+      expect(model.doStreamCalls).toHaveLength(1);
+    }
+  });
+
+  it("never asks with one step left, in a part, or in a background run", async () => {
+    let asked = 0;
+    const plan = {
+      doneCheck: async () => {
+        asked += 1;
+        return "Go back.";
+      },
+      openSteps: async () => null,
+    };
+    await runTurnLoop(loopInput(answeringModel().model, plan, { maxSteps: 2 }));
+    await runTurnLoop(loopInput(answeringModel().model, plan, { part: true }));
+    await runTurnLoop(
+      loopInput(answeringModel().model, plan, {
+        background: true,
+        message: "Brief.",
+      }),
+    );
+    expect(asked).toBe(0);
+  });
+
+  it("names the plan's open steps in the keep-going nudge", async () => {
+    const { model, seen } = answeringModel();
+    await runTurnLoop(
+      loopInput(
+        model,
+        {
+          doneCheck: async () => null,
+          openSteps: async () => "- s2 [pending] Rows",
+        },
+        { background: true, message: "Brief." },
+      ),
+    );
+    expect(seen[1]).toBe(`${KEEP_GOING_PROMPT}\n\n- s2 [pending] Rows`);
+  });
+
+  it("names the plan's open steps in the time-up report", async () => {
+    const clock = { now: 0 };
+    const { model, calls } = tirelessModel(clock);
+    await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Fill the table.",
+      tools,
+      maxSteps: 500,
+      background: true,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => clock.now,
+      plan: {
+        doneCheck: async () => null,
+        openSteps: async () =>
+          "Open steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30",
+      },
+    });
+    const report = calls.at(-1);
+    expect(report?.toolChoice).toEqual({ type: "none" });
+    expect(report?.lastUser).toBe(
+      `${TIME_UP_PROMPT}\n\nOpen steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30`,
+    );
   });
 });

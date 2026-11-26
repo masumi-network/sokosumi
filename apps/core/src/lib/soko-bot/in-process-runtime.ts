@@ -46,6 +46,7 @@ import {
 } from "@/lib/soko-bot/turn-model-context";
 import { runTurnLoop, type TurnLoopInput } from "@/soko-bot-runner/loop";
 import { runCoreWebTool } from "./core-web-tools";
+import { evaluateTurnDoneCheck, openStepsNote } from "./done-check";
 import {
   evaluationBinding,
   evaluationHistory,
@@ -306,6 +307,19 @@ async function runTurn(
         message: userMessage,
         cacheKey: turn.cacheKey,
         fullCacheKey: turn.fullCacheKey,
+        ...(turn.planLoop
+          ? {
+              plan: {
+                doneCheck: (draft: string) =>
+                  evaluateTurnDoneCheck({
+                    turnId: input.turnId,
+                    sessionId,
+                    draft,
+                  }),
+                openSteps: () => openStepsNote(input.turnId),
+              },
+            }
+          : {}),
       },
       callModel,
     );

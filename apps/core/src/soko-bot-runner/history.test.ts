@@ -55,6 +55,44 @@ describe("compactHistory", () => {
     );
   });
 
+  it("keeps the latest plan whole on a planLoop turn, and only the latest", () => {
+    const big = "x".repeat(5_000);
+    const plan = (id: string): ModelMessage[] =>
+      toolRound(id, big).map((message) =>
+        message.role === "tool"
+          ? {
+              ...message,
+              content: message.content.map((part) => ({
+                ...part,
+                toolName: "update_plan",
+              })),
+            }
+          : message,
+      );
+    const messages: ModelMessage[] = [
+      { role: "user", content: "Do the three things" },
+      ...plan("p1"),
+      ...plan("p2"),
+      ...Array.from({ length: 8 }, (_, i) => toolRound(`c${i}`, big)).flat(),
+    ];
+    const kept = (compacted: ModelMessage[] | null) =>
+      compacted?.flatMap((message) =>
+        message.role === "tool"
+          ? message.content.flatMap((part) =>
+              part.type === "tool-result" &&
+              part.toolName === "update_plan" &&
+              part.output.type === "json"
+                ? [part.toolCallId]
+                : [],
+            )
+          : [],
+      );
+    expect(
+      kept(compactHistory(messages, 20_000, { keepLatestPlan: true })),
+    ).toEqual(["p2"]);
+    expect(kept(compactHistory(messages, 20_000))).toEqual([]);
+  });
+
   it("counts only what the turn added after its first message", () => {
     // A strategy turn's preloaded skills and packet open its first message.
     const opening = `${"skill ".repeat(15_000)}LATE RULE`;

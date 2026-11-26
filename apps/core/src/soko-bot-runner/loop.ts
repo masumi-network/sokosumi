@@ -74,6 +74,48 @@ export interface TurnLoopInput {
    * round offers the full tool (cmo-v24).
    */
   shortForms?: readonly CmoShortFormTool[];
+  /** Core's plan for the request (planLoop); none on other versions. */
+  plan?: TurnLoopPlan;
+}
+
+export interface TurnLoopPlan {
+  /**
+   * Asked once when a foreground turn is about to answer: a prompt sends it
+   * back for one more round, null lets the answer through.
+   */
+  doneCheck: (draft: string) => Promise<string | null>;
+  /** The plan's open steps, for the keep-going nudge and the time-up report. */
+  openSteps: () => Promise<string | null>;
+}
+
+const PLAN_ANSWER_TIMEOUT_MS = 10_000;
+
+/** A nudge or time-up prompt that names the plan's open steps, when there are any. */
+async function withOpenSteps(
+  prompt: string,
+  plan: TurnLoopPlan | undefined,
+): Promise<string> {
+  const steps = plan ? await planAnswer(plan.openSteps) : null;
+  return steps ? `${prompt}\n\n${steps}` : prompt;
+}
+
+/** Core's answer on the plan, or null when it does not come in time. */
+async function planAnswer(
+  ask: () => Promise<string | null>,
+): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ask(),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), PLAN_ANSWER_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export interface TurnLoopResult {
@@ -136,6 +178,10 @@ export async function runTurnLoop(
   let finishReason = "";
   let idleRounds = 0;
   let short = shortFormsIn(input.tools, input.shortForms ?? []);
+  const historyOptions = { keepLatestPlan: input.plan !== undefined };
+  const compact = (history: readonly ModelMessage[]) =>
+    compactHistory(history, undefined, historyOptions);
+  let doneChecked = false;
   const fullKey = input.fullCacheKey ?? input.cacheKey;
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
@@ -143,7 +189,7 @@ export async function runTurnLoop(
     const result = await callModel({
       model: input.model,
       system: input.system,
-      messages: compactHistory(messages) ?? messages,
+      messages: compact(messages) ?? messages,
       tools: short.length ? withShortForms(input.tools, short) : input.tools,
       // The budget is checked last, so it reserves room only for a step
       // that will run.
@@ -155,7 +201,7 @@ export async function runTurnLoop(
         budgetSpent,
       ],
       prepareStep: ({ messages: current }) => {
-        const compacted = compactHistory(current);
+        const compacted = compact(current);
         return compacted ? { messages: compacted } : {};
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
@@ -218,8 +264,40 @@ export async function runTurnLoop(
       stepsLeft > 0 &&
       !refused &&
       reportAt - now() > minRoundMs;
-    if (!keepGoing) break;
-    messages.push({ role: "user", content: KEEP_GOING_PROMPT });
+    if (!keepGoing) {
+      // The done check: a foreground answer with open plan steps goes back
+      // once, only while steps, time and tokens leave room for the round.
+      const lastInput = result.steps.at(-1)?.usage.inputTokens ?? 0;
+      const tokensLeft = refused
+        ? 0
+        : input.budget
+          ? input.budget.limit - input.budget.used - input.budget.reserved
+          : Number.POSITIVE_INFINITY;
+      const plan = input.plan;
+      if (
+        plan &&
+        !doneChecked &&
+        !input.background &&
+        !input.part &&
+        finishReason !== "tool-calls" &&
+        stepsLeft > 1 &&
+        !refused &&
+        reportAt - now() > minRoundMs &&
+        tokensLeft >= 2 * lastInput
+      ) {
+        doneChecked = true;
+        const prompt = await planAnswer(() => plan.doneCheck(text));
+        if (prompt) {
+          messages.push({ role: "user", content: prompt });
+          continue;
+        }
+      }
+      break;
+    }
+    messages.push({
+      role: "user",
+      content: await withOpenSteps(KEEP_GOING_PROMPT, input.plan),
+    });
   }
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
@@ -242,12 +320,13 @@ export async function runTurnLoop(
       model: input.model,
       system: input.system,
       messages: [
-        ...(compactHistory(messages) ?? messages),
+        ...(compact(messages) ?? messages),
         {
           role: "user",
-          content: input.background
-            ? TIME_UP_PROMPT
-            : FOREGROUND_TIME_UP_PROMPT,
+          content: await withOpenSteps(
+            input.background ? TIME_UP_PROMPT : FOREGROUND_TIME_UP_PROMPT,
+            input.plan,
+          ),
         },
       ],
       tools: input.tools,

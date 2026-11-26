@@ -540,6 +540,17 @@ async function main(): Promise<void> {
       shortForms: start.shortForms ?? [],
       cacheKey: start.cacheKey,
       fullCacheKey: start.fullCacheKey,
+      ...(start.planLoop
+        ? {
+            plan: {
+              doneCheck: async (draft: string) =>
+                (await callCore<{ note: string | null }>("/plan", { draft }))
+                  .note,
+              openSteps: async () =>
+                (await callCore<{ note: string | null }>("/plan", {})).note,
+            },
+          }
+        : {}),
     });
     await callCore("/complete", { text, finishReason });
   } catch (error) {

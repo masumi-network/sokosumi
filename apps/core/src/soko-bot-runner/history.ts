@@ -71,6 +71,10 @@ function shortenMessage(message: ModelMessage): ModelMessage {
 export function compactHistory(
   messages: readonly ModelMessage[],
   budgetChars = HISTORY_BUDGET_CHARS,
+  options: {
+    /** The latest plan stays whole: Core keeps it for the request (planLoop). */
+    keepLatestPlan?: boolean;
+  } = {},
 ): ModelMessage[] | null {
   // The first message is the turn's own (on cmo-v24 on, with its packet and
   // preloaded skills) and is never shortened: only what the turn added
@@ -81,7 +85,19 @@ export function compactHistory(
     Math.floor((messages.length - RECENT_MESSAGES) / BOUNDARY_BLOCK) *
       BOUNDARY_BLOCK,
   );
+  const plan = options.keepLatestPlan ? latestPlanIndex(messages) : -1;
   return messages.map((message, index) =>
-    index < oldEnd ? shortenMessage(message) : message,
+    index < oldEnd && index !== plan ? shortenMessage(message) : message,
+  );
+}
+
+function latestPlanIndex(messages: readonly ModelMessage[]): number {
+  return messages.findLastIndex(
+    (message) =>
+      message.role === "tool" &&
+      message.content.some(
+        (part) =>
+          part.type === "tool-result" && part.toolName === "update_plan",
+      ),
   );
 }

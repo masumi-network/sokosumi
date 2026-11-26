@@ -55,6 +55,9 @@ const { sokoBotRuntimeService } = await import(
   "@/services/soko-bot-runtime.service"
 );
 const { modelUserMessage } = await import("@/lib/soko-bot/turn-model-context");
+const { evaluateTurnDoneCheck, openStepsNote } = await import(
+  "@/lib/soko-bot/done-check"
+);
 const { withFixtureSchemas } = await import("@/test/split-layout");
 const { sokoBotEventsSyncService } = await import(
   "@/services/soko-bot-events-sync.service"
@@ -454,5 +457,78 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         1,
       ),
     ).resolves.toMatchObject({ requestId: chat, revision: 2 });
+  });
+
+  describe("the done check", () => {
+    const check = (turnId: string, draft = "All done.") =>
+      evaluateTurnDoneCheck({
+        turnId,
+        sessionId: `session-${turnId}`,
+        draft,
+      });
+    const twoSteps = [
+      { step: "Write the posts", status: "done" },
+      { step: "Schedule them", status: "pending" },
+    ];
+
+    it("sends an answer back once while the plan has open steps, even after a restart", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      const prompt = await check(chat);
+      expect(prompt).toContain("- s2 [pending] Schedule them");
+      expect(prompt).toContain("update_plan (revision 1)");
+      expect(prompt).not.toContain("Write the posts");
+      // A restarted runner asks again: the recorded bounce answers.
+      await expect(check(chat)).resolves.toBeNull();
+      expect(
+        await prisma.sokoBotRuntimeEvent.count({
+          where: { turnId: chat, type: "done_check.bounced" },
+        }),
+      ).toBe(1);
+      await expect(openStepsNote(chat)).resolves.toBe(
+        "Open steps in your plan (revision 1):\n- s2 [pending] Schedule them",
+      );
+    });
+
+    it("lets the answer through with no plan, or with every step settled", async () => {
+      const bare = await turn("CHAT");
+      await expect(check(bare)).resolves.toBeNull();
+      const settled = await turn("CHAT");
+      await updatePlan(settled, [
+        { step: "Write the posts", status: "done" },
+        {
+          step: "Schedule them",
+          status: "blocked",
+          blockedOn: "owner",
+          reason: "Which account?",
+        },
+        { step: "Add pictures", status: "skipped", reason: "Text only" },
+      ]);
+      await expect(check(settled)).resolves.toBeNull();
+      await expect(openStepsNote(settled)).resolves.toBeNull();
+    });
+
+    it("lets a question to the owner through", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      await expect(
+        check(chat, "Which account should I schedule them on?"),
+      ).resolves.toBeNull();
+    });
+
+    it("does not push a turn that waits on a Coworker to poll", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      await prisma.sokoBotDelegation.create({
+        data: {
+          turnId: chat,
+          toolCallId: `create-task-${chat}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Schedule the posts when the review is back.",
+        },
+      });
+      await expect(check(chat)).resolves.toBeNull();
+    });
   });
 });

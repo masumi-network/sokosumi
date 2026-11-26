@@ -289,6 +289,27 @@ export async function runSandboxTool(
   });
 }
 
+/**
+ * The runner asks about the turn's plan (planLoop): with a draft answer, the
+ * done check; without one, the open steps for a nudge or the time-up report.
+ */
+export async function sandboxPlanNote(
+  claims: TurnTokenClaims,
+  input: { draft?: string },
+): Promise<string | null> {
+  await authorizeTurn(claims);
+  const { evaluateTurnDoneCheck, openStepsNote } = await import(
+    "@/lib/soko-bot/done-check"
+  );
+  return input.draft === undefined
+    ? openStepsNote(claims.turnId)
+    : evaluateTurnDoneCheck({
+        turnId: claims.turnId,
+        sessionId: claims.sessionId,
+        draft: input.draft,
+      });
+}
+
 const MAX_UPLOADS_PER_TURN = 20;
 const UPLOAD_RESERVED_EVENT = "sandbox.upload_reserved";
 
