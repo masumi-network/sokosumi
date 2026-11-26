@@ -1083,6 +1083,41 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     }
   });
 
+  it("refuses a charge on a free page check", async () => {
+    await setBalance(100n);
+    const created = await requestProjectSeoAnalysis(
+      actor,
+      requestSeoAnalysisSchema.parse({
+        kind: "page_check",
+        pageIds: [pageId],
+        countryCode: "US",
+        languageCode: "en",
+        maxProviderCalls: 0,
+        idempotencyKey: randomUUID(),
+      }),
+    );
+    const app = createTaskScheduleTestApp(
+      mountTaskEvents,
+      { actor: "coworker", coworkerId, vendorId },
+      null,
+    );
+    const post = (body: Record<string, unknown>) =>
+      app.request(
+        `http://localhost/${created.taskId}/events`,
+        jsonRequest("POST", body),
+      );
+    const debits = () =>
+      networkDatabase().transaction.count({
+        where: { userId, amount: { lt: 0 } },
+      });
+    const before = await debits();
+    const charged = await post({ credits: 5 });
+    expect(charged.status).toBe(422);
+    expect(await debits()).toBe(before);
+    // The free check still finishes without a charge.
+    expect((await post({ status: "COMPLETED" })).status).toBe(201);
+  });
+
   it("checks the frozen 750-credit price again before provider work", async () => {
     await setBalance(750n);
     const created = await requestProjectSeoAnalysis(actor, fullAudit());

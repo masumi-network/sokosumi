@@ -13944,6 +13944,10 @@ export type CreateSeoAuditRequest = {
         relationship?: 'primary' | 'related';
     };
     projectId?: string;
+    /**
+     * Send the same key to retry a create: the first Audit comes back and no second one is made
+     */
+    idempotencyKey?: string;
 };
 
 export type SeoAuditWorkspaceMapping = {

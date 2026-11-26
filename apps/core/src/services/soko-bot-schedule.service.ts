@@ -20,7 +20,11 @@ import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access
 import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { intersectOwnerAuthority } from "@/lib/soko-bot/owner-authority";
+import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  checkScheduleFirstRunCapabilities,
+  intersectOwnerAuthority,
+} from "@/lib/soko-bot/owner-authority";
 import {
   effectiveRuns,
   isCronTime,
@@ -114,6 +118,8 @@ export interface CreateSokoBotScheduleInput {
   prompt: string;
   /** The writing turn's tools, when the bot wrote it; see the schema. */
   capabilityNames?: readonly string[];
+  /** True when the caller explicitly declared the job's required tool list. */
+  explicitCapabilities?: boolean;
   /** Work the schedule watches; it is removed once that work finishes. */
   taskId?: string;
   jobId?: string;
@@ -215,6 +221,8 @@ export interface UpdateSokoBotScheduleInput {
   prompt?: string;
   /** Replaces the run's tools, when a person rewrote the schedule. */
   capabilityNames?: readonly string[];
+  /** True when the caller explicitly declared the job's required tool list. */
+  explicitCapabilities?: boolean;
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
   /**
@@ -344,100 +352,32 @@ export async function createSokoBotSchedule(
         });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
   await requireWatchedWork(input, db);
-  const botDetails = input.resolveAuthority
-    ? await db.sokoBot.findUnique({
-        where: { id: bot.id },
-        select: { userId: true, projectId: true, versionId: true },
-      })
-    : null;
+  const botDetails =
+    input.resolveAuthority || (input.capabilityNames?.length ?? 0) > 0
+      ? await db.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { userId: true, projectId: true, versionId: true },
+        })
+      : null;
   const link = { taskId: input.taskId ?? null, jobId: input.jobId ?? null };
   const mutate = async (tx: Prisma.TransactionClient) => {
-    // Same name = same follow-up: a model retrying or re-planning updates
-    // the existing schedule instead of stacking duplicates.
-    const existing = await tx.sokoBotSchedule.findFirst({
-      where: { sokoBotId: bot.id, name: name.slice(0, 120) },
-      select: {
-        id: true,
-        authority: true,
-        completedRuns: true,
-        sokoBot: { select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT },
-      },
+    const scheduleName = name.slice(0, 120);
+    // Built-in rhythms keep their reserved names. Check them with literal
+    // case-insensitive equality in JS (never Prisma `mode: "insensitive"`,
+    // which compiles to ILIKE and treats `%`/`_` as SQL wildcards).
+    // Custom schedules are never upserted by name — every create inserts a
+    // new row, and edits go through updateSokoBotSchedule.
+    const builtIns = await tx.sokoBotSchedule.findMany({
+      where: { sokoBotId: bot.id, systemKey: { not: null } },
+      select: { name: true },
     });
-    if (existing) {
-      const now = new Date();
-      const nextAuthority = input.resolveAuthority
-        ? resolveScheduleAuthorityField(input.resolveAuthority, {
-            scheduleId: existing.id,
-            sokoBotId: bot.id,
-            workspaceId: input.workspaceId,
-            existingAuthority: parseOwnerAuthority(
-              "authority" in existing ? existing.authority : null,
-            ),
-            botProjectId: botDetails?.projectId ?? null,
-            botVersionId: botDetails?.versionId ?? null,
-            sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
-          })
-        : undefined;
-      const effectiveAuthority =
-        nextAuthority ??
-        parseOwnerAuthority(
-          "authority" in existing ? existing.authority : null,
-        );
-      const completedRuns =
-        "completedRuns" in existing &&
-        typeof existing.completedRuns === "number"
-          ? existing.completedRuns
-          : 0;
-      let countLimitAlreadyMet = false;
-      if (
-        effectiveAuthority?.stopRule.mode === "ends_after_runs" &&
-        completedRuns >= effectiveAuthority.stopRule.maxRuns
-      ) {
-        const existingBot =
-          "sokoBot" in existing && existing.sokoBot
-            ? existing.sokoBot
-            : await tx.sokoBot.findUnique({
-                where: { id: bot.id },
-                select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT,
-              });
-        countLimitAlreadyMet = await isCountStopRuleAuthorizedAndMet(
-          tx,
-          {
-            id: existing.id,
-            sokoBotId: bot.id,
-            workspaceId: input.workspaceId,
-            completedRuns,
-            authority: effectiveAuthority,
-            sokoBot: existingBot,
-          },
-          now,
-        );
-      }
-      // The Requester stays whoever asked first (ADR 0057).
-      const updated = await tx.sokoBotSchedule.update({
-        where: { id: existing.id },
-        data: {
-          enabled: !countLimitAlreadyMet,
-          consecutiveFailures: 0,
-          workspaceId: input.workspaceId,
-          timezone: input.timezone,
-          cronExpression,
-          runOnce,
-          prompt: prompt.slice(0, 20_000),
-          nextRunAt,
-          capabilityNames: [...(input.capabilityNames ?? [])],
-          ...link,
-          ...(nextAuthority !== undefined
-            ? { authority: nextAuthority as Prisma.InputJsonValue }
-            : {}),
-          // New timing: moved or skipped runs of the old one no longer apply.
-          runChanges: { deleteMany: {} },
-        },
-      });
-      if (countLimitAlreadyMet) {
-        await fenceUnstartedScheduleRuns(tx, existing.id, now);
-      }
-      return updated;
+    const builtInMatch = builtIns.find(
+      (row) => row.name.toLowerCase() === scheduleName.toLowerCase(),
+    );
+    if (builtInMatch) {
+      throw new SokoBotScheduleValidationError(
+        `"${builtInMatch.name}" is a built-in rhythm. Choose a different name for a custom schedule, or update the built-in rhythm's timing instead.`,
+      );
     }
     const activeCount = await tx.sokoBotSchedule.count({
       where: { sokoBotId: bot.id, enabled: true, systemKey: null },
@@ -460,6 +400,32 @@ export async function createSokoBotSchedule(
             sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
           })
         : undefined;
+    if (
+      nextAuthority !== undefined &&
+      scheduleId !== undefined &&
+      (input.capabilityNames?.length ?? 0) > 0
+    ) {
+      const botUserId = botDetails?.userId ?? null;
+      const capabilityCheck = checkScheduleFirstRunCapabilities({
+        scheduleId,
+        sokoBotId: bot.id,
+        workspaceId: input.workspaceId,
+        authority: nextAuthority,
+        actingUserId: sokoBotScheduleActingUserId({
+          requestedByUserId: input.userId,
+          systemKey: null,
+          sokoBot: { userId: botUserId },
+        }),
+        botUserId,
+        botProjectId: botDetails?.projectId ?? null,
+        botVersionId: botDetails?.versionId ?? null,
+        requestedCapabilities: input.capabilityNames ?? [],
+        explicitCapabilities: input.explicitCapabilities,
+      });
+      if (!capabilityCheck.ok) {
+        throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+      }
+    }
     return tx.sokoBotSchedule.create({
       data: {
         ...(scheduleId ? { id: scheduleId } : {}),
@@ -504,7 +470,12 @@ async function sharedBotScheduleScope(
     : null;
 }
 
-/** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
+/**
+ * Resolves a supplied id directly; otherwise resolves `scheduleName` only when
+ * exactly one accessible schedule matches the exact (case-insensitive) literal
+ * name. Never uses SQL pattern matching (`ILIKE`), and refuses ambiguous names
+ * with each matching id so the caller can address the intended row by id.
+ */
 async function findScheduleForUser(
   userId: string | null,
   ref: {
@@ -528,38 +499,70 @@ async function findScheduleForUser(
           ...(ref.sokoBotId !== undefined ? { sokoBotId: ref.sokoBotId } : {}),
           sokoBot: { userId },
         };
-  const matching = {
-    OR: [
-      ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
-      ...(ref.scheduleName
-        ? [
-            {
-              name: {
-                equals: ref.scheduleName.trim(),
-                mode: "insensitive" as const,
-              },
-            },
-          ]
-        : []),
-    ],
+  if (ref.scheduleId) {
+    const byId = { OR: [{ id: ref.scheduleId }] };
+    const schedule =
+      own &&
+      (await db.sokoBotSchedule.findFirst({ where: { ...own, ...byId } }));
+    if (schedule) return schedule;
+    const shared = await sharedBotScheduleScope(userId, ref, db);
+    const sharedSchedule =
+      shared &&
+      (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...byId } }));
+    if (sharedSchedule) return sharedSchedule;
+    const scope = shared ?? own;
+    const existing = scope
+      ? await db.sokoBotSchedule.findMany({
+          where: scope,
+          select: { id: true, name: true },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
+    const hint =
+      existing.length === 0
+        ? "There are no schedules."
+        : `Existing schedules: ${existing.map((s) => `${s.name} (${s.id})`).join("; ")}.`;
+    throw new SokoBotScheduleNotFoundError(`Schedule not found. ${hint}`);
+  }
+
+  const trimmedName = ref.scheduleName?.trim();
+  const wantedName = trimmedName?.toLowerCase();
+  const matchLiteralName = <T extends { id: string; name: string }>(
+    rows: T[],
+  ): T | null => {
+    if (!wantedName) return null;
+    const matches = rows.filter(
+      (row) => row.name.trim().toLowerCase() === wantedName,
+    );
+    if (matches.length === 1) return matches[0]!;
+    if (matches.length > 1) {
+      throw new SokoBotScheduleValidationError(
+        `Multiple schedules are named "${trimmedName}": ${matches.map((s) => `${s.name} (${s.id})`).join("; ")}. Pass scheduleId to pick which one.`,
+      );
+    }
+    return null;
   };
-  const schedule =
-    own &&
-    (await db.sokoBotSchedule.findFirst({ where: { ...own, ...matching } }));
-  if (schedule) return schedule;
-  const shared = await sharedBotScheduleScope(userId, ref, db);
-  const sharedSchedule =
-    shared &&
-    (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...matching } }));
-  if (sharedSchedule) return sharedSchedule;
-  const scope = shared ?? own;
-  const existing = scope
+
+  const ownRows = own
     ? await db.sokoBotSchedule.findMany({
-        where: scope,
-        select: { id: true, name: true },
+        where: own,
         orderBy: { createdAt: "asc" },
       })
-    : [];
+    : null;
+  const ownMatch = ownRows ? matchLiteralName(ownRows) : null;
+  if (ownMatch) return ownMatch;
+
+  const shared = await sharedBotScheduleScope(userId, ref, db);
+  const sharedRows = shared
+    ? await db.sokoBotSchedule.findMany({
+        where: shared,
+        orderBy: { createdAt: "asc" },
+      })
+    : null;
+  const sharedMatch = sharedRows ? matchLiteralName(sharedRows) : null;
+  if (sharedMatch) return sharedMatch;
+
+  const existing = sharedRows ?? ownRows ?? [];
   const hint =
     existing.length === 0
       ? "There are no schedules."
@@ -578,14 +581,18 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
     );
-  // A built-in rhythm keeps its purpose: Joseph's end-of-day was rewritten
-  // into another job (2026-11-08) and the console went on describing the
-  // built-in. Its time, timezone and on/off change; anything else is a
-  // schedule of its own.
+  // A built-in rhythm keeps its purpose and fixed system route: Joseph's
+  // end-of-day was rewritten into another job (2026-11-08) and the console
+  // went on describing the built-in. Its time, timezone and on/off change;
+  // anything else (name, prompt, or capabilities) is a schedule of its own.
+  const unchangedBuiltInPrompt =
+    input.prompt !== undefined && input.prompt.trim() === schedule.prompt;
   if (
     schedule.systemKey &&
     ((input.name !== undefined && input.name.trim() !== schedule.name) ||
-      (input.prompt !== undefined && input.prompt.trim() !== schedule.prompt))
+      (input.prompt !== undefined && !unchangedBuiltInPrompt) ||
+      (input.capabilityNames !== undefined &&
+        (input.explicitCapabilities === true || !unchangedBuiltInPrompt)))
   )
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
@@ -621,23 +628,56 @@ export async function updateSokoBotSchedule(
           nextRunAt,
         )
       : nextRunAt;
-  const botDetails = input.resolveAuthority
-    ? await db.sokoBot.findUnique({
-        where: { id: schedule.sokoBotId },
-        select: { userId: true, projectId: true, versionId: true },
-      })
-    : null;
+  const existingAuthority = parseOwnerAuthority(schedule.authority);
+  const botDetails =
+    input.resolveAuthority ||
+    (input.capabilityNames !== undefined &&
+      existingAuthority !== null &&
+      schedule.systemKey === null)
+      ? await db.sokoBot.findUnique({
+          where: { id: schedule.sokoBotId },
+          select: { userId: true, projectId: true, versionId: true },
+        })
+      : null;
   const nextAuthority = input.resolveAuthority
     ? resolveScheduleAuthorityField(input.resolveAuthority, {
         scheduleId: schedule.id,
         sokoBotId: schedule.sokoBotId,
         workspaceId: schedule.workspaceId,
-        existingAuthority: parseOwnerAuthority(schedule.authority),
+        existingAuthority,
         botProjectId: botDetails?.projectId ?? null,
         botVersionId: botDetails?.versionId ?? null,
         sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
       })
     : undefined;
+  const effectiveUpdatedAuthority = nextAuthority ?? existingAuthority;
+  if (
+    effectiveUpdatedAuthority !== null &&
+    schedule.systemKey === null &&
+    (input.capabilityNames?.length ?? 0) > 0
+  ) {
+    const botUserId = botDetails?.userId ?? null;
+    const capabilityCheck = checkScheduleFirstRunCapabilities({
+      scheduleId: schedule.id,
+      sokoBotId: schedule.sokoBotId,
+      workspaceId: schedule.workspaceId,
+      authority: effectiveUpdatedAuthority,
+      actingUserId: sokoBotScheduleActingUserId({
+        requestedByUserId: schedule.requestedByUserId,
+        systemKey: schedule.systemKey,
+        sokoBot: { userId: botUserId },
+      }),
+      botUserId,
+      botProjectId: botDetails?.projectId ?? null,
+      botVersionId: botDetails?.versionId ?? null,
+      requestedCapabilities: input.capabilityNames ?? [],
+      explicitCapabilities: input.explicitCapabilities,
+      now,
+    });
+    if (!capabilityCheck.ok) {
+      throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+    }
+  }
   const data = {
     ...(input.name !== undefined ? { name: input.name.trim() } : {}),
     ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
@@ -651,7 +691,7 @@ export async function updateSokoBotSchedule(
     // A new cron makes a one-time schedule recurring.
     ...(input.cronExpression ? { runOnce: false } : {}),
     ...(input.prompt !== undefined ? { prompt: input.prompt.trim() } : {}),
-    ...(input.capabilityNames
+    ...(input.capabilityNames && !schedule.systemKey
       ? { capabilityNames: [...input.capabilityNames] }
       : {}),
     ...(nextAuthority !== undefined

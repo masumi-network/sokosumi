@@ -1289,6 +1289,89 @@ describe("PATCH /tasks/{id}", () => {
     );
   });
 
+  it("keeps a stored seo_audit line byte for byte when a rename sends context", async () => {
+    const app = createApp();
+    const briefingUrl = "https://store.public.blob.vercel-storage.com/brief.md";
+    const line = `seo_audit: ${JSON.stringify({ note: "see [BRIEFING.md](https://x)" })}`;
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: `Check my shop.\n\n${line}`,
+      visibility: TaskVisibility.PUBLIC,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl: null,
+      briefing: null,
+      briefingUrl,
+      contextMdUrl: null,
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Renamed",
+        context: { brand: false, briefing: true, memory: false },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const description = taskUpdateMock.mock.calls.at(-1)?.[0].data.description;
+    expect(description).toBe(
+      `[BRIEFING.md](${briefingUrl})\n\nCheck my shop.\n\n${line}`,
+    );
+  });
+
+  it("keeps a selected Context link when only the seo_audit line also holds it", async () => {
+    const app = createApp();
+    const briefingUrl = "https://store.public.blob.vercel-storage.com/brief.md";
+    const link = `[BRIEFING.md](${briefingUrl})`;
+    const line = `seo_audit: ${JSON.stringify({ note: link })}`;
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: `${link}\n\nCheck my shop.\n\n${line}`,
+      visibility: TaskVisibility.PUBLIC,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl: null,
+      briefing: null,
+      briefingUrl,
+      contextMdUrl: null,
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Renamed",
+        context: { brand: false, briefing: true, memory: false },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const description = taskUpdateMock.mock.calls.at(-1)?.[0].data.description;
+    expect(description).toBe(`${link}\n\nCheck my shop.\n\n${line}`);
+  });
+
   it("opts out of Context attachments when context flags are false", async () => {
     const app = createApp();
     const designMdUrl =

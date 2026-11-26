@@ -1100,6 +1100,352 @@ export function evaluateTurnWebTaint(
   return { blocked: true };
 }
 
+export const SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE =
+  "Could not verify this schedule's owner authorization. Ask the owner in chat to check or recreate the schedule.";
+
+export const SCHEDULE_AUTHORITY_INVALID_MESSAGE =
+  "This schedule's persisted owner authorization is invalid. Ask the owner in chat to update or recreate the schedule.";
+
+export const SCHEDULE_AUTHORITY_EXPIRED_MESSAGE =
+  "This schedule's owner authorization has expired. Ask the owner in chat to renew it.";
+
+export const SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE =
+  "This schedule's owner authorization is scoped to a different Project.";
+
+export const SCHEDULE_AUTHORITY_MISMATCH_MESSAGE =
+  "This schedule's owner authorization does not match this schedule.";
+
+export const SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE =
+  "Scheduled runs create social posts as drafts for the owner's approval unless the owner explicitly authorized scheduled posts on this schedule.";
+
+export const SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE =
+  "This schedule may create and schedule posts, not publish immediately or cancel existing posts.";
+
+export const SCHEDULE_SOCIAL_DENIED_MESSAGE =
+  "This schedule is not authorized to perform that social write.";
+
+const SCHEDULE_META_CAPABILITIES: ReadonlySet<string> = new Set([
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
+]);
+
+const SCHEDULE_OWN_LIFECYCLE_CAPABILITIES: ReadonlySet<string> = new Set([
+  "update_schedule",
+  "delete_schedule",
+]);
+
+function formatCapabilitySample(
+  capabilities: readonly SokoBotCapability[],
+): string {
+  const unique = [...new Set(capabilities)];
+  if (unique.length <= 3) return unique.join(", ");
+  return `${unique.slice(0, 3).join(", ")} and ${unique.length - 3} more`;
+}
+
+export interface ScheduleFirstRunCapabilityCheckInput {
+  scheduleId: string;
+  sokoBotId: string;
+  workspaceId: string;
+  authority: OwnerAuthority;
+  /** Live execution actor (`sokoBotScheduleActingUserId`) the first run will use. */
+  actingUserId: string | null;
+  botUserId: string | null;
+  botProjectId: string | null;
+  botVersionId: string | null;
+  requestedCapabilities: readonly string[];
+  /**
+   * True when the caller explicitly declared the job's required tool list
+   * (rather than inheriting a broad chat or console grant). Every explicitly
+   * declared tool must survive first-run authority intersection.
+   */
+  explicitCapabilities?: boolean;
+  now?: Date;
+}
+
+export type ScheduleFirstRunCapabilityCheckResult =
+  | { ok: true }
+  | {
+      ok: false;
+      droppedWriteCapabilities: SokoBotCapability[];
+      denialReason:
+        | OwnerAuthorityDenialReason
+        | "read_only_authority"
+        | "invalid_authority";
+      detail: string;
+    };
+
+/**
+ * Verifies at schedule creation/rewrite time that the persisted `OwnerAuthority`
+ * and first-run execution identity can actually execute the requested write
+ * capabilities, so Core never accepts a recurring write job whose first run
+ * would silently drop its writes to read-only.
+ *
+ * Narrowing social writes to `draft_only` or `schedule_posts` on an otherwise
+ * effective owner grant is expected (direct owner chat passes all chat tools);
+ * losing non-social writes or losing all requested social writes fails closed
+ * with an actionable reason.
+ */
+export function checkScheduleFirstRunCapabilities(
+  input: ScheduleFirstRunCapabilityCheckInput,
+): ScheduleFirstRunCapabilityCheckResult {
+  const requested = input.requestedCapabilities.filter(isSokoBotCapability);
+  if (requested.length === 0) {
+    return { ok: true };
+  }
+  const requestedWrites = requested.filter(
+    (capability) =>
+      !isReadOnlyCapability(capability) &&
+      !SCHEDULE_META_CAPABILITIES.has(capability),
+  );
+  const firstRun = intersectScheduleRouteCapabilities({
+    scheduleId: input.scheduleId,
+    sokoBotId: input.sokoBotId,
+    workspaceId: input.workspaceId,
+    authority: input.authority,
+    actingUserId: input.actingUserId,
+    botUserId: input.botUserId,
+    botProjectId: input.botProjectId,
+    botVersionId: input.botVersionId,
+    offeredCapabilities: requested,
+    now: input.now,
+  });
+
+  if (
+    firstRun.denialReason === "invalid_authority" ||
+    (firstRun.denialReason !== null &&
+      ZERO_TOOL_DENIAL_REASONS.has(firstRun.denialReason))
+  ) {
+    const sample = formatCapabilitySample(
+      requestedWrites.length > 0 ? requestedWrites : requested,
+    );
+    return {
+      ok: false,
+      droppedWriteCapabilities: requestedWrites,
+      denialReason: firstRun.denialReason,
+      detail: `This schedule's owner authorization does not allow running ${sample} on its first run.`,
+    };
+  }
+
+  if (!input.explicitCapabilities && requestedWrites.length === 0) {
+    return { ok: true };
+  }
+
+  const allowed = new Set<SokoBotCapability>(firstRun.capabilities);
+  let droppedWriteCapabilities: SokoBotCapability[];
+  if (input.explicitCapabilities) {
+    droppedWriteCapabilities = requested.filter(
+      (capability) =>
+        !SCHEDULE_OWN_LIFECYCLE_CAPABILITIES.has(capability) &&
+        !allowed.has(capability),
+    );
+    if (
+      droppedWriteCapabilities.length === 0 &&
+      (firstRun.effective || requestedWrites.length === 0)
+    ) {
+      return { ok: true };
+    }
+  } else {
+    const droppedNonSocialWrites = requestedWrites.filter(
+      (capability) => !SOCIAL_WRITE.has(capability) && !allowed.has(capability),
+    );
+    const requestedSocialWrites = requestedWrites.filter((capability) =>
+      SOCIAL_WRITE.has(capability),
+    );
+    const droppedAllSocialWrites =
+      requestedSocialWrites.length > 0 &&
+      !requestedSocialWrites.some((capability) => allowed.has(capability));
+    droppedWriteCapabilities = [
+      ...droppedNonSocialWrites,
+      ...(droppedAllSocialWrites ? requestedSocialWrites : []),
+    ];
+
+    if (droppedWriteCapabilities.length === 0 && firstRun.effective) {
+      return { ok: true };
+    }
+  }
+
+  const sample = formatCapabilitySample(
+    droppedWriteCapabilities.length > 0
+      ? droppedWriteCapabilities
+      : requestedWrites.length > 0
+        ? requestedWrites
+        : requested,
+  );
+  const reason = firstRun.denialReason ?? "read_only_authority";
+
+  if (
+    input.botUserId === null &&
+    input.actingUserId === null &&
+    reason === "audience_restricted"
+  ) {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `Custom schedules on a shared bot run without a member identity and cannot run write tools (${sample}). Pass capabilities with only read-only tools for a read-only check, or perform the write directly in chat.`,
+    };
+  }
+  if (reason === "expired") {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `This schedule's owner authorization has expired and cannot run write tools (${sample}). Ask the owner in chat to renew it, or pass capabilities with only read-only tools.`,
+    };
+  }
+  if (
+    input.authority.origin === "system" ||
+    input.authority.scope === "read_only"
+  ) {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `Only a direct top-level owner chat or console action can authorize a schedule to run write tools (${sample}). Ask the owner in chat to set up this scheduled write directly, or pass capabilities with only read-only tools for a read-only check.`,
+    };
+  }
+  if (
+    input.authority.socialMode === "draft_only" &&
+    droppedWriteCapabilities.some((capability) => SOCIAL_WRITE.has(capability))
+  ) {
+    const needsPostingPermission = droppedWriteCapabilities.every(
+      (capability) =>
+        capability === "schedule_social_post" ||
+        capability === "update_social_post" ||
+        capability === "update_social_posts",
+    );
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: needsPostingPermission
+        ? `This schedule is draft-only and cannot run ${sample} on its first run. Pass allowScheduledPosts: true in direct top-level owner chat to authorize scheduling posts, or limit capabilities to create_social_post.`
+        : `This schedule is draft-only and cannot run ${sample} on its first run. Pass allowScheduledPosts: true in direct top-level owner chat to authorize scheduling posts (immediate publishing and canceling remain chat-only), or limit capabilities to create_social_post.`,
+    };
+  }
+  if (
+    input.authority.socialMode === "schedule_posts" &&
+    droppedWriteCapabilities.some((capability) =>
+      SOCIAL_PUBLISH_OR_CANCEL.has(capability),
+    )
+  ) {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `This schedule may create and schedule posts, not publish immediately or cancel existing posts (${sample}). Remove ${sample} from capabilities, or publish directly in chat.`,
+    };
+  }
+  return {
+    ok: false,
+    droppedWriteCapabilities,
+    denialReason: reason,
+    detail: `This schedule cannot execute the requested tools (${sample}) under its owner authorization. Adjust the schedule's posting permission in direct owner chat, or pass capabilities with only the tools it is allowed to run.`,
+  };
+}
+
+export interface ScheduleRouteAuthorityInput {
+  scheduleId: string;
+  sokoBotId: string;
+  workspaceId: string;
+  authority: unknown;
+  actingUserId: string | null;
+  botUserId: string | null;
+  botProjectId: string | null;
+  botVersionId: string | null;
+  offeredCapabilities: readonly SokoBotCapability[];
+  now?: Date;
+}
+
+export interface ScheduleRouteAuthorityResult {
+  capabilities: SokoBotCapability[];
+  effective: boolean;
+  denialReason: OwnerAuthorityDenialReason | "invalid_authority" | null;
+}
+
+/**
+ * Intersects a schedule's offered capabilities against its persisted
+ * `OwnerAuthority`. Callers handle legacy `authority == null` rows separately;
+ * any non-null malformed payload fails closed to read-only capabilities from
+ * `offeredCapabilities` rather than widening to default person tools.
+ */
+export function intersectScheduleRouteCapabilities(
+  input: ScheduleRouteAuthorityInput,
+): ScheduleRouteAuthorityResult {
+  const persisted = parseOwnerAuthority(input.authority);
+  if (!persisted) {
+    return {
+      capabilities: input.offeredCapabilities.filter(isReadOnlyCapability),
+      effective: false,
+      denialReason: "invalid_authority",
+    };
+  }
+  const sharedBot = input.botUserId === null;
+  const askedByKind: OwnerAuthorityAskedByKind =
+    input.actingUserId === null
+      ? "ASSISTANT"
+      : sharedBot
+        ? "TEAMMATE"
+        : input.actingUserId === input.botUserId
+          ? "OWNER"
+          : "TEAMMATE";
+  // A bot pinned to a Project enforces that Project right at route selection;
+  // a personal bot (projectId === null) has no fixed Project yet, so a
+  // Project-scoped schedule keeps its route here and enforces rawInput.projectId
+  // on each write call. A schedule-scoped authority always checks scheduleId.
+  const liveTargetScope: OwnerAuthorityTargetScope =
+    input.botProjectId !== null
+      ? { kind: "project", projectId: input.botProjectId }
+      : persisted.targetScope.kind === "schedule"
+        ? { kind: "schedule", scheduleId: input.scheduleId }
+        : persisted.targetScope;
+
+  const effective = intersectOwnerAuthority(persisted, {
+    sokoBotId: input.sokoBotId,
+    workspaceId: input.workspaceId,
+    versionId: input.botVersionId,
+    actingUserId: input.actingUserId,
+    askedByKind,
+    sharedBot,
+    source: "SCHEDULE",
+    scheduleId: input.scheduleId,
+    targetScope: liveTargetScope,
+    hasWorkspaceAccess: true,
+    botAlive: true,
+    offeredCapabilities: input.offeredCapabilities,
+    now: input.now,
+  });
+  return {
+    capabilities: [...effective.allowedCapabilities],
+    effective: effective.effective,
+    denialReason: effective.denialReason,
+  };
+}
+
+export type ScheduleSocialAuthorityResolution =
+  | { kind: "none" }
+  | {
+      kind: "schedule";
+      scheduleId: string;
+      authority: unknown;
+      botProjectId: string | null;
+    }
+  | {
+      kind: "unresolved";
+      detail: string;
+    };
+
+export interface ResolvedSocialWriteOrigin {
+  source: string | null;
+  scheduleAuthority: ScheduleSocialAuthorityResolution;
+}
+
+export type ScheduleSocialAuthorityClient = OwnerAuthorityTurnClient &
+  Partial<
+    Pick<Prisma.TransactionClient, "sokoBotScheduleRun" | "sokoBotSchedule">
+  >;
+
 export interface SocialWriteAuthorityInput {
   turn: {
     id: string;
@@ -1116,6 +1462,8 @@ export interface SocialWriteAuthorityInput {
   rawInput?: unknown;
   tainted: boolean;
   turnAuthority?: OwnerAuthority | null;
+  scheduleAuthority?: ScheduleSocialAuthorityResolution;
+  now?: Date;
 }
 
 export type SocialWriteAuthorityDecision =
@@ -1127,9 +1475,38 @@ export type SocialWriteAuthorityDecision =
     }
   | {
       allowed: false;
+      kind: "schedule_authority";
+      detail: string;
+    }
+  | {
+      allowed: false;
       kind: "tainted";
       detail?: string;
     };
+
+function extractProjectIdFromInput(rawInput: unknown): string | null {
+  if (typeof rawInput !== "object" || rawInput === null) return null;
+  const candidate = (rawInput as { projectId?: unknown }).projectId;
+  return typeof candidate === "string" && candidate.trim().length > 0
+    ? candidate.trim()
+    : null;
+}
+
+function scheduleDenialDetail(
+  reason: OwnerAuthorityDenialReason | null,
+): string {
+  switch (reason) {
+    case "expired":
+      return SCHEDULE_AUTHORITY_EXPIRED_MESSAGE;
+    case "target_scope_mismatch":
+      return SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE;
+    case "schedule_mismatch":
+    case "binding_mismatch":
+      return SCHEDULE_AUTHORITY_MISMATCH_MESSAGE;
+    default:
+      return SCHEDULE_SOCIAL_DENIED_MESSAGE;
+  }
+}
 
 /**
  * Single OwnerAuthority evaluator for all social write tools (`social.ts`):
@@ -1137,7 +1514,11 @@ export type SocialWriteAuthorityDecision =
  *    blocking `create_social_post({ scheduledAt })`, scheduling, publishing,
  *    canceling, and requiring `DRAFT`/`NEEDS_APPROVAL` on edits; non-owner
  *    turns -> `none`, blocking every social write).
- * 2. Enforces non-CMO `EVENT` draft-only ceiling (`socialMode: "draft_only"`),
+ * 2. Enforces persisted `SokoBotSchedule.authority` on `SCHEDULE` turns (and
+ *    `ADMIN_RETRY` replays of scheduled runs): `draft_only` vs `schedule_posts`
+ *    vs `full`, live Project `targetScope`, `scheduleId` binding, expiry, and
+ *    fail-closed malformed/unresolved schedules.
+ * 3. Enforces non-CMO `EVENT` draft-only ceiling (`socialMode: "draft_only"`),
  *    permitting unscheduled `create_social_post` drafts while refusing
  *    `scheduledAt`, scheduling, publishing, canceling, and existing-post edits.
  */
@@ -1149,6 +1530,7 @@ export function evaluateSocialWriteAuthority(
     return { allowed: true, requireUnapprovedDraft: false };
   }
   const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
+  let requireUnapprovedDraft = false;
 
   if (tainted) {
     if (!input.turnAuthority) {
@@ -1166,6 +1548,7 @@ export function evaluateSocialWriteAuthority(
       botAlive: true,
       webTainted: true,
       offeredCapabilities: [capability],
+      now: input.now,
     });
     if (!isToolCallAllowedByAuthority(effective, capability, rawInput)) {
       if (
@@ -1180,12 +1563,75 @@ export function evaluateSocialWriteAuthority(
       }
       return { allowed: false, kind: "tainted" };
     }
-    return {
-      allowed: true,
-      requireUnapprovedDraft:
-        SOCIAL_EDIT.has(capability) &&
-        effective.authority.socialMode === "edit_drafts",
-    };
+    requireUnapprovedDraft =
+      SOCIAL_EDIT.has(capability) &&
+      effective.authority.socialMode === "edit_drafts";
+  }
+
+  if (
+    turn.source === "SCHEDULE" &&
+    input.scheduleAuthority &&
+    input.scheduleAuthority.kind !== "none"
+  ) {
+    if (input.scheduleAuthority.kind === "unresolved") {
+      return {
+        allowed: false,
+        kind: "schedule_authority",
+        detail: input.scheduleAuthority.detail,
+      };
+    }
+    const persisted = parseOwnerAuthority(input.scheduleAuthority.authority);
+    if (!persisted) {
+      return {
+        allowed: false,
+        kind: "schedule_authority",
+        detail: SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+      };
+    }
+    const liveProjectId =
+      extractProjectIdFromInput(rawInput) ??
+      input.scheduleAuthority.botProjectId;
+    const liveTargetScope: OwnerAuthorityTargetScope | undefined = liveProjectId
+      ? { kind: "project", projectId: liveProjectId }
+      : persisted.targetScope.kind === "schedule"
+        ? { kind: "schedule", scheduleId: input.scheduleAuthority.scheduleId }
+        : undefined;
+    const effective = intersectOwnerAuthority(persisted, {
+      sokoBotId: turn.sokoBotId,
+      workspaceId: turn.workspaceId,
+      versionId: turn.versionId,
+      actingUserId: turn.actingUserId,
+      askedByKind: turn.askedByKind ?? (turn.sharedBot ? "TEAMMATE" : "OWNER"),
+      sharedBot: turn.sharedBot ?? false,
+      source: "SCHEDULE",
+      scheduleId: input.scheduleAuthority.scheduleId,
+      targetScope: liveTargetScope,
+      hasWorkspaceAccess: true,
+      botAlive: true,
+      offeredCapabilities: [capability],
+      now: input.now,
+    });
+    if (!effective.effective) {
+      return {
+        allowed: false,
+        kind: "schedule_authority",
+        detail: scheduleDenialDetail(effective.denialReason),
+      };
+    }
+    if (!isToolCallAllowedByAuthority(effective, capability, rawInput)) {
+      const detail =
+        effective.authority.socialMode === "draft_only"
+          ? SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE
+          : effective.authority.socialMode === "schedule_posts"
+            ? SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE
+            : SCHEDULE_SOCIAL_DENIED_MESSAGE;
+      return {
+        allowed: false,
+        kind: "schedule_authority",
+        detail,
+      };
+    }
+    return { allowed: true, requireUnapprovedDraft };
   }
 
   const isNonCmoEvent =
@@ -1226,6 +1672,7 @@ export function evaluateSocialWriteAuthority(
       hasWorkspaceAccess: true,
       botAlive: true,
       offeredCapabilities: [capability],
+      now: input.now,
     });
     if (!isToolCallAllowedByAuthority(effective, capability, rawInput)) {
       return {
@@ -1236,12 +1683,184 @@ export function evaluateSocialWriteAuthority(
     }
   }
 
-  return { allowed: true, requireUnapprovedDraft: false };
+  return { allowed: true, requireUnapprovedDraft };
 }
 
 const ADMIN_RETRY_TURN_KIND = "admin-retry";
 const ADMIN_SCHEDULE_RETRY_KIND = "admin-schedule-retry";
+const SCHEDULE_CLIENT_TURN_PATTERN = /^schedule:([^:]+):(.+)$/;
 const uuidSchema = z.string().uuid();
+
+const SCHEDULE_SOCIAL_AUTHORITY_SELECT = {
+  id: true,
+  systemKey: true,
+  authority: true,
+  sokoBot: { select: { projectId: true } },
+} as const satisfies Prisma.SokoBotScheduleSelect;
+
+function scheduleRowToSocialAuthority(schedule: {
+  id: string;
+  systemKey: string | null;
+  authority: unknown;
+  sokoBot?: { projectId: string | null } | null;
+}): ScheduleSocialAuthorityResolution {
+  // Built-in rhythms and legacy schedules created before OwnerAuthority
+  // persistence (#8321) retain existing behavior.
+  if (schedule.systemKey !== null || schedule.authority === null) {
+    return { kind: "none" };
+  }
+  return {
+    kind: "schedule",
+    scheduleId: schedule.id,
+    authority: schedule.authority,
+    botProjectId: schedule.sokoBot?.projectId ?? null,
+  };
+}
+
+async function resolveScheduleRowForTurn(
+  turn: { id: string; sokoBotId: string; clientTurnId?: string | null },
+  client: ScheduleSocialAuthorityClient,
+): Promise<ScheduleSocialAuthorityResolution> {
+  if (typeof client.sokoBotScheduleRun?.findFirst === "function") {
+    const run = await client.sokoBotScheduleRun.findFirst({
+      where: { turnId: turn.id, schedule: { sokoBotId: turn.sokoBotId } },
+      select: { schedule: { select: SCHEDULE_SOCIAL_AUTHORITY_SELECT } },
+    });
+    if (run?.schedule) {
+      return scheduleRowToSocialAuthority(run.schedule);
+    }
+  }
+  // Fallback when the occurrence row was rebound to a later admin retry turn
+  // or pruned by retention (mirrors soko-bot-admin-retry.service.ts).
+  const clientTurnId =
+    turn.clientTurnId ??
+    (
+      await client.sokoBotTurn.findFirst({
+        where: { id: turn.id, sokoBotId: turn.sokoBotId },
+        select: { clientTurnId: true },
+      })
+    )?.clientTurnId ??
+    null;
+  const match = clientTurnId
+    ? SCHEDULE_CLIENT_TURN_PATTERN.exec(clientTurnId)
+    : null;
+  if (
+    match?.[1] &&
+    uuidSchema.safeParse(match[1]).success &&
+    typeof client.sokoBotSchedule?.findFirst === "function"
+  ) {
+    const schedule = await client.sokoBotSchedule.findFirst({
+      where: { id: match[1], sokoBotId: turn.sokoBotId },
+      select: SCHEDULE_SOCIAL_AUTHORITY_SELECT,
+    });
+    if (schedule) {
+      return scheduleRowToSocialAuthority(schedule);
+    }
+  }
+  return {
+    kind: "unresolved",
+    detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+  };
+}
+
+/**
+ * Resolves the underlying `SokoBotTurnSource` and persisted schedule authority
+ * behind a `SCHEDULE` or `ADMIN_RETRY` turn (`admin-retry:<turnId>:<op>` or
+ * `admin-schedule-retry:<runId>:<op>`), validating UUID segments and scoping
+ * every lookup to `turn.sokoBotId`.
+ * - Ordinary `CHAT` / `EVENT` turns return immediately with zero DB queries.
+ * - Missing, malformed, cross-bot, or cyclic `admin-retry` targets fail closed
+ *   to `"EVENT"` (keeping non-CMO social writes `draft_only`).
+ * - Missing, malformed, or cross-bot schedule runs/schedules fail closed via
+ *   `{ kind: "unresolved" }`.
+ */
+export async function resolveSocialWriteOrigin(
+  turn: {
+    id: string;
+    sokoBotId: string;
+    source: string | null;
+    clientTurnId?: string | null;
+  },
+  client: ScheduleSocialAuthorityClient = prisma,
+): Promise<ResolvedSocialWriteOrigin> {
+  if (turn.source === "SCHEDULE") {
+    return {
+      source: "SCHEDULE",
+      scheduleAuthority: await resolveScheduleRowForTurn(turn, client),
+    };
+  }
+  if (turn.source !== "ADMIN_RETRY") {
+    return {
+      source: turn.source,
+      scheduleAuthority: { kind: "none" },
+    };
+  }
+  const seen = new Set<string>([turn.id]);
+  let current = await client.sokoBotTurn.findFirst({
+    where: { id: turn.id, sokoBotId: turn.sokoBotId },
+    select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
+  });
+  let hops = 0;
+  while (current?.source === "ADMIN_RETRY") {
+    const [kind, targetId] = current.clientTurnId.split(":");
+    if (kind === ADMIN_SCHEDULE_RETRY_KIND) {
+      if (
+        !targetId ||
+        !uuidSchema.safeParse(targetId).success ||
+        typeof client.sokoBotScheduleRun?.findFirst !== "function"
+      ) {
+        return {
+          source: "SCHEDULE",
+          scheduleAuthority: {
+            kind: "unresolved",
+            detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+          },
+        };
+      }
+      const run = await client.sokoBotScheduleRun.findFirst({
+        where: { id: targetId, schedule: { sokoBotId: turn.sokoBotId } },
+        select: { schedule: { select: SCHEDULE_SOCIAL_AUTHORITY_SELECT } },
+      });
+      return {
+        source: "SCHEDULE",
+        scheduleAuthority: run?.schedule
+          ? scheduleRowToSocialAuthority(run.schedule)
+          : {
+              kind: "unresolved",
+              detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+            },
+      };
+    }
+    if (
+      kind !== ADMIN_RETRY_TURN_KIND ||
+      !targetId ||
+      !uuidSchema.safeParse(targetId).success ||
+      seen.has(targetId) ||
+      ++hops > MAX_OWNER_AUTHORITY_PARENT_HOPS
+    ) {
+      return { source: "EVENT", scheduleAuthority: { kind: "none" } };
+    }
+    seen.add(targetId);
+    const next = await client.sokoBotTurn.findFirst({
+      where: { id: targetId, sokoBotId: turn.sokoBotId },
+      select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
+    });
+    if (!next) {
+      return { source: "EVENT", scheduleAuthority: { kind: "none" } };
+    }
+    current = next;
+  }
+  if (current?.source === "SCHEDULE") {
+    return {
+      source: "SCHEDULE",
+      scheduleAuthority: await resolveScheduleRowForTurn(current, client),
+    };
+  }
+  return {
+    source: current?.source ?? "EVENT",
+    scheduleAuthority: { kind: "none" },
+  };
+}
 
 /**
  * Resolves the underlying `SokoBotTurnSource` behind an `ADMIN_RETRY` chain
@@ -1253,40 +1872,11 @@ const uuidSchema = z.string().uuid();
  */
 export async function resolveSocialWriteOriginSource(
   turn: { id: string; sokoBotId: string; source: string | null },
-  client: OwnerAuthorityTurnClient = prisma,
+  client: ScheduleSocialAuthorityClient = prisma,
 ): Promise<string | null> {
   if (turn.source !== "ADMIN_RETRY") return turn.source;
-  const seen = new Set<string>([turn.id]);
-  let current = await client.sokoBotTurn.findFirst({
-    where: { id: turn.id, sokoBotId: turn.sokoBotId },
-    select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
-  });
-  let hops = 0;
-  while (current?.source === "ADMIN_RETRY") {
-    const [kind, targetId] = current.clientTurnId.split(":");
-    if (kind === ADMIN_SCHEDULE_RETRY_KIND) {
-      return "SCHEDULE";
-    }
-    if (
-      kind !== ADMIN_RETRY_TURN_KIND ||
-      !targetId ||
-      !uuidSchema.safeParse(targetId).success ||
-      seen.has(targetId) ||
-      ++hops > MAX_OWNER_AUTHORITY_PARENT_HOPS
-    ) {
-      return "EVENT";
-    }
-    seen.add(targetId);
-    const next = await client.sokoBotTurn.findFirst({
-      where: { id: targetId, sokoBotId: turn.sokoBotId },
-      select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
-    });
-    if (!next) {
-      return "EVENT";
-    }
-    current = next;
-  }
-  return current?.source ?? "EVENT";
+  const resolved = await resolveSocialWriteOrigin(turn, client);
+  return resolved.source;
 }
 
 export interface WorkItemParentTurnInput {
