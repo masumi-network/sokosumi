@@ -2,7 +2,6 @@ import type { Prisma, ProjectSeoSuggestion } from "@sokosumi/database";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-import { isEvalCusoProject, isEvalWorkspace } from "@/lib/evals/eval-guard";
 
 type TrackedSuggestion = Pick<
   ProjectSeoSuggestion,
@@ -18,12 +17,13 @@ const TRACKED_STATUSES = new Set(["done", "verified"]);
 
 /**
  * The tracked change row for a done page change, or null when the suggestion
- * is not one. Test copies and eval projects are no customers, so they get none.
+ * is not one. A test copy is no customer, so it gets none; the callers skip
+ * eval projects.
  */
-export async function trackedSeoChange(
+export function trackedSeoChange(
   suggestion: TrackedSuggestion,
   project: TrackedProject,
-): Promise<Prisma.ProjectSeoImpactVerdictCreateManyInput | null> {
+): Prisma.ProjectSeoImpactVerdictCreateManyInput | null {
   const { doneAt, pageUrl } = suggestion;
   if (
     suggestion.kind !== "page_change" ||
@@ -31,11 +31,6 @@ export async function trackedSeoChange(
     !doneAt ||
     !pageUrl ||
     project.testCopyOfProjectId
-  )
-    return null;
-  if (
-    (await isEvalWorkspace(project.workspaceId)) ||
-    (await isEvalCusoProject(suggestion.projectId))
   )
     return null;
   return {
@@ -68,9 +63,20 @@ export async function updateSeoSuggestion(args: {
       },
     });
     const { project, ...row } = suggestion;
-    const change = await trackedSeoChange(row, project);
+    const change = trackedSeoChange(row, project);
+    if (!change) return row;
+    // An eval project is no customer. Read on this transaction's connection:
+    // the global client would ask the pool for a second one per status write.
+    const evalLanes = await tx.evalLane.count({
+      where: {
+        OR: [
+          { workspaceId: project.workspaceId },
+          { cusoProjectId: row.projectId },
+        ],
+      },
+    });
     // The cron backfill can have recorded this change already.
-    if (change)
+    if (evalLanes === 0)
       await tx.projectSeoImpactVerdict.createMany({
         data: [change],
         skipDuplicates: true,

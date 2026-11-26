@@ -320,7 +320,10 @@ export async function handleSyncRequest(
     return unauthorized;
   }
   if (enabled && !enabled()) {
-    return c.json({ message: "Sync disabled" }, 200);
+    return new Response(JSON.stringify({ message: "Sync disabled" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // Before the lock: a Network that is off throws here and holds nothing.

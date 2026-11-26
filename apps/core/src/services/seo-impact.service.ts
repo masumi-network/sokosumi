@@ -69,6 +69,9 @@ type Inspection =
   | { crawledAt: Date; property: string }
   | { reason: SeoImpactReason; property: string | null };
 
+/** Not inspected this tick: the row keeps its state, and a later tick asks again. */
+const DEFERRED = "deferred";
+
 interface DoneSuggestionRow {
   id: string;
   projectId: string;
@@ -102,6 +105,12 @@ async function recordDoneChanges(
         AND s."pageUrl" IS NOT NULL
         AND s."doneAt" IS NOT NULL
         AND p."testCopyOfProjectId" IS NULL
+        -- Eval projects are no customers. Skipped here, before LIMIT, so a
+        -- batch of them never holds back a customer's change.
+        AND NOT EXISTS (
+          SELECT 1 FROM ${sharedTable("eval_lane")} e
+          WHERE e."workspaceId" = p."workspaceId" OR e."cusoProjectId" = s."projectId"
+        )
         AND s.id > ${after}::uuid
         AND NOT EXISTS (
           SELECT 1 FROM ${sharedTable("project_seo_impact_verdict")} v
@@ -109,11 +118,9 @@ async function recordDoneChanges(
         )
       ORDER BY s.id
       LIMIT ${RECORD_BATCH_SIZE}`;
-    const rows = [];
-    for (const suggestion of batch) {
-      const row = await trackedSeoChange(suggestion, suggestion);
-      if (row) rows.push(row);
-    }
+    const rows = batch.flatMap(
+      (suggestion) => trackedSeoChange(suggestion, suggestion) ?? [],
+    );
     if (rows.length > 0) {
       // A concurrent tick or status write inserts the same rows: the unique key keeps one.
       const { count } = await prisma.projectSeoImpactVerdict.createMany({
@@ -183,23 +190,38 @@ async function inspectRow(
   row: WaitingRow,
   lookups: TickLookups,
   budgetMs: () => number,
-): Promise<Inspection> {
+): Promise<Inspection | typeof DEFERRED> {
   const account = await once(lookups.accounts, row.projectId, () =>
     projectAccount(row.projectId),
   );
   if (typeof account === "string") return { reason: account, property: null };
+  const asksGoogle = !lookups.properties.has(account.composioAccountId);
+  // The connection lookup can have spent the tick: start no read it cannot finish.
+  const lookupMs = budgetMs();
+  if (asksGoogle && lookupMs <= 0) return DEFERRED;
   const ids = await once(lookups.properties, account.composioAccountId, () =>
-    accountProperties(account, row.projectId, budgetMs()),
+    accountProperties(account, row.projectId, lookupMs),
   );
-  if (!ids) return { reason: "inspection_failed", property: null };
-  const property = pickProperty(ids, row.pageUrl);
+  // Only the page whose lookup failed counts the failure: the account's other
+  // pages were not asked, so they wait for a later tick.
+  if (!ids)
+    return asksGoogle
+      ? { reason: "inspection_failed", property: null }
+      : DEFERRED;
+  // A page that is no URL has no property: the property match would throw.
+  const property = URL.canParse(row.pageUrl)
+    ? pickProperty(ids, row.pageUrl)
+    : null;
   if (!property) return { reason: "no_property", property: null };
+  // The property lookup can have spent the tick: start no read it cannot finish.
+  const inspectMs = budgetMs();
+  if (inspectMs <= 0) return DEFERRED;
   try {
     const page = await withDeadline(
       inspectStatisticsPage(property, row.pageUrl, undefined, (args) =>
         readNativeSeoTool(account, GSC_INSPECT_TOOL, args),
       ),
-      budgetMs(),
+      inspectMs,
       "URL Inspection timed out",
     );
     const crawledAt = page.lastCrawlTime ? new Date(page.lastCrawlTime) : null;
@@ -328,6 +350,10 @@ export async function syncSeoImpact(
       break;
     }
     const inspection = await inspectRow(row, lookups, budgetMs);
+    if (inspection === DEFERRED) {
+      if (budgetMs() <= 0) result.stopped = true;
+      continue;
+    }
     result.inspected += 1;
     if ("reason" in inspection && inspection.reason === "inspection_failed")
       result.failed += 1;

@@ -68,6 +68,7 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
 const userId = randomUUID(),
   organizationId = randomUUID(),
   workspaceId = randomUUID(),
@@ -102,6 +103,25 @@ async function doneChange(
       doneAt: options.doneAt ?? CHANGED_AT,
     },
     select: { id: true },
+  });
+}
+
+/** Done page changes in one insert, ids in insert order. */
+async function doneChanges(project: string, count: number) {
+  await prisma.projectSeoSuggestion.createMany({
+    data: Array.from({ length: count }, (_, index) => ({
+      projectId: project,
+      kind: "page_change",
+      key: `test:${randomUUID()}`,
+      source: "cuso",
+      title: `Change ${index}`,
+      pageUrl: `https://battery-sensei.app/page-${index}`,
+      why: "Searchers look for the app by name.",
+      body: "Put the app name first.",
+      evidence: [],
+      status: "done",
+      doneAt: CHANGED_AT,
+    })),
   });
 }
 
@@ -286,6 +306,63 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     ]);
   });
 
+  it("records one change when a done request is sent again", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing", {
+      status: "open",
+    });
+    const owner = { userId, projectId };
+    // Both requests read the open suggestion before either writes.
+    const read = prisma.projectSeoSuggestion.findFirst;
+    const { promise: bothRead, resolve } = Promise.withResolvers<void>();
+    let arrived = 0;
+    const spy = vi
+      .spyOn(prisma.projectSeoSuggestion, "findFirst")
+      .mockImplementation(((args: Parameters<typeof read>[0]) => {
+        const row = read(args);
+        arrived += 1;
+        if (arrived === 2) resolve();
+        return (async () => {
+          const value = await row;
+          if (arrived <= 2) await bothRead;
+          return value;
+        })();
+      }) as typeof read);
+    try {
+      await Promise.all([
+        setCmoSeoSuggestionStatus(owner, id, "done", CHANGED_AT),
+        setCmoSeoSuggestionStatus(
+          owner,
+          id,
+          "done",
+          new Date(CHANGED_AT.getTime() + 1_000),
+        ),
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
+    await setCmoSeoSuggestionStatus(owner, id, "done");
+
+    expect(await rowsOf(id)).toHaveLength(1);
+  });
+
+  it("records no second change when done is sent for a verified change", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing", {
+      status: "open",
+    });
+    const owner = { userId, projectId };
+    await setCmoSeoSuggestionStatus(owner, id, "done", CHANGED_AT);
+    // The weekly check found the change on the page.
+    await prisma.projectSeoSuggestion.update({
+      where: { id },
+      data: { status: "verified", verifiedAt: CHANGED_AT },
+    });
+
+    expect(await setCmoSeoSuggestionStatus(owner, id, "done")).toMatchObject({
+      status: "verified",
+    });
+    expect(await rowsOf(id)).toHaveLength(1);
+  });
+
   it("records nothing on a status write while the flag is off", async () => {
     env.SEO_IMPACT_TRACKING_ENABLED = false;
     const { id } = await doneChange("https://battery-sensei.app/pricing", {
@@ -443,33 +520,130 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     }
   });
 
-  it("reads past a full batch of changes it does not record", async () => {
-    // Eval changes are read and skipped: a full batch of them must not hold back the rest.
-    await prisma.projectSeoSuggestion.createMany({
-      data: Array.from({ length: 201 }, (_, index) => ({
-        projectId: evalProjectId,
-        kind: "page_change",
-        key: `test:${randomUUID()}`,
-        source: "cuso",
-        title: `Eval change ${index}`,
-        pageUrl: "https://battery-sensei.app/pricing",
-        why: "Eval",
-        body: "Eval",
-        evidence: [],
-        status: "done",
-        doneAt: CHANGED_AT,
-      })),
-    });
-    const deadline = Date.now() + 3_000;
+  it("records every change past a full batch", async () => {
+    await doneChanges(projectId, 201);
+
+    expect(await syncSeoImpact()).toMatchObject({ recorded: 201 });
+  });
+
+  it("skips eval changes before they fill a batch", async () => {
+    await doneChanges(evalProjectId, 201);
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    // Time for one batch only.
+    let batches = 0;
     const tick = {
-      shouldContinue: () => Date.now() < deadline,
+      shouldContinue: () => batches++ < 1,
       msRemaining: () => Number.POSITIVE_INFINITY,
     };
 
-    expect(await syncSeoImpact(tick)).toMatchObject({
-      recorded: 0,
-      stopped: false,
+    await syncSeoImpact(tick);
+
+    expect(await rowsOf(id)).toHaveLength(1);
+  });
+
+  it("defers an account's other pages when its property list fails", async () => {
+    const pages = ["a", "b"].map(
+      (page) => `https://battery-sensei.app/${page}`,
+    );
+    const changes = await Promise.all(
+      pages.map((page) => doneChange(page, { status: "open" })),
+    );
+    // Recorded by the status writes, so the tick below only inspects.
+    for (const { id } of changes)
+      await updateSeoSuggestion({
+        where: { id },
+        data: { status: "done", doneAt: CHANGED_AT },
+      });
+    vi.mocked(propertyChoices).mockRejectedValueOnce(
+      new Error("Composio refused the read: 403"),
+    );
+    expectCoreLog("warn", "SEO impact tracking could not read Search Console.");
+
+    // Both pages are past the wait: a page counted as failed is given up.
+    await syncSeoImpact(
+      undefined,
+      new Date(Date.now() + IMPACT_CRAWL_WAIT_DAYS * DAY_MS),
+    );
+
+    const rows = (
+      await Promise.all(changes.map(({ id }) => rowsOf(id)))
+    ).flat();
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          state: "not_measurable",
+          reason: "inspection_failed",
+        }),
+        expect.objectContaining({
+          state: "waiting_crawl",
+          reason: null,
+          lastInspectedAt: null,
+        }),
+      ]),
+    );
+    expect(propertyChoices).toHaveBeenCalledOnce();
+  });
+
+  it("starts no URL Inspection once the property lookup spent the tick", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    lastCrawl.set("https://battery-sensei.app/pricing", "2026-11-22T08:00:00Z");
+    let remaining = 60_000;
+    vi.mocked(propertyChoices).mockImplementationOnce(async () => {
+      // Only the time kept back for the writes is left.
+      remaining = 5_000;
+      return {
+        provider: "search_console",
+        properties: properties.map((property) => ({
+          id: property,
+          name: property,
+        })),
+        status: "available",
+        reason: null,
+      };
     });
+    const tick = {
+      shouldContinue: () => true,
+      msRemaining: () => remaining,
+    };
+
+    expect(await syncSeoImpact(tick)).toMatchObject({
+      inspected: 0,
+      stopped: true,
+    });
+    expect(beforeAnswer).not.toHaveBeenCalled();
+    expect(await rowsOf(id)).toMatchObject([
+      { state: "waiting_crawl", lastInspectedAt: null },
+    ]);
+  });
+
+  it("starts no property lookup once the connection lookup spent the tick", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    let remaining = 60_000;
+    const read = prisma.sokoBot.findFirst;
+    const spy = vi.spyOn(prisma.sokoBot, "findFirst").mockImplementation(((
+      args: Parameters<typeof read>[0],
+    ) => {
+      // Only the time kept back for the writes is left.
+      remaining = 5_000;
+      return read(args);
+    }) as typeof read);
+    const tick = {
+      shouldContinue: () => true,
+      msRemaining: () => remaining,
+    };
+    try {
+      expect(await syncSeoImpact(tick)).toMatchObject({
+        inspected: 0,
+        stopped: true,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(propertyChoices).not.toHaveBeenCalled();
+    expect(await rowsOf(id)).toMatchObject([
+      { state: "waiting_crawl", lastInspectedAt: null },
+    ]);
   });
 
   it("stores each inspection before the next one starts", async () => {
@@ -554,6 +728,73 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
       ...(await rowsOf(second.id)),
     ].map((row) => row.lastInspectedAt);
     expect(inspected).toEqual([expect.any(Date), expect.any(Date)]);
+  });
+
+  it("asks again only after the wait between inspections, the longest-waiting page first", async () => {
+    const now = new Date();
+    const owner = { userId, projectId };
+    for (const [page, hours] of [
+      ["recent", 1],
+      ["older", 21],
+      ["oldest", 22],
+    ] as const) {
+      const { id } = await doneChange(`https://battery-sensei.app/${page}`, {
+        status: "open",
+      });
+      await setCmoSeoSuggestionStatus(owner, id, "done", CHANGED_AT);
+      await prisma.projectSeoImpactVerdict.updateMany({
+        where: { suggestionId: id },
+        data: { lastInspectedAt: new Date(now.getTime() - hours * HOUR_MS) },
+      });
+    }
+    const asked: string[] = [];
+    beforeAnswer.mockImplementation(async (pageUrl) => {
+      asked.push(pageUrl);
+    });
+
+    // One inspection in the first tick.
+    await syncSeoImpact(
+      {
+        shouldContinue: () => asked.length < 1,
+        msRemaining: () => Number.POSITIVE_INFINITY,
+      },
+      now,
+    );
+    await syncSeoImpact(undefined, now);
+
+    expect(asked).toEqual([
+      "https://battery-sensei.app/oldest",
+      "https://battery-sensei.app/older",
+    ]);
+  });
+
+  it("gives a page that is no URL no property, and inspects the next page", async () => {
+    const pageUrl = "https://battery-sensei.app/pricing";
+    const noUrl = await doneChange("battery-sensei.app pricing");
+    await doneChange(pageUrl);
+    lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+
+    expect(await syncSeoImpact()).toMatchObject({ crawled: 1 });
+    expect(await rowsOf(noUrl.id)).toMatchObject([{ reason: "no_property" }]);
+  });
+
+  it("lists the changes of the chosen period, with the day a crawled window is final", async () => {
+    const pageUrl = "https://battery-sensei.app/pricing";
+    await doneChange(pageUrl);
+    await doneChange("https://battery-sensei.app/old", {
+      doneAt: new Date(CHANGED_AT.getTime() - 100 * DAY_MS),
+    });
+    lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+    await syncSeoImpact();
+
+    const { rows } = await listAdminSeoImpactVerdicts(
+      { period: "90" },
+      new Date(CHANGED_AT.getTime() + 10 * DAY_MS),
+    );
+    const ours = rows.filter((row) => row.projectId === projectId);
+    expect(ours).toMatchObject([
+      { pageUrl, windowEnd: "2026-12-24", windowReadyOn: "2026-12-31" },
+    ]);
   });
 
   it("stores the reason of a refused inspection, then gives up after the wait", async () => {
