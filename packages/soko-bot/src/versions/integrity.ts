@@ -33,6 +33,8 @@ export const TURN_TOOL_PROFILES: TurnToolProfile[] = [
     namedWithoutOffer: {
       "cmo-core-writes-strategy:write_strategy":
         "strategy changes belong to chat and strategy turns",
+      "cmo-asks-before-strategy-change:write_strategy":
+        "strategy changes belong to chat and strategy turns",
       "cmo-tool-highlights:save_brand_brain":
         "Brand Brain saves belong to chat and brand turns",
     },

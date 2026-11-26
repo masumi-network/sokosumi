@@ -9,6 +9,7 @@ import {
   cmoWritesStrategyStep,
 } from "../versions/cmo-v25-skills.js";
 import {
+  CMO_ASKS_BEFORE_CHANGE_SKILL,
   CMO_COMPACT_PRODUCTION_SKILL,
   cmoCompactProduction,
 } from "../versions/cmo-v26-skills.js";
@@ -36,7 +37,15 @@ describe("cmo-v26", () => {
       CMO_PLAYBOOKS_SKILL,
       CMO_COMPACT_PRODUCTION_SKILL,
       CMO_VIDEO_SHAPES_SKILL,
+      CMO_ASKS_BEFORE_CHANGE_SKILL,
     ]);
+    expect(composeSystemPrompt(v26)).toContain(
+      getSokoBotSkill(CMO_ASKS_BEFORE_CHANGE_SKILL).content.trim(),
+    );
+    for (const id of ["cmo-v23", "cmo-v24", "cmo-v25"])
+      expect(getSokoBotVersion(id).skills).not.toContain(
+        CMO_ASKS_BEFORE_CHANGE_SKILL,
+      );
     expect(cmoPostsVideoShapes(v26.skills)).toBe(true);
     expect(cmoPostsVideoShapes(v24.skills)).toBe(false);
     expect(cmoReadsPlaybooks(v26.skills)).toBe(true);
@@ -47,9 +56,6 @@ describe("cmo-v26", () => {
     expect(applyVersionCapabilities(v26, [])).toContain("write_strategy");
     expect(composeSystemPrompt(v26)).toContain(
       getSokoBotSkill(CMO_STRATEGY_STEP_SKILL).content.trim(),
-    );
-    expect(getSokoBotSkill(CMO_STRATEGY_STEP_SKILL).content).toMatch(
-      /only once the owner has said what to change[^\n]*ask one question/,
     );
     expect(v26.skillsOnDemand).toBe(true);
     expect(cmoCompactProduction(v26.skills)).toBe(true);

@@ -166,6 +166,11 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
     useWhen:
       "work outside the month's posts: a landing, pricing or comparison page, a page fix, an email sequence, cold outreach, a press pitch, a launch, an offer, a free download or a referral ask.",
   },
+  "cmo-asks-before-strategy-change": {
+    useWhen:
+      "every turn: a request about the strategy that leaves the change to guess gets a question first.",
+    preloadOn: ["always"],
+  },
   "cmo-compact-production": {
     useWhen:
       "a production run: what its small context holds and how to read the rest.",

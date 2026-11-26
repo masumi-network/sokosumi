@@ -54,6 +54,19 @@ export const CMO_PRODUCTION_TOOLS = [
   "report_update",
 ] as const satisfies readonly SokoBotCapability[];
 
+/** cmo-v26: an open request about the strategy gets a question, not a change. */
+export const CMO_ASKS_BEFORE_CHANGE_SKILL = "cmo-asks-before-strategy-change";
+
+export const CMO_ASKS_BEFORE_CHANGE: SokoBotSkill = {
+  id: CMO_ASKS_BEFORE_CHANGE_SKILL,
+  name: "Ask before changing the strategy",
+  description:
+    "Asks the owner what to change when a request about the strategy leaves it to guess.",
+  content: `# Ask before changing the strategy
+
+Call write_strategy only once the owner has said what to change. A request that leaves the change for you to guess (asks for more, better or different without saying what or how much, or asks whether something is possible) is a question: answer it, then ask one question that offers your best guess, and change nothing until they reply.`,
+};
+
 export const CMO_COMPACT_PRODUCTION: SokoBotSkill = {
   id: CMO_COMPACT_PRODUCTION_SKILL,
   name: "A production run's small context",
