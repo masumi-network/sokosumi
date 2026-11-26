@@ -14,7 +14,12 @@ const tx = {
   sokoBotEventInbox: { findMany: vi.fn(), findFirst: vi.fn() },
   taskLink: { findMany: vi.fn() },
   task: { findFirst: vi.fn() },
-  sokoBotTaskActionClaim: { findUnique: vi.fn(), create: vi.fn() },
+  sokoBotTurn: { findUnique: vi.fn() },
+  sokoBotTaskActionClaim: {
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    updateMany: vi.fn(),
+  },
 };
 const claim = () =>
   claimTaskEventAction(
@@ -72,6 +77,83 @@ describe("claimTaskEventAction for a Task the reported one blocked", () => {
   it("refuses when another bot handles the blocked Task", async () => {
     tx.task.findFirst.mockResolvedValue({ assigneeSokoBotId: "bot_2" });
     expect(await claim()).toMatchObject({ allowed: false, claimId: null });
+  });
+});
+
+describe("claimTaskEventAction on a follow-up's retry", () => {
+  // The first wake for CodePat's finished review failed; the retry carries
+  // the plan "give the review to Alex as a Task".
+  const create = () =>
+    claimTaskEventAction(
+      tx as unknown as Prisma.TransactionClient,
+      { ...actor, turnId: "retry_turn" },
+      "task_codepat",
+      "CREATE_TASK",
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tx.sokoBotEventInbox.findMany.mockResolvedValue([
+      {
+        eventId: "event_review_done:follow-up-retry",
+        designatedHandlerBotId: "bot_1",
+      },
+    ]);
+    tx.task.findFirst.mockResolvedValue({
+      assigneeSokoBotId: null,
+      events: [{ id: "event_review_done", sokoBotId: null }],
+    });
+    tx.sokoBotTaskActionClaim.findUnique.mockResolvedValue(null);
+    tx.sokoBotTaskActionClaim.create.mockResolvedValue({ id: "claim_retry" });
+    tx.sokoBotTaskActionClaim.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it("acts under the Task event the retry stands for", async () => {
+    expect(await create()).toEqual({ allowed: true, claimId: "claim_retry" });
+    expect(tx.sokoBotTaskActionClaim.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          triggeringEventId: "event_review_done",
+          turnId: "retry_turn",
+        }),
+      }),
+    );
+  });
+
+  it("takes over the claim the failed turn left without doing the work", async () => {
+    tx.sokoBotTaskActionClaim.findUnique.mockResolvedValue({
+      id: "claim_failed",
+      turnId: "failed_turn",
+      handlerBotId: "bot_1",
+      receiptId: null,
+    });
+    tx.sokoBotTurn.findUnique.mockResolvedValue({ status: "FAILED" });
+    expect(await create()).toEqual({ allowed: true, claimId: "claim_failed" });
+    expect(tx.sokoBotTaskActionClaim.updateMany).toHaveBeenCalledWith({
+      where: { id: "claim_failed", turnId: "failed_turn", receiptId: null },
+      data: { turnId: "retry_turn" },
+    });
+  });
+
+  it("never repeats work the failed turn committed, nor takes over a live turn's claim", async () => {
+    tx.sokoBotTaskActionClaim.findUnique.mockResolvedValue({
+      id: "claim_failed",
+      turnId: "failed_turn",
+      handlerBotId: "bot_1",
+      receiptId: "receipt_1",
+    });
+    tx.sokoBotTurn.findUnique.mockResolvedValue({ status: "FAILED" });
+    expect(await create()).toMatchObject({ allowed: false });
+
+    tx.sokoBotTaskActionClaim.findUnique.mockResolvedValue({
+      id: "claim_live",
+      turnId: "other_turn",
+      handlerBotId: "bot_1",
+      receiptId: null,
+    });
+    tx.sokoBotTurn.findUnique.mockResolvedValue({ status: "RUNNING" });
+    expect(await create()).toMatchObject({ allowed: false });
+    expect(tx.sokoBotTaskActionClaim.updateMany).not.toHaveBeenCalled();
   });
 });
 

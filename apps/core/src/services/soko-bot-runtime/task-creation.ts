@@ -295,6 +295,9 @@ export async function createTask(
         lastSeenStatus: result.status,
         taskId: result.id,
         ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
+        ...(input.followUpAllows
+          ? { followUpAllows: input.followUpAllows }
+          : {}),
       },
     });
     {

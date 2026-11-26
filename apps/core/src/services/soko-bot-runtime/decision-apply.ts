@@ -122,7 +122,8 @@ export async function applyDecision(
     }
     let resultingEntityId: string | null = null;
     if (decision.toolName === "hire_agent") {
-      const { followUp, ...hire } = parseHireAgentInput(proposal);
+      const { followUp, followUpAllows, ...hire } =
+        parseHireAgentInput(proposal);
       const existingDelegation = await prisma.sokoBotDelegation.findUnique({
         where: {
           turnId_toolCallId: {
@@ -215,6 +216,7 @@ export async function applyDecision(
                   outcome: "processing",
                   error: marker,
                   ...(followUp !== undefined ? { followUp } : {}),
+                  ...(followUpAllows ? { followUpAllows } : {}),
                 },
               });
             }

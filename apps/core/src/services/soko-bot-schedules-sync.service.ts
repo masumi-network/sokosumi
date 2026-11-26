@@ -46,6 +46,11 @@ const MAX_SCHEDULE_ERROR_DETAIL_BYTES = 1_000;
 
 export interface SokoBotScheduleSyncInput {
   shouldContinue: () => boolean;
+  /**
+   * Claim only this schedule's due or recoverable runs. The owner benchmark
+   * fires its own schedule this way without touching anyone else's work.
+   */
+  scheduleId?: string;
   enqueueReconciliation?: (input: {
     turnId: string;
     leaseToken: string;
@@ -54,6 +59,8 @@ export interface SokoBotScheduleSyncInput {
 
 export interface SokoBotScheduleSyncResult {
   claimed: number;
+  /** The schedule runs this sync claimed. */
+  runIds: string[];
   completed: number;
   failed: number;
   deferred: number;
@@ -227,10 +234,13 @@ export function scheduleRunPrompt(schedule: {
 }
 
 export class SokoBotSchedulesSyncService {
-  private async claimRecoverableRun(): Promise<ClaimedOccurrence | null> {
+  private async claimRecoverableRun(
+    scheduleId?: string,
+  ): Promise<ClaimedOccurrence | null> {
     const now = new Date();
     const pending = await prisma.sokoBotScheduleRun.findFirst({
       where: {
+        ...(scheduleId ? { scheduleId } : {}),
         schedule: {
           sokoBot: {
             archivedAt: null,
@@ -289,11 +299,14 @@ export class SokoBotSchedulesSyncService {
     };
   }
 
-  private async claimDueOccurrence(): Promise<ClaimedOccurrence | null> {
+  private async claimDueOccurrence(
+    scheduleId?: string,
+  ): Promise<ClaimedOccurrence | null> {
     // Platform kill switch: nothing the bot starts on its own may run.
     if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return null;
     const due = await prisma.sokoBotSchedule.findFirst({
       where: {
+        ...(scheduleId ? { id: scheduleId } : {}),
         enabled: true,
         nextRunAt: { lte: new Date() },
         sokoBot: {
@@ -403,8 +416,13 @@ export class SokoBotSchedulesSyncService {
     };
   }
 
-  private async claimNextOccurrence(): Promise<ClaimedOccurrence | null> {
-    return (await this.claimRecoverableRun()) ?? this.claimDueOccurrence();
+  private async claimNextOccurrence(
+    scheduleId?: string,
+  ): Promise<ClaimedOccurrence | null> {
+    return (
+      (await this.claimRecoverableRun(scheduleId)) ??
+      this.claimDueOccurrence(scheduleId)
+    );
   }
 
   private async disableIfFailureBudgetExceeded(
@@ -478,6 +496,7 @@ export class SokoBotSchedulesSyncService {
   ): Promise<SokoBotScheduleSyncResult> {
     const result: SokoBotScheduleSyncResult = {
       claimed: 0,
+      runIds: [],
       completed: 0,
       failed: 0,
       deferred: 0,
@@ -486,11 +505,12 @@ export class SokoBotSchedulesSyncService {
 
     const claimed: ClaimedOccurrence[] = [];
     while (input.shouldContinue() && claimed.length < BATCH_SIZE) {
-      const next = await this.claimNextOccurrence();
+      const next = await this.claimNextOccurrence(input.scheduleId);
       if (!next) break;
       claimed.push(next);
     }
     result.claimed = claimed.length;
+    result.runIds = claimed.map((occurrence) => occurrence.run.id);
     if (claimed.length === 0) return result;
 
     const outcomes = await Promise.allSettled(

@@ -396,6 +396,9 @@ export async function assignTask(
         lastSeenStatus: updated.status,
         taskId: updated.id,
         ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
+        ...(input.followUpAllows
+          ? { followUpAllows: input.followUpAllows }
+          : {}),
       },
     });
     {

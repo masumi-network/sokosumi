@@ -170,7 +170,11 @@ describe("ChatGPT plan stand-ins", () => {
     expect(embed).not.toHaveBeenCalled();
     const values = queryRaw.mock.calls[0]?.slice(1) as unknown[];
     expect(values).toContain(null);
-    expect(values.some((value) => String(value).startsWith("["))).toBe(false);
+    expect(
+      values.some(
+        (value) => typeof value === "string" && value.startsWith("["),
+      ),
+    ).toBe(false);
   });
 
   it("runs the reference layout check on the plan and bills nothing", async () => {

@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { occurrenceEventId } from "@/lib/soko-bot/follow-up-retry";
 
 export interface TaskEventClaim {
   allowed: boolean;
@@ -54,7 +55,11 @@ export async function claimTaskEventAction(
   const latest = task.events[0];
   // A delayed turn cannot act on an occurrence superseded by a human or
   // another worker. Its own committed effects may follow the triggering event.
-  let event = inbox.find((entry) => entry.eventId === latest?.id);
+  // A follow-up's retry is handed over as "<event>:follow-up-retry": it
+  // stands for the same Task event and acts under it.
+  let event = inbox.find(
+    (entry) => occurrenceEventId(entry.eventId) === latest?.id,
+  );
   if (!event && latest?.sokoBotId === actor.sokoBotId) {
     const ownEffect = await tx.sokoBotToolCall.findFirst({
       where: {
@@ -74,7 +79,7 @@ export async function claimTaskEventAction(
     tx,
     actor,
     taskId,
-    event.eventId,
+    occurrenceEventId(event.eventId),
     task.assigneeSokoBotId ?? event.designatedHandlerBotId,
     actionKind,
   );
@@ -117,7 +122,7 @@ async function claimBlockedTask(
     tx,
     actor,
     taskId,
-    event.eventId,
+    occurrenceEventId(event.eventId),
     task.assigneeSokoBotId ?? event.designatedHandlerBotId,
     actionKind,
   );
@@ -136,6 +141,26 @@ async function claim(
   const existing = await tx.sokoBotTaskActionClaim.findUnique({
     where: { taskId_triggeringEventId_actionKind: key },
   });
+  // The turn that held the claim failed before it committed anything: its
+  // follow-up's retry takes the claim over and does the work.
+  if (
+    existing &&
+    existing.turnId !== actor.turnId &&
+    existing.handlerBotId === actor.sokoBotId &&
+    !existing.receiptId &&
+    (
+      await tx.sokoBotTurn.findUnique({
+        where: { id: existing.turnId },
+        select: { status: true },
+      })
+    )?.status === "FAILED"
+  ) {
+    const taken = await tx.sokoBotTaskActionClaim.updateMany({
+      where: { id: existing.id, turnId: existing.turnId, receiptId: null },
+      data: { turnId: actor.turnId },
+    });
+    if (taken.count === 1) return { allowed: true, claimId: existing.id };
+  }
   if (existing) {
     const allowed =
       existing.turnId === actor.turnId &&

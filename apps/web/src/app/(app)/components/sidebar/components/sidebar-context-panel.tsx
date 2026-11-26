@@ -25,7 +25,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { type SidebarSection, sidebarSection } from "./sidebar-sections";
 
 const PanelContext = createContext<{
@@ -116,6 +119,7 @@ function SidebarChatHome() {
               prefetchContent={!isActive}
               aria-current={isActive ? "page" : undefined}
               onClick={() => setOpenMobile(false)}
+              className={SIDEBAR_ROW_LINK_CLASS}
             >
               <SidebarRowSlot aria-hidden>
                 <House aria-hidden />
@@ -167,6 +171,7 @@ function MobileChatsLink() {
               href={CHAT_CHATS_LIST_PATH}
               aria-current={isActive ? "page" : undefined}
               onClick={() => setOpenMobile(false)}
+              className={SIDEBAR_ROW_LINK_CLASS}
             >
               <SidebarRowSlot aria-hidden>
                 <MessageCircle aria-hidden />

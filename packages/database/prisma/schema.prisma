@@ -3247,6 +3247,9 @@ model SokoBotDelegation {
   followUp       String?
   /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
   followUpTurnId String? @db.Uuid
+  /// The owner's own limits for `followUp` ({ images?, maxCredits? }):
+  /// the turn that carries it out may make no more images or spend no more.
+  followUpAllows Json?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])

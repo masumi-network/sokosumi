@@ -1,4 +1,5 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
+import { ACTION_LABELS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import {
@@ -6,7 +7,6 @@ import {
   ACTION_RECEIPT_CAPABILITIES,
 } from "./action-receipts";
 import {
-  ACTION_LABELS,
   buildActionResponse,
   HELD_BACK_REPLY,
   parseActionNarrativeText,
