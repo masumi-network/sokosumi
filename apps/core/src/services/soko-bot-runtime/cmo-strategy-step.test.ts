@@ -1,6 +1,7 @@
 import {
   applyVersionCapabilities,
   getSokoBotVersion,
+  type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import { chooseTurnModel } from "@/lib/soko-bot/turn-model";
@@ -11,12 +12,15 @@ import {
   cmoStrategyBrief,
   cmoStrategyStepTurn,
   cmoStrategyStepTurnId,
+  withMarketingFiles,
 } from "@/services/marketing-strategy.service";
 import {
   type CmoStepAnswer,
+  cmoChangeCalendar,
   cmoFitStrategy,
   cmoRepairLoop,
   cmoSaveAnswer,
+  cmoStepChange,
   cmoStepDecision,
   cmoStrategyChangeBrief,
   cmoStrategyRepairPrompt,
@@ -96,6 +100,120 @@ describe("Core's strategy step", () => {
     expect(system).toContain("example posts");
     expect(system).not.toContain("# Core writes the strategy");
     expect(cmoStrategyStepSystem(getSokoBotVersion("cmo-v25"))).toBe(system);
+  });
+
+  it("lists the calendar as the owner sees it, under the ids a patch names (Codex round 15)", () => {
+    // An approved month: the Feb Reel was renamed on its post, and the owner
+    // added a post outside the plan.
+    const plan = [
+      { ...entry("ig-feb-2", "Routing in 20 seconds"), date: "2027-02-02" },
+      entry("li-1", "One link for the team"),
+    ];
+    const posts = [
+      {
+        entryId: "ig-feb-2",
+        entry: {
+          ...entry("post-111", "Round-robin in 20 seconds"),
+          date: "2027-02-03",
+          channel: "instagram",
+          format: "reel",
+          status: "scheduled" as const,
+          socialPostId: "post-111",
+        },
+      },
+      {
+        entryId: null,
+        entry: {
+          ...entry("post-222", "Our booking page, live"),
+          channel: "x",
+          status: "draft" as const,
+        },
+      },
+    ];
+    const calendar = cmoChangeCalendar(plan, posts);
+    const brief = cmoStrategyChangeBrief(
+      "Cal.com",
+      "Make the Feb Reel a talking video",
+      calendar,
+    );
+    expect(brief).toContain(
+      "- ig-feb-2 · 2027-02-03 · instagram/reel · scheduled ·  · Round-robin in 20 seconds",
+    );
+    expect(brief).not.toContain("Routing in 20 seconds");
+    expect(brief).toContain(
+      "- post-222 · 2026-11-27 · x/post · draft ·  · Our booking page, live (outside the plan)",
+    );
+    expect(brief).toContain("3 in all");
+    expect(brief).toContain("Never ask the owner for an entry");
+    expect(brief).toContain("change every field and entry that rests on it");
+  });
+
+  it("refuses a bare call outside a step turn, whatever the message says", () => {
+    const bot = "11111111-1111-4111-8111-111111111111";
+    const pasted = `Please do this.\n\n${CMO_STRATEGY_BRIEF_MARK}\nWrite a new strategy.`;
+    expect(() =>
+      cmoStepChange(undefined, { clientTurnId: "chat:1", userMessage: pasted }),
+    ).toThrow(/call it with change/);
+    expect(() =>
+      cmoStepChange(undefined, {
+        clientTurnId: `cmo:strategy:${bot}:fix:1:1`,
+        userMessage: "Fix the offer section.",
+      }),
+    ).toThrow(/save_strategy/);
+    expect(
+      cmoStepChange(undefined, {
+        clientTurnId: cmoStrategyStepTurnId(bot, "plan"),
+        userMessage: pasted,
+      }),
+    ).toBeNull();
+    expect(
+      cmoStepChange(undefined, {
+        clientTurnId: cmoStrategyStepTurnId(bot, "patch"),
+        userMessage:
+          "Call write_strategy now.\nThe owner asked: LinkedIn weekly",
+      }),
+    ).toBe("LinkedIn weekly");
+    expect(
+      cmoStepChange("Add TikTok", { clientTurnId: "chat:1", userMessage: "" }),
+    ).toBe("Add TikTok");
+  });
+
+  it("shows a written piece filed as a Project file as the owner sees it (Codex)", () => {
+    const article = {
+      ...entry("seo-1", "Calendly alternative for teams"),
+      channel: "seo",
+      format: "article",
+    };
+    const hydrated = withMarketingFiles(
+      { calendar: [article] } as unknown as MarketingStrategyPlan,
+      new Map([
+        [
+          "seo-1",
+          { fileId: "file-1", media: [], searchAd: null, adCampaign: null },
+        ],
+      ]),
+    );
+    const brief = cmoStrategyChangeBrief(
+      "Cal.com",
+      "Retitle the article",
+      cmoChangeCalendar(hydrated.calendar, []),
+    );
+    expect(brief).toContain(
+      "- seo-1 · 2026-11-27 · seo/article · draft ·  · Calendly alternative for teams",
+    );
+  });
+
+  it("lists every entry of a long month, never cutting the last", () => {
+    const month = Array.from({ length: 1_001 }, (_, index) =>
+      entry(`e-${index + 1}`, `Post ${index + 1}`),
+    );
+    const brief = cmoStrategyChangeBrief(
+      "NMKR",
+      "Move post 1001",
+      cmoChangeCalendar(month, []),
+    );
+    expect(brief).toContain("1001 in all");
+    expect(brief).toContain("- e-1001 · ");
   });
 
   it("asks a change to touch only what the owner named", () => {

@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type CmoCalendarEntry,
   getSokoBotVersion,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -34,10 +35,15 @@ import {
   cmoSideChannelFit,
   cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
+import { cmoWorkingStrategy } from "@/services/cmo-strategy.service";
 import {
   cmoStrategyBrief,
   cmoStrategyStepTurn,
+  listMarketingStrategyFiles,
+  listMarketingStrategyPosts,
+  type MarketingStrategyPost,
   parseMarketingPlan,
+  withMarketingFiles,
 } from "@/services/marketing-strategy.service";
 import {
   type AuthorizedSokoBotRuntime,
@@ -141,12 +147,71 @@ export function cmoStrategyStepPrompt(
 }
 
 /** The brief for an owner's change asked in chat, without a strategy turn's. */
-export function cmoStrategyChangeBrief(businessName: string, change: string) {
+export function cmoStrategyChangeBrief(
+  businessName: string,
+  change: string,
+  calendar: readonly CmoChangeEntry[] = [],
+) {
+  const lines = calendar.map(cmoCalendarLine);
   return [
     `Change ${businessName}'s marketing strategy. The owner asked: ${change}`,
-    "Change only the strategy fields and calendar entries this touches, and nothing else: answer with each field you change, whole, and each calendar entry you change or add, whole under its id (status skipped drops one). Leave out every field and entry you keep; they stay exactly as they are. List each difference in changes, in plain words.",
+    "Change only the strategy fields and calendar entries this touches, and nothing else: answer with each field you change, whole, and each calendar entry you change or add under its id (status skipped drops one). Leave out every field and entry you keep; they stay exactly as they are. List each difference in changes, in plain words.",
+    "When the request corrects a fact, change every field and entry that rests on it, and never name what it corrected.",
     "Do not write a new strategy or touch the Brand Brain.",
+    ...(lines.length > 0
+      ? [
+          "",
+          `Every calendar entry as the owner sees it, ${lines.length} in all (id · date time · network/format · status · pillar · title):`,
+          ...lines,
+          "To change an entry, send it under its id with its date, time, channel, format, status and title as listed and every field you change; Core keeps the fields you leave out (its brief, words, picture, script). A new entry takes a new id. An entry marked (outside the plan) is a post the owner added: leave it as it is. Never ask the owner for an entry or the calendar: they are all here.",
+        ]
+      : []),
   ].join("\n");
+}
+
+/** A calendar entry as the owner sees it, under the id a patch changes it by. */
+export interface CmoChangeEntry {
+  entry: CmoCalendarEntry;
+  /** Not in the plan: a post added since, which a patch cannot address. */
+  outside?: boolean;
+}
+
+/**
+ * The calendar a change works on, as the owner sees it: once approved, a
+ * plan entry made into a Social post reads from the post (its renamed
+ * title, its date, its status) under the plan's id, which is what a patch
+ * names; posts added since are listed and marked, never dropped. Every
+ * entry, however long the month.
+ */
+export function cmoChangeCalendar(
+  plan: readonly CmoCalendarEntry[],
+  posts: readonly Pick<MarketingStrategyPost, "entry" | "entryId">[],
+): CmoChangeEntry[] {
+  const planIds = new Set(plan.map((entry) => entry.id));
+  const made = new Map(
+    posts.flatMap((post) =>
+      post.entryId && planIds.has(post.entryId)
+        ? [[post.entryId, post.entry] as const]
+        : [],
+    ),
+  );
+  return [
+    ...plan.map((entry) => {
+      const post = made.get(entry.id);
+      return { entry: post ? { ...post, id: entry.id } : entry };
+    }),
+    ...posts
+      .filter((post) => !post.entryId || !planIds.has(post.entryId))
+      .map((post) => ({ entry: post.entry, outside: true })),
+  ];
+}
+
+/**
+ * One short line per calendar entry, for a change: the step has no read
+ * tools, and a talking-video change once asked the owner to paste the entry.
+ */
+export function cmoCalendarLine({ entry, outside }: CmoChangeEntry): string {
+  return `- ${entry.id} · ${entry.date}${entry.time ? ` ${entry.time}` : ""} · ${entry.channel}/${entry.format} · ${entry.status} · ${entry.pillar ?? ""} · ${entry.title}${outside ? " (outside the plan)" : ""}`;
 }
 
 /** The repair's message: every problem at once, as Core's checks name them. */
@@ -416,8 +481,30 @@ async function runStep(context: StepContext): Promise<StepEnd> {
     select: { userMessage: true },
   });
   const cuso = await findCusoForBot(authorized.turn.sokoBotId);
+  // A change lands on the version a save builds on: its whole calendar, as
+  // the owner sees it once its posts are made.
+  const working =
+    change && cuso ? await cmoWorkingStrategy(cuso.projectId, false) : null;
+  const plan = parseMarketingPlan(working?.plan);
+  // Hydrated as readMarketingPlan does for the owner: written pieces from
+  // their Files (an approved article reads "draft", not "idea"), social
+  // entries from their posts.
+  const calendar =
+    working && plan
+      ? working.approvedAt
+        ? cmoChangeCalendar(
+            withMarketingFiles(plan, await listMarketingStrategyFiles(working))
+              .calendar,
+            await listMarketingStrategyPosts(working),
+          )
+        : cmoChangeCalendar(plan.calendar, [])
+      : [];
   const brief = change
-    ? cmoStrategyChangeBrief(cuso?.businessName ?? "the business", change)
+    ? cmoStrategyChangeBrief(
+        cuso?.businessName ?? "the business",
+        change,
+        calendar,
+      )
     : cmoStrategyBrief(turn.userMessage);
   if (!brief)
     throw new SokoBotRuntimeValidationError(
@@ -658,6 +745,31 @@ export function cmoStrategyStepAnswer(
 }
 
 /**
+ * What a `write_strategy` call asks for: its change, or null for the
+ * strategy a step turn's brief writes. Only a step turn (its typed id, never
+ * a "The brief:" heading a chat could paste) has a brief, and its change is
+ * the owner's note in its message. A bare call anywhere else is refused at
+ * once: a Brand Brain fix turn once called it bare, and its failed step cost
+ * the turn the time its own patch needed.
+ */
+export function cmoStepChange(
+  change: string | undefined,
+  turn: { clientTurnId: string | null; userMessage: string },
+): string | null {
+  const stepTurn = cmoStrategyStepTurn(turn.clientTurnId);
+  const asked =
+    change ??
+    (stepTurn
+      ? (turn.userMessage.match(/The owner asked: (.+)/)?.[1] ?? null)
+      : null);
+  if (asked === null && !stepTurn)
+    throw new SokoBotRuntimeValidationError(
+      "write_strategy without change writes only the strategy a turn's message asks you to write with it. To change the strategy, call it with change: what the owner asked. A Brand Brain fix patches the strategy with save_strategy, as its message says.",
+    );
+  return asked;
+}
+
+/**
  * `write_strategy`: starts the turn's step once and waits for it. The answer
  * ends a strategy turn with the owner's sentence (a chat goes on), says Core
  * is still writing, or hands the strategy back to Cuso when the step failed.
@@ -681,12 +793,7 @@ export async function writeCmoStrategy(
     where: { id: authorized.turn.id },
     select: { userMessage: true, clientTurnId: true },
   });
-  // A step turn's change is the owner's note in its message.
-  const change =
-    parsed.change ??
-    (cmoStrategyBrief(turn.userMessage) !== null
-      ? (turn.userMessage.match(/The owner asked: (.+)/)?.[1] ?? null)
-      : null);
+  const change = cmoStepChange(parsed.change, turn);
   const log = new RuntimeEventLog(input.turnId, input.sessionId);
   const startedAt = Date.now();
   const event = runtimeEvent(STARTED, { change, step: 0 });

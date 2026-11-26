@@ -20,7 +20,8 @@ export const CMO_STRATEGY_STEP: SokoBotSkill = {
   content: `# Core writes the strategy
 
 Core writes your strategy in one step with write_strategy. It follows your strategy skill, reads the Brand Brain, the industry research and the brief, checks the whole plan against every rule at once, fixes what the checks find and saves it.
-- In a strategy turn, call write_strategy before anything else, with no input. Its answer ends the turn with your sentence for the owner.
+- When your turn's message says to call write_strategy, call it before anything else, as the message says. With no input its answer ends the turn with your sentence for the owner.
+- A Brand Brain fix turn patches the strategy with save_strategy, as its message says; it does not call write_strategy.
 - When the owner asks to change the strategy (a network, how often it posts, a pillar, the offer, the ads, an example post), call write_strategy with change: the owner's request in their own words, plus anything from the chat it needs. Core changes only what the request touches. Its answer says what changed (toOwner); then do the rest of what the owner asked in the same turn.
 - When it answers that Core is still writing, call it again with the same input to wait. Do nothing else meanwhile.
 - Only when it answers that Core could not write the strategy, save it yourself with save_strategy as your strategy skill says.`,
