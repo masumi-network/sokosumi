@@ -15216,6 +15216,7 @@
         "noReadable": "Ninguna medición legible.",
         "verdict": {
           "pass": "Within all limits",
+          "passOn": "Within all limits on {devices}",
           "over": "Over a limit: {metrics}",
           "unknown": "Not known"
         },

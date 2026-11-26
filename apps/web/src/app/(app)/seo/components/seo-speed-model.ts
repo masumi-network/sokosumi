@@ -138,6 +138,8 @@ export interface SeoPageVerdict {
   worst: SeoVitalStatus;
   /** The source of the devices that decided the verdict. Null: no device decided one. */
   source: SeoSpeedSource | "mixed" | null;
+  /** A pass with a listed device that has no verdict: the devices that passed. Null for a pass of every device. */
+  passOn: SeoDeviceVerdict["device"][] | null;
   devices: SeoDeviceVerdict[];
 }
 
@@ -163,6 +165,12 @@ export function seoPageVerdict(rows: SeoSpeedDevice[]): SeoPageVerdict {
         deciding.some((device) => device.worst === status),
       ) ?? "too_little_data",
     source: sources.size > 1 ? "mixed" : (deciding[0]?.source ?? null),
+    // A device without a verdict is not within the limits: the pass names the devices it holds for.
+    passOn:
+      verdict === "pass" &&
+      devices.some((device) => device.verdict === "unknown")
+        ? deciding.map((device) => device.device)
+        : null,
     devices,
   };
 }
@@ -316,6 +324,7 @@ export function seoPageTrend(
  * can stop that read). The share is that device's part of the visits, when Google gave one.
  * stopped: basis default with a gap. The worker writes it when a limit cut the read of the shares, and also when it found no shares,
  * took the default device and a limit then cut that device's read. The row cannot tell the two apart, so the text holds for both.
+ * unknown: a counted basis without a share, or basis default on a device other than mobile (the worker's default).
  */
 export function seoDeviceReason(check: NonNullable<SeoSiteSpeedRow["check"]>) {
   // The worker's default device is mobile: a default basis on desktop is a check the row cannot explain.

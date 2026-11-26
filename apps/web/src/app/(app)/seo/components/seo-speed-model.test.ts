@@ -91,6 +91,18 @@ it("puts a page over the limit when one device is over it", () => {
   });
 });
 
+it("names the devices of a pass when another device has no verdict (review pass 20)", () => {
+  const good = seoTestSpeedDevice({
+    field: field({ lcp: 2000, inp: 150, cls: 0.05 }),
+  });
+  expect(
+    seoPageVerdict([good, seoTestSpeedDevice({ device: "desktop" })]),
+  ).toMatchObject({ verdict: "pass", passOn: ["mobile"] });
+  expect(
+    seoPageVerdict([good, { ...good, device: "desktop" }]).passOn,
+  ).toBeNull();
+});
+
 const weeks = ["2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"];
 
 it("reads a falling LCP as getting faster and breaks the line at a week without a value", () => {

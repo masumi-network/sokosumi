@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import type {
+  SeoDeviceVerdict,
   SeoSpeedVerdict,
   SeoVital,
   SeoVitalStatus,
@@ -53,8 +54,22 @@ export function SeoSpeedMark({
 /** A verdict in words; one over a limit names the Core Web Vitals that are over it. */
 export function seoSpeedVerdictText(
   t: ReturnType<typeof useSeoResultTranslations<"App.Seo">>,
-  { verdict, over }: { verdict: SeoSpeedVerdict; over: SeoVital[] },
+  {
+    verdict,
+    over,
+    passOn,
+  }: {
+    verdict: SeoSpeedVerdict;
+    over: SeoVital[];
+    passOn?: SeoDeviceVerdict["device"][] | null;
+  },
 ) {
+  if (verdict === "pass" && passOn)
+    return t("pageSpeed.verdict.passOn", {
+      devices: passOn
+        .map((device) => t(`breakdown.devices.${device}`))
+        .join(", "),
+    });
   return verdict === "over"
     ? t("pageSpeed.verdict.over", {
         metrics: over
