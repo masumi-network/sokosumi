@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  CMO_PLAYBOOKS_SKILL,
+  cmoReadsPlaybooks,
+  cmoWritingSkills,
+} from "../versions/cmo-playbooks-skill.js";
+import {
   CMO_STRATEGY_STEP_SKILL,
   cmoWritesStrategyStep,
 } from "../versions/cmo-v25-skills.js";
@@ -24,8 +29,13 @@ describe("cmo-v26", () => {
     expect(v26.skills).toEqual([
       ...v24.skills,
       CMO_STRATEGY_STEP_SKILL,
+      CMO_PLAYBOOKS_SKILL,
       CMO_COMPACT_PRODUCTION_SKILL,
     ]);
+    expect(cmoReadsPlaybooks(v26.skills)).toBe(true);
+    expect(
+      cmoWritingSkills(v26.skills).some((s) => s.group === "playbooks"),
+    ).toBe(true);
     expect(cmoWritesStrategyStep(v26.skills)).toBe(true);
     expect(applyVersionCapabilities(v26, [])).toContain("write_strategy");
     expect(composeSystemPrompt(v26)).toContain(

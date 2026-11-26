@@ -71,13 +71,14 @@ describe("a small-context production run (cmo-v26)", () => {
     for (const tool of CMO_PRODUCTION_TOOLS) expect(v26).toContain(tool);
   });
 
-  it("keeps the marketing context and who started it, and leaves the rest out", () => {
+  it("keeps the marketing context, the owner's memory and who started it, and leaves the rest out", () => {
     const packet = {
       schemaVersion: 1,
       generatedAt: "2026-11-26T00:00:00Z",
       trigger: { kind: "event" },
       actor: { name: "Robin" },
       projects: [],
+      memory: "Never mention competitors by name.",
       recentTurns: [{ finalAnswer: "x".repeat(5000) }],
       sourceCoverage: { mail: "none" },
       tasks: [],
@@ -89,8 +90,34 @@ describe("a small-context production run (cmo-v26)", () => {
       trigger: { kind: "event" },
       actor: { name: "Robin" },
       projects: [],
+      memory: "Never mention competitors by name.",
       workspace: { marketing: { core: { business: "Acme" } } },
     });
+  });
+
+  it("offers every tool cmo-v26's skills and packet send a production run to", () => {
+    const v26 = getSokoBotVersion("cmo-v26");
+    for (const tool of [
+      "read_file",
+      "list_files",
+      "read_report",
+      "read_memory",
+      "research_competitor_keywords",
+      "get_video",
+      "list_newsletter_issues",
+      "update_newsletter_issue",
+      "update_social_posts",
+    ])
+      expect(CMO_PRODUCTION_TOOLS as readonly string[]).toContain(tool);
+    const granted = offeredCapabilities(
+      v26,
+      {
+        grant: { capabilities: [...CMO_PRODUCTION_TOOLS] },
+        turn: { source: "EVENT", chainDepth: 0 },
+      } as never,
+      { sandbox: false, production: true },
+    );
+    expect(granted).toEqual([...CMO_PRODUCTION_TOOLS]);
   });
 });
 

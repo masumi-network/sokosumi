@@ -490,8 +490,15 @@ export function turnRequiresActionProof(
  */
 export function productionPacket(packet: unknown): unknown {
   if (!packet || typeof packet !== "object") return packet;
-  const { workspace, trigger, actor, projects, generatedAt, schemaVersion } =
-    packet as Record<string, unknown>;
+  const {
+    workspace,
+    trigger,
+    actor,
+    projects,
+    memory,
+    generatedAt,
+    schemaVersion,
+  } = packet as Record<string, unknown>;
   const marketing = (workspace as { marketing?: unknown } | null)?.marketing;
   return {
     schemaVersion,
@@ -499,6 +506,8 @@ export function productionPacket(packet: unknown): unknown {
     trigger,
     actor,
     projects,
+    // The owner's preferences and corrections bind every piece of the month.
+    memory,
     workspace: { marketing },
   };
 }

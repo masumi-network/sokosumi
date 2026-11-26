@@ -162,6 +162,10 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "every turn: writing the strategy, or any change the owner asks for to it, goes through write_strategy.",
     preloadOn: ["always"],
   },
+  "cmo-playbooks": {
+    useWhen:
+      "work outside the month's posts: a landing, pricing or comparison page, a page fix, an email sequence, cold outreach, a press pitch, a launch, an offer, a free download or a referral ask.",
+  },
   "cmo-compact-production": {
     useWhen:
       "a production run: what its small context holds and how to read the rest.",
