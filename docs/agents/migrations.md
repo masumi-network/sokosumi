@@ -31,6 +31,20 @@ Do not propose an index or a query rewrite from `schema.prisma` alone. The schem
 
 A migration file is not one transaction. When a statement fails, the statements before it stay applied and `_prisma_migrations` records a failed row (`P3018`), so a retry does nothing until someone runs `prisma migrate resolve`. Order statements so that no later one can fail on data an earlier one changed. For example, add a CHECK constraint as `NOT VALID` first, convert the data, then `VALIDATE CONSTRAINT` last.
 
+## Lock timeouts
+
+Set a 5-second lock timeout before statements that take `ACCESS EXCLUSIVE`. A waiting exclusive lock queues later reads and writes on the table.
+
+```sql
+SET lock_timeout = '5s';
+-- Statements that take ACCESS EXCLUSIVE go here.
+RESET lock_timeout;
+```
+
+Reset the timeout before backfills and `VALIDATE CONSTRAINT`. Test Packages checks new migrations for `SET lock_timeout` whenever the file contains `ALTER TABLE`. For a migration that can safely omit the timeout, add a line in the SQL file in the form `-- lock-timeout: not needed, <reason>`.
+
+A lock timeout fails the statement with PostgreSQL error `55P03`. In a migration without an explicit transaction, earlier statements stay applied and Prisma records the failure. Check which statements took effect and make sure the migration can safely run again. Run `pnpm exec prisma migrate resolve --rolled-back <name>` using the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again. A plain redeploy stops at `P3009`.
+
 ## CI checks on migration text
 
 `src/types/__tests__/partial-unique-schema-coverage.test.ts` replays migration SQL with a regex, so it misses an index renamed inside a `DO` block or loop. Add a literal `ALTER INDEX "<old>" RENAME TO "<new>"` for each such rename.

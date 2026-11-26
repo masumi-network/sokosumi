@@ -145,6 +145,7 @@ export const userRepository = {
   - **You added a function:** if it reads or writes a Network table (`network` in `prisma/network-tables.json`) or sits on one, add its signature (`shared.name(argument types)`) to the script's waiting list with the ticket it waits for. Otherwise add its qualified definition to the file and a line with its signature and any digest to the file's guard; the failure message then prints the digest to put there (`digest now …`).
   - **You changed a function on the waiting list:** nothing, unless its argument types changed; then change its signature on the list.
   - **You dropped a function:** remove its definition and its guard line from the file, or its line from the waiting list.
+- **Lock timeouts.** Read the [lock timeout rule and recovery steps](../../docs/agents/migrations.md#lock-timeouts) when writing a migration with `ALTER TABLE`.
 - **Prove it applies** on a throwaway PostgreSQL or a production-data branch before merging a non-trivial migration: [`docs/agents/migrations.md`](../../docs/agents/migrations.md).
 - **Data and concurrency.** A migration or helper that moves credits, or writes based on another row's state, follows Data and Concurrency in [`docs/agents/coding-conventions.md`](../../docs/agents/coding-conventions.md): lock what you checked, and prove money races on PostgreSQL.
 
