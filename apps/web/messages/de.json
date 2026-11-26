@@ -2726,7 +2726,7 @@
         "checkingTag": "Wird geprüft",
         "label": "Tags",
         "empty": "Noch keine Tags",
-        "moreTags": "+{count} weitere {count, plural, one {Tag} other {Tags}}",
+        "moreTags": "+{count} {count, plural, one {weiterer Tag} other {weitere Tags}}",
         "noProject": "Kein Projekt",
         "openProject": "Projekt öffnen: {name}",
         "vocabulary": {
