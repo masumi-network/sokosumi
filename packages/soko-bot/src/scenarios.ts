@@ -234,25 +234,61 @@ const basename = (path: string) => path.split("/").at(-1) ?? "";
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** A cell as written: unquoted, and a number as its value. */
+/** A cell as written: trimmed, and a number (even "$12,000") as its value. */
 function cellValue(cell: string): string {
-  const text = cell
-    .trim()
-    .replace(/^["']|["']$/g, "")
-    .trim()
-    .toLowerCase();
+  const text = cell.trim().replace(/^'|'$/g, "").trim().toLowerCase();
   const number = text.replace(/[$€£\s]/g, "");
-  return /^-?\d+(\.\d+)?$/.test(number) ? String(Number(number)) : text;
+  return /^-?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$/.test(number)
+    ? String(Number(number.replaceAll(",", "")))
+    : text;
+}
+
+/** A line's cells, split at , ; tab or | outside double quotes. */
+function lineCells(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index] ?? "";
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else quoted = !quoted;
+    } else if (!quoted && ",;\t|".includes(char)) {
+      cells.push(cell);
+      cell = "";
+    } else cell += char;
+  }
+  cells.push(cell);
+  return cells;
 }
 
 /** Every row is one line whose cells include each of its fields, exactly. */
 function hasRows(content: string, rows: string[][]): boolean {
   const lines = content
     .split("\n")
-    .map((line) => new Set(line.split(/[,;\t|]/).map(cellValue)));
+    .map((line) => new Set(lineCells(line).map(cellValue)));
   return rows.every((row) =>
     lines.some((cells) => row.every((field) => cells.has(cellValue(field)))),
   );
+}
+
+/**
+ * What a call returned. A sandbox tool's receipt holds it as JSON text in
+ * `output`, clipped when long: text that no longer parses shows nothing.
+ */
+function toolResult(result: unknown): Record<string, unknown> {
+  const record = (result ?? {}) as Record<string, unknown>;
+  if (typeof record.output !== "string") return record;
+  try {
+    const parsed: unknown = JSON.parse(record.output);
+    return parsed !== null && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -269,7 +305,7 @@ function nextContent(
 ): string | null | undefined {
   if (call.status !== "COMPLETED") return undefined;
   const input = (call.input ?? {}) as Record<string, unknown>;
-  const result = (call.result ?? {}) as Record<string, unknown>;
+  const result = toolResult(call.result);
   const appended = (text: string) =>
     previous === null ? null : `${previous}\n${text}`;
   switch (call.capability) {
@@ -284,8 +320,13 @@ function nextContent(
         ? asText(input.content)
         : undefined;
     case "workspace_read": {
-      if (basename(asText(input.path)) !== name) return undefined;
-      const content = asText(result.content);
+      // A receipt without the content (clipped, or another shape) says nothing.
+      if (
+        basename(asText(input.path)) !== name ||
+        typeof result.content !== "string"
+      )
+        return undefined;
+      const content = result.content;
       // A preview or a later slice is not the whole file.
       const whole =
         !input.offset &&
@@ -311,7 +352,9 @@ function nextContent(
           `(>>?|\\btee\\b[^|;&]*)\\s*${target}`,
           `${file}["']?\\s*,\\s*["'][wa]`,
           `writeFile\\w*\\(\\s*["'][^"']*${file}`,
-          `\\b(mv|rm|cp)\\b[^;&|]*${file}`,
+          `\\b(mv|rm)\\b[^;&|]*${file}`,
+          // A copy changes only the file it writes: the last argument.
+          `\\bcp\\b[^;&|]*\\s${target}\\s*($|[;&|])`,
         ].join("|"),
       );
       return changes.test(command) ? null : undefined;

@@ -666,6 +666,74 @@ describe("scoring what the bot did, not how", () => {
       ).toBe(true);
     });
 
+    it("reads the sandbox's receipt, a copy and quoted thousands as written", () => {
+      // The sandbox stores what a tool returned as JSON text in `output`.
+      const receipt = (output: unknown) => ({ output: JSON.stringify(output) });
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv" },
+            receipt({
+              path: "pipeline.csv",
+              content: rows,
+              totalChars: rows.length,
+            }),
+          ),
+        ),
+      ).toBe(true);
+      const script = withInput("bash", {
+        command: "python3 make.py > pipeline.csv",
+      });
+      expect(
+        saves(
+          script,
+          withInput(
+            "bash",
+            { command: "cat pipeline.csv" },
+            receipt({ exitCode: 0, stdout: rows, stderr: "" }),
+          ),
+        ),
+      ).toBe(true);
+      // Clipped JSON shows nothing, so the write before it stands.
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv" },
+            { output: JSON.stringify({ content: rows }).slice(0, 40) },
+          ),
+        ),
+      ).toBe(true);
+      // A backup copy leaves the original as it was; a copy onto it does not.
+      expect(
+        saves(
+          write(rows),
+          withInput("bash", { command: "cp pipeline.csv pipeline.csv.bak" }),
+        ),
+      ).toBe(true);
+      expect(
+        saves(
+          write(rows),
+          withInput("bash", { command: "cp draft.csv pipeline.csv" }),
+        ),
+      ).toBe(false);
+      expect(
+        saves(
+          write(
+            rows
+              .replace("Acme,12000,won", 'Acme,"$12,000",won')
+              .replace("Gamma,20000,open", '"Gamma, Inc",20000,open'),
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        saves(write(rows.replace("Acme,12000,won", 'Acme,"$12,000",won'))),
+      ).toBe(true);
+    });
+
     it("takes the last write, so an overwrite counts", () => {
       expect(saves(write(rows), write("Acme,12000,won\n"))).toBe(false);
       expect(saves(write("Acme,12000,won\n"), write(rows))).toBe(true);
