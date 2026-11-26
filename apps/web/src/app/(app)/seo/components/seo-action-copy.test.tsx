@@ -7,14 +7,21 @@ import messages from "../../../../../messages/en.json";
 import { useSeoActionInstructions } from "./seo-action-copy";
 
 function instructions(before: string | null) {
-  const action = {
-    title: "Fix the page title",
+  const action: ProjectSeoAction = {
+    id: "action-row",
+    observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
     pageUrl: "https://example.com/",
+    findingIds: [],
+    title: "Fix the page title",
     why: "The title is too long",
+    effort: "low",
     expectedEffect: "A full title in search",
-    evidence: [],
     edit: { target: "title", before, after: "<title>Short</title>" },
-  } as unknown as ProjectSeoAction;
+    taskId: null,
+    status: "recommended",
+    kind: "fix",
+    evidence: [],
+  };
   return renderHook(() => useSeoActionInstructions(action, action.why), {
     wrapper: ({ children }: { children: ReactNode }) => (
       <NextIntlClientProvider locale="en" timeZone="UTC" messages={messages}>

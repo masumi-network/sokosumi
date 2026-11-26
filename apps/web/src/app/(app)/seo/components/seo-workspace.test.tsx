@@ -7669,7 +7669,7 @@ describe("SEO workspace integration", () => {
       expectedEffect: "A descriptive search result",
       edit: {
         target: "title",
-        before: null,
+        before: "  ",
         after: "<title>Battery Sensei</title>",
       },
       taskId: null,
@@ -7751,6 +7751,10 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByText("A descriptive search result"),
     ).toBeVisible();
+    // A blank value is not an empty box: the dialog says it in English words, as the copied text does.
+    expect(
+      within(dialog).getByText("No previous value recorded"),
+    ).toHaveAttribute("lang", "en");
     const write = vi.spyOn(navigator.clipboard, "writeText");
     await user.click(
       within(dialog).getByRole("button", { name: "Copy change" }),
