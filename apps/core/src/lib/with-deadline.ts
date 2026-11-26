@@ -10,6 +10,7 @@ export async function withDeadline<T>(
   ms: number,
   message: string,
 ): Promise<T> {
+  if (ms === Number.POSITIVE_INFINITY) return await work;
   // A deadline already past fails at once, even for work that is done.
   if (!(ms > 0)) {
     work.catch(() => {});

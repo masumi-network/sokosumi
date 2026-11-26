@@ -69,8 +69,14 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
     }
     await updateSeoSuggestion({
       // Only the change it checked: an owner who reopened or redid it since
-      // keeps that write, and the next audit checks the new one.
-      where: { id: suggestion.id, status: "done", doneAt: suggestion.doneAt },
+      // keeps that write, and the next audit checks the new one. A newer
+      // audit's check that ran meanwhile stands.
+      where: {
+        id: suggestion.id,
+        status: "done",
+        doneAt: suggestion.doneAt,
+        OR: [{ checkedAt: null }, { checkedAt: { lt: latest.observedAt } }],
+      },
       data: {
         checkedAt: latest.observedAt,
         ...(fixed ? { status: "verified", verifiedAt: latest.observedAt } : {}),

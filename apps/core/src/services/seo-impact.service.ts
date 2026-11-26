@@ -264,7 +264,8 @@ async function applyInspection(
 ): Promise<"crawled" | "not_measurable" | "waiting"> {
   if ("crawledAt" in inspection) {
     const window = impactWindow(row.changedAt, inspection.crawledAt);
-    await prisma.projectSeoImpactVerdict.updateMany({
+    // Of two ticks at once, only the one that moved the row counts it.
+    const { count } = await prisma.projectSeoImpactVerdict.updateMany({
       where: { id: row.id, state: "waiting_crawl", crawledAt: null },
       data: {
         state: "waiting_window",
@@ -276,11 +277,11 @@ async function applyInspection(
         windowEnd: new Date(`${window.windowEnd}T00:00:00Z`),
       },
     });
-    return "crawled";
+    return count ? "crawled" : "waiting";
   }
   const expired =
     now.getTime() - row.createdAt.getTime() >= IMPACT_CRAWL_WAIT_DAYS * DAY_MS;
-  await prisma.projectSeoImpactVerdict.updateMany({
+  const { count } = await prisma.projectSeoImpactVerdict.updateMany({
     where: { id: row.id, state: "waiting_crawl" },
     data: {
       state: expired ? "not_measurable" : "waiting_crawl",
@@ -289,7 +290,7 @@ async function applyInspection(
       lastInspectedAt: now,
     },
   });
-  return expired ? "not_measurable" : "waiting";
+  return expired && count ? "not_measurable" : "waiting";
 }
 
 /**

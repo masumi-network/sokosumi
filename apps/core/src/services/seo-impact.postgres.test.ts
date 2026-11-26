@@ -317,6 +317,25 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     for (const { id } of changes) expect(await rowsOf(id)).toHaveLength(1);
   });
 
+  it("counts a crawl once when two ticks inspect the page at once", async () => {
+    const pageUrl = "https://battery-sensei.app/pricing";
+    await doneChange(pageUrl);
+    lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+    // Both ticks have Google's answer before either writes it.
+    const { promise: bothAsked, resolve } = Promise.withResolvers<void>();
+    let asked = 0;
+    beforeAnswer.mockImplementation(async () => {
+      asked += 1;
+      if (asked === 2) resolve();
+      await bothAsked;
+    });
+
+    const results = await Promise.all([syncSeoImpact(), syncSeoImpact()]);
+
+    expect(asked).toBe(2);
+    expect(results[0].crawled + results[1].crawled).toBe(1);
+  });
+
   it("records both completions when a reopened change is done again before a tick", async () => {
     const { id } = await doneChange("https://battery-sensei.app/pricing", {
       status: "open",
