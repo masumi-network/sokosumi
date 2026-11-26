@@ -47,8 +47,8 @@ import {
 } from "@/services/drive-pdf-combine.service";
 import {
   activateDriveUploadResource,
-  reserveDriveUploadResource,
-  tombstoneDriveUploadResource,
+  claimDriveUploadResource,
+  releaseDriveUploadClaim,
 } from "@/services/file-catalog.service";
 
 /** All sources together; pdf-lib holds them in memory at once. */
@@ -140,6 +140,25 @@ async function readWithin(
   }
 }
 
+/**
+ * Undoes a save that did not go live: this save's bytes first, while its
+ * claim still holds the name so nothing else can land there, then the claim.
+ * When the bytes cannot be removed the claim stays, keeping the name held
+ * rather than leaving bytes no catalog entry answers for.
+ */
+async function rollBack(
+  resourceId: string,
+  pathname: string,
+  wroteBytes: boolean,
+) {
+  try {
+    if (wroteBytes) await driveDel([pathname]);
+  } catch {
+    return;
+  }
+  await releaseDriveUploadClaim(resourceId).catch(() => undefined);
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
@@ -170,6 +189,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireOrganizationDriveFileUploadAccess(authContext, ownerId, {
         into: [folder],
       });
+
+    // Resolved before anything is written, so a failure here leaves nothing.
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: scope === "user" ? "me" : "org",
+      organizationId: scope === "organization" ? ownerId : undefined,
+    });
 
     // A room's pages must not leave it, and outside pages must not land in
     // it: the new file takes its folder's audience and storage.
@@ -247,24 +273,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    // Bytes first, never overwriting: of two saves to one name, only the one
-    // whose bytes land goes on to touch the catalog.
-    try {
-      await drivePut(pathname, Buffer.from(combined.bytes), {
-        contentType: PDF,
-        addRandomSuffix: false,
-        allowOverwrite: false,
-      });
-    } catch (error) {
-      if (await driveExists(pathname)) throw nameTaken();
-      throw error;
-    }
-
-    const workspace = await resolveDriveTasksWorkspace({
-      userContext,
-      scope: scope === "user" ? "me" : "org",
-      organizationId: scope === "organization" ? ownerId : undefined,
-    });
+    // The catalog row is the claim on the name. It is create-only, so a live
+    // file or another upload still pending there is a conflict, and every
+    // step below acts only on the row this save created.
     const key = {
       workspaceId: workspace.workspaceId,
       scope,
@@ -272,28 +283,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname,
     };
     const sizeBytes = combined.bytes.byteLength;
+    const claim = await claimDriveUploadResource({
+      key,
+      displayName: name,
+      mimeType: PDF,
+      sizeBytes,
+    });
+    if (!claim) throw nameTaken();
+
+    let wroteBytes = false;
     let activated: { resourceId: string } | null = null;
     try {
-      await reserveDriveUploadResource({
+      try {
+        await drivePut(pathname, Buffer.from(combined.bytes), {
+          contentType: PDF,
+          addRandomSuffix: false,
+          allowOverwrite: false,
+        });
+        wroteBytes = true;
+      } catch (error) {
+        if (await driveExists(pathname)) throw nameTaken();
+        throw error;
+      }
+      const live = await activateDriveUploadResource({
         key,
-        displayName: name,
-        mimeType: PDF,
-        sizeBytes,
-      });
-      activated = await activateDriveUploadResource({
-        key,
         sizeBytes,
         mimeType: PDF,
       });
+      if (live?.resourceId === claim.resourceId) activated = live;
     } finally {
-      // The bytes are this attempt's own (the put refused to overwrite), so
-      // a failed catalog step removes them and its entry, and a retry works.
-      // Settled, so a failed cleanup cannot hide why the save failed.
-      if (!activated)
-        await Promise.allSettled([
-          driveDel([pathname]),
-          tombstoneDriveUploadResource(key),
-        ]);
+      if (!activated) await rollBack(claim.resourceId, pathname, wroteBytes);
     }
     if (!activated) throw notFound("The combined file could not be saved");
     nudgeFileIndexing();

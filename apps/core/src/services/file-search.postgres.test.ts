@@ -571,6 +571,48 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
     expect(tombstoned.sourceId).not.toBe(pathname);
   });
 
+  it("claims a pathname only once and releases only a pending claim", async () => {
+    const {
+      activateDriveUploadResource,
+      claimDriveUploadResource,
+      releaseDriveUploadClaim,
+      reserveDriveUploadResource,
+    } = await import("@/services/file-catalog.service");
+    const upload = (pathname: string) => ({
+      key: { workspaceId, scope: "user" as const, ownerId, pathname },
+      displayName: pathname.split("/").at(-1) ?? pathname,
+      mimeType: "application/pdf",
+      sizeBytes: 10,
+    });
+
+    // Another upload's pending reservation holds the name.
+    const pendingPath = `drive/users/${ownerId}/pending-${suffix}.pdf`;
+    const theirs = await reserveDriveUploadResource(upload(pendingPath));
+    expect(await claimDriveUploadResource(upload(pendingPath))).toBeNull();
+
+    // A claim is create-only and its release frees the name again.
+    const claimPath = `drive/users/${ownerId}/claim-${suffix}.pdf`;
+    const first = await claimDriveUploadResource(upload(claimPath));
+    expect(first).not.toBeNull();
+    expect(await claimDriveUploadResource(upload(claimPath))).toBeNull();
+    await releaseDriveUploadClaim(first?.resourceId ?? "");
+    const second = await claimDriveUploadResource(upload(claimPath));
+    expect(second?.resourceId).not.toBe(first?.resourceId);
+
+    // Release never removes a live document.
+    await activateDriveUploadResource({
+      key: upload(claimPath).key,
+      sizeBytes: 10,
+      mimeType: "application/pdf",
+    });
+    await releaseDriveUploadClaim(second?.resourceId ?? "");
+    expect(
+      await prisma.fileResource.count({
+        where: { id: { in: [second?.resourceId ?? "", theirs.resourceId] } },
+      }),
+    ).toBe(2);
+  });
+
   it("rejects an edit made against a stale revision", async () => {
     const [resourceId] = resourceIds;
     const outcome = await updateFileMetadata({

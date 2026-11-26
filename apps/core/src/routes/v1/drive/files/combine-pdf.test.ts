@@ -65,15 +65,43 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/helpers/drive-tasks-workspace", () => ({
-  resolveDriveTasksWorkspace: vi.fn(async () => ({ workspaceId: "ws_1" })),
+const workspaces = vi.hoisted(() => ({
+  resolveDriveTasksWorkspace: vi.fn(),
 }));
+vi.mock("@/helpers/drive-tasks-workspace", () => workspaces);
 
-const catalog = vi.hoisted(() => ({
-  reserveDriveUploadResource: vi.fn(),
-  activateDriveUploadResource: vi.fn(),
-  tombstoneDriveUploadResource: vi.fn(),
-}));
+// A catalog with the one rule that matters here: one row per pathname.
+const catalog = vi.hoisted(() => {
+  const rows = new Map<string, { id: string; live: boolean }>();
+  let next = 0;
+  return {
+    rows,
+    reset() {
+      rows.clear();
+      next = 0;
+    },
+    claimDriveUploadResource: vi.fn(
+      async (input: { key: { pathname: string } }) => {
+        if (rows.has(input.key.pathname)) return null;
+        const id = `res_${++next}`;
+        rows.set(input.key.pathname, { id, live: false });
+        return { resourceId: id };
+      },
+    ),
+    activateDriveUploadResource: vi.fn(
+      async (input: { key: { pathname: string } }) => {
+        const row = rows.get(input.key.pathname);
+        if (!row) return null;
+        row.live = true;
+        return { resourceId: row.id };
+      },
+    ),
+    releaseDriveUploadClaim: vi.fn(async (id: string) => {
+      for (const [pathname, row] of rows)
+        if (row.id === id && !row.live) rows.delete(pathname);
+    }),
+  };
+});
 vi.mock("@/services/file-catalog.service", () => catalog);
 
 vi.mock("@/lib/files/in-process-indexer", () => ({
@@ -127,7 +155,7 @@ function combine(pathnames: string[], filename = "Pack") {
 
 function expectNothingSaved() {
   expect(state.put).not.toHaveBeenCalled();
-  expect(catalog.reserveDriveUploadResource).not.toHaveBeenCalled();
+  expect(catalog.claimDriveUploadResource).not.toHaveBeenCalled();
 }
 
 beforeEach(() => {
@@ -136,13 +164,22 @@ beforeEach(() => {
   state.grownBy.clear();
   state.member = true;
   state.rooms = [];
-  state.put.mockReset().mockResolvedValue({});
-  state.del.mockReset().mockResolvedValue(undefined);
-  catalog.reserveDriveUploadResource.mockReset().mockResolvedValue({});
-  catalog.activateDriveUploadResource
+  state.put
     .mockReset()
-    .mockResolvedValue({ resourceId: "res_1" });
-  catalog.tombstoneDriveUploadResource.mockReset().mockResolvedValue(undefined);
+    .mockImplementation(async (pathname: string, bytes: Uint8Array) => {
+      if (state.files.has(pathname))
+        throw new Error("This blob already exists");
+      state.files.set(pathname, { bytes, contentType: "application/pdf" });
+      return {};
+    });
+  state.del.mockReset().mockImplementation(async (paths: string[]) => {
+    for (const path of paths) state.files.delete(path);
+  });
+  catalog.reset();
+  vi.clearAllMocks();
+  workspaces.resolveDriveTasksWorkspace.mockResolvedValue({
+    workspaceId: "ws_1",
+  });
 });
 
 describe("POST /drive/files/combine-pdf", () => {
@@ -233,11 +270,40 @@ describe("POST /drive/files/combine-pdf", () => {
     expectNothingSaved();
   });
 
-  it("leaves the catalog alone when another save took the name first", async () => {
+  it("saves nothing when the workspace cannot be resolved", async () => {
     await addPdf(`${FOLDER}/a.pdf`);
     await addPdf(`${FOLDER}/b.pdf`);
-    // The other save lands between the name check and this put.
-    state.put.mockImplementation(async (pathname: string) => {
+    workspaces.resolveDriveTasksWorkspace.mockRejectedValue(
+      new Error("workspace lookup failed"),
+    );
+
+    const response = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
+
+    expect(response.status).toBe(500);
+    expectNothingSaved();
+    expect(state.files.has(`${FOLDER}/Pack.pdf`)).toBe(false);
+  });
+
+  it("leaves another upload's pending entry alone and writes no bytes", async () => {
+    await addPdf(`${FOLDER}/a.pdf`);
+    await addPdf(`${FOLDER}/b.pdf`);
+    catalog.rows.set(`${FOLDER}/Pack.pdf`, { id: "theirs", live: false });
+
+    const response = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
+
+    expect(response.status).toBe(409);
+    expect(state.put).not.toHaveBeenCalled();
+    expect(catalog.rows.get(`${FOLDER}/Pack.pdf`)).toEqual({
+      id: "theirs",
+      live: false,
+    });
+    expect(catalog.releaseDriveUploadClaim).not.toHaveBeenCalled();
+  });
+
+  it("releases only its own claim when another save's bytes landed first", async () => {
+    await addPdf(`${FOLDER}/a.pdf`);
+    await addPdf(`${FOLDER}/b.pdf`);
+    state.put.mockImplementationOnce(async (pathname: string) => {
       state.files.set(pathname, { bytes: new Uint8Array(1), contentType: "" });
       throw new Error("This blob already exists");
     });
@@ -245,25 +311,41 @@ describe("POST /drive/files/combine-pdf", () => {
     const response = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
 
     expect(response.status).toBe(409);
-    expect(catalog.reserveDriveUploadResource).not.toHaveBeenCalled();
     expect(state.del).not.toHaveBeenCalled();
+    expect(catalog.rows.has(`${FOLDER}/Pack.pdf`)).toBe(false);
+    // The other save's bytes stay.
+    expect(state.files.has(`${FOLDER}/Pack.pdf`)).toBe(true);
   });
 
-  it("removes its own bytes and entry when the catalog step fails, so a retry works", async () => {
+  it("undoes a save whose activation fails, and a retry then succeeds", async () => {
     await addPdf(`${FOLDER}/a.pdf`);
     await addPdf(`${FOLDER}/b.pdf`);
-    catalog.activateDriveUploadResource.mockResolvedValue(null);
+    catalog.activateDriveUploadResource.mockResolvedValueOnce(null);
+
+    const failed = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
+
+    expect(failed.status).toBe(404);
+    expect(state.files.has(`${FOLDER}/Pack.pdf`)).toBe(false);
+    expect(catalog.rows.has(`${FOLDER}/Pack.pdf`)).toBe(false);
+
+    const retried = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
+
+    expect(retried.status).toBe(201);
+    expect(state.files.has(`${FOLDER}/Pack.pdf`)).toBe(true);
+    expect(catalog.rows.get(`${FOLDER}/Pack.pdf`)?.live).toBe(true);
+  });
+
+  it("keeps the name claimed when its own bytes cannot be removed", async () => {
+    await addPdf(`${FOLDER}/a.pdf`);
+    await addPdf(`${FOLDER}/b.pdf`);
+    catalog.activateDriveUploadResource.mockResolvedValueOnce(null);
+    state.del.mockRejectedValueOnce(new Error("storage unavailable"));
 
     const response = await combine([`${FOLDER}/a.pdf`, `${FOLDER}/b.pdf`]);
 
     expect(response.status).toBe(404);
-    expect(state.del).toHaveBeenCalledWith([`${FOLDER}/Pack.pdf`]);
-    expect(catalog.tombstoneDriveUploadResource).toHaveBeenCalledWith({
-      workspaceId: "ws_1",
-      scope: "organization",
-      ownerId: "org_1",
-      pathname: `${FOLDER}/Pack.pdf`,
-    });
+    expect(catalog.releaseDriveUploadClaim).not.toHaveBeenCalled();
+    expect(catalog.rows.has(`${FOLDER}/Pack.pdf`)).toBe(true);
   });
 
   it("refuses to take a data room's pages out of the room", async () => {
