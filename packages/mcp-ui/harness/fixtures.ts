@@ -132,6 +132,28 @@ const boardResult = (data: unknown[], total: number) => ({
   _meta: sokosumi,
 });
 
+const TEAM_STATUSES = [
+  "DRAFT",
+  "READY",
+  "RUNNING",
+  "INPUT_REQUIRED",
+  "COMPLETED",
+];
+const TEAM = [ada, grace, analyst, bot, null];
+/**
+ * A team board as tasks_show_board returns it: the 100 newest of 1,586
+ * Tasks, descriptions null (`includeDescription: "false"`, SOKD-496).
+ */
+const TEAM_TASKS = Array.from({ length: 100 }, (_, index) => ({
+  ...task(
+    1586 - index,
+    `Team Task ${1586 - index}`,
+    TEAM_STATUSES[index % 5] ?? "READY",
+    TEAM[index % TEAM.length] ?? null,
+  ),
+  description: null,
+}));
+
 /** `tasks_show_board` results: `tasks_list`'s, with Core's `_meta`. */
 export const BOARD = {
   input: { workspace: "acme", limit: 20 },
@@ -145,6 +167,7 @@ export const BOARD = {
     })),
     4,
   ),
+  team: boardResult(TEAM_TASKS, 1586),
   empty: boardResult([], 0),
 };
 
@@ -815,6 +838,11 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       result: BOARD.result,
     },
     personal: { input: {}, result: BOARD.personal },
+    team: {
+      input: { workspace: "acme", scope: "workspace", limit: 100 },
+      result: BOARD.team,
+      allWidths: true,
+    },
     loading: { input: BOARD.input },
     empty: { input: BOARD.input, result: BOARD.empty },
     error: {

@@ -19,7 +19,12 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BOARD } from "../../../harness/fixtures.ts";
 import { Shell } from "../../shell/Shell.tsx";
-import { BOARD_EMPTY, TasksBoard, TasksList } from "./TasksBoard.tsx";
+import {
+  BOARD_EMPTY,
+  BOARD_REFRESH_ARGS,
+  TasksBoard,
+  TasksList,
+} from "./TasksBoard.tsx";
 
 type Result = typeof BOARD.result;
 
@@ -84,6 +89,7 @@ async function openBoard(
       isEmpty={(data) => data.data.length === 0}
       empty={BOARD_EMPTY}
       refreshTool="tasks_list"
+      refreshArgs={BOARD_REFRESH_ARGS}
     >
       {(data, context) => <TasksBoard data={data} context={context} />}
     </Shell>,
@@ -189,6 +195,15 @@ describe("TasksBoard inline", () => {
     await openBoard(BOARD.result);
 
     expect(screen.queryByText(/Plain record text/)).toBeNull();
+  });
+
+  it("shows a team's 100 newest Tasks of 1,586, with how many more per column", async () => {
+    await openBoard(BOARD.team);
+
+    expect(screen.getByText("Showing 100 of 1586 Tasks")).toBeTruthy();
+    expect(column("Backlog").textContent).toContain("20");
+    expect(column("Backlog").textContent).toContain("17 more");
+    expect(screen.getAllByRole("article")).toHaveLength(15);
   });
 
   it("leaves the workspace name out of a personal workspace", async () => {
@@ -315,7 +330,7 @@ describe("TasksBoard actions", () => {
     ).toBeNull();
   });
 
-  it("refreshes by re-calling tasks_list with the same arguments", async () => {
+  it("refreshes by re-calling tasks_list with the same arguments, without descriptions", async () => {
     // tasks_list's own result: no `_meta.sokosumi`, which only the show tool adds.
     const { _meta, ...plain } = BOARD.personal;
     const { sent } = await openBoard(BOARD.result, {}, async () => plain);
@@ -324,7 +339,11 @@ describe("TasksBoard actions", () => {
       fireEvent.click(screen.getByRole("button", { name: "Refresh" })),
     );
 
-    expect(sent.calls).toHaveBeenCalledWith("tasks_list", BOARD.input);
+    // As tasks_show_board sends them (SOKD-496).
+    expect(sent.calls).toHaveBeenCalledWith("tasks_list", {
+      ...BOARD.input,
+      includeDescription: "false",
+    });
     expect(screen.queryByText("Acme Studio")).toBeNull();
     expect(screen.queryByText("Send the December newsletter")).toBeTruthy();
     expect(screen.queryByText("Approve the January social posts")).toBeNull();

@@ -23,8 +23,9 @@
 
 ## The shell (`src/shell/`)
 
-- `mountView(id, { schema, isEmpty, empty, refreshTool, displayModes, children })` connects to the host (`ui/initialize`), validates the tool result's `structuredContent` with `schema`, and shows a skeleton, the error state (error result, cancelled call, or a result the schema rejects), the empty state (`empty` names its text), or the view.
-- `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments. When the server answers "Unknown tool" (the twin's toolset is off), `context.missingTool` names it, and the view says which toolset to add (SOKD-419). `context.refreshStatus` is the HTTP status on the last refresh's error result, until one succeeds.
+- `mountView(id, { schema, isEmpty, empty, refreshTool, refreshArgs, displayModes, children })` connects to the host (`ui/initialize`), validates the tool result's `structuredContent` with `schema`, and shows a skeleton, the error state (error result, cancelled call, or a result the schema rejects), the empty state (`empty` names its text), or the view.
+- `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments, and `refreshArgs` over them, through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments. When the server answers "Unknown tool" (the twin's toolset is off), `context.missingTool` names it, and the view says which toolset to add (SOKD-419). `context.refreshStatus` is the HTTP status on the last refresh's error result, until one succeeds.
+- `refreshArgs` repeats the twin arguments the show tool always sends (`args` in Core's `ui-tools.ts`), such as the board's `includeDescription: "false"` (SOKD-496), so a refresh returns the same light result.
 - `displayModes` declares the modes a view supports, such as `fullscreen`; `context.displayMode` and `context.availableDisplayModes` come from the host.
 - A theme-only host-context change flips the view between light and dark. Check it with the harness's `&retheme`.
 - `context.input` holds the tool call's arguments, such as the agent id the hire form calls tools with.

@@ -47,6 +47,15 @@ Owner decision: views look like Web, as Web looks, in every host. In Claude and 
 - **Font.** Inter, Web's font, is embedded in each view as a 26 KB subset and loaded from bytes with `FontFace`. The spec's default CSP has no `font-src`, which blocks an `@font-face` with a `data:` URL; bytes are not a fetch. Still no remote font and no CSP domain.
 - **Markdown.** Task descriptions and comments, Job results and Job input questions render as Markdown, as on Web, by a small renderer in the package that builds React elements only. Raw HTML stays text, images show their alt text, and a link opens only under `webBaseUrl`. This replaces "record text renders as plain text" for those fields. A parser library would cost 55 to 80 KB of the 600 KB budget.
 
+## Amendment 2026-11-26: a show tool may fix twin arguments (SOKD-496)
+
+The team board failed in Claude.ai and ChatGPT: utxo's 100 newest Tasks came to 2.6 MB with descriptions (text plus `structuredContent`), and the board shows none. The 53-Task personal board, 725 KB, rendered in both.
+
+- A row in `MCP_UI_TOOLS` may set `args`: twin arguments the show tool always sends, over the agent's. The result is still the twin's exact result for the arguments sent, so a client without views sees what `tasks_list` would answer for them.
+- `tasks_show_board` sends `includeDescription: "false"`, a `GET /tasks` argument that sends each `description` as null. The item shape stays the same, so Web and the generated client are unaffected.
+- The view repeats `args` on refresh (`refreshArgs` in `mountView`), so a refresh is as light as the first result.
+- Rejected: a smaller page alone (descriptions are unbounded, so the page stays heavy) and a show tool that trims the result itself (no longer the twin's result).
+
 ## Sources
 
 - MCP Apps overview: https://modelcontextprotocol.io/extensions/apps/overview
