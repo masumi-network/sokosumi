@@ -735,6 +735,35 @@ describe("CrUX History on a measured field", () => {
     expect(historyOfStored({ status: "comparable", lcp: [1, 2, 3] })).toEqual({
       status: "comparable",
     });
+    // Each metric is read alone, as on a fresh import: one bad metric does not cost the other ones.
+    expect(
+      historyOfStored({
+        status: "comparable",
+        weeks: three,
+        lcp: [1, 2, 3],
+        inp: [1, -1, 3],
+      }),
+    ).toEqual({ status: "comparable", weeks: three, lcp: [1, 2, 3] });
+    // A status that is not comparable stays, whatever the weeks hold.
+    expect(
+      historyOfStored({ status: "unavailable", weeks: ["not-a-day"] }),
+    ).toEqual({ status: "unavailable" });
+    // A fresh import stores no empty series.
+    expect(
+      historyOfStored({ status: "comparable", weeks: [], lcp: [], inp: [] }),
+    ).toEqual({ status: "comparable" });
+    // The URLs get the form a fresh import stores: a home page has its root slash.
+    const home = JSON.parse(JSON.stringify(stored));
+    home.pageUrls = ["https://example.test/"];
+    home.pageSpeed[0].pageUrl = home.pageSpeed[0].testedUrl =
+      "https://example.test";
+    home.pageSpeed[0].field.url = "https://example.test/";
+    expect(
+      publicSeoPayloadSchema
+        .parse(home)
+        .pageSpeed?.slice(0, 1)
+        .map((row) => [row.pageUrl, row.testedUrl]),
+    ).toEqual([["https://example.test/", "https://example.test/"]]);
     // Field data of another host is no data of the tested page; a tested page of another host is no measurement.
     delete stored.pageSpeed[0].field.history;
     stored.pageSpeed[0].field.url = "https://other.test/books";

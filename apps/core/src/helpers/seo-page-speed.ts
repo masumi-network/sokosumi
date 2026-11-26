@@ -363,18 +363,26 @@ export function readPageSpeed(
 }
 
 /**
- * A stored history as a fresh import stores it. None: the schema refuses it, or its weeks are not oldest
- * first. Only a comparable history holds a series, and a metric stays only with one value per week.
+ * A stored history as a fresh import stores it. None: it has no status Core knows, or its weeks are no
+ * days, oldest first. A status that is not comparable stays alone, whatever else the history holds. Each
+ * metric is read alone, and stays only with one value per week.
  */
 function storedHistory(history: unknown): SpeedHistory | undefined {
-  const read = speedHistory.safeParse(history);
-  if (!read.success) return undefined;
-  const { status, weeks } = read.data;
-  if (status !== "comparable" || !weeks) return { status };
-  if (weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!)) return undefined;
+  const raw = reportObject(history);
+  const status = SPEED_HISTORY_STATUSES.find((value) => value === raw?.status);
+  if (!raw || !status) return undefined;
+  if (status !== "comparable" || raw.weeks == null) return { status };
+  const days = speedHistory.shape.weeks.safeParse(raw.weeks);
+  const weeks = days.data;
+  if (!weeks || weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!))
+    return undefined;
+  // A fresh import stores no empty series.
+  if (!weeks.length) return { status };
   const kept: SpeedHistory = { status, weeks };
-  for (const key of ["lcp", "inp", "cls"] as const)
-    if (read.data[key]?.length === weeks.length) kept[key] = read.data[key];
+  for (const key of ["lcp", "inp", "cls"] as const) {
+    const points = speedHistory.shape[key].safeParse(raw[key]);
+    if (points.data?.length === weeks.length) kept[key] = points.data;
+  }
   return kept;
 }
 
@@ -394,7 +402,8 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
     !publicLanding(new URL(pageUrl), testedUrl)
   )
     return [];
-  const read = { ...row };
+  // The URLs get the form a fresh import stores: the table and the page list then name one page one way.
+  const read: Record<string, unknown> = { ...row, pageUrl, testedUrl };
   const field = reportObject(row.field);
   if (field) {
     const { history, ...measured } = field;
