@@ -14,7 +14,6 @@ import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallba
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 import { SidebarNewTaskButton } from "./sidebar/components/sidebar-new-task-button.client";
-import WorkspaceSwitcherMenu from "./workspace-switcher/workspace-switcher-menu.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -34,9 +33,6 @@ export default function Header({ className }: HeaderProps) {
         data-testid="header-workspace-controls"
       >
         <SidebarToggle />
-        <div className="hidden min-w-0 max-w-48 md:sidebar-hidden:block">
-          <WorkspaceSwitcherMenu placement="topBar" />
-        </div>
         <div className="flex items-center gap-1 md:hidden">
           <HeaderMobileSearchControl />
           <SidebarNewTaskButton mobile />

@@ -226,20 +226,6 @@ it("rests Home like the rooms below it when another page is open", () => {
   expect(home).toHaveClass(...SIDEBAR_ROW_LINK_CLASS.split(" "));
 });
 
-it("fills the rail's top cell with a Home link while the sidebar is hidden", () => {
-  render(<Fixture />);
-  const home = screen.getByRole("link", { name: "goHome" });
-  expect(home).toHaveAttribute("href", "/");
-  expect(home.parentElement).toHaveClass("hidden", "md:sidebar-hidden:flex");
-});
-
-it("leaves the phone rail without the desktop Home cell", () => {
-  mobile = true;
-  render(<Fixture />);
-  fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
-  expect(screen.queryByRole("link", { name: "goHome" })).toBeNull();
-});
-
 it("keeps the approved Work briefcase at 16px and matches the other row glyphs", () => {
   render(<Fixture />);
   for (const button of within(screen.getByRole("navigation")).getAllByRole(

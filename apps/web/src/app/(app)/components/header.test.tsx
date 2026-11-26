@@ -44,12 +44,6 @@ vi.mock("@/app/components/header/header-profile-section", () => ({
 import Header from "@/app/components/header";
 
 vi.mock(
-  "@/app/components/workspace-switcher/workspace-switcher-menu.client",
-  () => ({
-    default: () => <button type="button">Acme</button>,
-  }),
-);
-vi.mock(
   "@/app/components/sidebar/components/sidebar-new-task-button.client",
   () => ({
     SidebarNewTaskButton: () => <button type="button">New task</button>,
@@ -67,12 +61,10 @@ describe("Header", () => {
   it("keeps the toggle in the main header and puts Search and New task there only on phones", () => {
     render(<Header />);
     const controls = within(screen.getByTestId("header-workspace-controls"));
+    // The desktop Workspace switcher lives in the sidebar row or the rail's top cell.
     expect(
       controls.getAllByRole("button").map((button) => button.textContent),
-    ).toEqual(["toggle", "Acme", "Mobile search", "New task"]);
-    expect(
-      controls.getByRole("button", { name: "Acme" }).parentElement,
-    ).toHaveClass("md:sidebar-hidden:block");
+    ).toEqual(["toggle", "Mobile search", "New task"]);
     expect(
       controls.getByRole("button", { name: "Mobile search" }).parentElement,
     ).toHaveClass("md:hidden");

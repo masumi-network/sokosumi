@@ -16,7 +16,14 @@ import { cn } from "@/lib/utils";
  * Where a Workspace switcher trigger sits. CSS decides which one shows; the
  * placement decides what differs between them.
  */
-export type WorkspaceSwitcherPlacement = "sidebar" | "drawer" | "topBar";
+export type WorkspaceSwitcherPlacement =
+  | "sidebar"
+  | "drawer"
+  | "topBar"
+  | "rail";
+
+/** The rail's trigger: the avatar alone, as large as the 64px cell comfortably holds. */
+export const WORKSPACE_SWITCHER_RAIL_AVATAR_CLASS = "size-8 md:size-8";
 
 interface WorkspaceSwitcherPlacementProps {
   placement: WorkspaceSwitcherPlacement;
@@ -69,6 +76,18 @@ export function WorkspaceSwitcherSkeletonParts() {
 export function WorkspaceSwitcherSkeleton({
   placement,
 }: WorkspaceSwitcherPlacementProps) {
+  if (placement === "rail") {
+    return (
+      <span
+        aria-hidden
+        data-testid="workspace-switcher-chrome-skeleton"
+        className={cn(
+          "bg-muted animate-pulse rounded-full",
+          WORKSPACE_SWITCHER_RAIL_AVATAR_CLASS,
+        )}
+      />
+    );
+  }
   return (
     <div
       className={cn(
