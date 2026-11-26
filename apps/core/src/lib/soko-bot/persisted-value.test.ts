@@ -60,6 +60,41 @@ describe("persistedToolResult", () => {
     );
   });
 
+  it("keeps handed-back ids whole only on a month writer receipt", () => {
+    const receipt = {
+      handedBack: ["p1", "p2"],
+      refused: Array.from({ length: 30 }, () => ({ reason: "x".repeat(800) })),
+    };
+    expect(
+      (
+        persistedToolResult(receipt, "write_month_pieces") as never as {
+          handedBack: string[];
+        }
+      ).handedBack,
+    ).toEqual(["p1", "p2"]);
+    expect(persistedToolResult(receipt, "read_calendar")).not.toHaveProperty(
+      "handedBack",
+    );
+  });
+
+  it("stays within 16 KB when the handed-back ids alone would not fit", () => {
+    const ids = Array.from(
+      { length: 100 },
+      (_, n) => `${n}-${"é".repeat(200)}`,
+    );
+    const stored = persistedToolResult(
+      { handedBack: ids, refused: [] },
+      "write_month_pieces",
+    ) as never as { handedBack: string[]; preview: string };
+
+    expect(Buffer.byteLength(JSON.stringify(stored))).toBeLessThanOrEqual(
+      16_384,
+    );
+    expect(stored.handedBack.length).toBeGreaterThan(0);
+    expect(stored.handedBack.length).toBeLessThan(100);
+    expect(stored.handedBack).toEqual(ids.slice(0, stored.handedBack.length));
+  });
+
   it("stores a small result as it is", () => {
     expect(persistedToolResult({ url: "https://example.com/a" })).toEqual({
       url: "https://example.com/a",

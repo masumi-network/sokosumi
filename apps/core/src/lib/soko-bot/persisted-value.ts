@@ -135,13 +135,16 @@ function handedBackIds(value: unknown): { handedBack?: string[] } {
     value && typeof value === "object" && !Array.isArray(value)
       ? (value as { handedBack?: unknown }).handedBack
       : undefined;
-  return Array.isArray(ids)
-    ? {
-        handedBack: ids
-          .filter((id): id is string => typeof id === "string")
-          .map((id) => id.slice(0, 64)),
-      }
-    : {};
+  if (!Array.isArray(ids)) return {};
+  let remainingBytes = TOOL_RESULT_MAX_BYTES / 2;
+  const kept: string[] = [];
+  for (const id of ids) {
+    if (typeof id !== "string") continue;
+    remainingBytes -= Buffer.byteLength(JSON.stringify(id), "utf8") + 1;
+    if (remainingBytes < 0) break;
+    kept.push(id);
+  }
+  return { handedBack: kept };
 }
 
 /**
@@ -180,7 +183,7 @@ export function persistedToolResult(
     ...(options?.canonicalInputHash
       ? { canonicalInputHash: options.canonicalInputHash }
       : {}),
-    ...handedBackIds(sanitized),
+    ...(capability === "write_month_pieces" && handedBackIds(sanitized)),
   };
   const emptyWrapper = JSON.stringify({
     truncated: true,
@@ -193,6 +196,7 @@ export function persistedToolResult(
   );
   let wrapper = { truncated: true, ...kept, preview };
   while (
+    preview.length > 0 &&
     Buffer.byteLength(JSON.stringify(wrapper), "utf8") > TOOL_RESULT_MAX_BYTES
   ) {
     const excess =
