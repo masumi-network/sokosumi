@@ -2379,6 +2379,10 @@ export interface ChangedSocialPostCopy {
     status: SocialPostStatus;
     media: Prisma.JsonValue;
     planning: Prisma.JsonValue;
+    /** Who scheduled it and when the publisher may retry: a rewrite clears both. */
+    scheduledByUserId: string | null;
+    scheduledByCoworkerId: string | null;
+    nextAttemptAt: Date | null;
     revision: number;
   };
   revision: number;
@@ -2411,6 +2415,9 @@ async function respeakCopies(
       status: true,
       media: true,
       planning: true,
+      scheduledByUserId: true,
+      scheduledByCoworkerId: true,
+      nextAttemptAt: true,
       revision: true,
     },
   });

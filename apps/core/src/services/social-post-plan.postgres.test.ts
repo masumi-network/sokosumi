@@ -416,6 +416,8 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
       where: { id: copy.id },
       data: {
         status: "SCHEDULED",
+        scheduledByUserId: world.scope.userId,
+        nextAttemptAt: new Date(Date.now() + 3_600_000),
         text: "Our trial, in a minute",
         media: [
           {
@@ -444,6 +446,9 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
     });
     expect(after.media).toEqual([]);
     expect(after.status).toBe("DRAFT");
+    expect(after.scheduledByUserId).toBeNull();
+    expect(after.nextAttemptAt).toBeNull();
+    expect(before.nextAttemptAt).not.toBeNull();
     expect(after.planning).toMatchObject({ script: "Start a one-month trial" });
     expect(rescripted.copies).toEqual([
       {
@@ -452,6 +457,9 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
           status: "SCHEDULED",
           media: before.media,
           planning: before.planning,
+          scheduledByUserId: world.scope.userId,
+          scheduledByCoworkerId: null,
+          nextAttemptAt: before.nextAttemptAt,
           revision: before.revision,
         },
         revision: after.revision,
