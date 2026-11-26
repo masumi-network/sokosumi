@@ -876,7 +876,11 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       result: BOARD.team,
       allWidths: true,
     },
-    filtered: { input: BOARD.canceledInput, result: BOARD.canceled },
+    filtered: {
+      input: BOARD.canceledInput,
+      result: BOARD.canceled,
+      allWidths: true,
+    },
     loading: { input: BOARD.input },
     empty: { input: BOARD.input, result: BOARD.empty },
     error: {
@@ -893,6 +897,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       input: HIRE.input,
       result: unlabelledSchema,
       calls: hireCalls,
+      allWidths: true,
     },
     invalid: {
       step: "form",
