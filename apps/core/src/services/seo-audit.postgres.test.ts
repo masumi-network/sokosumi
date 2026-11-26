@@ -401,6 +401,15 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
         idempotencyKey,
       }),
     ).rejects.toMatchObject({ status: 409 });
+    // Changed input stays a 409, also with a Project that does not exist.
+    await expect(
+      createSeoAudit(actor, {
+        name: "Retried create",
+        firstPage,
+        projectId: randomUUID(),
+        idempotencyKey,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
     // A create without a key never matches an earlier one.
     const keyless = await createSeoAudit(actor, {
       name: "Retried create",
