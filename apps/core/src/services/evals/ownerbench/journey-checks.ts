@@ -202,22 +202,26 @@ async function imagesCheck(
   outcome: Extract<JourneyOutcome, { kind: "images" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
-  const jobs = await imageJobs(
-    context,
-    outcome.thisStep ? context.stepStartedAt : context.journeyStartedAt,
-  );
-  const made = jobs.filter(isMade);
-  const off = made.filter(
-    (job) => !matchesAll(job.prompt, outcome.promptMatches).pass,
-  );
+  const since = outcome.thisStep
+    ? context.stepStartedAt
+    : context.journeyStartedAt;
+  const [jobs, files] = await Promise.all([
+    imageJobs(context, since),
+    madeImageFiles(context, since),
+  ]);
+  const made = madeImages(jobs, files);
+  // Only a studio job carries a prompt; how an uploaded file looks is the
+  // judge's to grade.
+  const off = jobs
+    .filter(isMade)
+    .filter((job) => !matchesAll(job.prompt, outcome.promptMatches).pass);
   const countOk =
-    made.length >= outcome.min &&
-    (outcome.max === undefined || made.length <= outcome.max);
-  const unfinished = jobs.length - made.length;
+    made >= outcome.min && (outcome.max === undefined || made <= outcome.max);
+  const unfinished = jobs.filter((job) => !isMade(job)).length;
   return {
     label: outcome.label,
     pass: countOk && off.length === 0,
-    actual: `${made.length} image(s) made${unfinished ? `, ${unfinished} failed or unfinished` : ""}${
+    actual: `${made} image(s) made${unfinished ? `, ${unfinished} failed or unfinished` : ""}${
       off.length
         ? `; ${off.length} off-brief: "${off[0]?.prompt.slice(0, 80)}"`
         : ""
@@ -238,21 +242,65 @@ function isMade(job: { status: string; assetId: string | null }): boolean {
 }
 
 /**
- * A studio image's Files copy ends in its job id's last eight hex digits
- * (`studioAssetFileName`), so a post's media names say which job made them.
+ * Image files that landed in the owner's Files since `since` and are still
+ * there: uploads the bot wrote (an SVG) and studio images copied in alike.
  */
-export function mediaFromJobs(
+function madeImageFiles(context: CheckContext, since: Date) {
+  return prisma.fileResource.findMany({
+    where: {
+      workspaceId: context.lane.workspaceId,
+      sourceKind: "DRIVE_UPLOAD",
+      lifecycle: "ACTIVE",
+      tombstonedAt: null,
+      createdAt: { gte: since },
+      mimeType: { startsWith: "image/" },
+    },
+    select: { sourceId: true, displayName: true },
+  });
+}
+
+/** A studio image's Files copy ends in its job id's last eight hex digits (`studioAssetFileName`). */
+function jobSuffix(jobId: string): string {
+  return `-${jobId.replace(/-/g, "").slice(-8)}.`;
+}
+
+/**
+ * Distinct images made: every image file in Files, plus each finished studio
+ * job not copied into Files yet.
+ */
+export function madeImages(
+  jobs: readonly { id: string; status: string; assetId: string | null }[],
+  files: readonly { displayName: string }[],
+): number {
+  const uncopied = jobs
+    .filter(isMade)
+    .filter(
+      (job) =>
+        !files.some((file) => file.displayName.includes(jobSuffix(job.id))),
+    );
+  return files.length + uncopied.length;
+}
+
+/**
+ * The media a post carries that the owner can open and this journey made:
+ * distinct refs whose file is in `files`.
+ */
+export function attachedMadeMedia(
   media: unknown,
-  jobIds: readonly string[],
-): { total: number; fromJobs: number } {
-  const refs = Array.isArray(media) ? media : [];
-  const suffixes = jobIds.map((id) => `-${id.replace(/-/g, "").slice(-8)}.`);
-  const fromJobs = refs.filter((ref) => {
-    const name =
-      ref && typeof ref === "object" && "name" in ref ? String(ref.name) : "";
-    return suffixes.some((suffix) => name.includes(suffix));
-  }).length;
-  return { total: refs.length, fromJobs };
+  files: readonly { sourceId: string }[],
+): { total: number; made: number } {
+  const pathnames = new Set(
+    (Array.isArray(media) ? media : []).flatMap((ref) =>
+      ref && typeof ref === "object" && "pathname" in ref
+        ? [String(ref.pathname)]
+        : [],
+    ),
+  );
+  const known = new Set(files.map((file) => file.sourceId));
+  return {
+    total: pathnames.size,
+    made: [...pathnames].filter((pathname) => known.has(pathname)).length,
+  };
 }
 
 async function journeyPosts(
@@ -304,19 +352,19 @@ async function postsCheck(
     if (out.length)
       problems.push(`${out.length} not DRAFT (${out[0]?.status})`);
   }
-  if (outcome.withMedia) {
-    // The journey's own made images, nothing else: an unrelated attachment
-    // or a picture that never finished is not something to approve.
-    const made = (await imageJobs(context, context.journeyStartedAt))
-      .filter(isMade)
-      .map((job) => job.id);
+  if (outcome.media) {
+    // Images this journey made and the owner can open, attached to the
+    // draft itself: an unrelated attachment, a deleted file or a picture left
+    // beside the draft is not something to approve.
+    const files = await madeImageFiles(context, context.journeyStartedAt);
     for (const post of posts) {
-      const { total, fromJobs } = mediaFromJobs(post.media, made);
-      if (total === 0) problems.push("a post without media");
-      else if (fromJobs < total)
+      const { total, made } = attachedMadeMedia(post.media, files);
+      if (made < outcome.media.min)
         problems.push(
-          `${total - fromJobs} of ${total} media not the made images`,
+          `${made} made image(s) attached of ${total} media, needs ${outcome.media.min}`,
         );
+      if (outcome.media.max !== undefined && total > outcome.media.max)
+        problems.push(`${total} media, at most ${outcome.media.max}`);
     }
   }
   if (outcome.linkedInAnswer) {

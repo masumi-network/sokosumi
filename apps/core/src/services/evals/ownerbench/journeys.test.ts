@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { selectEvalCases } from "../eval-cases";
 import {
+  attachedMadeMedia,
   createdTableIds,
   cronDays,
   gradeRows,
   launchDay,
-  mediaFromJobs,
+  madeImages,
   nextWeekdayKey,
 } from "./journey-checks";
 import {
@@ -94,23 +95,56 @@ describe("launchDay", () => {
   });
 });
 
-describe("mediaFromJobs", () => {
-  const job = "01a21579-b51b-757c-b2b9-3d6d5edd6ed2";
-
-  it("counts media whose Files name carries a made job's id", () => {
-    expect(
-      mediaFromJobs(
-        [
-          { name: "white-background-memory-5edd6ed2.png" },
-          { name: "logo.png" },
-        ],
-        [job],
-      ),
-    ).toEqual({ total: 2, fromJobs: 1 });
+describe("made images and what a draft carries", () => {
+  const made = (id: string) => ({ id, status: "SUCCEEDED", assetId: "a" });
+  const svg = (name: string) => ({
+    sourceId: `orgs/o/${name}`,
+    displayName: name,
   });
 
-  it("reads no media as none", () => {
-    expect(mediaFromJobs(null, [job])).toEqual({ total: 0, fromJobs: 0 });
+  it("counts three uploaded SVGs attached to the draft (no studio job)", () => {
+    const files = ["one.svg", "two.svg", "three.svg"].map(svg);
+    expect(madeImages([], files)).toBe(3);
+    expect(
+      attachedMadeMedia(
+        files.map((file) => ({ pathname: file.sourceId })),
+        files,
+      ),
+    ).toEqual({ total: 3, made: 3 });
+  });
+
+  it("does not let three studio images with one attached pass as attached", () => {
+    const jobs = ["...-aaaa1111", "...-bbbb2222", "...-cccc3333"].map(
+      (suffix) => made(`01a21579-b51b-757c-b2b9-3d6d${suffix.slice(-8)}`),
+    );
+    const copy = svg("memory-aaaa1111.png");
+    expect(madeImages(jobs, [copy])).toBe(3);
+    expect(attachedMadeMedia([{ pathname: copy.sourceId }], [copy])).toEqual({
+      total: 1,
+      made: 1,
+    });
+  });
+
+  it("counts a studio image once, whether or not it was copied to Files", () => {
+    const job = made("01a21579-b51b-757c-b2b9-3d6d5edd6ed2");
+    expect(madeImages([job], [svg("memory-5edd6ed2.png")])).toBe(1);
+    expect(madeImages([job], [])).toBe(1);
+    expect(madeImages([{ ...job, status: "FAILED" }], [])).toBe(0);
+  });
+
+  it("ignores attachments this journey did not make, and repeats", () => {
+    const mine = svg("chart.svg");
+    expect(
+      attachedMadeMedia(
+        [
+          { pathname: mine.sourceId },
+          { pathname: mine.sourceId },
+          { pathname: "orgs/o/old-logo.png" },
+        ],
+        [mine],
+      ),
+    ).toEqual({ total: 2, made: 1 });
+    expect(attachedMadeMedia(null, [mine])).toEqual({ total: 0, made: 0 });
   });
 });
 

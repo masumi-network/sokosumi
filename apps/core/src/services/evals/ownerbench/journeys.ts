@@ -80,8 +80,12 @@ export type JourneyOutcome =
       textMatches?: string[];
       /** Only posts whose text matches this pattern are counted. */
       about?: string;
-      /** Every counted post carries media, all of it images this journey made. */
-      withMedia?: boolean;
+      /**
+       * Every counted post has at least `min` distinct images attached that
+       * this journey made (studio or uploaded) and the owner can open, and
+       * at most `max` media in all.
+       */
+      media?: { min: number; max?: number };
       /** The step's answer links every counted post (its id), so the owner can approve it. */
       linkedInAnswer?: boolean;
       /** At most this many characters, each. */
@@ -329,7 +333,6 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         status: "COMPLETED",
         comment: CODEPAT_SUMMARY,
         expect: {
-          anyTools: ["generate_image"],
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
           answerMatches: "approv|ok|go ahead|ready|review",
         },
@@ -343,13 +346,13 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           },
           {
             kind: "posts",
-            label: "A draft X post on Padierfind, with the images",
+            label: "A draft X post on Padierfind, with 2-3 of those images",
             project: "Padierfind",
             provider: "x",
             min: 1,
             max: 1,
             draftsOnly: true,
-            withMedia: true,
+            media: { min: 2, max: 3 },
             linkedInAnswer: true,
             textMatches: ["memory|remember"],
           },
@@ -633,11 +636,13 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           },
           {
             kind: "posts",
-            label: "A LinkedIn draft for utxo AG with Mira's numbers",
+            label:
+              "A LinkedIn draft for utxo AG with Mira's numbers and the image",
             project: "utxo AG Outreach",
             provider: "linkedin",
             min: 1,
             max: 1,
+            media: { min: 1 },
             draftsOnly: true,
             linkedInAnswer: true,
             textMatches: ["12", "4\\.5|49", "AgentHub|Botmarkt"],
