@@ -299,7 +299,7 @@ it("shows staff the before and after of a done action and keeps the window acros
   });
   const window = { from: "2026-05-27", to: "2026-06-09" };
   readImpact.mockResolvedValue({
-    total: 11,
+    hasNext: true,
     pageSize: 10,
     items: [
       {

@@ -615,9 +615,8 @@ export const SeoFullAuditCostDetailSchema = {
 export const AdminSeoActionImpactSchema = {
     type: 'object',
     properties: {
-        total: {
-            type: 'integer',
-            minimum: 0
+        hasNext: {
+            type: 'boolean'
         },
         pageSize: {
             type: 'integer',
@@ -705,7 +704,7 @@ export const AdminSeoActionImpactSchema = {
         }
     },
     required: [
-        'total',
+        'hasNext',
         'pageSize',
         'items'
     ],

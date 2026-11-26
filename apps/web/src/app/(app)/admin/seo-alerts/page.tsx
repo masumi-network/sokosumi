@@ -118,13 +118,15 @@ export default async function AdminSeoAlertsPage({
     getFormatter(),
   ]);
   const total = impact
-    ? impact.total
+    ? 0
     : connections
       ? alerts.connectionTotal
       : view === "billing"
         ? alerts.billingTotal
         : alerts.total;
   const pageSize = impact ? impact.pageSize : alerts.pageSize;
+  // The impact list is not counted. Core tells whether a later page exists.
+  const hasNext = impact ? impact.hasNext : page * pageSize < total;
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-2">
       <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
@@ -199,7 +201,7 @@ export default async function AdminSeoAlertsPage({
           </p>
           <SeoActionImpactList
             items={impact.items}
-            total={total}
+            page={page}
             t={t}
             format={format}
           />
@@ -383,7 +385,7 @@ export default async function AdminSeoAlertsPage({
           )}
         </>
       )}
-      {(page > 1 || page * pageSize < total) && (
+      {(page > 1 || hasNext) && (
         <nav aria-label={t("pagination")} className="flex gap-2">
           {page > 1 && (
             <Button asChild variant="outline">
@@ -392,7 +394,7 @@ export default async function AdminSeoAlertsPage({
               </Link>
             </Button>
           )}
-          {page * pageSize < total && (
+          {hasNext && (
             <Button asChild variant="outline" className="ms-auto">
               <Link href={listHref(period, page + 1, view, days)}>
                 {t("next")}

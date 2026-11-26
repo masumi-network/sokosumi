@@ -74,7 +74,7 @@ it("reads each audit as the person whose rows it holds and lists only measured a
     userId: "bob",
   });
   expect(result).toEqual({
-    total: 2,
+    hasNext: false,
     pageSize: 10,
     items: [
       {
@@ -99,7 +99,7 @@ it("reads each audit as the person whose rows it holds and lists only measured a
 
 it("reads only the asked page and does not hide a failure that is not an access refusal", async () => {
   boundary.groupBy.mockResolvedValue(
-    Array.from({ length: 12 }, (_, index) => ({
+    Array.from({ length: 11 }, (_, index) => ({
       auditId: AUDIT,
       projectId: null,
       ownerId: `user-${index}`,
@@ -107,11 +107,15 @@ it("reads only the asked page and does not hide a failure that is not an access 
   );
   boundary.workspace.mockResolvedValue({ actions: [] });
   const second = await listAdminSeoActionImpact({ page: 2 });
-  expect(second.total).toBe(12);
-  expect(second.items.map((item) => item.userId)).toEqual([
-    "user-10",
-    "user-11",
-  ]);
+  // The database pages the groups: one row past the page tells that a later page exists.
+  expect(boundary.groupBy.mock.calls[0][0]).toMatchObject({
+    skip: 10,
+    take: 11,
+  });
+  expect(second.hasNext).toBe(true);
+  expect(second.items.map((item) => item.userId)).toEqual(
+    Array.from({ length: 10 }, (_, index) => `user-${index}`),
+  );
 
   boundary.workspace.mockRejectedValue(new Error("database is down"));
   await expect(listAdminSeoActionImpact({ page: 1 })).rejects.toThrow(

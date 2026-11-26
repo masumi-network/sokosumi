@@ -128,7 +128,7 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     const response = await adminRouter.request(url);
     expect(response.status).toBe(200);
     expect((await response.json()).data).toEqual({
-      total: 0,
+      hasNext: false,
       pageSize: 10,
       items: [],
     });

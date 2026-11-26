@@ -96,19 +96,19 @@ function ImpactTable({
 /** Staff view: the before and after of done SEO actions, one entry per audit and the person whose data it holds. */
 export function SeoActionImpactList({
   items,
-  total,
+  page,
   t,
   format,
 }: {
   items: AdminSeoActionImpact["items"];
-  total: number;
+  page: number;
   t: Translate;
   format: Format;
 }) {
   if (!items.length)
     return (
       <p className="text-muted-foreground">
-        {t(total ? "emptyPage" : "impactEmpty")}
+        {t(page > 1 ? "emptyPage" : "impactEmpty")}
       </p>
     );
   return (

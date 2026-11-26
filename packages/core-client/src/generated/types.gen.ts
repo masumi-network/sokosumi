@@ -133,7 +133,7 @@ export type SeoFullAuditCostDetail = {
 };
 
 export type AdminSeoActionImpact = {
-    total: number;
+    hasNext: boolean;
     pageSize: number;
     items: Array<{
         auditId: string | null;

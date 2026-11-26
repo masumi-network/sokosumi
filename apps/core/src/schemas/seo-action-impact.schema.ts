@@ -82,7 +82,8 @@ export const adminSeoActionImpactQuery = z.object({
 /** Staff only. One item per audit or Project and the person whose Search Console rows it holds. */
 export const adminSeoActionImpactSchema = z
   .strictObject({
-    total: z.number().int().nonnegative(),
+    /** A later page exists. The list is not counted: a count reads every customer's groups. */
+    hasNext: z.boolean(),
     pageSize: z.number().int().positive(),
     items: z.array(
       z.strictObject({

@@ -97,12 +97,18 @@ export async function listAdminSeoActionImpact({
       ownerId: { not: null },
     },
     _max: { observedAt: true },
-    orderBy: { _max: { observedAt: "desc" } },
+    // The three keys make the order total, so two pages never share or skip a group.
+    orderBy: [
+      { _max: { observedAt: "desc" } },
+      { auditId: "asc" },
+      { projectId: "asc" },
+      { ownerId: "asc" },
+    ],
+    skip: (page - 1) * ADMIN_SEO_IMPACT_PAGE_SIZE,
+    // One more than a page: it tells that a later page exists without a count of all groups.
+    take: ADMIN_SEO_IMPACT_PAGE_SIZE + 1,
   });
-  const shown = groups.slice(
-    (page - 1) * ADMIN_SEO_IMPACT_PAGE_SIZE,
-    page * ADMIN_SEO_IMPACT_PAGE_SIZE,
-  );
+  const shown = groups.slice(0, ADMIN_SEO_IMPACT_PAGE_SIZE);
   const items: AdminSeoActionImpact["items"] = [];
   // Each read is a whole SEO workspace, so a few run at a time, not the whole page at once.
   for (let at = 0; at < shown.length; at += ADMIN_IMPACT_READS_AT_ONCE)
@@ -115,5 +121,9 @@ export async function listAdminSeoActionImpact({
         )
       ).flat(),
     );
-  return { total: groups.length, pageSize: ADMIN_SEO_IMPACT_PAGE_SIZE, items };
+  return {
+    hasNext: groups.length > ADMIN_SEO_IMPACT_PAGE_SIZE,
+    pageSize: ADMIN_SEO_IMPACT_PAGE_SIZE,
+    items,
+  };
 }
