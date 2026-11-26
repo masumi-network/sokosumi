@@ -15261,7 +15261,7 @@
         "trendLimit": "The dashed line is the good limit: {good}.",
         "noTrend": {
           "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",
-          "unavailable": "Earlier weeks for this page could not be verified.",
+          "unavailable": "Earlier weeks could not be verified.",
           "legacy_unverified": "This audit was saved before earlier weeks were checked. Run a new audit to see the trend.",
           "too_few": "Too few weeks with data to show a trend."
         },
