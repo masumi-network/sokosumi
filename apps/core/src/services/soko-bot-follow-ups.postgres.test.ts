@@ -18,9 +18,15 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import {
+  checkGrantSpendPreflight,
+  reserveAuthoritySpend,
+  settleAuthoritySpend,
+} from "@/lib/soko-bot/authority-spend";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
   evaluateSocialWriteAuthority,
+  resolveSocialWriteOrigin,
   resolveSocialWriteOriginSource,
   SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
   SCHEDULE_AUTHORITY_INVALID_MESSAGE,
@@ -28,8 +34,14 @@ import {
   SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
   SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
   SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
+  WATCH_AUTHORITY_EXPIRED_MESSAGE,
+  WATCH_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+  WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
 } from "@/lib/soko-bot/owner-authority";
 import { inheritedScheduleRoute } from "@/lib/soko-bot/system-routes";
+import { mayMakeMediaForOwner } from "@/services/soko-bot-runtime/media-checks";
 import { expectCoreLog } from "@/test/core-log";
 
 vi.mock("@/services/x-subscription-tier.service", async (original) => ({
@@ -3128,6 +3140,630 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           await tx.user.deleteMany({ where: { id: teammateId } });
         });
       }
+    });
+
+    it("enforces SokoBotWatch social authority and watch/schedule media limits across occurrences and admin retries on PostgreSQL", async () => {
+      const rootChatTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Watch the reply and generate visuals on Project A.",
+          capabilityNames: ["create_social_post", "generate_image"],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+      const projectA = randomUUID();
+      const projectB = randomUUID();
+      const sharedWatchGrantId = `watch-shared-${randomUUID()}`;
+      const baseWatchAuth = {
+        version: 1 as const,
+        grantId: sharedWatchGrantId,
+        origin: "owner_chat" as const,
+        sokoBotId: botId,
+        workspaceId,
+        ownerUserId: userId,
+        rootTurnId: rootChatTurn.id,
+        targetScope: { kind: "project" as const, projectId: projectA },
+        scope: "draft_and_workspace" as const,
+        socialMode: "full" as const,
+        limits: {
+          grantId: sharedWatchGrantId,
+          period: "lifetime" as const,
+          images: 1,
+          maxMediaCredits: 10,
+        },
+        stopRule: { mode: "never" as const },
+      };
+
+      const chatReplyWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Draft a social post and make 1 image.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: baseWatchAuth,
+        },
+      });
+      const siblingWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Make an image under the same shared grant.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: baseWatchAuth,
+        },
+      });
+      const expiredWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Expired follow-up.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: {
+            ...baseWatchAuth,
+            grantId: `expired-${randomUUID()}`,
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+        },
+      });
+      const corruptWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Corrupt authority payload.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: { invalid: true },
+        },
+      });
+      const legacyWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          projectId: null,
+          then: "Pre-migration legacy chat_reply watch.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+
+      const makeTurn = (
+        source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY",
+        clientTurnId: string,
+      ) =>
+        prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            requestedByUserId: userId,
+            workspaceId,
+            source,
+            status: "RUNNING",
+            clientTurnId,
+            versionId: "v36",
+            userMessage: "Follow-up execution",
+            capabilityNames: ["create_social_post", "generate_image"],
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+          },
+        });
+
+      const wakeTurn = await makeTurn("CHAT", `watch:${chatReplyWatch.id}`);
+      const wakeAdminRetry = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-retry:${wakeTurn.id}:op1`,
+      );
+      const siblingWakeTurn = await makeTurn(
+        "CHAT",
+        `watch:${siblingWatch.id}`,
+      );
+      const expiredWakeTurn = await makeTurn(
+        "CHAT",
+        `watch:${expiredWatch.id}`,
+      );
+      const corruptWakeTurn = await makeTurn(
+        "CHAT",
+        `watch:${corruptWatch.id}`,
+      );
+      const legacyWakeTurn = await makeTurn("CHAT", `watch:${legacyWatch.id}`);
+      const deletedWakeTurn = await makeTurn("CHAT", `watch:${randomUUID()}`);
+      const malformedWakeTurn = await makeTurn("CHAT", "watch:not-a-uuid");
+
+      // 1. Social write enforcement on watch wakes and their ADMIN_RETRY chains.
+      for (const candidate of [wakeTurn, wakeAdminRetry]) {
+        const origin = await resolveSocialWriteOrigin({
+          id: candidate.id,
+          sokoBotId: botId,
+          source: candidate.source,
+          clientTurnId: candidate.clientTurnId,
+        });
+        expect(origin.watchAuthority?.kind).toBe("watch");
+        const turnInfo = {
+          id: candidate.id,
+          sokoBotId: botId,
+          workspaceId,
+          versionId: "v36",
+          source: origin.source,
+          actingUserId: userId,
+          askedByKind: "OWNER" as const,
+          sharedBot: false,
+        };
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: turnInfo,
+            capability: "create_social_post",
+            rawInput: { projectId: projectA, text: "Draft only" },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: turnInfo,
+            capability: "create_social_post",
+            rawInput: {
+              projectId: projectA,
+              text: "Scheduled",
+              scheduledAt: "2026-12-01T10:00:00Z",
+            },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+        });
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: turnInfo,
+            capability: "create_social_post",
+            rawInput: { projectId: projectB, text: "Wrong Project" },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+        });
+      }
+
+      // Expired, corrupt, legacy, deleted, and malformed watches on real PostgreSQL.
+      for (const [turnRow, expectedDetail] of [
+        [expiredWakeTurn, WATCH_AUTHORITY_EXPIRED_MESSAGE],
+        [corruptWakeTurn, WATCH_AUTHORITY_INVALID_MESSAGE],
+        [deletedWakeTurn, WATCH_AUTHORITY_UNAVAILABLE_MESSAGE],
+        [malformedWakeTurn, WATCH_AUTHORITY_UNAVAILABLE_MESSAGE],
+      ] as const) {
+        const origin = await resolveSocialWriteOrigin({
+          id: turnRow.id,
+          sokoBotId: botId,
+          source: turnRow.source,
+          clientTurnId: turnRow.clientTurnId,
+        });
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: {
+              id: turnRow.id,
+              sokoBotId: botId,
+              workspaceId,
+              versionId: "v36",
+              source: origin.source,
+              actingUserId: userId,
+              askedByKind: "OWNER",
+              sharedBot: false,
+            },
+            capability: "create_social_post",
+            rawInput: { projectId: projectA, text: "Blocked" },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: expectedDetail,
+        });
+      }
+
+      const legacyOrigin = await resolveSocialWriteOrigin({
+        id: legacyWakeTurn.id,
+        sokoBotId: botId,
+        source: legacyWakeTurn.source,
+        clientTurnId: legacyWakeTurn.clientTurnId,
+      });
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: legacyWakeTurn.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: legacyOrigin.source,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+            sharedBot: false,
+          },
+          capability: "schedule_social_post",
+          rawInput: { projectId: projectA, postId: randomUUID() },
+          tainted: false,
+          watchAuthority: legacyOrigin.watchAuthority,
+        }),
+      ).toEqual({
+        allowed: false,
+        kind: "watch_authority",
+        detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+      });
+
+      // 2. Shared watch media limits across parallel watches & ADMIN_RETRY on PostgreSQL.
+      const mediaRuntime = {
+        mayActForOwner: async (auth: { turn: { source: string | null } }) =>
+          auth.turn.source === "CHAT",
+      };
+      const asAuthorized = (row: {
+        id: string;
+        source: string | null;
+        clientTurnId: string;
+      }) =>
+        ({
+          askedByKind: "OWNER",
+          reader: { sharedScope: null },
+          turn: {
+            id: row.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: row.source,
+            clientTurnId: row.clientTurnId,
+            actingUserId: userId,
+            chainDepth: 0,
+          },
+        }) as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+      const watch1Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(wakeTurn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      expect(watch1Allowance?.grants).toHaveLength(1);
+      await prisma.$transaction(async (tx) => {
+        await reserveAuthoritySpend(tx, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: wakeTurn.id,
+          toolCallId: "watch-img-1",
+          operationKey: "op-watch-img-1",
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: watch1Allowance!.grants!,
+        });
+      });
+      await settleAuthoritySpend(
+        prisma,
+        {
+          turnId: wakeTurn.id,
+          toolCallId: "watch-img-1",
+        },
+        "SETTLED",
+      );
+
+      // Parallel sibling watch AND ADMIN_RETRY sharing the same grantId are now refused.
+      for (const blockedTurn of [siblingWakeTurn, wakeAdminRetry]) {
+        const allowance = await mayMakeMediaForOwner(
+          mediaRuntime,
+          asAuthorized(blockedTurn),
+          { projectId: projectA, capability: "generate_image" },
+        );
+        await expect(
+          checkGrantSpendPreflight(prisma, {
+            sokoBotId: botId,
+            workspaceId,
+            turnId: blockedTurn.id,
+            toolCallId: `blocked-${randomUUID()}`,
+            operationKey: null,
+            capability: "generate_image",
+            projectId: projectA,
+            images: 1,
+            videos: 0,
+            credits: 4,
+            grants: allowance!.grants!,
+          }),
+        ).rejects.toThrow("The owner asked for 1 image in this plan");
+      }
+
+      // 3. Schedule per_occurrence vs lifetime media limits across occurrences and retries.
+      const perOccSchedId = randomUUID();
+      const perOccGrantId = `sched-occ-${randomUUID()}`;
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: perOccSchedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Weekly hero image",
+          cronExpression: "0 9 * * 1",
+          timezone: "UTC",
+          prompt: "Generate 1 weekly hero image.",
+          nextRunAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+          authority: {
+            version: 1,
+            grantId: perOccGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: rootChatTurn.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: perOccSchedId,
+            scope: "owner_writes",
+            socialMode: "draft_only",
+            limits: {
+              grantId: perOccGrantId,
+              period: "per_occurrence",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const slot1 = new Date("2026-11-30T09:00:00.000Z");
+      const slot2 = new Date("2026-12-07T09:00:00.000Z");
+      const occ1Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${perOccSchedId}:${slot1.toISOString()}`,
+      );
+      const occ1Run = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: perOccSchedId,
+          scheduledFor: slot1,
+          status: "RUNNING",
+          turnId: occ1Turn.id,
+        },
+      });
+      const occ1AdminRetry = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-retry:${occ1Turn.id}:op1`,
+      );
+      const occ1SchedRetry = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-schedule-retry:${occ1Run.id}:op1`,
+      );
+      const occ2Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${perOccSchedId}:${slot2.toISOString()}`,
+      );
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: perOccSchedId,
+          scheduledFor: slot2,
+          status: "RUNNING",
+          turnId: occ2Turn.id,
+        },
+      });
+
+      const occ1Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(occ1Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      expect(occ1Allowance?.grants?.[0]?.grantId).toBe(
+        `${perOccGrantId}:slot:${slot1.toISOString()}`,
+      );
+      // Image-only schedule refuses generate_video.
+      expect(
+        await mayMakeMediaForOwner(mediaRuntime, asAuthorized(occ1Turn), {
+          projectId: projectA,
+          capability: "generate_video",
+        }),
+      ).toBeNull();
+      // Spend 1/1 on Occurrence 1.
+      await prisma.$transaction(async (tx) => {
+        await reserveAuthoritySpend(tx, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: occ1Turn.id,
+          toolCallId: "occ1-img-1",
+          operationKey: "op-occ1-img-1",
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: occ1Allowance!.grants!,
+        });
+      });
+      await settleAuthoritySpend(
+        prisma,
+        {
+          turnId: occ1Turn.id,
+          toolCallId: "occ1-img-1",
+        },
+        "SETTLED",
+      );
+      // Both admin-retry and admin-schedule-retry of Occurrence 1 are refused.
+      for (const retryRow of [occ1AdminRetry, occ1SchedRetry]) {
+        const retryAllowance = await mayMakeMediaForOwner(
+          mediaRuntime,
+          asAuthorized(retryRow),
+          { projectId: projectA, capability: "generate_image" },
+        );
+        await expect(
+          checkGrantSpendPreflight(prisma, {
+            sokoBotId: botId,
+            workspaceId,
+            turnId: retryRow.id,
+            toolCallId: `occ1-retry-${randomUUID()}`,
+            operationKey: null,
+            capability: "generate_image",
+            projectId: projectA,
+            images: 1,
+            videos: 0,
+            credits: 4,
+            grants: retryAllowance!.grants!,
+          }),
+        ).rejects.toThrow("The owner asked for 1 image in this plan");
+      }
+      // Occurrence 2 gets its own fresh bucket and succeeds at preflight.
+      const occ2Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(occ2Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      expect(occ2Allowance?.grants?.[0]?.grantId).toBe(
+        `${perOccGrantId}:slot:${slot2.toISOString()}`,
+      );
+      await expect(
+        checkGrantSpendPreflight(prisma, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: occ2Turn.id,
+          toolCallId: "occ2-img-1",
+          operationKey: null,
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: occ2Allowance!.grants!,
+        }),
+      ).resolves.toBeUndefined();
+
+      // Lifetime schedule shares ONE grantId across occurrences: Occurrence 2 is refused.
+      const lifetimeSchedId = randomUUID();
+      const lifetimeGrantId = `sched-life-${randomUUID()}`;
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: lifetimeSchedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Campaign lifetime cap",
+          cronExpression: "0 9 * * 2",
+          timezone: "UTC",
+          prompt: "Generate up to 1 image total across the campaign.",
+          nextRunAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+          authority: {
+            version: 1,
+            grantId: lifetimeGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: rootChatTurn.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: lifetimeSchedId,
+            scope: "owner_writes",
+            socialMode: "draft_only",
+            limits: {
+              grantId: lifetimeGrantId,
+              period: "lifetime",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const life1Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${lifetimeSchedId}:${slot1.toISOString()}`,
+      );
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: lifetimeSchedId,
+          scheduledFor: slot1,
+          status: "RUNNING",
+          turnId: life1Turn.id,
+        },
+      });
+      const life2Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${lifetimeSchedId}:${slot2.toISOString()}`,
+      );
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: lifetimeSchedId,
+          scheduledFor: slot2,
+          status: "RUNNING",
+          turnId: life2Turn.id,
+        },
+      });
+      const life1Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(life1Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      await prisma.$transaction(async (tx) => {
+        await reserveAuthoritySpend(tx, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: life1Turn.id,
+          toolCallId: "life1-img-1",
+          operationKey: "op-life1-img-1",
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: life1Allowance!.grants!,
+        });
+      });
+      await settleAuthoritySpend(
+        prisma,
+        {
+          turnId: life1Turn.id,
+          toolCallId: "life1-img-1",
+        },
+        "SETTLED",
+      );
+      const life2Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(life2Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      await expect(
+        checkGrantSpendPreflight(prisma, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: life2Turn.id,
+          toolCallId: "life2-img-1",
+          operationKey: null,
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: life2Allowance!.grants!,
+        }),
+      ).rejects.toThrow("The owner asked for 1 image in this plan");
     });
   });
 });
