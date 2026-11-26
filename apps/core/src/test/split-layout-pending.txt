@@ -140,6 +140,7 @@ src/services/seo-console-export.postgres.test.ts 19  # trigger body
 src/services/seo-credit-gate.postgres.test.ts 19  # trigger body
 src/services/seo-shared-context.postgres.test.ts 19  # trigger body
 src/services/seo-task-execution.postgres.test.ts 19  # trigger body
+src/services/social-post-restore.postgres.test.ts 19  # trigger body
 src/services/soko-bot-archive.postgres.test.ts 19  # trigger body
 src/services/soko-bot-conversation.postgres.test.ts 19  # trigger body
 src/services/soko-bot-fleet-days.postgres.test.ts 19  # trigger body
