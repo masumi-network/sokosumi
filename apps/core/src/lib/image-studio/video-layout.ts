@@ -24,8 +24,11 @@ export interface VideoLayout {
   };
   /**
    * How a presenter clip (always 1080 x 1920) fills the frame: cropped from
-   * `cameraTop` pixels down, where the head is, or, when the frame is wider
-   * than tall, shown whole between blurred copies of itself.
+   * `cameraTop` pixels down, or, when the frame is wider than tall, shown
+   * whole between blurred copies of itself. Presenter photos have the head in
+   * the upper third (stock ones, and own photos framed by attention), so a
+   * crop this far down keeps the hair in, even punched in. sharp's attention
+   * point was tried per clip and found the chest as often as the face.
    */
   camera: "crop" | "pillar";
   cameraTop: number;
@@ -73,7 +76,7 @@ export const VIDEO_LAYOUTS: Record<VideoShape, VideoLayout> = {
     safe: { left: 100, right: 980, top: 110, bottom: 1230 },
     text: { caption: 84, hook: 52, label: 68, number: 170, card: 56 },
     camera: "crop",
-    cameraTop: 120,
+    cameraTop: 80,
     overPage: {
       presenter: { width: 450, height: 800 },
       presenterX: "(W-w)/2",
@@ -88,7 +91,7 @@ export const VIDEO_LAYOUTS: Record<VideoShape, VideoLayout> = {
     safe: { left: 100, right: 980, top: 90, bottom: 990 },
     text: { caption: 80, hook: 50, label: 64, number: 150, card: 54 },
     camera: "crop",
-    cameraTop: 240,
+    cameraTop: 140,
     overPage: {
       presenter: { width: 360, height: 640 },
       presenterX: "(W-w)/2",

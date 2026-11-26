@@ -10,6 +10,9 @@ import {
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
   type TalkingVideoExtras,
   type TalkingVideoPriceFigures,
+  VIDEO_SHAPE_FRAMES,
+  VIDEO_SHAPES,
+  type VideoShape,
 } from "@sokosumi/utils";
 import sharp from "sharp";
 
@@ -86,7 +89,7 @@ const MODELS: TalkingVideoModel[] = [
     price: {
       ...TALKING_VIDEO_PRICE,
       basis:
-        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing.",
+        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing, and so does each other shape (4:5, 1:1, 16:9): Core cuts it from the same voice, presenter, B-roll and music.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
       verifiedAt: TALKING_VIDEO_PRICE_VERIFIED_AT,
     },
@@ -297,6 +300,23 @@ export interface TalkingVideoSettings extends VideoSettings {
   format: ShortVideoFormat | null;
   /** A short's pictures in the studio's store, once copied in. */
   picturePathnames: string[];
+  /** The shape this job's video is cut in. */
+  shape: VideoShape;
+  /**
+   * The other shapes wanted. Each is its own job, started once this one is
+   * delivered, cut from the same voice, presenter, B-roll and music.
+   */
+  shapes: VideoShape[];
+  /** The job whose paid parts this shape is cut from, or null for the first. */
+  sourceJobId: string | null;
+  /** The site as a desktop shows it, for a widescreen shape. */
+  siteDesktopPagePathname: string | null;
+}
+
+function readShape(value: unknown): VideoShape | null {
+  return (VIDEO_SHAPES as readonly unknown[]).includes(value)
+    ? (value as VideoShape)
+    : null;
 }
 
 function readSpokenWords(value: unknown): SpokenWord[] {
@@ -317,8 +337,9 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     typeof value === "object" && value !== null && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : {};
+  const shape = readShape(raw.shape) ?? "9:16";
   return {
-    aspectRatio: TALKING_VIDEO_ASPECT_RATIO,
+    aspectRatio: shape,
     durationSeconds:
       typeof raw.durationSeconds === "number" ? raw.durationSeconds : 0,
     resolution: TALKING_VIDEO_RESOLUTION,
@@ -348,7 +369,65 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
           (pathname): pathname is string => typeof pathname === "string",
         )
       : [],
+    shape,
+    shapes: Array.isArray(raw.shapes)
+      ? raw.shapes.flatMap((value) => {
+          const each = readShape(value);
+          return each && each !== shape ? [each] : [];
+        })
+      : [],
+    sourceJobId: typeof raw.sourceJobId === "string" ? raw.sourceJobId : null,
+    siteDesktopPagePathname:
+      typeof raw.siteDesktopPagePathname === "string"
+        ? raw.siteDesktopPagePathname
+        : null,
   };
+}
+
+/**
+ * One of a short's pictures fitted to a shape's frame. A picture of about the
+ * frame's shape, or any picture in a vertical frame, is cropped around what
+ * draws the eye; one far off it (a portrait in a widescreen frame) is shown
+ * whole over a blurred copy, so no head or product is cut away.
+ */
+export async function fitVideoPicture(
+  bytes: Uint8Array,
+  shape: VideoShape,
+): Promise<Uint8Array> {
+  const { width, height } = VIDEO_SHAPE_FRAMES[shape];
+  const source = sharp(bytes).rotate();
+  const meta = await sharp(await source.clone().toBuffer()).metadata();
+  const pictureAspect = (meta.width ?? width) / (meta.height ?? height);
+  const ratio = pictureAspect / (width / height);
+  // Vertical keeps the crop shorts have always had.
+  if (shape === "9:16" || (ratio > 0.65 && ratio < 1.55)) {
+    return await source
+      .resize(width, height, { fit: "cover", position: "attention" })
+      .jpeg({ quality: 92 })
+      .toBuffer();
+  }
+  const [backdrop, whole] = await Promise.all([
+    source
+      .clone()
+      .resize(width, height, { fit: "cover" })
+      .blur(40)
+      .modulate({ brightness: 0.8 })
+      .toBuffer(),
+    source.clone().resize(width, height, { fit: "inside" }).toBuffer(),
+  ]);
+  return await sharp(backdrop)
+    .composite([{ input: whole, gravity: "centre" }])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
+
+/** A picture kept as it was taken, only made small enough for any frame. */
+export async function keepVideoPicture(bytes: Uint8Array): Promise<Uint8Array> {
+  return await sharp(bytes)
+    .rotate()
+    .resize(2160, 2160, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 92 })
+    .toBuffer();
 }
 
 /**
