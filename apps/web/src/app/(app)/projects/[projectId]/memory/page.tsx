@@ -19,15 +19,6 @@ interface ProjectMemoryPageProps {
   params: Promise<{ projectId: string }>;
 }
 
-/**
- * The Memory tab: CONTEXT.md, read on the page rather than in a dialog.
- *
- * The content is fetched here rather than in the panel because Core already
- * hands the whole document to the server in one call, and the tab's own route
- * is the natural place to spend it: no spinner, no click, and the document is
- * in the HTML for anyone who lands on the link.
- */
-
 /** The section's name, then the project's, as the tab title. */
 export async function generateMetadata({
   params,
@@ -41,6 +32,14 @@ export async function generateMetadata({
   return projectPageMetadata(projectId, t("tabs.memory"));
 }
 
+/**
+ * The Memory tab: CONTEXT.md, read on the page rather than in a dialog.
+ *
+ * The content is fetched here rather than in the panel because Core already
+ * hands the whole document to the server in one call, and the tab's own route
+ * is the natural place to spend it: no spinner, no click, and the document is
+ * in the HTML for anyone who lands on the link.
+ */
 export default async function ProjectMemoryPage({
   params,
 }: ProjectMemoryPageProps) {

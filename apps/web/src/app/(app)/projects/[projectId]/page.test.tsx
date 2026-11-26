@@ -630,3 +630,19 @@ describe("ProjectDetailPage", () => {
     expect(screen.getByText(/Shipped/)).toBeInTheDocument();
   });
 });
+
+describe("Overview's title", () => {
+  // Set on the page, not the project layout: a layout's own title stops
+  // the app's "Sokosumi - %s" template from reaching every page below it.
+  it("is the project's name", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue({
+      id: "project-1",
+      name: "Spring launch",
+    });
+    const { generateMetadata } = await import("./page");
+
+    await expect(
+      generateMetadata({ params: Promise.resolve({ projectId: "project-1" }) }),
+    ).resolves.toEqual({ title: "Spring launch" });
+  });
+});

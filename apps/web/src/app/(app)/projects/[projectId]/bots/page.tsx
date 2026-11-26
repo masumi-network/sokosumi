@@ -21,11 +21,6 @@ interface ProjectBotsPageProps {
   params: Promise<{ projectId: string }>;
 }
 
-/**
- * The Bots tab: the Soko Bots that work for this project, and a create
- * dialog preset to this project. It exists only while the tab does.
- */
-
 /** The section's name, then the project's, as the tab title. */
 export async function generateMetadata({
   params,
@@ -39,6 +34,10 @@ export async function generateMetadata({
   return projectPageMetadata(projectId, t("tabs.bots"));
 }
 
+/**
+ * The Bots tab: the Soko Bots that work for this project, and a create
+ * dialog preset to this project. It exists only while the tab does.
+ */
 export default async function ProjectBotsPage({
   params,
 }: ProjectBotsPageProps) {

@@ -25,17 +25,6 @@ interface ProjectDesignPageProps {
   params: Promise<{ projectId: string }>;
 }
 
-/**
- * The Design tab: a project's DESIGN.md, read here rather than downloaded.
- *
- * The document was only ever reachable as a blob URL in a dropdown or as raw
- * Markdown in the editor, so "what does this project look like" meant leaving
- * the project. The card above it is the same `ProjectBrandCard` the overview
- * shows, because every action on this file — generate, upload, open raw, edit,
- * remove — already lives there and a second copy of those buttons would be a
- * second thing to keep in step.
- */
-
 /** The section's name, then the project's, as the tab title. */
 export async function generateMetadata({
   params,
@@ -49,6 +38,16 @@ export async function generateMetadata({
   return projectPageMetadata(projectId, t("tabs.design"));
 }
 
+/**
+ * The Design tab: a project's DESIGN.md, read here rather than downloaded.
+ *
+ * The document was only ever reachable as a blob URL in a dropdown or as raw
+ * Markdown in the editor, so "what does this project look like" meant leaving
+ * the project. The card above it is the same `ProjectBrandCard` the overview
+ * shows, because every action on this file — generate, upload, open raw, edit,
+ * remove — already lives there and a second copy of those buttons would be a
+ * second thing to keep in step.
+ */
 export default async function ProjectDesignPage({
   params,
 }: ProjectDesignPageProps) {
