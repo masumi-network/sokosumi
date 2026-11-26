@@ -1286,7 +1286,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(mocks.runIntegrationTool).not.toHaveBeenCalled();
     });
 
-    it("reads one DM event and no users in an hour with nothing new", async () => {
+    it("reads one small DM page and no users in an hour with nothing new", async () => {
       const quietOrganizationId = randomUUID();
       const quietWorkspaceId = randomUUID();
       await prisma.organization.create({
@@ -1308,6 +1308,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         dm("100-200", "100", new Date(start - 120_000).toISOString()),
       ];
       const dmCalls: Record<string, unknown>[] = [];
+      let emptyProbe = false;
       mocks.runIntegrationTool.mockImplementation(
         async (...args: unknown[]) => {
           const tool = args[1] as string;
@@ -1318,6 +1319,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
             throw new Error(`unexpected tool ${tool}`);
           dmCalls.push(input);
+          if (emptyProbe && input.max_results === 10) {
+            emptyProbe = false;
+            return { meta: { result_count: 0, next_token: "more" } };
+          }
           return {
             data: events.slice(0, input.max_results as number),
             includes: { users: [ruth] },
@@ -1340,7 +1345,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(
         dmCalls.map((call) => [call.max_results, call.expansions]),
       ).toEqual([
-        [1, undefined],
+        [10, undefined],
         [20, ["sender_id", "participant_ids"]],
       ]);
 
@@ -1349,7 +1354,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await capture();
       expect(
         dmCalls.map((call) => [call.max_results, call.expansions]),
-      ).toEqual([[1, undefined]]);
+      ).toEqual([[10, undefined]]);
 
       dmCalls.length = 0;
       events = [
@@ -1358,7 +1363,19 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       ];
       clock = new Date(start + 122 * 60 * 1000);
       await capture();
-      expect(dmCalls.map((call) => call.max_results)).toEqual([1, 20]);
+      expect(dmCalls.map((call) => call.max_results)).toEqual([10, 20]);
+
+      // X filters by event type after picking the page: the probe can come
+      // back empty with more pages behind it. That is not a quiet hour.
+      dmCalls.length = 0;
+      events = [
+        dm("100-200", "200", new Date(start + 150 * 60 * 1000).toISOString()),
+        ...events,
+      ];
+      emptyProbe = true;
+      clock = new Date(start + 183 * 60 * 1000);
+      await capture();
+      expect(dmCalls.map((call) => call.max_results)).toEqual([10, 20]);
     });
 
     it("reads followers a page a day, and after one full walk stops at the first page with nothing new", async () => {
