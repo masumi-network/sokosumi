@@ -11,7 +11,11 @@
 
 import { createPrismaClient } from "@sokosumi/database/client";
 import {
-  createSqlTables,
+  configureSqlTables,
+  netTable,
+  netType,
+  sharedTable,
+  sharedType,
   sqlTableLayoutFromEnv,
 } from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -25,9 +29,7 @@ import {
   sumTransactionHistory,
 } from "./transaction-history";
 
-const { netTable, netType, sharedTable, sharedType } = createSqlTables(
-  sqlTableLayoutFromEnv(process.env),
-);
+const restoreSqlTables = configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
 const url = process.env.DATABASE_URL;
 const enabled =
@@ -50,6 +52,7 @@ const db =
 vi.setConfig({ testTimeout: 60_000 });
 
 afterAll(async () => {
+  restoreSqlTables();
   await db?.$disconnect();
 });
 
@@ -396,6 +399,11 @@ async function findRefundItem(tx: Tx, refundId: string) {
 }
 
 describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
+  it("reads an empty ledger in the configured schemas", async () => {
+    if (!db) throw new Error("Missing integration database");
+    expect(await countTransactionHistory(personalScope, db)).toBe(0);
+  });
+
   it("names the job behind a refund and keeps its on-chain status", async () => {
     await withSeededLedger(async (tx) => {
       await seedRefundTransaction(tx, "tx-refund-job");

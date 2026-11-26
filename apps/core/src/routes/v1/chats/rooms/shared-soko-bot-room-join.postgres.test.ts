@@ -49,7 +49,7 @@ class RollbackStub extends Error {}
 async function withMigratedStub(
   run: (
     tx: Prisma.TransactionClient,
-    sharedTable: SqlTables["sharedTable"],
+    stubTable: SqlTables["sharedTable"],
   ) => Promise<void>,
 ) {
   if (!db) throw new Error("Missing integration database");
@@ -58,25 +58,25 @@ async function withMigratedStub(
       async (tx) => {
         const schema = `shared_room_join_test_${randomUUID().replaceAll("-", "")}`;
         await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
-        const { sharedTable } = createSqlTables({
+        const { sharedTable: stubTable } = createSqlTables({
           shared: schema,
           mainnet: "unused_mainnet",
           preprod: "unused_preprod",
           preprodOn: false,
         });
         for (const sql of [
-          `CREATE TABLE ${sharedTable("organization").sql} (id text PRIMARY KEY)`,
-          `INSERT INTO ${sharedTable("organization").sql} VALUES ('org1'), ('org2'), ('org3')`,
-          `CREATE TABLE ${sharedTable("member").sql} (id text PRIMARY KEY, "organizationId" text, "userId" text)`,
-          `CREATE TABLE ${sharedTable("workspace").sql} (id uuid PRIMARY KEY, "organizationId" text)`,
-          `CREATE TABLE ${sharedTable("chat_room").sql} (id uuid PRIMARY KEY, "organizationId" text, kind text, "archivedAt" timestamp)`,
-          `CREATE TABLE ${sharedTable("soko_bot").sql} (id uuid PRIMARY KEY, "userId" text, "deletedAt" timestamp, "workspaceId" uuid, "sharedRoomId" uuid)`,
-          `CREATE TABLE ${sharedTable("chat_room_user_member").sql} (id uuid PRIMARY KEY, "roomId" uuid, "userId" text, access text, "createdAt" timestamp)`,
-          `CREATE UNIQUE INDEX ON ${sharedTable("chat_room_user_member").sql} ("roomId", "userId")`,
-          `CREATE TABLE ${sharedTable("chat_room_read_state").sql} (id uuid PRIMARY KEY, "roomId" uuid, "userId" text, "lastReadAt" timestamp, "createdAt" timestamp, "updatedAt" timestamp)`,
-          `CREATE UNIQUE INDEX ON ${sharedTable("chat_room_read_state").sql} ("roomId", "userId")`,
-          `INSERT INTO ${sharedTable("workspace").sql} VALUES ('${WS_ORG1}', 'org1'), ('${WS_ORG2}', 'org2')`,
-          `INSERT INTO ${sharedTable("chat_room").sql} VALUES
+          `CREATE TABLE ${stubTable("organization").sql} (id text PRIMARY KEY)`,
+          `INSERT INTO ${stubTable("organization").sql} VALUES ('org1'), ('org2'), ('org3')`,
+          `CREATE TABLE ${stubTable("member").sql} (id text PRIMARY KEY, "organizationId" text, "userId" text)`,
+          `CREATE TABLE ${stubTable("workspace").sql} (id uuid PRIMARY KEY, "organizationId" text)`,
+          `CREATE TABLE ${stubTable("chat_room").sql} (id uuid PRIMARY KEY, "organizationId" text, kind text, "archivedAt" timestamp)`,
+          `CREATE TABLE ${stubTable("soko_bot").sql} (id uuid PRIMARY KEY, "userId" text, "deletedAt" timestamp, "workspaceId" uuid, "sharedRoomId" uuid)`,
+          `CREATE TABLE ${stubTable("chat_room_user_member").sql} (id uuid PRIMARY KEY, "roomId" uuid, "userId" text, access text, "createdAt" timestamp)`,
+          `CREATE UNIQUE INDEX ON ${stubTable("chat_room_user_member").sql} ("roomId", "userId")`,
+          `CREATE TABLE ${stubTable("chat_room_read_state").sql} (id uuid PRIMARY KEY, "roomId" uuid, "userId" text, "lastReadAt" timestamp, "createdAt" timestamp, "updatedAt" timestamp)`,
+          `CREATE UNIQUE INDEX ON ${stubTable("chat_room_read_state").sql} ("roomId", "userId")`,
+          `INSERT INTO ${stubTable("workspace").sql} VALUES ('${WS_ORG1}', 'org1'), ('${WS_ORG2}', 'org2')`,
+          `INSERT INTO ${stubTable("chat_room").sql} VALUES
             ('${SHARED_ROOM}', 'org1', 'channel', NULL),
             ('${ARCHIVED_ROOM}', 'org1', 'channel', now()),
             ('${OTHER_ORG_ROOM}', 'org2', 'channel', NULL),
@@ -85,7 +85,7 @@ async function withMigratedStub(
             ('${CROSS_BOT_ROOM}', 'org1', 'channel', NULL),
             ('${DELETED_BOT_ROOM}', 'org1', 'channel', NULL),
             ('${PERSONAL_BOT_ROOM}', 'org1', 'channel', NULL)`,
-          `INSERT INTO ${sharedTable("soko_bot").sql} VALUES
+          `INSERT INTO ${stubTable("soko_bot").sql} VALUES
             (gen_random_uuid(), NULL, NULL, '${WS_ORG1}', '${SHARED_ROOM}'),
             (gen_random_uuid(), NULL, NULL, '${WS_ORG1}', '${ARCHIVED_ROOM}'),
             (gen_random_uuid(), NULL, NULL, '${WS_ORG2}', '${OTHER_ORG_ROOM}'),
@@ -99,7 +99,7 @@ async function withMigratedStub(
         // The historical migration and its trigger resolve bare names in this stub schema.
         await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
         await tx.$executeRawUnsafe(migrationSql);
-        await run(tx, sharedTable);
+        await run(tx, stubTable);
         throw new RollbackStub();
       },
       { timeout: 20000 },
@@ -111,11 +111,11 @@ async function withMigratedStub(
 
 async function roomsOf(
   tx: Prisma.TransactionClient,
-  sharedTable: SqlTables["sharedTable"],
+  stubTable: SqlTables["sharedTable"],
   userId: string,
 ) {
   const rows = await tx.$queryRawUnsafe<{ roomId: string; access: string }[]>(
-    `SELECT "roomId"::text AS "roomId", access FROM ${sharedTable("chat_room_user_member").sql} WHERE "userId" = $1 ORDER BY "roomId"`,
+    `SELECT "roomId"::text AS "roomId", access FROM ${stubTable("chat_room_user_member").sql} WHERE "userId" = $1 ORDER BY "roomId"`,
     userId,
   );
   return rows;
@@ -125,81 +125,81 @@ describe.skipIf(!enabled)(
   "shared Soko Bot room join trigger against PostgreSQL",
   () => {
     it("puts a new organization member into each live shared room of that organization only", async () => {
-      await withMigratedStub(async (tx, sharedTable) => {
+      await withMigratedStub(async (tx, stubTable) => {
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("member").sql} VALUES ('m1', 'org1', 'ana')`,
+          `INSERT INTO ${stubTable("member").sql} VALUES ('m1', 'org1', 'ana')`,
         );
 
-        expect(await roomsOf(tx, sharedTable, "ana")).toEqual([
+        expect(await roomsOf(tx, stubTable, "ana")).toEqual([
           { roomId: SHARED_ROOM, access: "member" },
         ]);
         const [readState] = await tx.$queryRawUnsafe<
           { lastReadAt: Date | null }[]
         >(
-          `SELECT "lastReadAt" FROM ${sharedTable("chat_room_read_state").sql} WHERE "userId" = 'ana' AND "roomId" = '${SHARED_ROOM}'`,
+          `SELECT "lastReadAt" FROM ${stubTable("chat_room_read_state").sql} WHERE "userId" = 'ana' AND "roomId" = '${SHARED_ROOM}'`,
         );
         expect(readState?.lastReadAt).toBeInstanceOf(Date);
       });
     });
 
     it("refuses a shared room on a bot with an owner", async () => {
-      await withMigratedStub(async (tx, sharedTable) => {
+      await withMigratedStub(async (tx, stubTable) => {
         await expect(
           tx.$executeRawUnsafe(
-            `INSERT INTO ${sharedTable("soko_bot").sql} VALUES (gen_random_uuid(), 'owner', NULL, '${WS_ORG1}', '${PERSONAL_BOT_ROOM}')`,
+            `INSERT INTO ${stubTable("soko_bot").sql} VALUES (gen_random_uuid(), 'owner', NULL, '${WS_ORG1}', '${PERSONAL_BOT_ROOM}')`,
           ),
         ).rejects.toThrow(/soko_bot_shared_room_owner_check/);
       });
     });
 
     it("joins only rooms of bots without an owner, even past the check", async () => {
-      await withMigratedStub(async (tx, sharedTable) => {
+      await withMigratedStub(async (tx, stubTable) => {
         await tx.$executeRawUnsafe(
-          `ALTER TABLE ${sharedTable("soko_bot").sql} DROP CONSTRAINT soko_bot_shared_room_owner_check`,
+          `ALTER TABLE ${stubTable("soko_bot").sql} DROP CONSTRAINT soko_bot_shared_room_owner_check`,
         );
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("soko_bot").sql} VALUES (gen_random_uuid(), 'owner', NULL, '${WS_ORG1}', '${PERSONAL_BOT_ROOM}')`,
+          `INSERT INTO ${stubTable("soko_bot").sql} VALUES (gen_random_uuid(), 'owner', NULL, '${WS_ORG1}', '${PERSONAL_BOT_ROOM}')`,
         );
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("member").sql} VALUES ('m5', 'org1', 'dee')`,
+          `INSERT INTO ${stubTable("member").sql} VALUES ('m5', 'org1', 'dee')`,
         );
 
-        expect(await roomsOf(tx, sharedTable, "dee")).toEqual([
+        expect(await roomsOf(tx, stubTable, "dee")).toEqual([
           { roomId: SHARED_ROOM, access: "member" },
         ]);
       });
     });
 
     it("keeps an existing row as it is and adds nothing twice", async () => {
-      await withMigratedStub(async (tx, sharedTable) => {
+      await withMigratedStub(async (tx, stubTable) => {
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("chat_room_user_member").sql} VALUES (gen_random_uuid(), '${SHARED_ROOM}', 'ben', 'guest', now())`,
+          `INSERT INTO ${stubTable("chat_room_user_member").sql} VALUES (gen_random_uuid(), '${SHARED_ROOM}', 'ben', 'guest', now())`,
         );
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("member").sql} VALUES ('m2', 'org1', 'ben')`,
+          `INSERT INTO ${stubTable("member").sql} VALUES ('m2', 'org1', 'ben')`,
         );
         await tx.$executeRawUnsafe(
-          `DELETE FROM ${sharedTable("member").sql} WHERE id = 'm2'`,
+          `DELETE FROM ${stubTable("member").sql} WHERE id = 'm2'`,
         );
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("member").sql} VALUES ('m3', 'org1', 'ben')`,
+          `INSERT INTO ${stubTable("member").sql} VALUES ('m3', 'org1', 'ben')`,
         );
 
-        expect(await roomsOf(tx, sharedTable, "ben")).toEqual([
+        expect(await roomsOf(tx, stubTable, "ben")).toEqual([
           { roomId: SHARED_ROOM, access: "guest" },
         ]);
       });
     });
 
     it("joins nothing for an organization without shared rooms", async () => {
-      await withMigratedStub(async (tx, sharedTable) => {
+      await withMigratedStub(async (tx, stubTable) => {
         await tx.$executeRawUnsafe(
-          `INSERT INTO ${sharedTable("member").sql} VALUES ('m4', 'org3', 'cy')`,
+          `INSERT INTO ${stubTable("member").sql} VALUES ('m4', 'org3', 'cy')`,
         );
 
-        expect(await roomsOf(tx, sharedTable, "cy")).toEqual([]);
+        expect(await roomsOf(tx, stubTable, "cy")).toEqual([]);
         const [count] = await tx.$queryRawUnsafe<{ n: number }[]>(
-          `SELECT count(*)::int AS n FROM ${sharedTable("chat_room_read_state").sql} WHERE "userId" = 'cy'`,
+          `SELECT count(*)::int AS n FROM ${stubTable("chat_room_read_state").sql} WHERE "userId" = 'cy'`,
         );
         expect(count?.n).toBe(0);
       });

@@ -54,7 +54,7 @@ src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client r
 src/routes/v1/drive/labels/[id]/patch.postgres.test.ts 19  # trigger body
 src/routes/v1/projects/[id]/tasks/subtask-guards.postgres.test.ts 19  # trigger body
 src/routes/v1/projects/get.postgres.test.ts 19  # trigger body
-src/routes/v1/soko-bots/mcp-servers.postgres.test.ts 17  # production refresh lock names bare soko_bot_mcp_server (slice B2b); cleanup trigger also fails (19)
+src/routes/v1/soko-bots/mcp-servers.postgres.test.ts 17  # production tool-update lock names bare soko_bot_mcp_server (slice B2b)
 src/routes/v1/soko-bots/secrets.postgres.test.ts 19  # membership fence trigger names bare workspace
 src/routes/v1/tasks/[id]/chat-messages/send-lock.postgres.test.ts 19  # room discoverability trigger names bare chat_room_user_member
 src/routes/v1/tasks/[id]/get.seo-audit.postgres.test.ts 19  # trigger body
