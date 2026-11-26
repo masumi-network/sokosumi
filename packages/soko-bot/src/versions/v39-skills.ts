@@ -22,9 +22,9 @@ const socialPosting = COMPACT_SOKO_BOT_SKILLS.find(
 if (!socialPosting) throw new Error("social-posting-instructions is missing");
 
 /**
- * Owner journeys (Codex round 15): with two X accounts connected, every run
- * drafted on one of them before asking which. Text the owner quotes is the
- * post, not where it goes.
+ * An open destination is asked, not guessed (Core enforces it too:
+ * social-destination.ts). The owner's choices decide, however they are made;
+ * the words to post never do.
  */
 export const SOCIAL_POSTING_ACCOUNT: SokoBotSkill = {
   id: SOCIAL_POSTING_ACCOUNT_SKILL,
@@ -34,10 +34,9 @@ export const SOCIAL_POSTING_ACCOUNT: SokoBotSkill = {
 
 ## Which account
 
-Before the first draft, settle where the post goes.
-- Use the account or Project the owner names. Text the owner quotes or pastes is the post's words, not a destination.
-- When the owner names none and more than one connected account fits the network (two X accounts, a personal and a company LinkedIn), ask once which one, naming them, and draft nothing until they answer. With one fitting account, use it and say which.
-- After the answer, draft on that account only.
+Before the first draft, settle where the post goes: the accounts the owner chose. A choice is an account, handle or Project they name, a field of a brief they paste that says where it goes, or their answer to your question. The words to post are never a destination.
+- Nothing chosen and more than one connected account fits the network: ask once which, naming them, and draft nothing until they answer. If create_social_post answers with that question, ask it. With one fitting account, use it and say which.
+- Draft on exactly what was chosen: one account, or each of several when the owner picks more than one.
 `,
 };
 
@@ -53,6 +52,6 @@ export const SOKO_BOT_PLAYBOOKS: SokoBotSkill = {
 For writing beyond a social post or a mail reply, read the playbook that fits with read_skill before you write, and follow it for the rest of the turn:
 ${PLAYBOOKS.map((skill) => `- \`${skill.id}\`: ${skill.description}`).join("\n")}
 
-- One playbook, two at most. A social post keeps its own skill.
-- Facts, prices, offers and proof only from the owner, their files and pages, and what you read this turn. What is missing becomes one short question, never a bracket left in the text.`,
+- The playbook for each deliverable: a page and an email sequence are two. A social post keeps its own skill.
+- Facts, prices, offers and proof only from the owner, their files and pages, and what you read this turn. A missing fact becomes one short question, never an invented one or a gap left to fill. Placeholders the owner wants, such as a template's merge fields, stay.`,
 };

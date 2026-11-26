@@ -51,13 +51,14 @@ describe("v39", () => {
     expect(listed).not.toContain("`x-post`");
   });
 
-  it("asks which account first, on top of the social posting rules", () => {
+  // What the bot asks and where drafts land is checked by behaviour: Core's
+  // destination rule (social-destination.test.ts) and the owner journeys.
+  it("keeps every social posting rule and adds one section on the destination", () => {
     const before = getSokoBotSkill(
       "social-posting-instructions",
     ).content.trim();
     const after = getSokoBotSkill("social-posting-account").content;
     expect(after.startsWith(before)).toBe(true);
-    expect(after).toMatch(/ask once which one/);
-    expect(after).toMatch(/draft nothing until they answer/);
+    expect(after.slice(before.length).match(/^## /gm)).toHaveLength(1);
   });
 });
