@@ -81,10 +81,10 @@ async function openAgents({
 const card = (name: string) =>
   screen.getByRole("listitem", { name: new RegExp(`^${name}`) });
 const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** A card's Hire button, whatever it says now: Hire, Sending or Sent. */
+/** A card's Hire button, whatever it says now: Hire or Sending. */
 const hire = (name: string) =>
   screen.getByRole("button", {
-    name: new RegExp(`^(Hire|Sending|Sent) ${escaped(name)}$`),
+    name: new RegExp(`^(Hire|Sending) ${escaped(name)}$`),
   }) as HTMLButtonElement;
 
 afterEach(cleanup);
@@ -173,9 +173,32 @@ describe("AgentsBrowse hire", () => {
         },
       ]),
     );
-    expect(await screen.findByText(/Sent\./)).toBeTruthy();
-    expect(hire("Market Analyst").textContent).toBe("Sent Market Analyst");
-    expect(hire("Market Analyst").disabled).toBe(true);
+    expect(
+      await screen.findByText(
+        "Sent to the conversation. If you are asked to allow it, allow it there.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("stays ready after a send, since a host may still ask the person to allow it (SOKD-497)", async () => {
+    let answer: (result: { isError?: boolean }) => void = () => {};
+    const sent = await openAgents({
+      message: () => new Promise((resolve) => (answer = resolve)),
+    });
+    fireEvent.click(hire("Market Analyst"));
+
+    // Nothing says sent before the host answers.
+    await waitFor(() => expect(sent.messages).toHaveBeenCalledTimes(1));
+    expect(hire("Market Analyst").textContent).toBe("Sending Market Analyst");
+    expect(screen.queryByText(/^Sent/)).toBeNull();
+
+    await act(async () => answer({}));
+    expect(hire("Market Analyst").textContent).toBe("Hire Market Analyst");
+    expect(hire("Market Analyst").disabled).toBe(false);
+
+    // The person declined the host's prompt and tries again.
+    fireEvent.click(hire("Market Analyst"));
+    await waitFor(() => expect(sent.messages).toHaveBeenCalledTimes(2));
   });
 
   it("names no workspace when the call names none", async () => {

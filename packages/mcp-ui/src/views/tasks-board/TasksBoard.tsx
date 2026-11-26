@@ -35,6 +35,12 @@ export const TasksList = z.object({
 });
 export type TasksList = z.infer<typeof TasksList>;
 
+/**
+ * What tasks_show_board always sends tasks_list (Core's `ui-tools.ts`), so a
+ * refresh stays as light: the board shows no descriptions (SOKD-496).
+ */
+export const BOARD_REFRESH_ARGS = { includeDescription: "false" } as const;
+
 export const BOARD_EMPTY = {
   title: "tasksBoard.empty.title",
   body: "tasksBoard.empty.body",
@@ -129,11 +135,38 @@ function isQuiet(task: BoardTask, column?: Column): boolean {
 }
 
 /**
+ * Whether the call filtered by status (`status` as a list or a comma-separated
+ * string). A filtered board shows only the columns that hold its Tasks, so a
+ * single result is not pushed aside by empty ones (SOKD-497).
+ */
+function filtersByStatus(input?: Record<string, unknown>): boolean {
+  const status = input?.status;
+  return Array.isArray(status)
+    ? status.length > 0
+    : typeof status === "string" && status.trim() !== "";
+}
+
+/**
  * What the model may read about a selection: an identifier such as SOK-12,
  * else the id, and only if it is a plain reference, never record text (ADR 0083).
  */
 function referenceOf(task: BoardTask): string | undefined {
   return [task.identifier, task.id].find(isPlainReference);
+}
+
+/**
+ * ChatGPT's optional widget state: its `modelContent` is text the model sees
+ * (developers.openai.com/apps-sdk/build/state-management). ChatGPT did not
+ * pass `ui/update-model-context` to the model in the SOKD-465 check, so the
+ * board writes the same sentence here too, where a host offers it (SOKD-497).
+ */
+function setWidgetState(modelContent: string): void {
+  const openai: unknown = Reflect.get(window, "openai");
+  const set =
+    openai && typeof openai === "object"
+      ? Reflect.get(openai, "setWidgetState")
+      : undefined;
+  if (typeof set === "function") set.call(openai, { modelContent });
 }
 
 export function TasksBoard({
@@ -158,6 +191,7 @@ export function TasksBoard({
   );
 
   const tasks = data.data;
+  const filtered = filtersByStatus(context.input);
   const workspaceName = tasks[0]?.workspace?.organization?.name;
   const total = data.pagination?.total;
   const warn = (what: string) => (error: unknown) =>
@@ -167,11 +201,15 @@ export function TasksBoard({
     setSelectedId(task.id);
     const ref = referenceOf(task);
     if (!ref) return;
+    const text = t("tasksBoard.context", { ref });
     app
-      .updateModelContext({
-        content: [{ type: "text", text: t("tasksBoard.context", { ref }) }],
-      })
+      .updateModelContext({ content: [{ type: "text", text }] })
       .catch(warn("ui/update-model-context"));
+    try {
+      setWidgetState(text);
+    } catch (error) {
+      warn("window.openai.setWidgetState")(error);
+    }
   };
 
   const switchMode = () =>
@@ -257,6 +295,7 @@ export function TasksBoard({
             const inColumn = tasks.filter(
               (task) => columnOf(task.status) === column,
             );
+            if (filtered && inColumn.length === 0) return null;
             const shown = fullscreen
               ? inColumn
               : inColumn.slice(0, INLINE_PER_COLUMN);

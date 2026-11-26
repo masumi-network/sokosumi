@@ -11,7 +11,6 @@ import {
   attenuateForChildWork,
   mintTurnOwnerAuthority,
 } from "@/lib/soko-bot/owner-authority";
-import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import {
   disableScheduleIfCountLimitMet,
   recordCompletedScheduleRun,
@@ -236,41 +235,6 @@ function authorizedTurn(
     },
   };
 }
-
-describe("briefAsksToEnd", () => {
-  it.each([
-    "Check SOK-12 every morning. Delete this schedule once Mira is done.",
-    "Remind me about the invoice; remove the reminder when it is paid.",
-    "Stop the check-ins when the launch ships.",
-    "Prüfe täglich den Stand und lösche den Zeitplan, sobald es fertig ist.",
-    "Delete this weekly schedule after the launch.",
-    // The verb split around the noun (Codex round 15).
-    "Turn this schedule off once the invoice is paid.",
-    "Schalte den Zeitplan ab, wenn alles erledigt ist.",
-    // A negation elsewhere does not cancel a real ask.
-    "Don't ping Hannah on weekends. Delete this schedule once the launch ships.",
-  ])("reads an ask to end: %s", (brief) => {
-    expect(briefAsksToEnd(brief)).toBe(true);
-  });
-
-  it.each([
-    "Every Friday: summarize the week's Tasks and post the report.",
-    "Check the board and tell me what is stuck.",
-    "Stop me if I overspend on ads.",
-    // Negated: these forbid ending the schedule (Neon round 6).
-    "Never delete this schedule, even when the board is quiet.",
-    "Do not turn off this schedule.",
-    "Don't remove the reminder until I say so.",
-    "Lösche diesen Zeitplan nicht.",
-    "Never turn this schedule off.",
-    // "End" here is about Tasks, and the reminders are only listed.
-    "Report the Tasks that end today and list upcoming reminders.",
-    "Stop by the board, then check the follow-ups.",
-    "Diesen Zeitplan niemals beenden; entferne keine Erinnerung.",
-  ])("reads no ask to end: %s", (brief) => {
-    expect(briefAsksToEnd(brief)).toBe(false);
-  });
-});
 
 describe("requireScheduledRunMayEnd", () => {
   const refused = /doesn't delete or switch off schedules/;

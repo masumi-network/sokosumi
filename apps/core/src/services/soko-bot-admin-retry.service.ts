@@ -1,10 +1,21 @@
 import type { Prisma, SokoBot, SokoBotTurn } from "@sokosumi/database";
+import {
+  isSokoBotSandboxCapability,
+  parseOwnerAuthority,
+} from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
 } from "@/lib/soko-bot/acting-user";
-import { resolveSocialWriteOrigin } from "@/lib/soko-bot/owner-authority";
+import {
+  capabilitiesForWatchFollowUp,
+  isScheduleAuthorityRevoked,
+  isWatchClientTurnId,
+  type OwnerAuthorityAskedByKind,
+  resolveSocialWriteOrigin,
+} from "@/lib/soko-bot/owner-authority";
 import {
   failedTurnRoute,
   isStoredMeetingPrep,
@@ -139,7 +150,7 @@ export async function meetingReplayRefusal(
   }
 }
 
-export function scheduleRetryInput(
+export async function scheduleRetryInput(
   bot: SokoBot,
   run: NonNullable<Awaited<ReturnType<typeof loadAdminScheduleRun>>>,
   boundTurnId: string | null,
@@ -150,9 +161,16 @@ export function scheduleRetryInput(
       run.scheduledFor,
       boundTurnId ? run.turn : null,
     );
+  const systemRoute = systemScheduleRoute(run.schedule.systemKey);
+  const hasPersistedAuthority =
+    run.schedule.authority !== null && run.schedule.authority !== undefined;
+  const revoked =
+    !systemRoute && hasPersistedAuthority
+      ? await isScheduleAuthorityRevoked(run.schedule)
+      : false;
   const presetRoute =
-    systemScheduleRoute(run.schedule.systemKey) ??
-    (run.schedule.authority !== null && run.schedule.authority !== undefined
+    systemRoute ??
+    (hasPersistedAuthority
       ? scheduleAuthorityRoute({
           id: run.schedule.id,
           sokoBotId: run.schedule.sokoBotId,
@@ -167,6 +185,7 @@ export function scheduleRetryInput(
           botUserId: bot.userId,
           botProjectId: bot.projectId ?? null,
           botVersionId: bot.versionId ?? null,
+          ...(revoked ? { revoked: true } : {}),
         })
       : undefined);
   return {
@@ -230,10 +249,81 @@ export async function failedRetryInput(
   let presetRoute = slot ? undefined : failedTurnRoute(failed);
   if (
     !slot &&
-    (failed.source === "SCHEDULE" || failed.source === "ADMIN_RETRY")
+    (failed.source === "SCHEDULE" ||
+      failed.source === "ADMIN_RETRY" ||
+      isWatchClientTurnId(failed.clientTurnId))
   ) {
     const origin = await resolveSocialWriteOrigin(failed);
-    if (
+    if (origin.watchAuthority && origin.watchAuthority.kind !== "none") {
+      const persisted =
+        origin.watchAuthority.kind === "watch"
+          ? parseOwnerAuthority(origin.watchAuthority.authority)
+          : null;
+      if (origin.watchAuthority.kind !== "watch" || !persisted) {
+        presetRoute = {
+          route: failed.route ?? "DELEGATE_TASK",
+          writeScope: presetRoute?.writeScope,
+          reason:
+            "Watch retry restricted: persisted owner authority unavailable or invalid.",
+          capabilities: [],
+          sandbox: false,
+        };
+      } else {
+        const sharedBot = bot.userId === null;
+        const askedByKind: OwnerAuthorityAskedByKind =
+          failed.chainDepth > 0
+            ? "ASSISTANT"
+            : sharedBot
+              ? "TEAMMATE"
+              : actingUserId !== null && actingUserId === bot.userId
+                ? "OWNER"
+                : "TEAMMATE";
+        const liveProjectId =
+          origin.watchAuthority.watchProjectId ??
+          bot.projectId ??
+          origin.watchAuthority.botProjectId ??
+          null;
+        const capabilities = capabilitiesForWatchFollowUp(
+          origin.watchAuthority.watchKind,
+          failed.capabilityNames,
+          {
+            authority: persisted,
+            live: {
+              sokoBotId: bot.id,
+              workspaceId: failed.workspaceId,
+              versionId: bot.versionId ?? null,
+              actingUserId,
+              askedByKind,
+              sharedBot,
+              source: origin.source === "CHAT" ? "CHAT" : "SCHEDULE",
+              ...(persisted.scheduleId
+                ? { scheduleId: persisted.scheduleId }
+                : {}),
+              ...(liveProjectId
+                ? {
+                    targetScope: {
+                      kind: "project" as const,
+                      projectId: liveProjectId,
+                    },
+                  }
+                : {}),
+              hasWorkspaceAccess: true,
+              botAlive: true,
+              ...(origin.watchAuthority.revoked ? { revoked: true } : {}),
+            },
+          },
+        );
+        presetRoute = {
+          route: failed.route ?? "DELEGATE_TASK",
+          writeScope: presetRoute?.writeScope,
+          reason: origin.watchAuthority.revoked
+            ? "Watch retry restricted: owner authorization was revoked."
+            : "Watch retry, intersected with its persisted owner authority.",
+          capabilities,
+          sandbox: capabilities.some(isSokoBotSandboxCapability),
+        };
+      }
+    } else if (
       origin.source === "SCHEDULE" &&
       origin.scheduleAuthority.kind === "schedule"
     ) {
@@ -247,6 +337,7 @@ export async function failedRetryInput(
         botUserId: bot.userId,
         botProjectId: bot.projectId ?? null,
         botVersionId: bot.versionId ?? null,
+        ...(origin.scheduleAuthority.revoked ? { revoked: true } : {}),
       });
       presetRoute = {
         route: failed.route ?? intersected.route,
@@ -261,6 +352,7 @@ export async function failedRetryInput(
     ? await meetingRetryInput(bot, slot, durable)
     : { message: failed.userMessage, presetRoute };
   return {
+    network: DETACHED_SOKO_BOT_NETWORK,
     // A replay acts only for the person the failed turn acted for.
     userId: actingUserId,
     sokoBotId: bot.id,

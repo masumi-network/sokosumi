@@ -90,7 +90,12 @@ describe("PATCH /users/{id}", () => {
     expect(response.status).toBe(200);
     expect(userUpdateMock).toHaveBeenCalledWith({
       where: { id: "user_123" },
-      data: { firstName: "Ada", lastName: "Lovelace", name: "Ada Lovelace" },
+      data: {
+        firstName: "Ada",
+        lastName: "Lovelace",
+        name: "Ada Lovelace",
+        updatedAt: expect.any(Date),
+      },
     });
     const body = await response.json();
     expect(body.data).toMatchObject({
@@ -108,8 +113,38 @@ describe("PATCH /users/{id}", () => {
     expect(response.status).toBe(200);
     expect(userUpdateMock).toHaveBeenCalledWith({
       where: { id: "user_123" },
-      data: { firstName: "Ada", lastName: "Lovelace" },
+      data: {
+        firstName: "Ada",
+        lastName: "Lovelace",
+        updatedAt: expect.any(Date),
+      },
     });
+  });
+
+  // SOKD-472: agents could not change the name members see.
+  it("changes the display name on its own", async () => {
+    userFindUniqueMock.mockResolvedValue({ ...USER_RECORD, name: "E2E Owner" });
+
+    const response = await patch({ name: " E2E Owner WS " });
+
+    expect(response.status).toBe(200);
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      data: { name: "E2E Owner WS", updatedAt: expect.any(Date) },
+    });
+    expect((await response.json()).data.name).toBe("E2E Owner WS");
+  });
+
+  it("says what to send for an empty body", async () => {
+    userFindUniqueMock.mockResolvedValue(USER_RECORD);
+
+    const response = await patch({});
+
+    expect(response.status).toBe(422);
+    expect((await response.json()).message).toContain(
+      "Send name (the display name), or firstName and lastName.",
+    );
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -119,6 +154,8 @@ describe("PATCH /users/{id}", () => {
       "a name over the limit",
       { firstName: "A".repeat(100), lastName: "B".repeat(100) },
     ],
+    ["a blank display name", { name: "  " }],
+    ["a display name over the limit", { name: "A".repeat(129) }],
   ])("rejects %s", async (_label, body) => {
     userFindUniqueMock.mockResolvedValue(USER_RECORD);
 

@@ -29,7 +29,7 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 | `backlog`             | The wave Task that covers the group. Until it lands, unlisted operations pass and a row may leave `cli` out (pending). A row with a `cli` command always maps `mcp`. The wave deletes the key. |
 | `excluded`            | One line saying why the whole group stays off the agent surface. Unlisted operations pass; listed rows still map both surfaces.                                                                |
 
-A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
+A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`jobs get --details` reads the job, then its input request).
 
 **Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is its route group, which binds it to `apps/core/agent-surface/<group>.json`; a hyphenated group keeps its words (`image_studio_catalog` is in `image-studio`, listed in `HYPHENATED_GROUPS` in `tools.ts`). Contact lists are the exception: they sit in `contacts` (`contacts list-lists` → `contacts_list_lists`), so one opt-in covers all contact data.
 
@@ -78,7 +78,7 @@ CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the
 "GET /jobs/{id}/events": { argv: ["--api-url", "https://fixture.invalid", "jobs", "events", "job-1"] },
 ```
 
-The check runs `argv` through `runCli` with `fetch` mocked. Core answers from the shared fake `core` (unknown requests get `{ "data": [] }`); add a `response(request)` function when a command needs other data. Requests are written `METHOD /path` without `/v1` or the query. `stdin` feeds `--api-key-stdin`. A command that sends different operations by flag gets one fixture per operation (`workspaces list` and `workspaces list --personal`).
+The check runs `argv` through `runCli` with `fetch` mocked. Core answers from the shared fake `core` (unknown requests get `{ "data": [] }`); add a `response(request)` function when a command needs other data. Requests are written `METHOD /path` without `/v1` or the query. `stdin` feeds `--api-key-stdin`. A command that sends different operations by flag gets one fixture per operation (`jobs get` and `jobs get --details`).
 
 ## MCP tools
 

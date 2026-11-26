@@ -11,6 +11,7 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   actionInputHash,
   actionOperationKey,
@@ -308,6 +309,7 @@ export async function createTask(
         : undefined;
     await tx.sokoBotDelegation.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",

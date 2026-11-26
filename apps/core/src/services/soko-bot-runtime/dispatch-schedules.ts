@@ -1,3 +1,4 @@
+import type { SokoBotSchedule } from "@sokosumi/database";
 import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   getSokoBotVersion,
@@ -8,6 +9,7 @@ import {
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
@@ -139,8 +141,7 @@ export async function dispatchSchedulesTools(
           } = authorized.turn;
           const scope = { userId, workspaceId, sokoBotId };
           let schedule:
-            | Awaited<ReturnType<typeof createSokoBotSchedule>>
-            | Awaited<ReturnType<typeof updateSokoBotSchedule>>
+            | Omit<SokoBotSchedule, "network">
             | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
           if (input.capability === "create_schedule") {
             const {
@@ -153,10 +154,11 @@ export async function dispatchSchedulesTools(
               capabilities,
               authorized.grant.capabilities,
             );
-            schedule = await createSokoBotSchedule(
+            const row = await createSokoBotSchedule(
               {
                 ...scope,
                 ...scheduleInput,
+                network: DETACHED_SOKO_BOT_NETWORK,
                 capabilityNames,
                 explicitCapabilities: capabilities !== undefined,
                 resolveAuthority: resolveBotScheduleAuthority(
@@ -171,6 +173,8 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
+            const { network: _network, ...created } = row;
+            schedule = created;
           } else if (input.capability === "update_schedule") {
             const {
               stopRule,
@@ -195,7 +199,7 @@ export async function dispatchSchedulesTools(
                     authorized.grant.capabilities,
                   )
                 : undefined;
-            schedule = await updateSokoBotSchedule(
+            const row = await updateSokoBotSchedule(
               {
                 ...scope,
                 ...scheduleInput,
@@ -219,6 +223,8 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
+            const { network: _network, ...updated } = row;
+            schedule = updated;
           } else {
             schedule = await deleteSokoBotSchedule(
               scope.userId,

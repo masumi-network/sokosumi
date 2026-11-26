@@ -10,6 +10,7 @@ import {
   parseOwnerAuthority,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
+import { z } from "zod";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { conflict } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -20,6 +21,7 @@ import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access
 import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { Network } from "@/lib/network";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   checkScheduleFirstRunCapabilities,
@@ -104,6 +106,7 @@ function resolveScheduleAuthorityField(
 }
 
 export interface CreateSokoBotScheduleInput {
+  network: Network;
   /** The member who asked; null when a shared bot acts on its own. */
   userId: string | null;
   workspaceId: string;
@@ -428,6 +431,7 @@ export async function createSokoBotSchedule(
     }
     return tx.sokoBotSchedule.create({
       data: {
+        network: input.network,
         ...(scheduleId ? { id: scheduleId } : {}),
         sokoBotId: bot.id,
         requestedByUserId: input.userId,
@@ -1400,53 +1404,449 @@ export interface SokoBotSchedulePurgeResult {
  * rhythms and schedules with a run in flight are never touched. Each call
  * removes at most one batch per rule; the next cron tick takes the rest.
  */
+const SCHEDULE_ID_UUID = z.string().uuid();
+
+/**
+ * Returns schedule IDs whose persisted child work (`SokoBotDelegation` or
+ * `SokoBotWatch` carrying `authority.scheduleId`) is still pending, in flight,
+ * or eligible for follow-up/watch retry. Routine retention cleanup keeps those
+ * schedule rows alive as the source of live authority until their children
+ * settle, while explicit owner deletion/cancellation still removes or revokes
+ * them immediately.
+ */
+async function schedulesWithOutstandingChildWork(
+  retentionCutoff: Date,
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ scheduleId: string }[]>`
+    SELECT DISTINCT d."authority"->>'scheduleId' AS "scheduleId"
+    FROM ${sharedTable("soko_bot_delegation")} d
+    LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+    LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+    WHERE d."followUp" IS NOT NULL
+      AND d."authority"->>'scheduleId' IS NOT NULL
+      AND (
+        (
+          d."followUpTurnId" IS NULL
+          AND (
+            (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+            OR d."jobId" IS NOT NULL
+          )
+        )
+        OR (
+          d."followUpTurnId" IS NOT NULL
+          AND (
+            ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+            OR (
+              ft."status"::text = 'FAILED'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM ${sharedTable("soko_bot_event_inbox")} ei
+                WHERE ei."turnId" = ft."id"
+                  AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                  AND ei."eventId" LIKE '%:follow-up-retry'
+              )
+              AND ft."updatedAt" >= ${retentionCutoff}
+            )
+          )
+        )
+      )
+    UNION
+    SELECT DISTINCT w."authority"->>'scheduleId' AS "scheduleId"
+    FROM ${sharedTable("soko_bot_watch")} w
+    LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+    WHERE w."authority"->>'scheduleId' IS NOT NULL
+      AND (
+        w."status" = 'WAITING'
+        OR (
+          w."status" = 'FIRED'
+          AND (
+            (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+            OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+            OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+          )
+        )
+      )
+  `;
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (SCHEDULE_ID_UUID.safeParse(row.scheduleId).success) {
+      ids.push(row.scheduleId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Atomically deletes spent one-time schedules only when they still have no
+ * active run and no outstanding child delegation or watch at delete time.
+ */
+async function deleteSpentOneTimeSchedules(
+  candidateIds: string[],
+  retentionCutoff: Date,
+): Promise<number> {
+  if (candidateIds.length === 0) return 0;
+  return prisma.$executeRaw`
+    DELETE FROM ${sharedTable("soko_bot_schedule")} s
+    WHERE s."id" = ANY(${candidateIds}::uuid[])
+      AND s."systemKey" IS NULL
+      AND s."runOnce" = true
+      AND s."enabled" = false
+      AND s."lastRunAt" IS NOT NULL
+      AND s."updatedAt" < ${retentionCutoff}
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_schedule_run")} r
+        WHERE r."scheduleId" = s."id"
+          AND r."status"::text IN ('PENDING', 'CLAIMED', 'RUNNING')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_delegation")} d
+        LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+        LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+        WHERE d."followUp" IS NOT NULL
+          AND d."authority"->>'scheduleId' = s."id"::text
+          AND (
+            (
+              d."followUpTurnId" IS NULL
+              AND (
+                (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+                OR d."jobId" IS NOT NULL
+              )
+            )
+            OR (
+              d."followUpTurnId" IS NOT NULL
+              AND (
+                ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (
+                  ft."status"::text = 'FAILED'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${sharedTable("soko_bot_event_inbox")} ei
+                    WHERE ei."turnId" = ft."id"
+                      AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                      AND ei."eventId" LIKE '%:follow-up-retry'
+                  )
+                  AND ft."updatedAt" >= ${retentionCutoff}
+                )
+              )
+            )
+          )
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_watch")} w
+        LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+        WHERE w."authority"->>'scheduleId' = s."id"::text
+          AND (
+            w."status" = 'WAITING'
+            OR (
+              w."status" = 'FIRED'
+              AND (
+                (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+              )
+            )
+          )
+      )
+  `;
+}
+
+/**
+ * Atomically deletes finished watched-work schedules only when they still have
+ * no active run and no outstanding child delegation or watch at delete time.
+ */
+async function deleteWatchedWorkSchedules(
+  candidateIds: string[],
+  retentionCutoff: Date,
+): Promise<number> {
+  if (candidateIds.length === 0) return 0;
+  return prisma.$executeRaw`
+    DELETE FROM ${sharedTable("soko_bot_schedule")} s
+    WHERE s."id" = ANY(${candidateIds}::uuid[])
+      AND s."systemKey" IS NULL
+      AND (
+        (
+          s."taskId" IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM ${sharedTable("task")} wt_task
+            WHERE wt_task."id" = s."taskId"
+              AND (
+                wt_task."status"::text IN ('COMPLETED', 'CANCELED')
+                OR wt_task."archivedAt" IS NOT NULL
+              )
+          )
+        )
+        OR s."jobId" IS NOT NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_schedule_run")} r
+        WHERE r."scheduleId" = s."id"
+          AND r."status"::text IN ('PENDING', 'CLAIMED', 'RUNNING')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_delegation")} d
+        LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+        LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+        WHERE d."followUp" IS NOT NULL
+          AND d."authority"->>'scheduleId' = s."id"::text
+          AND (
+            (
+              d."followUpTurnId" IS NULL
+              AND (
+                (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+                OR d."jobId" IS NOT NULL
+              )
+            )
+            OR (
+              d."followUpTurnId" IS NOT NULL
+              AND (
+                ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (
+                  ft."status"::text = 'FAILED'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${sharedTable("soko_bot_event_inbox")} ei
+                    WHERE ei."turnId" = ft."id"
+                      AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                      AND ei."eventId" LIKE '%:follow-up-retry'
+                  )
+                  AND ft."updatedAt" >= ${retentionCutoff}
+                )
+              )
+            )
+          )
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_watch")} w
+        LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+        WHERE w."authority"->>'scheduleId' = s."id"::text
+          AND (
+            w."status" = 'WAITING'
+            OR (
+              w."status" = 'FIRED'
+              AND (
+                (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+              )
+            )
+          )
+      )
+  `;
+}
+
+/**
+ * Atomically retires live (`enabled: true`) watched-work schedules into spent
+ * one-time form (`enabled: false, runOnce: true, lastRunAt`) only when their
+ * watched work is finished, no run is active, and an outstanding child
+ * delegation or watch still relies on the schedule as its authority anchor.
+ * Owner-paused schedules (`enabled: false, runOnce: false`) stay untouched.
+ */
+async function retireWatchedWorkSchedules(
+  candidateIds: string[],
+  now: Date,
+  retentionCutoff: Date,
+): Promise<number> {
+  if (candidateIds.length === 0) return 0;
+  return prisma.$executeRaw`
+    UPDATE ${sharedTable("soko_bot_schedule")} s
+    SET
+      "enabled" = false,
+      "runOnce" = true,
+      "lastRunAt" = COALESCE(s."lastRunAt", ${now})
+    WHERE s."id" = ANY(${candidateIds}::uuid[])
+      AND s."systemKey" IS NULL
+      AND s."enabled" = true
+      AND (
+        (
+          s."taskId" IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM ${sharedTable("task")} wt_task
+            WHERE wt_task."id" = s."taskId"
+              AND (
+                wt_task."status"::text IN ('COMPLETED', 'CANCELED')
+                OR wt_task."archivedAt" IS NOT NULL
+              )
+          )
+        )
+        OR s."jobId" IS NOT NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_schedule_run")} r
+        WHERE r."scheduleId" = s."id"
+          AND r."status"::text IN ('PENDING', 'CLAIMED', 'RUNNING')
+      )
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM ${sharedTable("soko_bot_delegation")} d
+          LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+          LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+          WHERE d."followUp" IS NOT NULL
+            AND d."authority"->>'scheduleId' = s."id"::text
+            AND (
+              (
+                d."followUpTurnId" IS NULL
+                AND (
+                  (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+                  OR d."jobId" IS NOT NULL
+                )
+              )
+              OR (
+                d."followUpTurnId" IS NOT NULL
+                AND (
+                  ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                  OR (
+                    ft."status"::text = 'FAILED'
+                    AND NOT EXISTS (
+                      SELECT 1
+                      FROM ${sharedTable("soko_bot_event_inbox")} ei
+                      WHERE ei."turnId" = ft."id"
+                        AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                        AND ei."eventId" LIKE '%:follow-up-retry'
+                    )
+                    AND ft."updatedAt" >= ${retentionCutoff}
+                  )
+                )
+              )
+            )
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM ${sharedTable("soko_bot_watch")} w
+          LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+          WHERE w."authority"->>'scheduleId' = s."id"::text
+            AND (
+              w."status" = 'WAITING'
+              OR (
+                w."status" = 'FIRED'
+                AND (
+                  (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                  OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                  OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                )
+              )
+            )
+        )
+      )
+  `;
+}
+
 export async function purgeSokoBotSchedules(
   now = new Date(),
 ): Promise<SokoBotSchedulePurgeResult> {
   const retentionCutoff = new Date(
     now.getTime() - SOKO_BOT_SCHEDULE_RETENTION_MS,
   );
+  const protectedScheduleIds =
+    await schedulesWithOutstandingChildWork(retentionCutoff);
   const idle = {
     systemKey: null,
     runs: { none: { status: { in: [...ACTIVE_RUN_STATUSES] } } },
   } satisfies Prisma.SokoBotScheduleWhereInput;
-  const purge = async (where: Prisma.SokoBotScheduleWhereInput) => {
+  const purge = async (
+    where: Prisma.SokoBotScheduleWhereInput,
+    options?: {
+      atomicDelete?: (ids: string[]) => Promise<number>;
+      retireProtected?: boolean;
+    },
+  ) => {
+    const protectedDue =
+      options?.retireProtected && protectedScheduleIds.length > 0
+        ? await prisma.sokoBotSchedule.findMany({
+            where: {
+              ...idle,
+              ...where,
+              id: { in: protectedScheduleIds },
+              enabled: true,
+            },
+            select: { id: true },
+            orderBy: { id: "asc" },
+            take: PURGE_BATCH,
+          })
+        : [];
+    const scope: Prisma.SokoBotScheduleWhereInput = {
+      ...idle,
+      ...where,
+      ...(options?.atomicDelete && protectedScheduleIds.length > 0
+        ? { id: { notIn: protectedScheduleIds } }
+        : {}),
+    };
     const due = await prisma.sokoBotSchedule.findMany({
-      where: { ...idle, ...where },
+      where: scope,
       select: { id: true },
       orderBy: { id: "asc" },
       take: PURGE_BATCH,
     });
-    if (!due.length) return 0;
-    const deleted = await prisma.sokoBotSchedule.deleteMany({
-      where: { ...idle, ...where, id: { in: due.map((row) => row.id) } },
-    });
-    return deleted.count;
+    const dueIds = due.map((row) => row.id);
+    const deleted = dueIds.length
+      ? options?.atomicDelete
+        ? await options.atomicDelete(dueIds)
+        : (
+            await prisma.sokoBotSchedule.deleteMany({
+              where: { ...scope, id: { in: dueIds } },
+            })
+          ).count
+      : 0;
+    if (options?.retireProtected) {
+      // Retire both preliminarily-protected schedules and any candidate spared
+      // by the atomic DELETE because an active run committed a child and
+      // settled after the preliminary scan.
+      const retireIds = [
+        ...new Set([
+          ...protectedDue.map((row) => row.id),
+          ...(deleted < dueIds.length ? dueIds : []),
+        ]),
+      ];
+      if (retireIds.length > 0) {
+        await retireWatchedWorkSchedules(retireIds, now, retentionCutoff);
+      }
+    }
+    return deleted;
   };
-  const spentOneTime = await purge({
-    runOnce: true,
-    enabled: false,
-    lastRunAt: { not: null },
-    // Its run row is the Calendar's history of it, kept as long as any run.
-    updatedAt: { lt: retentionCutoff },
-  });
-  const watchedWorkFinished = await purge({
-    OR: [
-      {
-        task: {
-          OR: [
-            { status: { in: ["COMPLETED", "CANCELED"] } },
-            { archivedAt: { not: null } },
-          ],
+  const spentOneTime = await purge(
+    {
+      runOnce: true,
+      enabled: false,
+      lastRunAt: { not: null },
+      // Its run row is the Calendar's history of it, kept as long as any run.
+      updatedAt: { lt: retentionCutoff },
+    },
+    {
+      atomicDelete: (ids) => deleteSpentOneTimeSchedules(ids, retentionCutoff),
+    },
+  );
+  const watchedWorkFinished = await purge(
+    {
+      OR: [
+        {
+          task: {
+            OR: [
+              { status: { in: ["COMPLETED", "CANCELED"] } },
+              { archivedAt: { not: null } },
+            ],
+          },
         },
-      },
-      {
-        job: {
-          events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+        {
+          job: {
+            events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+          },
         },
-      },
-    ],
-  });
+      ],
+    },
+    {
+      atomicDelete: (ids) => deleteWatchedWorkSchedules(ids, retentionCutoff),
+      retireProtected: true,
+    },
+  );
   const failedRecurring = await purge({
     runOnce: false,
     enabled: false,

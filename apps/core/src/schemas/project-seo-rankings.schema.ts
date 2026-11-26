@@ -15,6 +15,8 @@ export const seoPositionPointSchema = z
     observationId: z.string(),
     position: z.number().nullable(),
     positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),
+    /** Organic results the read checked: "not_in_range" means not in this many. Null: the check did not say. */
+    checkedResults: z.number().int().nullable().optional(),
     device: z.union([device, z.null()]),
   })
   .openapi("ProjectSeoPositionPoint");

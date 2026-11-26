@@ -23,8 +23,9 @@
 
 ## The shell (`src/shell/`)
 
-- `mountView(id, { schema, isEmpty, empty, refreshTool, displayModes, children })` connects to the host (`ui/initialize`), validates the tool result's `structuredContent` with `schema`, and shows a skeleton, the error state (error result, cancelled call, or a result the schema rejects), the empty state (`empty` names its text), or the view.
-- `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments. When the server answers "Unknown tool" (the twin's toolset is off), `context.missingTool` names it, and the view says which toolset to add (SOKD-419). `context.refreshStatus` is the HTTP status on the last refresh's error result, until one succeeds.
+- `mountView(id, { schema, isEmpty, empty, refreshTool, refreshArgs, displayModes, children })` connects to the host (`ui/initialize`), validates the tool result's `structuredContent` with `schema`, and shows a skeleton, the error state (error result, cancelled call, or a result the schema rejects), the empty state (`empty` names its text), or the view.
+- `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments, and `refreshArgs` over them, through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments. When the server answers "Unknown tool" (the twin's toolset is off), `context.missingTool` names it, and the view says which toolset to add (SOKD-419). `context.refreshStatus` is the HTTP status on the last refresh's error result, until one succeeds.
+- `refreshArgs` repeats the twin arguments the show tool always sends (`args` in Core's `ui-tools.ts`), such as the board's `includeDescription: "false"` (SOKD-496), so a refresh returns the same light result.
 - `displayModes` declares the modes a view supports, such as `fullscreen`; `context.displayMode` and `context.availableDisplayModes` come from the host.
 - A theme-only host-context change flips the view between light and dark. Check it with the harness's `&retheme`.
 - `context.input` holds the tool call's arguments, such as the agent id the hire form calls tools with.
@@ -38,6 +39,9 @@
 - Links: open only URLs that pass `isUnderBase(url, context.webBaseUrl)`, through `context.app.openLink`.
 - A step only a person takes: an error result with `kind: "person_approval_required"` shows the shell's `approval` state, with "Review in Sokosumi" for its `details.webUrl` when that is under `webBaseUrl` (ADR 0077). No view has an approve control.
 - Job input (SOKD-423): while a Job is `input_required`, the job-status view loads the question with `jobs_input_request`, renders it with `SchemaForm`, and answers with `jobs_input` and the request's `eventId`. Answering spends nothing, so the submit is its only confirm. Polling holds only while the answer is in flight, so an answer given elsewhere still shows.
+- Selection: the board tells the model which Task the person selected with `ui/update-model-context`, a fixed sentence and the Task's reference. ChatGPT did not pass that to the model in the SOKD-465 check, so where `window.openai.setWidgetState` exists the board writes the same sentence as `modelContent` too (SOKD-497). If a host shows neither to the model, the person names the Task.
+- Hire from Browse agents: a host may answer `ui/message` before the person allows the message (Claude.ai does), so the view says it was sent to the conversation and keeps Hire ready; after a decline the person clicks it again.
+- `SchemaForm` labels a field the agent named only by its key (`name` equal to `id`, such as `mediaType`) in words (`Media type`).
 - Task views share `src/views/task.tsx`: the assignee, initials, status words (`task.status.*`) and the Task's Web URL.
 
 ## Rules

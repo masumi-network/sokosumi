@@ -3,6 +3,7 @@ import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
@@ -399,6 +400,7 @@ export async function runSokoBotMentionDispatch(params: {
 
     const accept = async () => {
       const accepted = sokoBotControlPlane.startTurn({
+        network: DETACHED_SOKO_BOT_NETWORK,
         sokoBotId: bot.id,
         userId: isPersonalSokoBot(bot) ? bot.userId : userId,
         // The mentioned bot runs in its own workspace, whatever room it was

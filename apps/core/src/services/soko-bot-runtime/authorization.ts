@@ -251,6 +251,7 @@ export async function authorize(
       versionId: turn.versionId,
       modelId: turn.modelId,
       source: turn.source,
+      clientTurnId: turn.clientTurnId,
       chainDepth: turn.chainDepth,
       intentId: turn.intentId,
       intentRevision: turn.intentRevision,

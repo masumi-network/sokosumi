@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { AuthManager } from "../../src/auth/auth-manager.js";
 import type { CliTargetConfig } from "../../src/auth/config.js";
 import { runAuthStatus } from "../../src/cli/auth-status.js";
 
@@ -45,4 +46,28 @@ test("auth status sanitizes API URLs in JSON and text output", async () => {
     assert.match(output.join(""), /https:\/\/host\/api\?region=west/);
     assert.doesNotMatch(output.join(""), /user|password|secret|fragment/i);
   }
+});
+
+test("auth status with an environment OAuth token never reads the OS vault", async () => {
+  const vault = {
+    read: () => {
+      throw new Error("OS vault read would show a keychain prompt");
+    },
+    write: () => {},
+    clear: () => {},
+  };
+  const env = { SOKOSUMI_AUTH_TOKEN: "oauth-access-token" };
+  const result = await runAuthStatus({
+    env,
+    config,
+    authManager: new AuthManager({
+      credentialStore: vault,
+      apiKeyStore: vault,
+      environment: env,
+    }),
+    stdout: { write: () => {} },
+    json: true,
+  });
+  assert.equal(result.authenticated, true);
+  assert.equal(result.apiKeyAvailable, false);
 });

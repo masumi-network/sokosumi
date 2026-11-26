@@ -197,6 +197,7 @@ describe.skipIf(!enabled)("eval lanes", () => {
     expect(rhythms).toBeGreaterThanOrEqual(8);
     for (const index of [1, 2, 3, 4])
       await createSokoBotSchedule({
+        network: "mainnet",
         userId: lane.userId,
         workspaceId: lane.workspaceId,
         sokoBotId: lane.sokoBotId,

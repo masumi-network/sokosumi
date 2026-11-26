@@ -15,6 +15,7 @@ import { evaluateScenario, SOKO_BOT_SCENARIOS } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
@@ -224,6 +225,7 @@ for (const versionId of versionIds) {
           await resetLabState(owner);
           for (const schedule of scenario.setup.schedules ?? [])
             await createSokoBotSchedule({
+              network: DETACHED_SOKO_BOT_NETWORK,
               userId: owner.bot.userId,
               workspaceId: owner.workspaceId,
               timezone: "Europe/Berlin",

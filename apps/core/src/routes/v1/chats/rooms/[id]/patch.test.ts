@@ -459,7 +459,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(response.status).toBe(200);
     expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
       where: { sharedRoomId: ROOM_ID },
-      select: { id: true },
+      select: { id: true, deletedAt: true },
     });
     expect(roomUpdateMock).toHaveBeenCalled();
   });

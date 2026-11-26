@@ -1,5 +1,6 @@
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 
 const LOOKBACK_MS = 60 * 60 * 1_000;
@@ -84,6 +85,7 @@ export async function adoptCoworkerSpawnedTasks(
     if (!byBot.size) continue;
     const created = await prisma.sokoBotDelegation.createMany({
       data: Array.from(byBot.values(), (turnId) => ({
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId,
         // Stored keys from before sub-tasks existed: rows already use them.
         toolCallId: `subtask:${spawned.id}`,

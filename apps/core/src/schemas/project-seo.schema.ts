@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
+import {
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
+} from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   seoArticleDates,
@@ -210,7 +213,9 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
-    fullAuditPrice: seoCostPlusPriceSchema.optional(),
+    fullAuditPrice: seoCostPlusPriceSchema.optional().openapi({
+      description: `Required for \`kind: "audit_full"\`: \`{kind: "cost_plus", version: 1, minimumCredits: ${SEO_FULL_AUDIT_CREDITS}, markupPercent: ${SEO_FULL_AUDIT_MARKUP_PERCENT}}\`. The audit costs its provider cost plus ${SEO_FULL_AUDIT_MARKUP_PERCENT}%, at least ${SEO_FULL_AUDIT_CREDITS} credits. It has no credit cap: \`fullAuditLimits.usd\` bounds the provider cost. Leave out \`maxCredits\`. Confirm the price with the person first.`,
+    }),
     ...auditSearchConsoleInputFields,
     ...publicSitemapInputFields,
     setupGoal: z
@@ -424,6 +429,8 @@ export const seoKeywordSchema = z
       .array(seoPositionPointSchema)
       .max(SEO_RANK_HISTORY_POINTS)
       .optional(),
+    /** True: older reads of the period can exist that `positionHistory` does not hold (a load or point limit). */
+    positionHistoryCut: z.boolean().optional(),
   })
   .openapi("ProjectSeoKeyword");
 export const seoCompetitorSchema = z

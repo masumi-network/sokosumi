@@ -42,12 +42,19 @@ RESET lock_timeout;
 ```
 
 Reset the timeout before backfills and `VALIDATE CONSTRAINT`. Use plain `SET lock_timeout` because `SET LOCAL` has no effect outside an explicit transaction block.
+Keep the timeout during a backfill that rewrites rows a live lease writes so a blocked backfill releases the rows it already locked.
 
 After `prisma migrate dev`, add both lines by hand, even if `ALTER TABLE` only adds a foreign key to a table created in the same migration, because the foreign key also locks the referenced table. For pull requests, Test Packages runs this check only when the PR is ready for review, so add the lines before marking it ready.
 
 Test Packages checks new migrations for `SET lock_timeout` whenever the file contains `ALTER TABLE`. For a migration that can safely omit the timeout, add a line in the SQL file in the form `-- lock-timeout: not needed, <reason>`.
 
 A lock timeout fails the statement with PostgreSQL error `55P03`. Check which statements took effect and make sure the migration can safely run again. Run `pnpm exec prisma migrate resolve --rolled-back <name>` using the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again. A plain redeploy stops at `P3009`.
+
+### Concurrent index builds
+
+Prisma 7.10.1 fails with `25001` when a migration file contains `DROP INDEX CONCURRENTLY` alongside another statement. A concurrent build therefore cannot carry its own leading drop. Give the build its own migration file so it can be retried independently. [Prisma engines pull request #5847](https://github.com/prisma/prisma-engines/pull/5847)
+
+For a concurrent build, omit `lock_timeout` because it can cancel the build and leave an invalid index, and omit `IF NOT EXISTS` because it hides an invalid index. A failed build blocks every later production deploy with `P3009` until a human recovers it. Check `pg_stat_activity` first for a still-running `CREATE INDEX` targeting the index. Once the build has stopped and the cause is fixed, run `DROP INDEX CONCURRENTLY IF EXISTS "<index>"` and `pnpm exec prisma migrate resolve --rolled-back <migration>` on the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again.
 
 ## CI checks on migration text
 

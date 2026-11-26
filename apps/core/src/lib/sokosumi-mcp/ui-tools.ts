@@ -13,6 +13,12 @@ export interface McpUiTool {
   /** The view in `@sokosumi/mcp-ui`. */
   ui: UiId;
   description: string;
+  /**
+   * Twin arguments the show tool always sends, over the agent's: what the
+   * view needs to stay light. Its result is still the twin's exact result for
+   * the arguments sent. The view sends them again when it refreshes.
+   */
+  args?: Readonly<Record<string, string>>;
 }
 
 export const MCP_UI_TOOLS: readonly McpUiTool[] = [
@@ -20,8 +26,11 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     name: "tasks_show_board",
     data: "tasks_list",
     ui: "tasks-board",
+    // A team's 100 newest Tasks weighed 2.6 MB with descriptions, which
+    // neither Claude.ai nor ChatGPT rendered (SOKD-496).
+    args: { includeDescription: "false" },
     description:
-      "Show Tasks in a workspace to the person as a board: counts and the first Tasks per status, and every Task by status in full screen. Takes tasks_list's arguments and returns its result. Pass `limit: 100` so the board holds more than one page. Pass `scope: \"workspace\"` when the person asks for the team's or the workspace's board; otherwise leave the default. Use it when the person wants to see their Tasks; use tasks_list when you only need the data.",
+      'Show Tasks in a workspace to the person as a board: counts and the first Tasks per status, and every Task by status in full screen. Takes tasks_list\'s arguments and returns its result, without descriptions (`includeDescription: "false"`). Pass `limit: 100` so the board holds more than one page. Pass `scope: "workspace"` when the person asks for the team\'s or the workspace\'s board; otherwise leave the default. Use it when the person wants to see their Tasks; use tasks_list when you only need the data.',
   },
   {
     name: "agents_show_hire",

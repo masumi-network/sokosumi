@@ -426,6 +426,8 @@ model History {
   network        String?
 
   @@unique([kind, entityId])
+  @@unique([network, kind, entityId], map: "history_network_kind_entityId_key")
+  @@unique([kind, entityId], map: "history_untagged_kind_entityId_key", where: { network: null })
   @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([sokoBotId])
@@ -2799,6 +2801,10 @@ model SokoBotTurn {
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
 
+  /// Network that started the turn. Null on legacy writes during rollout.
+  /// SQL-only CHECK `soko_bot_turn_network_check`.
+  network String?
+
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
@@ -3235,6 +3241,10 @@ model SokoBotDelegation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Network that delegated the work. Null on legacy rows with no Job or written during rollout.
+  /// SQL-only CHECK `soko_bot_delegation_network_check`.
+  network String?
+
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
@@ -3391,6 +3401,10 @@ model SokoBotSchedule {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// Network that created the schedule. Null on legacy rows with no Job or written during rollout.
+  /// SQL-only CHECK `soko_bot_schedule_network_check`.
+  network String?
 
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)

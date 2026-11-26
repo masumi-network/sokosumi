@@ -23,6 +23,16 @@ import { useSeoStatisticsProperties } from "./use-seo-statistics-properties";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const TRAFFIC_FRESH_MS = 5 * 60_000;
+/** True when Core made the split of this report with exactly this term list. */
+function splitMadeWith(report: SeoSiteTrafficReport, terms: string[]) {
+  // A Core from before the split named its terms sends none: that split is not proved.
+  const made: unknown = report.brand?.terms;
+  return (
+    Array.isArray(made) &&
+    made.length === terms.length &&
+    made.every((term, i) => term === terms[i])
+  );
+}
 export function useSeoSiteTraffic(
   model: SeoWorkspaceModel,
   scope: SeoSiteTrafficInput["scope"],
@@ -80,19 +90,38 @@ export function useSeoSiteTraffic(
       !model.invalidDates,
   );
   const terms = model.data.brandTerms ?? [];
+  const key = [
+    "seo-site-traffic",
+    session?.user.id,
+    session?.session.activeOrganizationId,
+    owner,
+    connection.data?.connectionVersion,
+    body,
+    // The split in the report follows the brand terms: a saved list reads this report again.
+    terms,
+  ];
   const query = useQuery<SeoSiteTrafficReport>({
-    queryKey: [
-      "seo-site-traffic",
-      session?.user.id,
-      session?.session.activeOrganizationId,
-      owner,
-      connection.data?.connectionVersion,
-      body,
-      // The split in the report follows the brand terms: a saved list reads this report again.
-      terms,
-    ],
+    queryKey: key,
+    // A saved term list changes the split only: the totals and pages of the last read stay
+    // in view, without the split of the old list, while the report loads again.
+    placeholderData: (previous, previousQuery) =>
+      previous &&
+      previousQuery &&
+      JSON.stringify(previousQuery.queryKey.slice(0, -1)) ===
+        JSON.stringify(key.slice(0, -1))
+        ? { ...previous, brand: undefined }
+        : undefined,
     enabled: enabled && available,
-    staleTime: TRAFFIC_FRESH_MS,
+    // A report whose split belongs to another term list is read again at the next chance.
+    staleTime: ({ state }) =>
+      !state.data?.brand || splitMadeWith(state.data, terms)
+        ? TRAFFIC_FRESH_MS
+        : 0,
+    // A split of another list is never shown: the totals and pages of the report stay.
+    select: (report) =>
+      !report.brand || splitMadeWith(report, terms)
+        ? report
+        : { ...report, brand: undefined },
     retry: false,
     queryFn: async ({ signal }) => {
       const r = await fetch(`${seoOwnerApiPath(owner)}/statistics/traffic`, {
@@ -117,12 +146,10 @@ export function useSeoSiteTraffic(
         report.to !== body.to
       )
         throw Error("Search Console returned a different reporting scope");
-      // Core split by a newer term list (a save in another tab). That split does not belong
-      // under this list: read the list again, and the new list reads the report again.
-      if (report.brand && report.brand.terms.join("\n") !== terms.join("\n")) {
+      // Core split by a newer term list (a save in another tab): read the list again, and
+      // the new list reads the report again.
+      if (report.brand?.terms && !splitMadeWith(report, terms))
         void model.refresh();
-        return { ...report, brand: undefined };
-      }
       return report;
     },
   });

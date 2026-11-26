@@ -164,6 +164,7 @@ describe.skipIf(!databaseUrl)(
         "./soko-bot-schedule.service"
       );
       const schedule = await createSokoBotSchedule({
+        network: "mainnet",
         ...scheduleInput,
         userId,
         workspaceId,

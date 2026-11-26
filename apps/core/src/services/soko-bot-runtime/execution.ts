@@ -731,11 +731,13 @@ export async function executeTool(
         );
         mediaSpendRequest = checked.authoritySpend;
       } else {
-        await runtime.checkTalkingVideoRequest(
+        const checked = await runtime.checkTalkingVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
+          operationKey,
         );
+        mediaSpendRequest = checked.authoritySpend;
       }
     } catch (error) {
       // Refused before anything was sent: rejected, and the same request

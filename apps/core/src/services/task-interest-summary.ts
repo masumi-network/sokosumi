@@ -1,6 +1,7 @@
 import { sokoBotTaskSummaryPrompt } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
@@ -85,6 +86,7 @@ export async function startTaskSummaryTurn(input: {
 
   try {
     const started = await sokoBotControlPlane.startTurn({
+      network: DETACHED_SOKO_BOT_NETWORK,
       userId: input.userId,
       sokoBotId: input.sokoBotId,
       workspaceId: input.task.workspaceId,

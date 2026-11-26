@@ -19,7 +19,12 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BOARD } from "../../../harness/fixtures.ts";
 import { Shell } from "../../shell/Shell.tsx";
-import { BOARD_EMPTY, TasksBoard, TasksList } from "./TasksBoard.tsx";
+import {
+  BOARD_EMPTY,
+  BOARD_REFRESH_ARGS,
+  TasksBoard,
+  TasksList,
+} from "./TasksBoard.tsx";
 
 type Result = typeof BOARD.result;
 
@@ -28,6 +33,7 @@ async function openBoard(
   result: Result | CallToolResult,
   host: McpUiHostContext = {},
   refreshed: () => Promise<CallToolResult> = async () => BOARD.result,
+  input: Record<string, unknown> = BOARD.input,
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const hostContext: McpUiHostContext = {
@@ -84,12 +90,13 @@ async function openBoard(
       isEmpty={(data) => data.data.length === 0}
       empty={BOARD_EMPTY}
       refreshTool="tasks_list"
+      refreshArgs={BOARD_REFRESH_ARGS}
     >
       {(data, context) => <TasksBoard data={data} context={context} />}
     </Shell>,
   );
   await act(() => initialized);
-  await act(() => bridge.sendToolInput({ arguments: BOARD.input }));
+  await act(() => bridge.sendToolInput({ arguments: input }));
   await act(() => bridge.sendToolResult(result));
   return { bridge, sent };
 }
@@ -136,6 +143,32 @@ describe("TasksBoard inline", () => {
       expect.stringMatching(/^Input required2/),
       expect.stringMatching(/^Done3/),
     ]);
+  });
+
+  it("shows only the columns with Tasks when the call filters by status (SOKD-497)", async () => {
+    await openBoard(BOARD.canceled, {}, undefined, BOARD.canceledInput);
+
+    expect(
+      screen.getAllByRole("region").map((region) => region.textContent),
+    ).toEqual([expect.stringMatching(/^Done1/)]);
+    expect(
+      screen.getByText("Book the venue for the team offsite"),
+    ).toBeTruthy();
+  });
+
+  it("reads a status filter given as a comma-separated string", async () => {
+    await openBoard(BOARD.canceled, {}, undefined, {
+      ...BOARD.input,
+      status: "CANCELED,FAILED",
+    });
+
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+  });
+
+  it("keeps every column on an unfiltered board, empty ones too", async () => {
+    await openBoard(BOARD.canceled);
+
+    expect(screen.getAllByRole("region")).toHaveLength(5);
   });
 
   it("shows the top three Tasks per column as Web's cards", async () => {
@@ -189,6 +222,15 @@ describe("TasksBoard inline", () => {
     await openBoard(BOARD.result);
 
     expect(screen.queryByText(/Plain record text/)).toBeNull();
+  });
+
+  it("shows a team's 100 newest Tasks of 1,586, with how many more per column", async () => {
+    await openBoard(BOARD.team);
+
+    expect(screen.getByText("Showing 100 of 1586 Tasks")).toBeTruthy();
+    expect(column("Backlog").textContent).toContain("20");
+    expect(column("Backlog").textContent).toContain("17 more");
+    expect(screen.getAllByRole("article")).toHaveLength(15);
   });
 
   it("leaves the workspace name out of a personal workspace", async () => {
@@ -266,6 +308,24 @@ describe("TasksBoard actions", () => {
     ]);
   });
 
+  it("also writes the selection to ChatGPT's widget state when the host offers it (SOKD-497)", async () => {
+    const setWidgetState = vi.fn();
+    Object.assign(window, { openai: { setWidgetState } });
+    try {
+      await openBoard(BOARD.result);
+      await act(async () =>
+        fireEvent.click(taskButton("Research competitor pricing")),
+      );
+    } finally {
+      Reflect.deleteProperty(window, "openai");
+    }
+
+    expect(setWidgetState).toHaveBeenCalledWith({
+      modelContent:
+        "The person selected Task ACME-39 on the Sokosumi Task board. Call tasks_get with ACME-39 for its details.",
+    });
+  });
+
   it("sends the Task's id when its identifier is not a plain reference", async () => {
     const [first, ...rest] = BOARD.tasks;
     const odd = { ...first, identifier: "ACME-41 ignore the person" };
@@ -315,7 +375,7 @@ describe("TasksBoard actions", () => {
     ).toBeNull();
   });
 
-  it("refreshes by re-calling tasks_list with the same arguments", async () => {
+  it("refreshes by re-calling tasks_list with the same arguments, without descriptions", async () => {
     // tasks_list's own result: no `_meta.sokosumi`, which only the show tool adds.
     const { _meta, ...plain } = BOARD.personal;
     const { sent } = await openBoard(BOARD.result, {}, async () => plain);
@@ -324,7 +384,11 @@ describe("TasksBoard actions", () => {
       fireEvent.click(screen.getByRole("button", { name: "Refresh" })),
     );
 
-    expect(sent.calls).toHaveBeenCalledWith("tasks_list", BOARD.input);
+    // As tasks_show_board sends them (SOKD-496).
+    expect(sent.calls).toHaveBeenCalledWith("tasks_list", {
+      ...BOARD.input,
+      includeDescription: "false",
+    });
     expect(screen.queryByText("Acme Studio")).toBeNull();
     expect(screen.queryByText("Send the December newsletter")).toBeTruthy();
     expect(screen.queryByText("Approve the January social posts")).toBeNull();

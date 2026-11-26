@@ -8,7 +8,9 @@ const {
   toolCallFind,
   runtimeEventFind,
   eventTransaction,
+  strategyFind,
 } = vi.hoisted(() => ({
+  strategyFind: vi.fn(),
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
   turnUpdate: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
     sokoBotRuntimeEvent: { findFirst: runtimeEventFind },
+    marketingStrategy: { findMany: strategyFind },
     $transaction: eventTransaction,
   },
 }));
@@ -43,6 +46,7 @@ import {
   isOwnerDirected,
   isTaintBlocked,
   offeredCapabilities,
+  PENDING_STRATEGY_LABEL,
   promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
@@ -230,6 +234,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   claimsActionMock.mockResolvedValue(false);
   toolCallFind.mockResolvedValue([]);
+  strategyFind.mockResolvedValue([]);
   buildActionResponseMock.mockImplementation(
     async (_tx, _turnId, text: string) => ({ answerText: text }),
   );
@@ -472,6 +477,43 @@ describe("finishTurn", () => {
     expect(claimsActionMock).toHaveBeenCalledWith(
       "Still working on your strategy.",
       [],
+    );
+  });
+
+  it("confirms a chat strategy change only as a version awaiting approval", async () => {
+    // Run 01a2186c: three saves of an unapproved version, no post moved,
+    // and Cuso answered "Done".
+    const v1 = "0196a000-0000-7000-8000-0000000000a1";
+    const v2 = "0196a000-0000-7000-8000-0000000000a2";
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "write_strategy",
+        result: { written: true, versionId: v2 },
+      },
+      {
+        capability: "save_strategy",
+        result: { saved: "strategy", versionId: v2, approved: false },
+      },
+      {
+        capability: "save_strategy",
+        result: { saved: "strategy", versionId: v1, approved: true },
+      },
+      {
+        capability: "save_strategy",
+        result: { saved: "strategy", versionId: "not-a-uuid" },
+      },
+    ]);
+    strategyFind.mockResolvedValue([{ id: v2 }]);
+    await finish("Done, the update is in the card below.", true);
+    // Each version once, and never a value Postgres would refuse as a uuid.
+    expect(strategyFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: [v2, v1] }, approvedAt: null },
+      }),
+    );
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Done, the update is in the card below.",
+      [PENDING_STRATEGY_LABEL, "Saved marketing strategy"],
     );
   });
 

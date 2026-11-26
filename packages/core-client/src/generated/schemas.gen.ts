@@ -25247,7 +25247,8 @@ export const ProjectTalkingVideoSchema = {
                         'voiceover',
                         'site_tour',
                         'top_three',
-                        'slideshow'
+                        'slideshow',
+                        'launch'
                     ]
                 },
                 {
@@ -47108,7 +47109,8 @@ export const CreateProjectShortVideoJobRequestSchema = {
                 'voiceover',
                 'site_tour',
                 'top_three',
-                'slideshow'
+                'slideshow',
+                'launch'
             ]
         },
         script: {
@@ -47169,6 +47171,11 @@ export const CreateProjectShortVideoJobRequestSchema = {
             },
             maxItems: 6,
             default: []
+        },
+        launchDate: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 32
         },
         shapes: {
             type: 'array',
@@ -47241,7 +47248,8 @@ export const WriteProjectTalkingVideoScriptsRequestSchema = {
                 'voiceover',
                 'site_tour',
                 'top_three',
-                'slideshow'
+                'slideshow',
+                'launch'
             ]
         },
         languageCode: {
@@ -51061,6 +51069,9 @@ export const ProjectSeoKeywordSchema = {
                 $ref: '#/components/schemas/ProjectSeoPositionPoint'
             },
             maxItems: 90
+        },
+        positionHistoryCut: {
+            type: 'boolean'
         }
     },
     required: [
@@ -51112,6 +51123,12 @@ export const ProjectSeoPositionPointSchema = {
                 'ranked',
                 'not_in_range',
                 'unavailable'
+            ]
+        },
+        checkedResults: {
+            type: [
+                'integer',
+                'null'
             ]
         },
         device: {
@@ -68666,7 +68683,8 @@ export const SokoBotVersionSchema = {
             ]
         },
         systemPrompt: {
-            type: 'string'
+            type: 'string',
+            description: 'The composed system prompt. Sent to platform admins only, for the behaviour lab.'
         }
     },
     required: [
@@ -68676,8 +68694,7 @@ export const SokoBotVersionSchema = {
         'summary',
         'model',
         'skills',
-        'capabilities',
-        'systemPrompt'
+        'capabilities'
     ]
 } as const;
 

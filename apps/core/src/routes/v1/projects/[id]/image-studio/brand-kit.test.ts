@@ -7,6 +7,8 @@ import type { EnvVariables } from "@/lib/hono";
 const mocks = vi.hoisted(() => ({
   requireProjectAccess: vi.fn(),
   prepareStudioWebsiteDraft: vi.fn(),
+  readStudioBrandKit: vi.fn(),
+  saveStudioBrandCopy: vi.fn(),
 }));
 
 vi.mock("@/lib/image-studio/access", () => ({
@@ -14,6 +16,10 @@ vi.mock("@/lib/image-studio/access", () => ({
 }));
 vi.mock("@/lib/image-studio/studio-brand", () => ({
   prepareStudioWebsiteDraft: mocks.prepareStudioWebsiteDraft,
+  readStudioBrandKit: mocks.readStudioBrandKit,
+}));
+vi.mock("@/services/brand-brain.service", () => ({
+  saveStudioBrandCopy: mocks.saveStudioBrandCopy,
 }));
 
 import mount from "./brand-kit";
@@ -68,5 +74,44 @@ describe("Studio website research", () => {
     mocks.requireProjectAccess.mockRejectedValueOnce(new HTTPException(404));
     expect((await app().request(path, { method: "POST" })).status).toBe(404);
     expect(mocks.prepareStudioWebsiteDraft).not.toHaveBeenCalled();
+  });
+
+  // SOKD-480: the copy GET returns, tone "" included, can be sent back.
+  it("takes back the copy GET returned, with an empty tone", async () => {
+    mocks.readStudioBrandKit.mockResolvedValue({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "A ceramics studio",
+      tone: "",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mocks.saveStudioBrandCopy.mockResolvedValue("2026-11-26T12:00:00.000Z");
+    const server = app();
+    const kitPath = `/${projectId}/image-studio/brand-kit`;
+    const kit = (await (await server.request(kitPath)).json()).data;
+
+    const response = await server.request(kitPath, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        copy: {
+          summary: kit.summary,
+          tone: kit.tone,
+          audience: kit.audience,
+          approvedLines: [...kit.approvedLines, "E2E tagline"],
+        },
+        version: kit.version,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.saveStudioBrandCopy).toHaveBeenCalledWith(
+      projectId,
+      expect.objectContaining({ tone: "", approvedLines: ["E2E tagline"] }),
+      null,
+    );
   });
 });
