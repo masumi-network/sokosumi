@@ -450,6 +450,13 @@ async function writeChunk(
   if (timeoutMs <= 0) return [];
   const result = await generateText({
     ...request,
+    // At the default effort a 3-piece chunk reasoned up to 10,500 tokens and
+    // most chunks ran past 75 s (cmo-month-timed, 2026-11-25). The words are
+    // checked after the call; the calendar writer runs low for the same reason.
+    providerOptions: {
+      ...request.providerOptions,
+      openai: { reasoningEffort: "low" },
+    },
     system,
     prompt,
     output: Output.object({ schema: cmoWrittenChunkSchema }),
