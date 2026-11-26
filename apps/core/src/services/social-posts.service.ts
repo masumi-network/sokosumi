@@ -2357,22 +2357,31 @@ export async function planSocialPost(
       },
       tx,
     );
-    if (spoken && stored)
-      await dropCopiedRecordings(tx, post.projectId, stored.id, input.planning);
+    if (spoken && stored && post.marketingStrategyId)
+      await dropCopiedRecordings(
+        tx,
+        post.marketingStrategyId,
+        stored.id,
+        input.planning,
+      );
     return mapSocialPost(planned);
   }, "Project changed while planning a Social post");
 }
 
-/** A talking video's copies carry its recording: they lose it with it and speak the new words. */
+/**
+ * A talking video's copies carry its recording: they lose it with it and
+ * speak the new words. Only its own month's copies: entry ids repeat from
+ * month to month.
+ */
 async function dropCopiedRecordings(
   tx: Prisma.TransactionClient,
-  projectId: string,
+  marketingStrategyId: string,
   entryId: string,
   spoken: Pick<SocialPostPlanning, "script" | "presenter" | "voice">,
 ): Promise<void> {
   const copies = await tx.socialPost.findMany({
     where: {
-      projectId,
+      marketingStrategyId,
       planning: { path: ["videoOf"], equals: entryId },
       status: { in: [...EDITABLE_STATUSES] },
       leaseToken: null,

@@ -339,6 +339,65 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
     });
   });
 
+  it("changes only its own month's copies when a script changes (Codex)", async () => {
+    const world = await seed();
+    const video = {
+      pathname: "drive/users/plan/talk.mp4",
+      fileUrl: "https://example.test/talk.mp4",
+      name: "talk.mp4",
+      size: 1000,
+      mimeType: "video/mp4",
+      kind: "video" as const,
+    };
+    const talking = {
+      ...planning,
+      format: "talking_video",
+      script: "Start a one-week trial",
+    };
+    const otherMonth = await withFixtureSchemas((tx) =>
+      tx.marketingStrategy.create({
+        data: { projectId: world.scope.projectId, plan: {} },
+        select: { id: true },
+      }),
+    );
+    const made = await planned(world, "op-create", talking);
+    // Last month's copy of an entry with the same id, scheduled with its video.
+    const lastMonthCopy = await planned(
+      { ...world, versionId: otherMonth.id },
+      "op-old-copy",
+      { ...talking, id: "entry-1-linkedin", videoOf: "entry-1" },
+    );
+    await prisma.socialPost.updateMany({
+      where: { id: { in: [made.id, lastMonthCopy.id] } },
+      data: { media: [video], text: "Our trial, in a minute" },
+    });
+    await prisma.socialPost.update({
+      where: { id: lastMonthCopy.id },
+      data: { status: "SCHEDULED" },
+    });
+    const before = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: lastMonthCopy.id },
+    });
+    const current = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: made.id },
+    });
+    const rescripted = await planSocialPost({
+      ...world.scope,
+      postId: made.id,
+      revision: current.revision,
+      planning: { ...talking, script: "Start a one-month trial" },
+      applyOpId: "op-script",
+    });
+    expect(rescripted.media).toHaveLength(0);
+    const after = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: lastMonthCopy.id },
+    });
+    expect(after.status).toBe("SCHEDULED");
+    expect(after.media).toEqual(before.media);
+    expect(after.revision).toBe(before.revision);
+    expect(after.planning).toMatchObject({ script: "Start a one-week trial" });
+  });
+
   it("never plans a post that went out", async () => {
     const world = await seed();
     const post = await createSocialPost({
