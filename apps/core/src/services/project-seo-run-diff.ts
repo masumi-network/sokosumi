@@ -132,14 +132,27 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
 const measuredRules = (payload: PublicSeoPayload) =>
   payload.checks.length > 0 || payload.findings.length > 0;
 
-/** The rules a check tested: every rule it stored a row or a finding for. */
-const testedRules = (payload: PublicSeoPayload) =>
-  new Set([...payload.checks, ...payload.findings].map((row) => row.rowId));
+/** The rules a check read on the selected pages: a row that passed or fired, or a finding. A blocked row read nothing. */
+const testedRules = (payload: PublicSeoPayload, selected: Selected) =>
+  new Set(
+    [
+      ...payload.checks.filter(
+        (row) => row.result === "pass" || row.result === "fired",
+      ),
+      ...payload.findings,
+    ]
+      .filter((row) => selected(row.pageUrl))
+      .map((row) => row.rowId),
+  );
 
-/** The rules both checks tested, and how many only one of them tested. */
-function sharedRules(before: PublicSeoPayload, after: PublicSeoPayload) {
-  const earlier = testedRules(before),
-    later = testedRules(after);
+/** The rules both checks read on the selected pages, and how many only one of them read. */
+function sharedRules(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+  selected: Selected,
+) {
+  const earlier = testedRules(before, selected),
+    later = testedRules(after, selected);
   const ids = new Set([...later].filter((id) => earlier.has(id)));
   return {
     ids,
@@ -177,7 +190,7 @@ export function compareSeoRuns(
   // Across a rulebook change only the rules both checks tested are compared. Without such a rule nothing is.
   const shared =
     mismatch === "rulebook"
-      ? sharedRules(previous.payload, latest.payload)
+      ? sharedRules(previous.payload, latest.payload, selected)
       : null;
   const reason = shared?.compared ? null : mismatch;
   const earlier = shared
@@ -334,6 +347,12 @@ function seoRunDiffOf(
     seoRunMismatch(source.payload, run.payload);
   const previous =
     full.find((source) => !mismatch(source)) ??
+    // Then the same Market with another rulebook, where the two checks share a rule to compare.
+    full.find(
+      (source) =>
+        mismatch(source) === "rulebook" &&
+        sharedRules(source.payload, run.payload, selected).compared > 0,
+    ) ??
     full.find((source) => mismatch(source) !== "market") ??
     full[0];
   return { previous, diff: compareSeoRuns(previous, run, selected) };

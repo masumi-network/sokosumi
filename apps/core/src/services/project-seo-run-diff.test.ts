@@ -216,6 +216,44 @@ describe("withSeoRunDiffs", () => {
     });
   });
 
+  it("pairs past a newer check of another rulebook that shares no rule with the latest", () => {
+    const diff = diffOf([
+      source(8, result([failed({ rowId: "A" })], { rulebookVersion: "r3" })),
+      source(
+        5,
+        result([check("pass", { rowId: "B" })], { rulebookVersion: "r2" }),
+      ),
+      source(1, result([check("pass", { rowId: "A" })])),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      comparable: true,
+      newCount: 1,
+      rulebookChange: { compared: 1, other: 0 },
+    });
+  });
+
+  it("shares no rule across a rulebook change that one check only blocked or read on another page", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([failed({ rowId: "A" }), failed({ rowId: "B" })], {
+          rulebookVersion: "r2",
+        }),
+      ),
+      source(
+        1,
+        result([
+          check("blocked", { rowId: "A" }),
+          check("pass", { rowId: "B", pageUrl: OTHER }),
+          // The earlier check read the selected page, through a rule the later one did not run.
+          check("pass", { rowId: "C" }),
+        ]),
+      ),
+    ]);
+    expect(diff).toMatchObject({ comparable: false, reason: "rulebook" });
+  });
+
   it("compares only the rules both checks tested across a rulebook change", () => {
     const diff = diffOf([
       source(
