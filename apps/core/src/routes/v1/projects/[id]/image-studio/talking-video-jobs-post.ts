@@ -91,6 +91,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         siteShots: input.siteShots,
         broll: input.broll,
         music: input.music,
+        ...(input.shapes ? { shapes: input.shapes } : {}),
         idempotencyKey: input.idempotencyKey,
       });
 

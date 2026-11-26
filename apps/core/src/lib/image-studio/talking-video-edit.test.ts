@@ -558,9 +558,9 @@ describe("other shapes", () => {
       ),
     );
     expect(graph).toContain(
-      "[0:v]scale=1080:1920,crop=1080:1350:(iw-ow)/2:120,scale=1080:1350",
+      "[0:v]scale=1080:1920,crop=1080:1350:(iw-ow)/2:80,scale=1080:1350",
     );
-    expect(graph).toContain("crop=900:1126:(iw-ow)/2:120");
+    expect(graph).toContain("crop=900:1126:(iw-ow)/2:80");
   });
 
   it("shows a widescreen presenter whole between blurred copies of the clip", () => {

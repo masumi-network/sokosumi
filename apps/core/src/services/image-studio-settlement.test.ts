@@ -410,7 +410,7 @@ describe("ad eval placement", () => {
     // Reservation recovery finds nothing; then the project's one live job.
     jobFindManyMock
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: "job-1" }]);
+      .mockResolvedValueOnce([{ id: "job-1", idempotencyKey: "studio-key-1" }]);
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
     fetchQueueResultMock.mockResolvedValue({
       kind: "media",

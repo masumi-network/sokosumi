@@ -25018,6 +25018,21 @@ export const ProjectTalkingVideoSchema = {
                     type: 'null'
                 }
             ]
+        },
+        shape: {
+            type: 'string',
+            enum: [
+                '9:16',
+                '4:5',
+                '1:1',
+                '16:9'
+            ]
+        },
+        sourceJobId: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
@@ -25027,7 +25042,9 @@ export const ProjectTalkingVideoSchema = {
         'siteShots',
         'broll',
         'music',
-        'format'
+        'format',
+        'shape',
+        'sourceJobId'
     ]
 } as const;
 
@@ -46462,6 +46479,20 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
             type: 'boolean',
             default: false
         },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
+        },
         idempotencyKey: {
             type: 'string',
             minLength: 8,
@@ -46545,6 +46576,20 @@ export const CreateProjectShortVideoJobRequestSchema = {
             },
             maxItems: 6,
             default: []
+        },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
         },
         idempotencyKey: {
             type: 'string',
