@@ -123,6 +123,10 @@ model Contact {
   createdByUserId    String?
   /// Soko Bot that created the contact, kept after the bot is gone.
   createdBySokoBotId String?      @db.Uuid
+  /// The workspace member this contact is: set by hand, or by capture from a
+  /// member's email address or own X account.
+  userId             String?
+  user               User?        @relation("ContactUser", fields: [userId], references: [id], onDelete: SetNull)
   /// Optimistic concurrency for edits; derived fields do not bump it.
   version            Int          @default(1)
   archivedAt         DateTime?
@@ -144,7 +148,9 @@ model Contact {
 
   notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
   notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
+  xFollows       ContactXFollow[]
 
+  @@unique([workspaceId, userId])
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
   @@index([workspaceId, name])
@@ -481,6 +487,25 @@ model ContactNotDuplicate {
   @@index([workspaceId])
   @@index([otherContactId])
   @@map("contact_not_duplicate")
+}
+
+/// How a contact and a teammate are linked on X, from that teammate's
+/// follower and following walks. A walk only sets a side: an unfollow is not
+/// noticed.
+model ContactXFollow {
+  contactId      String   @db.Uuid
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation("ContactXFollowUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// They follow the teammate.
+  followsUser    Boolean  @default(false)
+  /// The teammate follows them.
+  followedByUser Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  @@id([contactId, userId])
+  @@index([userId])
+  @@map("contact_x_follow")
 }
 
 /// A named, shared list of companies, like `ContactList` for people. Always

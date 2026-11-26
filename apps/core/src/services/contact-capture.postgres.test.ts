@@ -1120,6 +1120,17 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
               ruth,
             ],
           };
+        case "TWITTER_FOLLOWING_BY_USER_ID":
+          return {
+            data: [
+              person("700", "Lena Fox", "lenafox", "Writes about cities"),
+              person("950", "Zoe Park", "zoepark", "Runs a bakery"),
+              person("960", "Acme Labs", "acmelabs", "Tools for builders"),
+              person("970", "Northwind", "northwind", "Shoes", {
+                verified_type: "business",
+              }),
+            ],
+          };
         default:
           throw new Error(`unexpected tool ${tool}`);
       }
@@ -1182,6 +1193,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
             channels: [{ type: "EMAIL", value: email }],
             upsert: false,
           });
+        // The owner's own X account, added by hand before.
+        await upsertContact(tx, actor, {
+          name: "Alice O.",
+          channels: [{ type: "X", value: "@alice" }],
+          upsert: false,
+        });
       });
       await addBot(xWorkspaceId, ["twitter"]);
       mocks.runIntegrationTool.mockImplementation(async (...args: unknown[]) =>
@@ -1203,6 +1220,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
+        "Alice O.",
         "Gus",
         "Lena Fox",
         "Léa Müller",
@@ -1216,7 +1234,42 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         "Sean Connor",
         "Sean O'Connor",
         "Sean O'Connor",
+        "Zoe Park",
       ]);
+      expect(contacts.find((c) => c.name === "Alice O.")?.userId).toBe(alice);
+      const follows = await prisma.contactXFollow.findMany({
+        where: { userId: alice, contact: { workspaceId: xWorkspaceId } },
+        include: { contact: { select: { name: true } } },
+      });
+      const followOf = (name: string) =>
+        follows
+          .filter((follow) => follow.contact.name === name)
+          .map(({ followsUser, followedByUser }) => ({
+            followsUser,
+            followedByUser,
+          }));
+      expect(followOf("Lena Fox")).toEqual([
+        { followsUser: true, followedByUser: true },
+      ]);
+      // Joined an existing contact, and one already known from a DM.
+      expect(followOf("Nina Keller")).toEqual([
+        { followsUser: true, followedByUser: false },
+      ]);
+      expect(followOf("Ruth Weber")).toEqual([
+        { followsUser: true, followedByUser: false },
+      ]);
+      expect(followOf("Zoe Park")).toEqual([
+        { followsUser: false, followedByUser: true },
+      ]);
+      const following = await prisma.contactList.findFirstOrThrow({
+        where: { workspaceId: xWorkspaceId, name: "X following" },
+        include: { members: { include: { contact: true } } },
+      });
+      // Brand accounts never become contacts.
+      expect(following.members.map((member) => member.contact.name)).toEqual([
+        "Zoe Park",
+      ]);
+      expect(run.capture.skipped.brand_account).toBe(2);
       const ruthContact = contacts.find((c) => c.name === "Ruth Weber");
       expect(
         ruthContact?.channels.map(({ type, value, source }) => ({
@@ -1346,7 +1399,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           const input = args[2] as Record<string, unknown>;
           if (tool === "TWITTER_USER_LOOKUP_ME")
             return { data: user("100", "Alice Owner", "alice") };
-          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (
+            tool === "TWITTER_FOLLOWERS_BY_USER_ID" ||
+            tool === "TWITTER_FOLLOWING_BY_USER_ID"
+          )
+            return { data: [] };
           if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
             throw new Error(`unexpected tool ${tool}`);
           dmCalls.push(input);
@@ -1468,6 +1525,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
             followerCalls += 1;
             return { data: [] };
           }
+          if (tool === "TWITTER_FOLLOWING_BY_USER_ID") return { data: [] };
           if (tool !== "TWITTER_GET_RECENT_DM_EVENTS")
             throw new Error(`unexpected tool ${tool}`);
           const token = (input.pagination_token as string | undefined) ?? null;
@@ -1598,7 +1656,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           const input = args[2] as Record<string, unknown>;
           if (tool === "TWITTER_USER_LOOKUP_ME")
             return { data: user("100", "Alice Owner", "alice") };
-          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (
+            tool === "TWITTER_FOLLOWERS_BY_USER_ID" ||
+            tool === "TWITTER_FOLLOWING_BY_USER_ID"
+          )
+            return { data: [] };
           const token = (input.pagination_token as string | undefined) ?? null;
           const from = token ? events.findIndex((e) => e.id === token) : 0;
           const page = events.slice(from, from + (input.max_results as number));
@@ -1664,7 +1726,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           const input = args[2] as Record<string, unknown>;
           if (tool === "TWITTER_USER_LOOKUP_ME")
             return { data: user("100", "Alice Owner", "alice") };
-          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (
+            tool === "TWITTER_FOLLOWERS_BY_USER_ID" ||
+            tool === "TWITTER_FOLLOWING_BY_USER_ID"
+          )
+            return { data: [] };
           const token = (input.pagination_token as string | undefined) ?? null;
           dmCalls.push(token);
           if (token && refuseTokens)
@@ -1753,7 +1819,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           const tool = args[1] as string;
           if (tool === "TWITTER_USER_LOOKUP_ME")
             return { data: user("100", "Alice Owner", "alice") };
-          if (tool === "TWITTER_FOLLOWERS_BY_USER_ID") return { data: [] };
+          if (
+            tool === "TWITTER_FOLLOWERS_BY_USER_ID" ||
+            tool === "TWITTER_FOLLOWING_BY_USER_ID"
+          )
+            return { data: [] };
           if (denied)
             throw new SokoBotIntegrationError(
               "X: 403 Forbidden: not permitted to access direct messages",
@@ -1818,18 +1888,28 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         p3: { people: [cy], next: null },
       };
       const followerCalls: (string | null)[] = [];
+      const followerSizes: number[] = [];
+      const followingCalls: (string | null)[] = [];
       mocks.runIntegrationTool.mockImplementation(
         async (...args: unknown[]) => {
           const tool = args[1] as string;
+          const input = args[2] as {
+            pagination_token?: string;
+            max_results?: number;
+          };
           if (tool === "TWITTER_USER_LOOKUP_ME")
             return { data: user("100", "Alice Owner", "alice") };
           if (tool === "TWITTER_GET_RECENT_DM_EVENTS")
             return { data: [], meta: { result_count: 0 } };
+          if (tool === "TWITTER_FOLLOWING_BY_USER_ID") {
+            followingCalls.push(input.pagination_token ?? null);
+            return { data: [] };
+          }
           if (tool !== "TWITTER_FOLLOWERS_BY_USER_ID")
             throw new Error(`unexpected tool ${tool}`);
-          const token =
-            (args[2] as { pagination_token?: string }).pagination_token ?? null;
+          const token = input.pagination_token ?? null;
           followerCalls.push(token);
+          followerSizes.push(input.max_results ?? 0);
           const page = pages[token ?? "first"];
           return {
             data: page.people,
@@ -1856,8 +1936,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           },
         }).captureWorkspace(pagedWorkspaceId, () => true);
 
+      // One page a day: the followers walk takes it, the following walk waits.
       await capture();
       expect(followerCalls).toEqual([null]);
+      expect(followingCalls).toEqual([]);
       // Later the same day: the unfinished walk waits for tomorrow.
       clock = new Date(start + 15 * 60 * 1000);
       await capture();
@@ -1867,9 +1949,13 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       clock = new Date(start + 2 * day);
       await capture();
       expect(followerCalls).toEqual([null, "p2", "p3"]);
+      expect(followerSizes).toEqual([100, 100, 100]);
+      expect(followingCalls).toEqual([]);
 
-      // The walk is complete. Kim followed since: the first page holds her and
-      // Ada, the second only Bo, known before this walk; the third is not read.
+      // The walk is complete, so it starts with a small probe page. Kim
+      // followed since: the probe holds her and Ada, the next page only Bo,
+      // known before this walk; the third is not read. Of the day's three
+      // pages the followers walk took two, and the following walk the third.
       pages = {
         ...pages,
         first: {
@@ -1880,6 +1966,8 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       clock = new Date(start + 3 * day);
       await capture(3);
       expect(followerCalls).toEqual([null, "p2", "p3", null, "p2"]);
+      expect(followerSizes).toEqual([100, 100, 100, 20, 100]);
+      expect(followingCalls).toEqual([null]);
       const names = (await contactsOf(pagedWorkspaceId)).map(
         (contact) => contact.name,
       );
@@ -1889,6 +1977,32 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         "Cy Dorn",
         "Kim Park",
       ]);
+
+      // A cursor from before both walks goes on where its followers walk
+      // stood, at the page it had not read yet, instead of starting over.
+      const state = await prisma.contactCaptureState.findFirstOrThrow({
+        where: { integration: { sokoBot: { workspaceId: pagedWorkspaceId } } },
+      });
+      const { xWalks: _walks, ...x } = (
+        state.cursor as { x: Record<string, unknown> }
+      ).x;
+      await prisma.contactCaptureState.update({
+        where: { id: state.id },
+        data: {
+          cursor: {
+            x: {
+              ...x,
+              followsAt: new Date(start + 3 * day).toISOString(),
+              followersToken: "p3",
+              followersWalked: false,
+            },
+          },
+        },
+      });
+      clock = new Date(start + 4 * day);
+      await capture(3);
+      expect(followerCalls.slice(5)).toEqual(["p3"]);
+      expect(followerSizes.slice(5)).toEqual([100]);
     });
   });
 

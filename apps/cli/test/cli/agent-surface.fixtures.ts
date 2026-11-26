@@ -2672,6 +2672,16 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"importance":80}',
     ],
   },
+  "PUT /contacts/{id}/user": {
+    argv: [
+      ...API,
+      "contacts",
+      "set-user",
+      "contact-1",
+      "--input-json",
+      '{"userId":null}',
+    ],
+  },
   "POST /contacts/{id}/enrich": {
     argv: [...API, "contacts", "enrich", "contact-1"],
   },
