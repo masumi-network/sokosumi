@@ -27,24 +27,37 @@ interface Candidate {
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The whole word or phrase, never a piece of a longer word ("Pat" in "patch"). */
-function says(text: string, phrase: string): boolean {
-  const value = phrase.trim();
-  if (value.length < 2) return false;
-  return new RegExp(
-    `(^|[^\\p{L}\\p{N}_])${escape(value)}(?![\\p{L}\\p{N}_])`,
-    "iu",
-  ).test(text);
-}
-
 const handleOf = (candidate: Candidate) =>
   candidate.externalHandle?.replace(/^@/, "") ?? null;
+
+/** "not @acme", "instead of Acme": a name the owner turned down. */
+const REFUSAL =
+  /(?:\bnot|\bno|\bnever|\bexcept|\binstead of|\brather than)\s+(?:on\s+|the\s+)?$/iu;
+
+/**
+ * The owner says this name as a whole word ("Pat" never in "patch"), and not
+ * in order to turn it down.
+ */
+function saysFor(text: string, phrase: string): boolean {
+  const value = phrase.trim();
+  if (value.length < 2) return false;
+  const pattern = new RegExp(
+    `(^|[^\\p{L}\\p{N}_])${escape(value)}(?![\\p{L}\\p{N}_])`,
+    "giu",
+  );
+  for (const match of text.matchAll(pattern)) {
+    const before = text.slice(0, (match.index ?? 0) + (match[1]?.length ?? 0));
+    if (!REFUSAL.test(before)) return true;
+  }
+  return false;
+}
 
 /** The owner picked this account itself: its @handle or its id. */
 function namedAccount(text: string, candidate: Candidate): boolean {
   const handle = handleOf(candidate);
   return (
-    (handle !== null && says(text, `@${handle}`)) || text.includes(candidate.id)
+    (handle !== null && saysFor(text, `@${handle}`)) ||
+    saysFor(text, candidate.id)
   );
 }
 
@@ -53,9 +66,9 @@ function chosen(text: string, candidate: Candidate): boolean {
   const handle = handleOf(candidate);
   return (
     namedAccount(text, candidate) ||
-    (handle !== null && says(text, handle)) ||
-    says(text, candidate.project.name) ||
-    text.includes(candidate.project.id)
+    (handle !== null && saysFor(text, handle)) ||
+    saysFor(text, candidate.project.name) ||
+    saysFor(text, candidate.project.id)
   );
 }
 
@@ -89,6 +102,18 @@ async function askedJustBefore(
       destinationRoomId: current.destinationRoomId,
       source: "CHAT",
       id: { not: authorized.turn.id },
+      // A turn that failed asked nothing, unless Core's refusal did.
+      OR: [
+        { status: "COMPLETED" },
+        {
+          toolCalls: {
+            some: {
+              capability: "create_social_post",
+              errorDetail: { startsWith: ASK_WHICH_ACCOUNT },
+            },
+          },
+        },
+      ],
       createdAt: {
         lt: current.createdAt,
         gte: new Date(current.createdAt.getTime() - ANSWER_WINDOW_MS),
@@ -134,7 +159,11 @@ export async function requireChosenSocialDestination(
       where: {
         provider,
         status: "active",
-        project: { workspaceId: authorized.turn.workspaceId },
+        project: {
+          workspaceId: authorized.turn.workspaceId,
+          closedAt: null,
+          closingAt: null,
+        },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: 10,
@@ -154,7 +183,21 @@ export async function requireChosenSocialDestination(
   const pick = candidates.find(
     (candidate) => candidate.id === params.socialConnectionId,
   );
-  if (pick && chosen(message, pick)) return;
+  // A Project name settles it only when one account fits it: a Project can
+  // hold a personal and a company account of the same network.
+  const fits = candidates.filter((candidate) => chosen(message, candidate));
+  if (
+    pick &&
+    (namedAccount(message, pick) || (fits.length === 1 && fits[0] === pick))
+  )
+    return;
+  // The owner answered the bot's question: the bot read the answer.
+  if (await askedJustBefore(authorized, turn, candidates)) {
+    if (pick) return;
+    throw new SokoBotRefusedUnsentError(
+      `Pass the socialConnectionId and projectId of the account the owner chose: ${candidates.map(label).join("; ")}.`,
+    );
+  }
   // Only an explicit @handle or id redirects; a name may be the post's topic.
   const accounts = candidates.filter((candidate) =>
     namedAccount(message, candidate),
@@ -163,12 +206,6 @@ export async function requireChosenSocialDestination(
     throw new SokoBotRefusedUnsentError(
       `The owner chose ${accounts.map(label).join("; ")}. Create the post there, with that socialConnectionId and projectId.`,
     );
-  if (await askedJustBefore(authorized, turn, candidates)) {
-    if (pick) return;
-    throw new SokoBotRefusedUnsentError(
-      `Pass the socialConnectionId and projectId of the account the owner chose: ${candidates.map(label).join("; ")}.`,
-    );
-  }
   throw new SokoBotRefusedUnsentError(
     `${ASK_WHICH_ACCOUNT}, and the owner has not chosen one: ${candidates.map(label).join("; ")}. Ask the owner once which one, naming them, and draft nothing until they answer. Then create the post with that account's socialConnectionId and projectId.`,
   );

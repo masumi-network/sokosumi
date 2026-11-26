@@ -144,6 +144,45 @@ describe("requireChosenSocialDestination", () => {
     expect(where.createdAt.gte).toEqual(new Date(NOW.getTime() - 86_400_000));
   });
 
+  it("follows the answer when the owner turns an account down", async () => {
+    ownerSays("Not @acme_hq, use my personal account!");
+    previousTurn("Which account: @acme_hq or @pat?");
+    await expect(check(onPersonal)).resolves.toBeUndefined();
+    db.turnFindFirst.mockResolvedValue(null);
+    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+  });
+
+  it("still asks when the named Project holds two accounts of the network", async () => {
+    db.connectionFindMany.mockResolvedValue([
+      candidates[0],
+      { ...candidates[1], project: candidates[0]?.project },
+    ]);
+    ownerSays("Write an X post for Company marketing.");
+    await expect(check(onCompany)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+    ownerSays("Write it for Company marketing on @pat.");
+    await expect(
+      check({ projectId: "p1", socialConnectionId: PERSONAL }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("drafts on each account when the owner chose several", async () => {
+    ownerSays("Post it on @acme_hq and on @pat.");
+    await expect(check(onCompany)).resolves.toBeUndefined();
+    await expect(check(onPersonal)).resolves.toBeUndefined();
+  });
+
+  it("ignores closed Projects and a question from a failed turn", async () => {
+    ownerSays("the second one");
+    await check(onPersonal).catch(() => undefined);
+    const [{ where: connections }] = db.connectionFindMany.mock.calls[0];
+    expect(connections.project).toMatchObject({
+      closedAt: null,
+      closingAt: null,
+    });
+    const [{ where: previous }] = db.turnFindFirst.mock.calls[0];
+    expect(previous.OR).toContainEqual({ status: "COMPLETED" });
+  });
+
   it("asks for the id when the owner answered but the draft names no account", async () => {
     ownerSays("the second one");
     previousTurn("", true);
