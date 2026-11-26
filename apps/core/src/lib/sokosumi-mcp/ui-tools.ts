@@ -45,6 +45,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
       "Show one Task to the person: its name, status, assignee, due date and description, with its comments and Jobs when the person opens the timeline. Takes tasks_get's arguments and returns its result. Use it when the person wants to see a Task; use tasks_get when you only need the data.",
   },
   {
+    name: "agents_show",
+    data: "agents_list",
+    ui: "agents-browse",
+    description:
+      'Show the person agents they can hire, as cards with price and rating; their Hire click asks you in the conversation to open the hire form. Takes agents_list\'s arguments and returns its result. Pass `limit: 8` and `kind: "cardano"`: the view shows up to 8 agents, and only those a person hires. Pass `workspace` when the person hires for an organization, so Hire names it. Use it when the person wants to browse or pick an agent; use agents_list when you only need the data.',
+  },
+  {
     name: "workspaces_show_social_posts",
     data: "workspaces_social_posts",
     ui: "social-posts",

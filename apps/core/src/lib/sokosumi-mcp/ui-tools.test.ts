@@ -48,6 +48,17 @@ describe("MCP_UI_TOOLS", () => {
     expect(hire?.description).toContain("capped at the price shown");
   });
 
+  it("shows agents_list's agents and tells agents how to fill the view", () => {
+    const browse = MCP_UI_TOOLS.find((tool) => tool.name === "agents_show");
+
+    expect(browse).toMatchObject({ data: "agents_list", ui: "agents-browse" });
+    expect(browse?.description).toContain("`limit: 8`");
+    expect(browse?.description).toContain('`kind: "cardano"`');
+    expect(browse?.description).toContain(
+      "Pass `workspace` when the person hires for an organization",
+    );
+  });
+
   it("shows the Social posts that need approval, with cancel and no approve (ADR 0077)", () => {
     const show = MCP_UI_TOOLS.find(
       (tool) => tool.name === "workspaces_show_social_posts",

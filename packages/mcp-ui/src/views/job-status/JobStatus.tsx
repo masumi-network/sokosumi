@@ -9,6 +9,7 @@ import {
   t,
 } from "../../shell/text.ts";
 import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import { InputRequest } from "./InputRequest.tsx";
 import { usePolling } from "./polling.ts";
 
 const JobFile = z.object({ id: z.string(), name: z.string().nullish() });
@@ -33,6 +34,10 @@ const Job = z.object({
   events: z
     .array(
       z.object({
+        id: z.string().optional(),
+        status: z.string().optional(),
+        createdAt: z.string().optional(),
+        input: z.unknown(),
         blobs: z.array(JobFile).nullish(),
         links: z.array(JobLink).nullish(),
       }),
@@ -82,6 +87,17 @@ function outputsOf(job: Job) {
   return { files: [...files.values()], links: [...links.values()] };
 }
 
+/**
+ * The input request Core answers next: the oldest unanswered
+ * `AWAITING_INPUT` event, as `jobs_input_request` picks it.
+ */
+function pendingRequestId(job: Job): string | undefined {
+  return (job.events ?? [])
+    .filter(({ status, input }) => status === "AWAITING_INPUT" && input == null)
+    .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""))[0]
+    ?.id;
+}
+
 /** Longer results start folded, so the view stays a summary in the chat. */
 const FOLDED_RESULT_CHARS = 1200;
 
@@ -96,7 +112,15 @@ export function JobStatus({
   const { app, missingTool } = context;
   const finished = FINISHED.has(job.status);
   const gone = isGone(context.refreshStatus);
-  const following = !finished && !missingTool && !gone;
+  // Polling holds while an answer to the Job's question is in flight (SOKD-423).
+  const [answering, setAnswering] = useState(false);
+  const [answeredId, setAnsweredId] = useState<string>();
+  const pendingId = pendingRequestId(job);
+  // Core may still say input_required after the answer, until the agent moves on.
+  const answered =
+    answeredId !== undefined && (pendingId ?? answeredId) === answeredId;
+  const asking = job.status === "input_required" && !gone;
+  const following = !finished && !missingTool && !gone && !answering;
   const { failed } = usePolling(context.refresh, following);
   // Say it updates only while it can: a host without server tools gives no refresh.
   const live = following && context.refresh !== undefined;
@@ -187,6 +211,27 @@ export function JobStatus({
           </>
         )}
       </dl>
+
+      {asking &&
+        (answered ? (
+          <p data-step="input-sent" className="text-sm">
+            {t("jobStatus.input.sent")}
+          </p>
+        ) : (
+          <InputRequest
+            // A new request (another event), or the call's arguments
+            // arriving after the result, loads afresh.
+            key={`${pendingId ?? "request"}${context.input ? "" : ":no-input"}`}
+            jobId={job.id}
+            context={context}
+            onPause={setAnswering}
+            onSent={(eventId) => {
+              setAnsweredId(eventId);
+              void context.refresh?.();
+            }}
+            onUpload={webUrl ? () => openJob(webUrl) : undefined}
+          />
+        ))}
 
       {job.result && <ResultText text={job.result} />}
 

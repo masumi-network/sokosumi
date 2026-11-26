@@ -10,11 +10,17 @@
  * and runs again, then sees the credits and grants nothing. Fixtures are
  * committed and deleted after. On PGlite (one backend) the two take turns.
  */
+
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import { grantCmoTesterCredits } from "./cmo-billing.service";
 
@@ -27,16 +33,31 @@ const starterToTesterSql = readFileSync(
   "utf8",
 );
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const schemas = testSchemaNames();
+const db =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_SHARED })
+    : null;
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_MAINNET })
+    : null;
 
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
+
+function networkDatabase() {
+  if (!mainnet) throw new Error("Missing integration database");
+  return mainnet;
+}
 
 function database() {
   if (!db) throw new Error("Missing integration database");
@@ -46,7 +67,7 @@ function database() {
 async function hiredCuso(): Promise<string> {
   const projectId = randomUUID();
   await database()
-    .$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${projectId}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    .$executeRaw`INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${projectId}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
   await database().sokoBot.create({
     data: {
       workspaceId: WORKSPACE,
@@ -62,21 +83,22 @@ async function hiredCuso(): Promise<string> {
 describe.skipIf(!db)("Tester credits against PostgreSQL", () => {
   beforeAll(async () => {
     if (!db) return;
-    await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Tester Org', ${ORGANIZATION}, NOW())`;
-    await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Tester Org', ${ORGANIZATION}, NOW())`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
   });
 
   afterAll(async () => {
     if (!db) return;
     // Buckets and consumptions go with their transactions.
-    await db.transaction.deleteMany({
+    await mainnet?.transaction.deleteMany({
       where: { organizationId: ORGANIZATION },
     });
     await db.sokoBot.deleteMany({ where: { workspaceId: WORKSPACE } });
-    await db.$executeRaw`DELETE FROM "project" WHERE "workspaceId" = ${WORKSPACE}::uuid`;
-    await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
-    await db.$executeRaw`DELETE FROM "organization" WHERE "id" = ${ORGANIZATION}`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("project")} WHERE "workspaceId" = ${WORKSPACE}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE "id" = ${WORKSPACE}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE "id" = ${ORGANIZATION}`;
     await db.$disconnect();
+    await mainnet?.$disconnect();
   });
 
   it("grants once when the button is clicked twice at once", async () => {
@@ -87,7 +109,7 @@ describe.skipIf(!db)("Tester credits against PostgreSQL", () => {
     const outcomes = await Promise.all([grant(), grant()]);
 
     expect(outcomes.sort()).toEqual(["granted", "paid"]);
-    const buckets = await database().creditBucket.findMany({
+    const buckets = await networkDatabase().creditBucket.findMany({
       where: { projectId },
       select: { amount: true, referenceType: true, expiresAt: true },
     });
@@ -107,7 +129,7 @@ describe.skipIf(!db)("Tester credits against PostgreSQL", () => {
       projectId?: string;
       referenceType?: "FREE" | "STRIPE_FREE";
     }) {
-      const created = await database().transaction.create({
+      const created = await networkDatabase().transaction.create({
         data: {
           amount: 10_000n * CREDIT,
           organizationId: ORGANIZATION,
@@ -130,7 +152,7 @@ describe.skipIf(!db)("Tester credits against PostgreSQL", () => {
     }
 
     async function read(id: string) {
-      return await database().creditBucket.findUniqueOrThrow({
+      return await networkDatabase().creditBucket.findUniqueOrThrow({
         where: { id },
         select: {
           referenceType: true,

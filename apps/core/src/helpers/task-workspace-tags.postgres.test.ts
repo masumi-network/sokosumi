@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { type FileLabelKind, type Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { testSchemaNames } from "@/test/split-layout";
 import { taskTagSuggestionsForViewer } from "@/types/task";
 
 import { MAX_TASK_TAGS, mapTaskTags, TASK_TAG_IDS } from "./task-tags";
@@ -11,11 +16,15 @@ import {
   setTaskWorkspaceTags,
 } from "./task-workspace-tags";
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const databaseUrl = process.env.DATABASE_URL;
 const db =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   databaseUrl?.startsWith("postgres")
-    ? createPrismaClient(databaseUrl)
+    ? createPrismaClient(databaseUrl, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
     : null;
 
 afterAll(() => db?.$disconnect());
@@ -265,9 +274,9 @@ describe.skipIf(!db)("Task tags against PostgreSQL", () => {
       );
       const count = () => tx.taskWorkspaceTag.count({ where: { taskId } });
 
-      await tx.$executeRaw`UPDATE "task" SET "workspaceId" = ${workspaceId}::uuid WHERE id = ${taskId}`;
+      await tx.$executeRaw`UPDATE ${sharedTable("task")} SET "workspaceId" = ${workspaceId}::uuid WHERE id = ${taskId}`;
       expect(await count()).toBe(2);
-      await tx.$executeRaw`UPDATE "task" SET "workspaceId" = ${other.workspaceId}::uuid WHERE id = ${taskId}`;
+      await tx.$executeRaw`UPDATE ${sharedTable("task")} SET "workspaceId" = ${other.workspaceId}::uuid WHERE id = ${taskId}`;
       expect(await count()).toBe(0);
     });
   });
