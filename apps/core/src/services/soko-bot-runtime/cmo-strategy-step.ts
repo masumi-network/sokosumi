@@ -143,6 +143,15 @@ export function cmoStrategyChangeBrief(businessName: string, change: string) {
   ].join("\n");
 }
 
+/** What Cuso tells the owner after a repair: a new strategy keeps its first line. */
+export function cmoOwnerLine(
+  part: "all" | "patch",
+  first: string,
+  repaired: string,
+): string {
+  return part === "all" ? first || repaired : repaired || first;
+}
+
 /** The repair's message: every problem at once, as Core's checks name them. */
 export function cmoStrategyRepairPrompt(problems: readonly string[]): string {
   return [
@@ -440,7 +449,9 @@ async function runStep(context: StepContext): Promise<StepEnd> {
           }
         : { role: "user", content: repairPrompt },
     ]);
-    toOwner = repair.toOwner || toOwner;
+    // A new strategy's line says what it does first; a repair's says what
+    // it fixed, which is Core's business. A change's line is the change.
+    toOwner = cmoOwnerLine(part, toOwner, repair.toOwner);
     // A change saves its fix as one more patch onto the version it saved.
     // A new strategy saves whole, so a first answer that never saved lands.
     const fix =
