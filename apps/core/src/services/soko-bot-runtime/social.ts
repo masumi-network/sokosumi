@@ -675,7 +675,8 @@ export async function executeSocialTool(
           const post = await (async () => {
             switch (input.capability) {
               case "create_social_post": {
-                const params =
+                // The account question was settled before the transaction.
+                const { accountQuestionId: _answered, ...params } =
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.parse(
                     input.input,
                   );

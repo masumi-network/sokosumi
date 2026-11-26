@@ -4,7 +4,9 @@ const db = vi.hoisted(() => ({
   connectionFindFirst: vi.fn(),
   connectionFindMany: vi.fn(),
   turnFindUnique: vi.fn(),
-  turnFindMany: vi.fn(),
+  questionCreate: vi.fn(),
+  questionFindUnique: vi.fn(),
+  questionUpdateMany: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -13,9 +15,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: db.connectionFindFirst,
       findMany: db.connectionFindMany,
     },
-    sokoBotTurn: {
-      findUniqueOrThrow: db.turnFindUnique,
-      findMany: db.turnFindMany,
+    sokoBotTurn: { findUniqueOrThrow: db.turnFindUnique },
+    sokoBotAccountQuestion: {
+      create: db.questionCreate,
+      findUnique: db.questionFindUnique,
+      updateMany: db.questionUpdateMany,
     },
   },
 }));
@@ -28,6 +32,8 @@ import {
 
 const COMPANY = "01960001-0001-7001-8001-0000000000a1";
 const PERSONAL = "01960001-0001-7001-8001-0000000000a2";
+const QUESTION = "01960001-0001-7001-8001-0000000000f1";
+const ASKED_AT = new Date("2026-11-26T09:00:00Z");
 const NOW = new Date("2026-11-26T10:00:00Z");
 const candidates = [
   {
@@ -68,68 +74,69 @@ function ownerSays(message: string) {
   });
 }
 
-/** Earlier turns in this chat, newest first. */
-function earlierTurns(
-  ...turns: { answer?: string; refusal?: string; posted?: boolean }[]
-) {
-  db.turnFindMany.mockResolvedValue(
-    turns.map((earlier) => ({
-      status: "COMPLETED",
-      finalAnswer: earlier.answer ?? "",
-      toolCalls: [
-        ...(earlier.posted ? [{ status: "COMPLETED", errorDetail: null }] : []),
-        ...(earlier.refusal
-          ? [{ status: "FAILED", errorDetail: earlier.refusal }]
-          : []),
-      ],
-    })),
-  );
+function openQuestion(overrides: Record<string, unknown> = {}) {
+  db.questionFindUnique.mockResolvedValue({
+    id: QUESTION,
+    sokoBotId: "bot",
+    requestedByUserId: "owner",
+    turnId: "turn-asked",
+    createdAt: ASKED_AT,
+    optionIds: [COMPANY, PERSONAL],
+    answeredTurnId: null,
+    ...overrides,
+  });
 }
 
-const check = (params: typeof onCompany | { projectId: string }) =>
+const check = (params: Parameters<typeof requireChosenSocialDestination>[1]) =>
   requireChosenSocialDestination(turn(), params);
-
-/** What Core said the first time, as recorded on the failed tool call. */
-async function firstRefusal(): Promise<string> {
-  ownerSays("Write an X post about our launch.");
-  return check(onCompany).then(
-    () => "",
-    (error: Error) => error.message,
-  );
-}
+const answer = (socialConnectionId: string, projectId: string) =>
+  check({ projectId, socialConnectionId, accountQuestionId: QUESTION });
 
 beforeEach(() => {
   vi.clearAllMocks();
   db.connectionFindFirst.mockResolvedValue({ provider: "x" });
   db.connectionFindMany.mockResolvedValue(candidates);
-  db.turnFindMany.mockResolvedValue([]);
+  db.questionCreate.mockResolvedValue({ id: QUESTION });
+  db.questionUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 describe("requireChosenSocialDestination", () => {
-  it("refuses a first draft when two accounts fit, listing them in order", async () => {
-    const refusal = await firstRefusal();
-    expect(refusal).toMatch(new RegExp(`^${ASK_WHICH_ACCOUNT}`));
-    expect(refusal).toMatch(/@acme_hq .*@pat /);
+  it("records a question with its ordered options and refuses the first draft", async () => {
+    ownerSays("Write an X post about our launch.");
+    const refusal = check(onCompany);
+    await expect(refusal).rejects.toThrow(ASK_WHICH_ACCOUNT);
+    await expect(refusal).rejects.toThrow(
+      new RegExp(`Account question ${QUESTION}.*@acme_hq .*@pat `),
+    );
+    expect(db.questionCreate.mock.calls[0]?.[0].data).toMatchObject({
+      sokoBotId: "bot",
+      turnId: "turn-now",
+      requestedByUserId: "owner",
+      provider: "x",
+      optionIds: [COMPANY, PERSONAL],
+    });
   });
 
-  it("goes ahead on the account the owner named by @handle or id, and only there", async () => {
-    ownerSays("Post this on @pat: shipping today.");
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-    await expect(check(onCompany)).rejects.toThrow(/owner named @pat /);
-    ownerSays(`Use ${COMPANY}.`);
-    await expect(check(onCompany)).resolves.toBeUndefined();
-    ownerSays("Post it on @acme_hq and on @pat.");
-    await expect(check(onCompany)).resolves.toBeUndefined();
-    await expect(check(onPersonal)).resolves.toBeUndefined();
+  it("skips the question when the request names the account or its only-account Project", async () => {
+    for (const message of [
+      "Post this on @pat: shipping today.",
+      `Use ${PERSONAL}.`,
+      "Draft it for Founder notes.",
+    ]) {
+      ownerSays(message);
+      await expect(check(onPersonal)).resolves.toBeUndefined();
+      await expect(check(onCompany)).rejects.toThrow(/owner named @pat /);
+    }
+    expect(db.questionCreate).not.toHaveBeenCalled();
   });
 
-  it("reads no account from ordinary words, names or quoted copy", async () => {
+  it("reads no destination from ordinary words or quoted copy", async () => {
     for (const message of [
       "Draft an X post about our latest patch.",
-      "Write about pat and Founder notes.",
-      'Post this: "Big thanks to @pat for the help!"',
+      "Please hold off until we have all the dates",
+      "Write about pat.",
       "Post this: 'Big thanks to @pat for the help!'",
-      "Post this:\n```\nShipped with @pat today\n```",
+      'Post this: "Big thanks to @pat for the help!"',
       "Post this:\n> Shipped with @pat today",
     ]) {
       ownerSays(message);
@@ -137,77 +144,73 @@ describe("requireChosenSocialDestination", () => {
     }
   });
 
-  it("after Core's question, lets through the option the bot picked from it", async () => {
-    const refusal = await firstRefusal();
-    earlierTurns({ answer: "Which one?", refusal });
-    // What the answer means is the model's call; Core reads no words.
-    for (const message of ["the second one", "my personal one"]) {
-      ownerSays(message);
-      await expect(check(onPersonal)).resolves.toBeUndefined();
+  it("still asks when the named Project holds two of the accounts", async () => {
+    db.connectionFindMany.mockResolvedValue([
+      candidates[0],
+      { ...candidates[1], project: candidates[0]?.project },
+    ]);
+    ownerSays("Write an X post for Company marketing.");
+    await expect(check(onCompany)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+  });
+
+  it("accepts the answer on a later owner turn, only among the options", async () => {
+    openQuestion();
+    db.turnFindUnique.mockResolvedValue({ createdAt: NOW });
+    await expect(answer(PERSONAL, "p2")).resolves.toBeUndefined();
+    expect(db.questionUpdateMany.mock.calls[0]?.[0].data).toEqual({
+      answeredTurnId: "turn-now",
+    });
+    // The answering turn may draft on several options.
+    openQuestion({ answeredTurnId: "turn-now" });
+    await expect(answer(COMPANY, "p1")).resolves.toBeUndefined();
+    openQuestion({ optionIds: [COMPANY] });
+    await expect(answer(PERSONAL, "p2")).rejects.toThrow(
+      /option the owner picked/,
+    );
+  });
+
+  it("refuses an answer that is not open on this turn", async () => {
+    db.turnFindUnique.mockResolvedValue({ createdAt: NOW });
+    for (const closed of [
+      { turnId: "turn-now" },
+      { createdAt: NOW },
+      { requestedByUserId: "someone-else" },
+      { sokoBotId: "another-bot" },
+      { answeredTurnId: "turn-earlier" },
+      { createdAt: new Date(NOW.getTime() - 25 * 60 * 60 * 1000) },
+    ]) {
+      openQuestion(closed);
+      await expect(answer(PERSONAL, "p2")).rejects.toThrow(/not open/);
     }
+    db.questionFindUnique.mockResolvedValue(null);
+    await expect(answer(PERSONAL, "p2")).rejects.toThrow(/not open/);
   });
 
-  it("counts a question the bot asked on its own when it listed the accounts", async () => {
-    earlierTurns({ answer: "Which account: @acme_hq or @pat?" });
-    ownerSays("the first");
-    await expect(check(onCompany)).resolves.toBeUndefined();
-    // A reply naming one account is no question.
-    earlierTurns({ answer: "Drafting on @pat now." });
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+  it("lets one turn claim an answer when two race", async () => {
+    openQuestion();
+    db.turnFindUnique.mockResolvedValue({ createdAt: NOW });
+    db.questionUpdateMany.mockResolvedValue({ count: 0 });
+    await expect(answer(PERSONAL, "p2")).rejects.toThrow(/just answered/);
   });
 
-  it("only options that were shown can be picked", async () => {
+  it("shows at most ten options, and names the rest by count", async () => {
     const many = Array.from({ length: 12 }, (_, index) => ({
-      id: `01960001-0001-7001-8001-0000000003${String(index).padStart(2, "0")}`,
+      id: `01960001-0001-7001-8001-0000000004${String(index).padStart(2, "0")}`,
       externalHandle: `brand_${index}`,
       project: { id: `p${index}`, name: `Brand ${index}` },
     }));
     db.connectionFindMany.mockResolvedValue(many);
     ownerSays("Write an X post.");
-    const refusal = await check({
-      projectId: "p0",
-      socialConnectionId: many[0]?.id ?? "",
-    }).then(
-      () => "",
-      (error: Error) => error.message,
+    await expect(
+      check({ projectId: "p0", socialConnectionId: many[0]?.id ?? "" }),
+    ).rejects.toThrow(/2 more are connected/);
+    expect(db.questionCreate.mock.calls[0]?.[0].data.optionIds).toHaveLength(
+      10,
     );
-    expect(refusal).toMatch(/and 2 more/);
-    earlierTurns({ refusal });
-    ownerSays("the last one");
-    await expect(
-      check({ projectId: "p9", socialConnectionId: many[9]?.id ?? "" }),
-    ).resolves.toBeUndefined();
-    await expect(
-      check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
-    ).rejects.toThrow(/option the owner picked/);
-    // Named exactly, an account beyond the ten still goes.
     ownerSays("Post it on @brand_11.");
     await expect(
       check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
     ).resolves.toBeUndefined();
-  });
-
-  it("keeps the question open over a few turns until a post is saved", async () => {
-    const refusal = await firstRefusal();
-    ownerSays("the second one");
-    earlierTurns({ answer: "Sure, take your time." }, { refusal });
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-    earlierTurns({ answer: "Drafted.", posted: true }, { refusal });
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
-  });
-
-  it("looks for the question in this chat and the last day", async () => {
-    await firstRefusal();
-    const [{ where }] = db.turnFindMany.mock.calls[0];
-    expect(where.destinationRoomId).toBeNull();
-    expect(where.createdAt.lt).toEqual(NOW);
-    expect(where.createdAt.gte).toEqual(new Date(NOW.getTime() - 86_400_000));
-    const [{ where: connections }] = db.connectionFindMany.mock.calls[0];
-    expect(connections.project).toMatchObject({
-      closedAt: null,
-      closingAt: null,
-    });
-    expect(db.connectionFindMany.mock.calls[0]?.[0].take).toBeUndefined();
   });
 
   it("asks nothing with one fitting account, on a turn the owner did not type, or for Cuso", async () => {
@@ -221,5 +224,6 @@ describe("requireChosenSocialDestination", () => {
       await expect(
         requireChosenSocialDestination(other, onCompany),
       ).resolves.toBeUndefined();
+    expect(db.questionCreate).not.toHaveBeenCalled();
   });
 });

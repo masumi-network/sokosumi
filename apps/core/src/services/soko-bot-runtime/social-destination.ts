@@ -7,19 +7,19 @@ import {
 
 /**
  * An ambiguous destination is asked, not guessed. When the owner asks for a
- * post and more than one connected account could take it, Core lets a draft
- * through only on an account the owner named exactly (its @handle or id, in
- * their own words, not in quoted copy), or one the bot picked from the
- * options of a question that was actually shown. Core reads no other words:
- * which option an answer means is the model's call, made explicit as the
- * socialConnectionId it passes.
+ * post and more than one connected account could take it, a draft goes
+ * through on an account the owner named exactly in their request (its
+ * @handle or id, or a Project holding only that account, outside quoted
+ * copy), or on an answer to a recorded account question: Core stores the
+ * question with its options when it refuses, and a later owner chat turn
+ * passes its id with the option the owner picked. What the owner's words
+ * mean is the model's call; Core checks only ids.
  */
 
-/** Starts the refusal, which records the options it showed, in order. */
+/** Starts the refusal that records a question. */
 export const ASK_WHICH_ACCOUNT = "Several accounts could take this post";
-/** A question stays open this long, over this many turns, until a post is saved. */
-const ANSWER_WINDOW_MS = 24 * 60 * 60 * 1_000;
-const OPEN_QUESTION_TURNS = 5;
+/** An unanswered question stays open this long. */
+const OPEN_MS = 24 * 60 * 60 * 1_000;
 const SHOWN = 10;
 
 interface Candidate {
@@ -30,6 +30,8 @@ interface Candidate {
 
 const handleOf = (candidate: Candidate) =>
   candidate.externalHandle?.replace(/^@/, "") ?? null;
+
+const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** The owner's own words: quoted or fenced text is the post, never where it goes. */
 export function withoutQuotedCopy(message: string): string {
@@ -42,29 +44,36 @@ export function withoutQuotedCopy(message: string): string {
     .join("\n");
 }
 
-/** Where the text names this account exactly (@handle or id), or -1. */
-function namedAt(text: string, candidate: Candidate): number {
-  const lower = text.toLowerCase();
-  const handle = handleOf(candidate)?.toLowerCase();
-  const places = [lower.indexOf(candidate.id.toLowerCase())];
-  if (handle) {
-    const pattern = new RegExp(
-      `@${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`,
-      "iu",
-    );
-    places.push(lower.search(pattern));
-  }
-  const found = places.filter((index) => index >= 0);
-  return found.length ? Math.min(...found) : -1;
+/** The exact name, never part of a longer one. */
+function contains(text: string, name: string): boolean {
+  return new RegExp(
+    `(^|[^\\p{L}\\p{N}_@])${escape(name)}(?![\\p{L}\\p{N}_])`,
+    "iu",
+  ).test(text);
 }
 
-/** The accounts this text names exactly, in the order it names them. */
-function namedIn(text: string, candidates: readonly Candidate[]): Candidate[] {
-  return candidates
-    .map((candidate) => ({ candidate, at: namedAt(text, candidate) }))
-    .filter((entry) => entry.at >= 0)
-    .sort((a, b) => a.at - b.at)
-    .map((entry) => entry.candidate);
+/**
+ * The accounts the request names exactly: an @handle or id, or a Project
+ * name when that Project holds only one of the fitting accounts.
+ */
+function namedIn(
+  message: string,
+  candidates: readonly Candidate[],
+): Candidate[] {
+  const text = withoutQuotedCopy(message);
+  return candidates.filter((candidate) => {
+    const handle = handleOf(candidate);
+    if (handle && contains(text, `@${handle}`)) return true;
+    if (text.includes(candidate.id)) return true;
+    const sameProject = candidates.filter(
+      (other) => other.project.id === candidate.project.id,
+    );
+    return (
+      sameProject.length === 1 &&
+      candidate.project.name.trim().length > 0 &&
+      contains(text, candidate.project.name.trim())
+    );
+  });
 }
 
 function label(candidate: Candidate): string {
@@ -73,11 +82,7 @@ function label(candidate: Candidate): string {
 }
 
 function labels(candidates: readonly Candidate[]): string {
-  const shown = candidates.slice(0, SHOWN).map(label).join("; ");
-  const more = candidates.length - SHOWN;
-  return more > 0
-    ? `${shown}; and ${more} more (list_project_social_accounts)`
-    : shown;
+  return candidates.map(label).join("; ");
 }
 
 /** The owner's own chat turn: the only turn that asks the owner anything. */
@@ -90,71 +95,69 @@ function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
 }
 
 /**
- * The options of the account question still open in this chat, in the order
- * they were shown: Core's refusal (its record), or a reply of the bot that
- * listed two or more accounts by @handle. A post saved since closes it.
+ * Accepts the pick only for an open question of this bot and owner, asked
+ * before this turn (so the owner has written since), whose options hold it.
+ * The turn that answers may draft on several of its options.
  */
-async function openQuestion(
+async function acceptAnswer(
   authorized: AuthorizedSokoBotRuntime,
-  current: { createdAt: Date; destinationRoomId: string | null },
-  candidates: readonly Candidate[],
-): Promise<Candidate[] | null> {
-  const recent = await prisma.sokoBotTurn.findMany({
+  questionId: string,
+  pick: string | null | undefined,
+): Promise<void> {
+  const [question, current] = await Promise.all([
+    prisma.sokoBotAccountQuestion.findUnique({ where: { id: questionId } }),
+    prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: authorized.turn.id },
+      select: { createdAt: true },
+    }),
+  ]);
+  const open =
+    question !== null &&
+    question.sokoBotId === authorized.turn.sokoBotId &&
+    question.requestedByUserId === authorized.turn.requestedByUserId &&
+    question.turnId !== authorized.turn.id &&
+    question.createdAt < current.createdAt &&
+    current.createdAt.getTime() - question.createdAt.getTime() < OPEN_MS &&
+    (question.answeredTurnId === null ||
+      question.answeredTurnId === authorized.turn.id);
+  if (!open)
+    throw new SokoBotRefusedUnsentError(
+      "That account question is not open on this turn: it was asked on this same turn, by someone else, more than a day ago, or already answered. Create the post without accountQuestionId to ask again.",
+    );
+  if (!pick || !question.optionIds.includes(pick))
+    throw new SokoBotRefusedUnsentError(
+      `Pass the socialConnectionId of the option the owner picked: one of ${question.optionIds.join(", ")}.`,
+    );
+  const claimed = await prisma.sokoBotAccountQuestion.updateMany({
     where: {
-      sokoBotId: authorized.turn.sokoBotId,
-      requestedByUserId: authorized.turn.requestedByUserId,
-      destinationRoomId: current.destinationRoomId,
-      source: "CHAT",
-      id: { not: authorized.turn.id },
-      createdAt: {
-        lt: current.createdAt,
-        gte: new Date(current.createdAt.getTime() - ANSWER_WINDOW_MS),
-      },
+      id: question.id,
+      OR: [{ answeredTurnId: null }, { answeredTurnId: authorized.turn.id }],
     },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: OPEN_QUESTION_TURNS,
-    select: {
-      status: true,
-      finalAnswer: true,
-      toolCalls: {
-        where: {
-          capability: "create_social_post",
-          OR: [
-            { status: "COMPLETED" },
-            {
-              status: "FAILED",
-              errorDetail: { startsWith: ASK_WHICH_ACCOUNT },
-            },
-          ],
-        },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        select: { status: true, errorDetail: true },
-      },
-    },
+    data: { answeredTurnId: authorized.turn.id },
   });
-  for (const previous of recent) {
-    if (previous.toolCalls.some((call) => call.status === "COMPLETED"))
-      return null;
-    const refusal = previous.toolCalls.find((call) => call.errorDetail);
-    if (refusal?.errorDetail) {
-      const shown = namedIn(refusal.errorDetail, candidates);
-      if (shown.length > 1) return shown;
-    }
-    if (previous.status === "COMPLETED") {
-      const listed = namedIn(previous.finalAnswer ?? "", candidates);
-      if (listed.length > 1) return listed;
-    }
-  }
-  return null;
+  if (claimed.count === 0)
+    throw new SokoBotRefusedUnsentError(
+      "That account question was just answered on another turn.",
+    );
 }
 
 export async function requireChosenSocialDestination(
   authorized: AuthorizedSokoBotRuntime,
-  params: { projectId: string; socialConnectionId?: string | null },
+  params: {
+    projectId: string;
+    socialConnectionId?: string | null;
+    accountQuestionId?: string;
+  },
 ): Promise<void> {
   if (!ownersOwnChat(authorized)) return;
   // Cuso posts for his one Project, on the accounts its plan names.
   if (getSokoBotVersion(authorized.turn.versionId).profile === "cmo") return;
+  if (params.accountQuestionId)
+    return acceptAnswer(
+      authorized,
+      params.accountQuestionId,
+      params.socialConnectionId,
+    );
   const picked = params.socialConnectionId
     ? await prisma.projectSocialConnection.findFirst({
         where: { id: params.socialConnectionId, projectId: params.projectId },
@@ -185,26 +188,30 @@ export async function requireChosenSocialDestination(
   if (candidates.length < 2) return;
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
-    select: { userMessage: true, createdAt: true, destinationRoomId: true },
+    select: { userMessage: true, destinationRoomId: true },
   });
-  const pick = candidates.find(
-    (candidate) => candidate.id === params.socialConnectionId,
-  );
-  const named = namedIn(withoutQuotedCopy(turn.userMessage), candidates);
+  const named = namedIn(turn.userMessage, candidates);
   if (named.length > 0) {
-    if (pick && named.includes(pick)) return;
+    if (named.some((candidate) => candidate.id === params.socialConnectionId))
+      return;
     throw new SokoBotRefusedUnsentError(
       `The owner named ${labels(named)}. Create the post there, with that socialConnectionId and projectId.`,
     );
   }
-  const options = await openQuestion(authorized, turn, candidates);
-  if (options) {
-    if (pick && options.includes(pick)) return;
-    throw new SokoBotRefusedUnsentError(
-      `Pass the socialConnectionId and projectId of the option the owner picked, once they have picked one: ${labels(options)}. Until then, draft nothing.`,
-    );
-  }
+  const options = candidates.slice(0, SHOWN);
+  const question = await prisma.sokoBotAccountQuestion.create({
+    data: {
+      sokoBotId: authorized.turn.sokoBotId,
+      turnId: authorized.turn.id,
+      requestedByUserId: authorized.turn.requestedByUserId,
+      destinationRoomId: turn.destinationRoomId,
+      provider,
+      optionIds: options.map((candidate) => candidate.id),
+    },
+    select: { id: true },
+  });
+  const more = candidates.length - options.length;
   throw new SokoBotRefusedUnsentError(
-    `${ASK_WHICH_ACCOUNT}, and the owner has not named one: ${labels(candidates)}. Ask the owner once which one, listing them by @handle in this order, and draft nothing until they answer. Then create the post with the socialConnectionId and projectId of the one they picked.`,
+    `${ASK_WHICH_ACCOUNT}, and the owner has not named one. Account question ${question.id}, options in order: ${labels(options)}${more > 0 ? `; ${more} more are connected (the owner can name one by @handle)` : ""}. Ask the owner once which one, listing these, and draft nothing on this turn. After they answer, create the post with accountQuestionId ${question.id} and the socialConnectionId and projectId of the option they picked.`,
   );
 }
