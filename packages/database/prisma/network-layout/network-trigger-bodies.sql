@@ -50,10 +50,13 @@
 -- the bodies of ticket 19 part 2, which delete and upsert the History row by
 -- (kind, entityId, network) on the keys ticket 09 adds. New keys alone do not
 -- help, because these bodies still delete by Job id and upsert on the old
--- key. Also,
--- `sync_history_from_transaction` calls `shared.upsert_history_task`, which
--- still waits for part 2: a Transaction that a Task event points at fails
--- there on the split database.
+-- key.
+--
+-- `sync_history_from_transaction` finds the Task events of a Transaction by
+-- its id alone, in both Networks' copies. An id that exists on both Networks
+-- so refreshes a Task's History row once more than needed; the row is computed
+-- again from its sources (`shared.upsert_history_task`), so nothing is wrong
+-- after it.
 
 DO $guard$
 DECLARE

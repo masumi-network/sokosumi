@@ -9,6 +9,11 @@
 -- its body. Image Studio is Mainnet only and its tables have no `network`
 -- column, so the image History functions (`history_image_amount` and its
 -- callers) name `mainnet`.
+-- A Task's History row has no Network, and its amount counts Mainnet only:
+-- `history_task_amount` sums the `mainnet` Transactions of the Task's charged
+-- events and leaves out every event whose `network` is `preprod`. An event
+-- with a transaction and no `network` is from before the Networks were split,
+-- so it is Mainnet's.
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
@@ -84,6 +89,7 @@ BEGIN
       ('history_bucket_slug_from_metadata(jsonb)', 'f75544f0226a41435b455199e227c325'),
       ('history_image_amount(uuid)', '059422996e8b87360346cba91ca9acfc'),
       ('history_slugify(text)', '14f4c248f71f03bcf140f7c6625205a1'),
+      ('history_task_amount(text)', '9a2b49e0572932a3cca251bd9578db25'),
       ('invalidate_calendar_for_contact_change()', '58b978046028054c43c59a0efe3d68a2'),
       ('invalidate_calendar_for_marketing_strategy_change()', '2ce1e533a94eac55bc51b35dc4f2101d'),
       ('invalidate_calendar_for_marketing_strategy_file_change()', '9f10c01ae614215169be6cb1b54ecd68'),
@@ -102,12 +108,15 @@ BEGIN
       ('social_post_quote_before_delete()', '5c033f342f04a15fd5a5f434745fcf28'),
       ('sync_history_from_project_image_asset()', '6e11ad6fccf619d83759a52d014beb5d'),
       ('sync_history_from_project_image_job_charge()', '7da342df7a6d5eb53167f83d383bb23a'),
+      ('sync_history_from_task()', '26c084aef7d754d5ab83b9a69425103a'),
+      ('sync_history_from_task_event()', '5bfe3f2659b2a6d2487d15fd61f05e61'),
       ('task_alias_old_number()', 'ef2b3f591be26eb257c3aa14b06dad68'),
       ('task_assign_number()', 'c7ed9b511a18321323c9fd36f80fdb75'),
       ('task_subtask_follow_parent()', '302228a69d5f1ab1d421c913d722976a'),
       ('task_subtask_guard()', '20887f6150174f6d679c7f8323693869'),
       ('task_tag_revision()', '584d8ba0c0719e4fdbf87f6cfad055ce'),
-      ('upsert_history_image_asset(uuid)', 'cdcd9f77622953f2f069399c7b75998d')
+      ('upsert_history_image_asset(uuid)', 'cdcd9f77622953f2f069399c7b75998d'),
+      ('upsert_history_task(text)', '0b33ec27d24e9a7a4780524b6cf03734')
     ) AS listed(signature, digest)
     LEFT JOIN pg_proc p ON p.oid = to_regprocedure('shared.' || listed.signature)
     LEFT JOIN pg_language l ON l.oid = p.prolang
@@ -805,6 +814,19 @@ AS $function$
   );
 $function$;
 
+CREATE OR REPLACE FUNCTION shared.history_task_amount(task_id text)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT COALESCE(SUM(t."amount" * -1), 0)::BIGINT
+  FROM shared."taskEvent" AS e
+  JOIN mainnet."Transaction" AS t ON t."id" = e."transactionId"
+  WHERE e."taskId" = task_id
+    AND t."amount" < 0
+    AND e."network" IS DISTINCT FROM 'preprod';
+$function$;
+
 CREATE OR REPLACE FUNCTION shared.invalidate_calendar_for_contact_change()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1414,6 +1436,44 @@ BEGIN
 END;
 $function$;
 
+CREATE OR REPLACE FUNCTION shared.sync_history_from_task()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'TASK'::shared."HistoryKind"
+      AND "entityId" = OLD."id";
+    RETURN OLD;
+  END IF;
+
+  PERFORM shared.upsert_history_task(NEW."id");
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.sync_history_from_task_event()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    PERFORM shared.upsert_history_task(OLD."taskId");
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    PERFORM shared.upsert_history_task(NEW."taskId");
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION shared.task_alias_old_number()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1640,6 +1700,82 @@ BEGIN
     NULL,
     NULL,
     NULL
+  )
+  ON CONFLICT ("kind", "entityId") DO UPDATE
+  SET
+    "userId" = EXCLUDED."userId",
+    "workspaceId" = EXCLUDED."workspaceId",
+    "organizationId" = EXCLUDED."organizationId",
+    "title" = EXCLUDED."title",
+    "description" = EXCLUDED."description",
+    "status" = EXCLUDED."status",
+    "sortAt" = EXCLUDED."sortAt",
+    "amount" = EXCLUDED."amount",
+    "projectId" = EXCLUDED."projectId",
+    "agentId" = EXCLUDED."agentId",
+    "coworkerId" = EXCLUDED."coworkerId",
+    "sokoBotId" = EXCLUDED."sokoBotId",
+    "bucketSlug" = EXCLUDED."bucketSlug",
+    "archivedAt" = EXCLUDED."archivedAt";
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.upsert_history_task(task_id text)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  source_task shared."task"%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO source_task
+  FROM shared."task"
+  WHERE "id" = task_id;
+
+  IF NOT FOUND THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'TASK'::shared."HistoryKind"
+      AND "entityId" = task_id;
+    RETURN;
+  END IF;
+
+  INSERT INTO shared."history" (
+    "id",
+    "kind",
+    "entityId",
+    "userId",
+    "workspaceId",
+    "organizationId",
+    "title",
+    "description",
+    "status",
+    "sortAt",
+    "amount",
+    "projectId",
+    "agentId",
+    "coworkerId",
+    "sokoBotId",
+    "bucketSlug",
+    "archivedAt"
+  )
+  VALUES (
+    gen_random_uuid()::TEXT,
+    'TASK'::shared."HistoryKind",
+    source_task."id",
+    source_task."ownerId",
+    source_task."workspaceId",
+    source_task."organizationId",
+    source_task."name",
+    source_task."description",
+    source_task."status"::TEXT,
+    source_task."createdAt",
+    shared.history_task_amount(source_task."id"),
+    source_task."projectId",
+    NULL,
+    source_task."assigneeId",
+    source_task."assigneeSokoBotId",
+    NULL,
+    source_task."archivedAt"
   )
   ON CONFLICT ("kind", "entityId") DO UPDATE
   SET

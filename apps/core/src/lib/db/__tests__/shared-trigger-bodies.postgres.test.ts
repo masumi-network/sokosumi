@@ -159,5 +159,86 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
         null,
       ]);
     });
+
+    // A Preprod payment does not count towards a Task's amount. Each
+    // Transaction id also exists on the other Network, with another amount.
+    it("counts only Mainnet's Transactions in a Task's History amount", async () => {
+      const [task, plain, tagged, preprod] = [
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+      ];
+      const history = `SELECT title, amount::int, network FROM shared.history
+        WHERE kind = 'TASK' AND "entityId" = $1`;
+
+      const seen = await firing(
+        {
+          "shared.task": ["history_task_sync"],
+          'shared."taskEvent"': ["history_task_event_sync"],
+          'mainnet."Transaction"': ["history_transaction_sync"],
+          'preprod."Transaction"': ["history_transaction_sync"],
+        },
+        async (db) => {
+          for (const [schema, id, cents] of [
+            ["mainnet", plain, 100],
+            ["mainnet", tagged, 200],
+            ["mainnet", preprod, 4000],
+            ["preprod", plain, 999],
+            ["preprod", preprod, 50],
+          ]) {
+            await db.query(
+              `INSERT INTO ${schema}."Transaction" (id, "updatedAt", amount)
+               VALUES ($1, now(), -$2::bigint)`,
+              [id, cents],
+            );
+          }
+        },
+        async (db) => {
+          const rows: unknown[] = [];
+          const after = async (sql: string, values: unknown[]) => {
+            await db.query(sql, values);
+            rows.push((await db.query(history, [task])).rows[0] ?? null);
+          };
+          const event = `INSERT INTO shared."taskEvent" (id, "updatedAt", "taskId",
+              "transactionId", network)
+            VALUES (gen_random_uuid()::text, now(), $1, $2, $3)`;
+          await after(
+            `INSERT INTO shared.task (id, "updatedAt", name, "workspaceId")
+             VALUES ($1, now(), 'A Task', gen_random_uuid())`,
+            [task],
+          );
+          // From before the Networks were split: no Network, so Mainnet's.
+          await after(event, [task, plain, null]);
+          await after(event, [task, tagged, "mainnet"]);
+          await after(event, [task, preprod, "preprod"]);
+          await after(
+            `UPDATE mainnet."Transaction" SET amount = -150 WHERE id = $1`,
+            [plain],
+          );
+          await after(
+            `UPDATE preprod."Transaction" SET amount = -60 WHERE id = $1`,
+            [preprod],
+          );
+          await after(`DELETE FROM shared.task WHERE id = $1`, [task]);
+          return rows;
+        },
+      );
+
+      const row = (amount: number) => ({
+        title: "A Task",
+        amount,
+        network: null,
+      });
+      expect(seen).toEqual([
+        row(0),
+        row(100),
+        row(300),
+        row(300),
+        row(350),
+        row(350),
+        null,
+      ]);
+    });
   });
 });

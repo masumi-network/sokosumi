@@ -193,11 +193,7 @@ DECLARE
   -- Functions the file does not replace yet.
   waiting CONSTANT text[] := ARRAY[
     -- Ticket 19 part 2: they read the Network named on the row (tickets 07 to 09).
-    'shared.scope_notification_to_workspace_membership()',
-    'shared.sync_history_from_task()',
-    'shared.sync_history_from_task_event()',
-    'shared.upsert_history_task(text)',
-    'shared.history_task_amount(text)'
+    'shared.scope_notification_to_workspace_membership()'
   ];
   gone text;
   fn record;
