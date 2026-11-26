@@ -168,6 +168,12 @@ export const BOARD = {
     4,
   ),
   team: boardResult(TEAM_TASKS, 1586),
+  /** One canceled Task, from a call that filters by status (SOKD-497). */
+  canceled: boardResult(
+    BOARD_TASKS.filter(({ status }) => status === "CANCELED"),
+    1,
+  ),
+  canceledInput: { workspace: "acme", status: ["CANCELED"] },
   empty: boardResult([], 0),
 };
 
@@ -242,6 +248,33 @@ export const HIRE = {
 };
 
 const hireSchema = data(HIRE.schema, { _meta: sokosumi });
+/** An agent that names its fields only by their keys (Deepfake Detector). */
+const unlabelledSchema = data(
+  {
+    input_data: [
+      {
+        id: "file",
+        type: "file",
+        name: "file",
+        data: { description: "Image or Video only (max 5MB)" },
+      },
+      {
+        id: "mediaType",
+        type: "option",
+        name: "mediaType",
+        data: {
+          values: ["image", "video"],
+          description: "Select either Image or Video",
+        },
+        validations: [
+          { validation: "min", value: 1 },
+          { validation: "max", value: 1 },
+        ],
+      },
+    ],
+  },
+  { _meta: sokosumi },
+);
 const hireCalls = {
   agents_get: data(HIRE.agent),
   workspaces_credits: data(HIRE.balance),
@@ -843,6 +876,7 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       result: BOARD.team,
       allWidths: true,
     },
+    filtered: { input: BOARD.canceledInput, result: BOARD.canceled },
     loading: { input: BOARD.input },
     empty: { input: BOARD.input, result: BOARD.empty },
     error: {
@@ -855,6 +889,11 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
   },
   "agents-hire": {
     default: { input: HIRE.input, result: hireSchema, calls: hireCalls },
+    unlabelled: {
+      input: HIRE.input,
+      result: unlabelledSchema,
+      calls: hireCalls,
+    },
     invalid: {
       step: "form",
       input: HIRE.input,

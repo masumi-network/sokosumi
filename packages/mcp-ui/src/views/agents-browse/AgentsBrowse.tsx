@@ -93,6 +93,9 @@ export function AgentsBrowse({
         role: "user",
         content: [{ type: "text", text }],
       });
+      // A host may answer before the person allows the message (Claude.ai
+      // does), so "sent" never locks Hire: after a decline it works again
+      // (SOKD-497).
       if (!result.isError) state = "sent";
     } catch {}
     busy.current = false;
@@ -224,7 +227,6 @@ function AgentCard({
     ratings?.average != null && ratings.total > 0
       ? formatNumber(Math.round(ratings.average * 10) / 10, locale)
       : undefined;
-  const sent = sending === "sent";
 
   return (
     <li
@@ -267,13 +269,15 @@ function AgentCard({
         )}
       </div>
       {onHire && (
-        <Button onClick={onHire} disabled={disabled || sent} className="w-full">
-          {!sent && sending !== "sending" && <Plus aria-hidden="true" />}
-          {sent
-            ? t("agentsBrowse.sentButton")
-            : sending === "sending"
-              ? t("agentsBrowse.sending")
-              : t("agentsBrowse.hire")}
+        <Button onClick={onHire} disabled={disabled} className="w-full">
+          {sending === "sending" ? (
+            t("agentsBrowse.sending")
+          ) : (
+            <>
+              <Plus aria-hidden="true" />
+              {t("agentsBrowse.hire")}
+            </>
+          )}
           <span className="sr-only"> {agent.name}</span>
         </Button>
       )}
