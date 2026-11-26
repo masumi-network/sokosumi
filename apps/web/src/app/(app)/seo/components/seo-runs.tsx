@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { SeoReportFiles } from "./seo-report-files";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
+import { seoRunDiffOf } from "./seo-run-diff-model";
 import {
   seoNextScheduledCheck,
   seoRunCountDays,
@@ -143,7 +144,12 @@ export function SeoRuns({
   // The stop whose details the footer opens: the day in view, or every event of a range.
   const detailsStop =
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
-  const hasDetails = detailsStop ? stopOf(detailsStop).nodes.length > 0 : false;
+  // A range with no events can still hold a check that was stored after it: its comparison is worth opening.
+  const hasDetails = detailsStop
+    ? stopOf(detailsStop).nodes.length > 0 ||
+      (detailsStop === WHOLE &&
+        Boolean(seoRunDiffOf(model.data, rangeCheck ?? undefined)))
+    : false;
   // An invalid date in the address names no range: the line gives the way back alone.
   const rangeOf = (label = t, formatter = format) =>
     !ranged || model.invalidDates
