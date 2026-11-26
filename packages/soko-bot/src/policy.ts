@@ -353,7 +353,7 @@ export function isSokoBotSandboxCapability(
 
 export * from "./policy-taint.js";
 
-const DIRECT_READ_CAPABILITIES = [
+export const SOKO_BOT_DIRECT_READ_CAPABILITIES = [
   ...SOKO_BOT_SEO_READ_CAPABILITIES,
   "refresh_context",
   "get_task_status",
@@ -423,6 +423,8 @@ const DIRECT_READ_CAPABILITIES = [
   // schema stays on the hire route: fetching it calls the seller's server.
   "find_agents",
 ] as const satisfies readonly SokoBotCapability[];
+
+const DIRECT_READ_CAPABILITIES = SOKO_BOT_DIRECT_READ_CAPABILITIES;
 
 /** Social posts can publish externally, including edits to already queued content. */
 const SOCIAL_WRITE_CAPABILITIES = [
