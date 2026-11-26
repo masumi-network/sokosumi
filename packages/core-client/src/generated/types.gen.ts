@@ -172,6 +172,26 @@ export type ProjectSeoActionImpact = {
     } | null;
 };
 
+export type AdminSeoImpactVerdicts = {
+    total: number;
+    rows: Array<{
+        id: string;
+        organizationSlug: string | null;
+        projectId: string;
+        projectName: string;
+        pageUrl: string;
+        suggestionTitle: string | null;
+        changeSource: 'cuso_done' | 'audit_recheck';
+        changedAt: Date;
+        crawledAt: Date | null;
+        windowStart: string | null;
+        windowEnd: string | null;
+        windowReadyOn: string | null;
+        state: 'waiting_crawl' | 'waiting_window' | 'not_measurable';
+        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | null;
+    }>;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -3765,6 +3785,24 @@ export type UpdateChatRoomRequest = {
      * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
      */
     groupName?: string | null;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    memberUserIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    coworkerIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    sokoBotIds?: Array<string>;
 };
 
 /**
@@ -4772,6 +4810,9 @@ export type ContactUpsertResult = {
 };
 
 export type ContactMergeSuggestion = {
+    /**
+     * `same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.
+     */
     reason: 'shared_channel' | 'same_name';
     contactIds: Array<string>;
 };
@@ -4806,6 +4847,10 @@ export type ContactMapContact = {
 
 export type ContactDuplicateGroup = {
     name: string;
+    /**
+     * Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).
+     */
+    reason: 'same_name' | 'same_company';
     contacts: Array<Contact>;
 };
 
@@ -5465,6 +5510,10 @@ export type LinkDriveGoogleSheetRequest = {
      * Folder to put the copy in; the Drive root when omitted
      */
     folder?: string;
+    /**
+     * The same as `folder`, as other Drive writes name it.
+     */
+    folderPath?: string;
 };
 
 export type DriveItems = Array<DriveItem>;
@@ -5791,19 +5840,6 @@ export type FileMetadataBatchResponse = {
     revisedCount: number | null;
 };
 
-export type FileMetadataBatchRequest = {
-    resourceIds?: Array<string>;
-    selectionToken?: string;
-    idempotencyKey: string;
-    addTagLabelIds?: Array<string>;
-    removeTagLabelIds?: Array<string>;
-    categoryLabelId?: string | null;
-    expectedRevisions?: Array<{
-        resourceId: string;
-        metadataRevision: number;
-    }>;
-};
-
 export type FileResource = {
     id: string;
     displayName: string;
@@ -5961,6 +5997,10 @@ export type FileSearchMeta = {
      */
     hasMore: boolean;
     nextCursor: string | null;
+    /**
+     * This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.
+     */
+    windowCursor: string;
     /**
      * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
      */
@@ -7180,9 +7220,9 @@ export type DesignMdWrite = {
      */
     content: string | null;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type MemberWithOrganization = {
@@ -7690,8 +7730,12 @@ export type User = {
 };
 
 export type UpdateUserName = {
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
+    /**
+     * The display name other members see. Omitted, it stays as it is.
+     */
+    name?: string;
 };
 
 export type OrganizationDeletionEvaluation = {
@@ -12329,7 +12373,12 @@ export type StudioBrandLook = {
 };
 
 export type SaveStudioBrandCopy = {
-    copy: StudioBrandCopy;
+    copy: StudioBrandCopy & {
+        /**
+         * The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.
+         */
+        tone?: string;
+    };
     version: Date | null;
 };
 
@@ -12397,6 +12446,9 @@ export type CreateProjectTalkingVideoJobRequest = {
     script: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
+    /**
+     * A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller's own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.
+     */
     presenter: {
         kind: 'stock';
         id: string;
@@ -13728,6 +13780,9 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    /**
+     * Required for `kind: "audit_full"`: `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}`. The audit costs its provider cost plus 50%, at least 750 credits. It has no credit cap: `fullAuditLimits.usd` bounds the provider cost. Leave out `maxCredits`. Confirm the price with the person first.
+     */
     fullAuditPrice?: {
         kind: 'cost_plus';
         version: 1;
@@ -18872,9 +18927,9 @@ export type AdHocDesignMdWrite = {
      */
     content: string;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type EffectiveDesignMd = {
@@ -19324,6 +19379,66 @@ export type ListAdminSeoActionImpactResponses = {
 };
 
 export type ListAdminSeoActionImpactResponse = ListAdminSeoActionImpactResponses[keyof ListAdminSeoActionImpactResponses];
+
+export type ListAdminSeoImpactVerdictsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        period?: '90' | '365' | 'all';
+    };
+    url: '/admin/seo-impact';
+};
+
+export type ListAdminSeoImpactVerdictsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsError = ListAdminSeoImpactVerdictsErrors[keyof ListAdminSeoImpactVerdictsErrors];
+
+export type ListAdminSeoImpactVerdictsResponses = {
+    /**
+     * Tracked SEO page changes
+     */
+    200: {
+        data: AdminSeoImpactVerdicts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsResponse = ListAdminSeoImpactVerdictsResponses[keyof ListAdminSeoImpactVerdictsResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -48363,6 +48478,9 @@ export type PostDriveResourcesSelectionTokenData = {
          */
         scope: 'me' | 'org';
         organizationId?: string;
+        /**
+         * The search response's `search.windowCursor` (any of its cursors names the same window).
+         */
         windowCursor: string;
     };
     headers?: {
@@ -48451,7 +48569,17 @@ export type PostDriveResourcesSelectionTokenResponses = {
 export type PostDriveResourcesSelectionTokenResponse = PostDriveResourcesSelectionTokenResponses[keyof PostDriveResourcesSelectionTokenResponses];
 
 export type PostDriveResourcesMetadataBatchData = {
-    body: FileMetadataBatchRequest & {
+    body: {
+        resourceIds?: Array<string>;
+        selectionToken?: string;
+        idempotencyKey: string;
+        addTagLabelIds?: Array<string>;
+        removeTagLabelIds?: Array<string>;
+        categoryLabelId?: string | null;
+        expectedRevisions?: Array<{
+            resourceId: string;
+            metadataRevision: number;
+        }>;
         /**
          * Drive file owner scope: 'me' for personal, 'org' for organization
          */
