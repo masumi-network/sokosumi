@@ -17,40 +17,82 @@ const WAITING = new Set(["DRAFT", "NEEDS_APPROVAL"]);
 const COUNTS: Record<string, number> = {
   once: 1,
   one: 1,
+  a: 1,
+  an: 1,
   twice: 2,
   two: 2,
+  thrice: 3,
   three: 3,
   four: 4,
   five: 5,
   six: 6,
   seven: 7,
 };
-/** Weeks in each period a cadence names. */
-const PER_WEEK: [RegExp, number][] = [
-  [/\b(?:every other week|biweekly|fortnightly)\b/, 0.5],
-  [/\b(?:day|days|daily)\b/, 7],
-  [/\b(?:week|weeks|weekly)\b/, 1],
-  [/\b(?:month|months|monthly)\b/, 12 / 52],
-];
+const NUMBER =
+  "(\\d+|once|one|a|an|twice|two|thrice|three|four|five|six|seven)";
+const DAYS: Record<string, number> = { day: 1, week: 7, month: 365 / 12 };
+
+function count(word: string | undefined): number | null {
+  if (word === undefined) return null;
+  return Number(word) || COUNTS[word] || null;
+}
 
 /**
- * Posts a week a cadence says, from its quantity and its period ("twice
- * weekly" is 2, "3 posts a week" 3, "weekly" 1); a range counts at its top.
- * Null when it names no period.
+ * Posts a week a cadence says, from an explicit quantity over an explicit
+ * interval: "3x/week" is 3, "once every 7 days" 1, "twice weekly" 2, a
+ * range at its top ("1-2 a week" is 2). "daily", "weekly" and "monthly"
+ * alone are once per period. Anything it cannot read is null, never a guess.
  */
 export function cadencePerWeek(cadence: string): number | null {
   // A time of day is no quantity ("1 a week, Tuesday 09:00").
-  const text = cadence
+  const text = ` ${cadence
     .toLowerCase()
-    .replace(/\b\d{1,2}[:.]\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b/g, " ");
-  const period = PER_WEEK.find(([pattern]) => pattern.test(text));
-  if (!period) return null;
-  if (period[1] === 0.5) return 0.5;
-  const numbers = [
-    ...text.matchAll(/\b(\d+|once|one|twice|two|three|four|five|six|seven)\b/g),
-  ].map((match) => Number(match[1]) || COUNTS[match[1] ?? ""] || 0);
-  const quantity = numbers.length > 0 ? Math.max(...numbers) : 1;
-  return quantity * period[1];
+    .replace(/\b\d{1,2}[:.]\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b/g, " ")} `;
+  // The interval in days: "every 7 days", "every other week", "/week",
+  // "a week", "per day", "weekly".
+  let days: number | null = null;
+  let implied = false;
+  const every =
+    /\bevery\s+(\d+|other|two|three|four)\s+(day|week|month)s?\b/.exec(text);
+  if (every?.[1] && every[2]) {
+    const n = every[1] === "other" ? 2 : count(every[1]);
+    if (n) days = n * (DAYS[every[2]] ?? 0);
+  } else if (/\b(?:biweekly|fortnightly)\b/.test(text)) days = 14;
+  else {
+    const per = /(?:\/|\b(a|an|per|each|every)\s+)(day|week|month)\b/.exec(
+      text,
+    );
+    const adjective = /\b(daily|weekly|monthly)\b/.exec(text);
+    if (per?.[2]) {
+      days = DAYS[per[2]] ?? null;
+      // "every week" says once, as "weekly" does.
+      implied = per[1] === "every";
+    } else if (adjective?.[1]) {
+      days =
+        DAYS[adjective[1].replace(/ly$/, "").replace("dai", "day")] ?? null;
+      implied = true;
+    }
+  }
+  if (!days) return null;
+  // The quantity before the interval: "3x", "3 posts", "twice", "1-2".
+  const before = text.slice(
+    0,
+    text.search(
+      /(?:\/|\bevery\b|\b(?:a|an|per|each)\s+(?:day|week|month)\b|\b(?:daily|weekly|monthly|biweekly|fortnightly)\b)/,
+    ),
+  );
+  const quantities = [
+    ...before.matchAll(new RegExp(`\\b${NUMBER}(?=\\s|x\\b|×|-|–|$)`, "g")),
+  ]
+    .map((match) => count(match[1]))
+    .filter((value): value is number => value !== null);
+  const quantity =
+    quantities.length > 0
+      ? Math.max(...quantities)
+      : implied || every
+        ? 1
+        : null;
+  return quantity === null ? null : (quantity * 7) / days;
 }
 
 export interface SavedPost {
@@ -62,11 +104,11 @@ export interface SavedPost {
 }
 
 /**
- * What the turn saved, not what it tried: exactly three new, different X
- * posts on the Cuso's own Project, each still the owner's to approve (DRAFT
- * or NEEDS_APPROVAL), none scheduled or out and none elsewhere, and LinkedIn
- * saved at one post a week. A turn that ended after the strategy change saved
- * no drafts.
+ * What the turn saved, not what it tried. `posts` are the Cuso's own since
+ * the case started: exactly three new, different X posts on his Project, each
+ * still the owner's to approve (DRAFT or NEEDS_APPROVAL), none scheduled or
+ * out, none on another Project, and LinkedIn saved at one post a week. A turn
+ * that ended after the strategy change saved no drafts.
  */
 export function changeThenDraftsChecks(input: {
   projectId: string;
@@ -95,13 +137,17 @@ export function changeThenDraftsChecks(input: {
       : cadencePerWeek(input.linkedinCadence);
   return [
     {
-      label: `Saves exactly ${DRAFTS_WANTED} new, different X drafts on his Project and nothing else`,
+      label: `Saves exactly ${DRAFTS_WANTED} new, different X drafts on his Project`,
       pass:
         here.length === DRAFTS_WANTED &&
         xDrafts.length === DRAFTS_WANTED &&
-        distinct.size === DRAFTS_WANTED &&
-        elsewhere === 0,
-      actual: `${here.length} new post${here.length === 1 ? "" : "s"} on his Project, ${distinct.size} different X draft${distinct.size === 1 ? "" : "s"}, ${elsewhere} elsewhere`,
+        distinct.size === DRAFTS_WANTED,
+      actual: `${here.length} new post${here.length === 1 ? "" : "s"} on his Project, ${distinct.size} different X draft${distinct.size === 1 ? "" : "s"}`,
+    },
+    {
+      label: "Writes no post to another Project",
+      pass: elsewhere === 0,
+      actual: `${elsewhere} elsewhere`,
     },
     {
       label: "Schedules or publishes none of them",
@@ -132,14 +178,12 @@ export async function cmoChangeThenDraftsChecks(
   startedAt: Date,
 ): Promise<ScenarioCheck[]> {
   const [posts, strategy] = await Promise.all([
-    // New posts on his Project by anyone, and his own anywhere else.
+    // Only this case's Cuso's own posts since it started, on any Project:
+    // another turn's posts on the lane's Project must not count.
     prisma.socialPost.findMany({
       where: {
         createdAt: { gte: startedAt },
-        OR: [
-          { projectId: lane.cusoProjectId },
-          { creatorSokoBotId: lane.cusoBotId },
-        ],
+        creatorSokoBotId: lane.cusoBotId,
       },
       select: {
         projectId: true,

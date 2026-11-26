@@ -6,8 +6,8 @@ import {
 } from "./eval-cmo-change-then-drafts";
 
 const PROJECT = "cuso-project";
-const DRAFTS =
-  "Saves exactly 3 new, different X drafts on his Project and nothing else";
+const DRAFTS = "Saves exactly 3 new, different X drafts on his Project";
+const ELSEWHERE = "Writes no post to another Project";
 const NOT_OUT = "Schedules or publishes none of them";
 const WEEKLY = "Saves LinkedIn at one post a week";
 
@@ -28,9 +28,16 @@ describe("the change-then-drafts case reads what was saved", () => {
   const three = [draft("One"), draft("Two"), draft("Three")];
 
   it("passes three different approvable X drafts and LinkedIn once a week", () => {
-    expect(failed(three, "1 post a week")).toEqual([]);
-    expect(failed(three, "Once a week, Tuesday 09:00")).toEqual([]);
-    expect(failed(three, "weekly")).toEqual([]);
+    for (const cadence of [
+      "1 post a week",
+      "Once a week, Tuesday 09:00",
+      "weekly",
+      "once every 7 days",
+      "1x/week",
+      "every week",
+      "a post a week",
+    ])
+      expect(failed(three, cadence)).toEqual([]);
     expect(
       failed(
         [
@@ -47,7 +54,7 @@ describe("the change-then-drafts case reads what was saved", () => {
     expect(failed([], "once a week")).toEqual([DRAFTS]);
   });
 
-  it("fails fewer, more, repeated, other-network or misplaced drafts", () => {
+  it("fails fewer, more, repeated or other-network drafts", () => {
     expect(failed([draft("One"), draft("Two")], "once a week")).toEqual([
       DRAFTS,
     ]);
@@ -61,9 +68,18 @@ describe("the change-then-drafts case reads what was saved", () => {
         "once a week",
       ),
     ).toEqual([DRAFTS]);
+  });
+
+  it("names a post on another Project as its own failure", () => {
     expect(
       failed([...three, draft("Four", { projectId: "other" })], "once a week"),
-    ).toEqual([DRAFTS]);
+    ).toEqual([ELSEWHERE]);
+    expect(
+      failed(
+        [draft("One"), draft("Two"), draft("Three", { projectId: "other" })],
+        "once a week",
+      ),
+    ).toEqual([DRAFTS, ELSEWHERE]);
   });
 
   it("fails a scheduled or published post", () => {
@@ -89,21 +105,37 @@ describe("the change-then-drafts case reads what was saved", () => {
   });
 
   it("fails a LinkedIn cadence other than one post a week", () => {
-    expect(failed(three, "twice weekly")).toEqual([WEEKLY]);
-    expect(failed(three, "3 posts weekly")).toEqual([WEEKLY]);
-    expect(failed(three, "1-2 a week")).toEqual([WEEKLY]);
-    expect(failed(three, "every other week")).toEqual([WEEKLY]);
-    expect(failed(three, "daily")).toEqual([WEEKLY]);
+    for (const cadence of [
+      "twice weekly",
+      "3 posts weekly",
+      "3x/week",
+      "3x per week",
+      "1-2 a week",
+      "every other week",
+      "once every 3 days",
+      "daily",
+      "posts on LinkedIn",
+      "regularly",
+    ])
+      expect([cadence, failed(three, cadence)]).toEqual([cadence, [WEEKLY]]);
     expect(failed(three, null)).toEqual([WEEKLY]);
   });
 });
 
 describe("cadencePerWeek", () => {
-  it("reads quantity and period", () => {
+  it("reads an explicit quantity over an explicit interval", () => {
     expect(cadencePerWeek("twice weekly")).toBe(2);
     expect(cadencePerWeek("3 posts a week")).toBe(3);
+    expect(cadencePerWeek("3x/week")).toBe(3);
+    expect(cadencePerWeek("once every 7 days")).toBe(1);
+    expect(cadencePerWeek("every other week")).toBe(0.5);
     expect(cadencePerWeek("2 a day")).toBe(14);
-    expect(cadencePerWeek("4 posts a month")).toBeCloseTo(48 / 52);
+    expect(cadencePerWeek("4 posts a month")).toBeCloseTo((4 * 7 * 12) / 365);
+  });
+
+  it("never guesses one when it cannot read the cadence", () => {
     expect(cadencePerWeek("when there is news")).toBeNull();
+    expect(cadencePerWeek("some posts a week")).toBeNull();
+    expect(cadencePerWeek("regularly")).toBeNull();
   });
 });
