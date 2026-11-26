@@ -543,6 +543,95 @@ describe("the speed table in a workspace view", () => {
     }
   });
 
+  it("ranks a Lighthouse score above a gap, and a history whose weeks hold no value as no value (review pass 40)", () => {
+    const mobile = (rows: ReturnType<typeof readPageSpeed>) => {
+      const found = rows.find((own) => own.device === "mobile");
+      if (!found) throw new Error("no mobile read");
+      return found;
+    };
+    const gap = { lab: { none: "quota" }, field: { none: "quota" } };
+    const audit = mobile(
+      readPageSpeed(
+        { ...section(SEO_TEST_PAGE, EXTRA), mobile: gap },
+        SEO_TEST_PAGE,
+        { mobile: EXTRA },
+      ),
+    );
+    const tested = mobile(readPageSpeed(section(EXTRA), EXTRA));
+    const fcp = mobile(
+      readPageSpeed(
+        {
+          ...section(EXTRA),
+          mobile: { ...gap, field: cruxField(EXTRA, { fcp: 1100 }) },
+        },
+        EXTRA,
+      ),
+    );
+    if (tested.lab.status !== "measured" || fcp.field.status !== "measured")
+      throw new Error("no measured read");
+    const none = <T extends object>(values: T) =>
+      Object.fromEntries(Object.keys(values).map((key) => [key, null])) as {
+        [K in keyof T]: null;
+      };
+    // The report's lab has no timing but a score; the audit read is a gap.
+    const scored = {
+      ...tested,
+      lab: {
+        ...tested.lab,
+        median: none(tested.lab.median),
+        pageSpeed: { scores: { accessibility: 92 }, insights: [] },
+      },
+    };
+    // The audit's field has no value and a weekly series without a value; the report has FCP.
+    const emptyWeeks = {
+      ...audit,
+      field: {
+        ...fcp.field,
+        p75: none(fcp.field.p75),
+        history: {
+          status: "comparable" as const,
+          weeks: ["2026-10-18", "2026-10-25"],
+          lcp: [null, null],
+        },
+      },
+    };
+    const shown = (own: typeof audit, report: typeof audit) =>
+      scopedSiteSpeed(
+        {
+          siteSpeed: {
+            rows: [
+              { url: EXTRA, audited: true, tier: "full", devices: [report] },
+            ],
+            dropped: 0,
+          },
+          pageSpeed: [own],
+          pageUrls: [SEO_TEST_PAGE],
+        },
+        row,
+        new Set([SEO_TEST_PAGE]),
+      )?.rows[0]?.devices.find((item) => item.device === "mobile")?.pageUrl;
+    expect(shown(audit, scored)).toBe(EXTRA);
+    const insight = {
+      ...scored,
+      lab: {
+        ...scored.lab,
+        pageSpeed: {
+          scores: {},
+          insights: [
+            {
+              id: "render-blocking-insight",
+              title: "Render blocking requests",
+              detail: "Requests block the first paint.",
+              action: "Defer the scripts.",
+            },
+          ],
+        },
+      },
+    };
+    expect(shown(audit, insight)).toBe(EXTRA);
+    expect(shown(emptyWeeks, fcp)).toBe(EXTRA);
+  });
+
   it("gives a measured field read of the audit the target's device over the report's lab read (review pass 23)", () => {
     // The field read decides the verdict: an audit read with field data shows more than a lab read alone.
     // Review pass 24: a real CrUX field, read as an import reads it.
