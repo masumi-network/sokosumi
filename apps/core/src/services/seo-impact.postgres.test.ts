@@ -22,6 +22,7 @@ import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import { propertyChoices } from "@/services/project-seo-statistics.service";
 import { expectCoreLog } from "@/test/core-log";
 import { listAdminSeoImpactVerdicts } from "./admin-seo-impact";
+import { CmoConflictError } from "./cmo-cuso.service";
 import { setCmoSeoSuggestionStatus } from "./cmo-seo-status.service";
 import { IMPACT_CRAWL_WAIT_DAYS, syncSeoImpact } from "./seo-impact.service";
 import { updateSeoSuggestion } from "./seo-impact-record";
@@ -414,6 +415,29 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     ).toMatchObject({ status: "open", doneAt: null, verifiedAt: null });
   });
 
+  it("answers a conflict when the change keeps moving under the write", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    // Another writer moves the status after each read.
+    const read = prisma.projectSeoSuggestion.findFirst;
+    const spy = vi
+      .spyOn(prisma.projectSeoSuggestion, "findFirst")
+      .mockImplementation((async (args: Parameters<typeof read>[0]) => {
+        const row = await read(args);
+        await prisma.projectSeoSuggestion.update({
+          where: { id },
+          data: { status: row?.status === "done" ? "dismissed" : "done" },
+        });
+        return row;
+      }) as typeof read);
+    try {
+      await expect(
+        setCmoSeoSuggestionStatus({ userId, projectId }, id, "open"),
+      ).rejects.toBeInstanceOf(CmoConflictError);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("records no second change when done is sent for a verified change", async () => {
     const { id } = await doneChange("https://battery-sensei.app/pricing", {
       status: "open",
@@ -608,6 +632,24 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     await syncSeoImpact(tick);
 
     expect(await rowsOf(id)).toHaveLength(1);
+  });
+
+  it("stops after the batch the tick has time for, and inspects nothing", async () => {
+    await doneChanges(projectId, 201);
+    // Time for one batch only.
+    let batches = 0;
+    const tick = {
+      shouldContinue: () => batches++ < 1,
+      msRemaining: () => Number.POSITIVE_INFINITY,
+    };
+
+    expect(await syncSeoImpact(tick)).toMatchObject({
+      inspected: 0,
+      stopped: true,
+    });
+    expect(
+      await prisma.projectSeoImpactVerdict.count({ where: { projectId } }),
+    ).toBeLessThan(201);
   });
 
   it("skips changes with an empty page before they fill a batch", async () => {
@@ -869,6 +911,20 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     ]);
   });
 
+  it("asks Google nothing for a page that is no web URL", async () => {
+    const pages = await Promise.all(
+      ["battery-sensei.app pricing", "ftp://battery-sensei.app/pricing"].map(
+        (pageUrl) => doneChange(pageUrl),
+      ),
+    );
+
+    await syncSeoImpact();
+
+    for (const { id } of pages)
+      expect(await rowsOf(id)).toMatchObject([{ reason: "no_property" }]);
+    expect(propertyChoices).not.toHaveBeenCalled();
+  });
+
   it("gives a page that is no URL no property, and inspects the next page", async () => {
     const pageUrl = "https://battery-sensei.app/pricing";
     const noUrl = await doneChange("battery-sensei.app pricing");
@@ -888,10 +944,12 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
     await syncSeoImpact();
 
-    const { rows } = await listAdminSeoImpactVerdicts(
+    const { rows, total } = await listAdminSeoImpactVerdicts(
       { period: "90" },
       new Date(CHANGED_AT.getTime() + 10 * DAY_MS),
     );
+    // The count is of the same period as the rows.
+    expect(total).toBe(rows.length);
     const ours = rows.filter((row) => row.projectId === projectId);
     expect(ours).toMatchObject([
       { pageUrl, windowEnd: "2026-12-24", windowReadyOn: "2026-12-31" },

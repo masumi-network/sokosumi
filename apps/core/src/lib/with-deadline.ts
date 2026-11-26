@@ -10,6 +10,11 @@ export async function withDeadline<T>(
   ms: number,
   message: string,
 ): Promise<T> {
+  // A deadline already past fails at once, even for work that is done.
+  if (!(ms > 0)) {
+    work.catch(() => {});
+    throw new Error(message);
+  }
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([

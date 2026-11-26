@@ -2,6 +2,7 @@ import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import type { CmoSeoSuggestion } from "@/schemas/cmo-seo.schema";
 import {
+  CmoConflictError,
   CmoNotFoundError,
   type CusoTarget,
   requireCuso,
@@ -45,11 +46,11 @@ export async function setCmoSeoSuggestionStatus(
         }),
       );
     } catch (error) {
-      if (
-        !isPrismaRecordNotFoundError(error) ||
-        attempt === STATUS_WRITE_ATTEMPTS
-      )
-        throw error;
+      if (!isPrismaRecordNotFoundError(error)) throw error;
+      if (attempt === STATUS_WRITE_ATTEMPTS)
+        throw new CmoConflictError(
+          "The suggestion changed while it was saved. Try again.",
+        );
     }
   }
 }

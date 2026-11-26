@@ -11,6 +11,12 @@ describe("withDeadline", () => {
     ).rejects.toThrow("Read timed out");
   });
 
+  it("rejects at once when no time is left, and the late work fails nothing", async () => {
+    await expect(
+      withDeadline(Promise.reject(new Error("refused")), 0, "No time left"),
+    ).rejects.toThrow("No time left");
+  });
+
   it("waits for the work with no deadline", async () => {
     // Node fires a timer past 2^31-1 ms at once: an uncapped Infinity rejects.
     await expect(

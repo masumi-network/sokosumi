@@ -192,6 +192,11 @@ async function inspectRow(
   lookups: TickLookups,
   budgetMs: () => number,
 ): Promise<Inspection | typeof DEFERRED> {
+  // Only a web page has a Search Console property: ask Google nothing for
+  // another URL or a text that is no URL.
+  const protocol = URL.parse(row.pageUrl)?.protocol;
+  if (protocol !== "http:" && protocol !== "https:")
+    return { reason: "no_property", property: null };
   const account = await once(lookups.accounts, row.projectId, () =>
     projectAccount(row.projectId),
   );
@@ -209,10 +214,7 @@ async function inspectRow(
     return asksGoogle
       ? { reason: "inspection_failed", property: null }
       : DEFERRED;
-  // A page that is no URL has no property: the property match would throw.
-  const property = URL.canParse(row.pageUrl)
-    ? pickProperty(ids, row.pageUrl)
-    : null;
+  const property = pickProperty(ids, row.pageUrl);
   if (!property) return { reason: "no_property", property: null };
   // The property lookup can have spent the tick: start no read it cannot finish.
   const inspectMs = budgetMs();
