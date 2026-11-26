@@ -24,8 +24,9 @@ export function useCreateSeoAudit(
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef(false);
-  // One key per request: a retry of the same input replays the first create, other input gets a new key.
-  const attemptRef = useRef<{ signature: string; key: string } | null>(null);
+  // One key per input for the life of the form: a retry of input A replays A's first create, also after a try of
+  // input B in between (its response may have been lost after Core made the Audit). Other input gets a new key.
+  const keysRef = useRef(new Map<string, string>());
   async function submit(form: FormData) {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -41,11 +42,8 @@ export function useCreateSeoAudit(
         ...(projectId ? { projectId } : {}),
       };
       const signature = JSON.stringify(request);
-      const key =
-        attemptRef.current?.signature === signature
-          ? attemptRef.current.key
-          : crypto.randomUUID();
-      attemptRef.current = { signature, key };
+      const key = keysRef.current.get(signature) ?? crypto.randomUUID();
+      keysRef.current.set(signature, key);
       const result = await createSeoAuditAction({
         body: { ...request, idempotencyKey: key },
       });
@@ -53,7 +51,7 @@ export function useCreateSeoAudit(
         setError(t("audits.createFailed"));
         return;
       }
-      attemptRef.current = null;
+      keysRef.current.delete(signature);
       router.push(seoAuditHref(result.value.auditId, projectId));
       // Not `setOpen`: the address now belongs to the new Audit.
       setOpenState(false);
