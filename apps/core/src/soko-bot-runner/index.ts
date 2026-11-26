@@ -76,6 +76,8 @@ interface TurnStart {
   preamble?: string;
   /** The provider's prompt cache key for this system and tool set. */
   cacheKey?: string | null;
+  /** The key once the full save tools replace their short forms. */
+  fullCacheKey?: string | null;
   /** The owner's setup commands and the keys shell commands get (ADR 0074). */
   shell?: { setupCommands: string[]; env: Record<string, string> };
 }
@@ -475,7 +477,7 @@ async function main(): Promise<void> {
             model: gateway(start.model),
             system: start.system,
             message: partMessage(start.preamble ?? "", part),
-            cacheKey: start.cacheKey,
+            // A part's tools are a subset: another prefix, so no shared key.
             tools: partTools(tools, part),
             maxSteps: TURN_PART_MAX_STEPS,
             inputTokenBudget,
@@ -498,6 +500,7 @@ async function main(): Promise<void> {
       onReasoning: reportReasoning,
       shortForms: start.shortForms ?? [],
       cacheKey: start.cacheKey,
+      fullCacheKey: start.fullCacheKey,
     });
     await callCore("/complete", { text, finishReason });
   } catch (error) {

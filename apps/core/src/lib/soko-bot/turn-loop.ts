@@ -33,6 +33,7 @@ import {
   turnReasoningEffortOptions,
   turnRunModel,
 } from "@/lib/soko-bot/turn-model";
+import type { AuthorizedSokoBotRuntime } from "@/services/soko-bot-runtime.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   ACTION_LABELS,
@@ -329,6 +330,11 @@ export interface PreparedTurn {
   /** The provider's prompt cache key for this system and tool set, or null. */
   cacheKey: string | null;
   /**
+   * The key once a short-form call swapped in the full save tool: a
+   * different tool set, so a different prefix and key.
+   */
+  fullCacheKey: string | null;
+  /**
    * Save tools offered in their short form until the turn calls one
    * (cmo-v24); the runtime then offers the full tool for the rest of it.
    */
@@ -392,6 +398,52 @@ export function stableCapabilities(
   );
 }
 
+/**
+ * The tools a turn's model is offered. A version that loads skills on
+ * demand offers one fixed set, so the provider caches system and tools
+ * across turns; the turn's grant still decides at execution what runs. A
+ * runtime without a sandbox is not offered what nothing will execute;
+ * read-only web tools need no sandbox, the in-process runtime runs them.
+ */
+export function offeredCapabilities(
+  version: SokoBotVersion,
+  authorized: Pick<
+    AuthorizedSokoBotRuntime,
+    "grant" | "meetingPrep" | "askedByKind" | "turn"
+  >,
+  options: { sandbox: boolean; web?: boolean },
+): SokoBotCapability[] {
+  const offerable =
+    version.skillsOnDemand &&
+    !authorized.meetingPrep &&
+    authorized.askedByKind !== "ASSISTANT"
+      ? stableCapabilities(version, authorized.grant.capabilities)
+      : authorized.grant.capabilities;
+  return (
+    options.sandbox
+      ? offerable
+      : offerable.filter(
+          (capability) =>
+            !isSokoBotSandboxCapability(capability) ||
+            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
+        )
+  ).filter(
+    (capability) =>
+      capability !== "start_background_run" ||
+      mayStartBackgroundRun(authorized.turn),
+  );
+}
+
+/**
+ * Whether the model answers with the action-proof JSON: decided from the
+ * tools it was offered, at the start of the turn and when it completes.
+ */
+export function turnRequiresActionProof(
+  capabilities: readonly SokoBotCapability[],
+): boolean {
+  return capabilities.some((capability) => ACTION_CAPABILITIES.has(capability));
+}
+
 /** One key per system prompt and tool set, so equal prefixes share a cache. */
 export function promptCacheKey(
   versionId: string,
@@ -422,33 +474,9 @@ export async function prepareTurn(
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
-  // A version that loads skills on demand offers one fixed tool set, so the
-  // provider caches system and tools across turns; the turn's grant still
-  // decides at execution what runs.
   const stable = version.skillsOnDemand === true;
-  const offerable =
-    stable && !authorized.meetingPrep && authorized.askedByKind !== "ASSISTANT"
-      ? stableCapabilities(version, authorized.grant.capabilities)
-      : authorized.grant.capabilities;
-  // A runtime without a sandbox cannot run those tools; the model should not
-  // be offered what nothing will execute. Read-only web tools need no
-  // sandbox: the in-process runtime runs them itself.
-  const capabilities = (
-    options.sandbox
-      ? offerable
-      : offerable.filter(
-          (capability) =>
-            !isSokoBotSandboxCapability(capability) ||
-            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
-        )
-  ).filter(
-    (capability) =>
-      capability !== "start_background_run" ||
-      mayStartBackgroundRun(authorized.turn),
-  );
-  const requiresActionProof = capabilities.some((capability) =>
-    ACTION_CAPABILITIES.has(capability),
-  );
+  const capabilities = offeredCapabilities(version, authorized, options);
+  const requiresActionProof = turnRequiresActionProof(capabilities);
   const hasSandbox =
     options.sandbox && capabilities.some(isSokoBotSandboxCapability);
   const hasWebOnly =
@@ -513,6 +541,9 @@ export async function prepareTurn(
   const cacheKey = stable
     ? promptCacheKey(version.id, system, capabilities, shortForms)
     : null;
+  const fullCacheKey = stable
+    ? promptCacheKey(version.id, system, capabilities, [])
+    : null;
   if (context.version.preloadedSkills)
     await new RuntimeEventLog(turnId, sessionId).append(
       runtimeEvent(SKILLS_PRELOADED_EVENT, {
@@ -536,6 +567,7 @@ export async function prepareTurn(
     system,
     preamble,
     cacheKey,
+    fullCacheKey,
     model: turnRunModel(version, authorized.turn.modelId),
     inferenceRegion: version.inferenceRegion,
     capabilities,
@@ -632,6 +664,18 @@ export class SokoBotTaintedActionError extends Error {
 /** Runs one Sokosumi tool with its audit events, as the model sees it. */
 const NOT_GRANTED = "Capability is not granted for this turn";
 
+/**
+ * A version with one fixed tool set offers tools this turn's route does not
+ * open: the model reads why and works on without it. Other errors pass.
+ */
+function notOpen(capability: string, error: unknown): unknown {
+  return error instanceof Error && error.message === NOT_GRANTED
+    ? new Error(
+        `${capability} is not open on this turn (Core started it for narrower work). Do the work with the tools it opens, or say in your answer what you would do with ${capability}.`,
+      )
+    : error;
+}
+
 export async function runTurnTool(input: {
   log: RuntimeEventLog;
   capability: SokoBotCapability;
@@ -642,8 +686,17 @@ export async function runTurnTool(input: {
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
   // A short-form save saves nothing: the runtime offers the full tool next.
-  // Its events count how often a turn needed the full form (cmo-v24).
+  // Its events count how often a turn needed the full form (cmo-v24). It
+  // promises the full tool only where the full call could run: past the
+  // same taint and grant checks.
   if (isCmoShortFormCall(capability, input.toolInput)) {
+    if (await isTaintBlocked(log.turnId, capability))
+      throw new SokoBotTaintedActionError(capability);
+    await (await runtimeService())
+      .authorize({ sessionId: log.sessionId, turnId: log.turnId, capability })
+      .catch((error: unknown) => {
+        throw notOpen(capability, error);
+      });
     await log.append(
       runtimeEvent("actions.requested", {
         actions: [
@@ -688,13 +741,7 @@ export async function runTurnTool(input: {
     sokoBotToolCallTimeoutMs(capability),
     capability,
   ).catch((error: unknown) => {
-    // A version with one fixed tool set offers tools this turn's route does
-    // not open: the model reads why and works on without it.
-    if (error instanceof Error && error.message === NOT_GRANTED)
-      throw new Error(
-        `${capability} is not open on this turn (Core started it for narrower work). Do the work with the tools it opens, or say in your answer what you would do with ${capability}.`,
-      );
-    throw error;
+    throw notOpen(capability, error);
   });
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
   // A script reads the whole result; the model reads one that fits.

@@ -55,6 +55,19 @@ describe("compactHistory", () => {
     );
   });
 
+  it("counts only what the turn added after its first message", () => {
+    // A strategy turn's preloaded skills and packet open its first message.
+    const opening = `${"skill ".repeat(15_000)}LATE RULE`;
+    const messages: ModelMessage[] = [
+      { role: "user", content: opening },
+      ...Array.from({ length: 8 }, (_, i) =>
+        toolRound(`c${i}`, "small"),
+      ).flat(),
+    ];
+    expect(JSON.stringify(messages).length).toBeGreaterThan(80_000);
+    expect(compactHistory(messages)).toBeNull();
+  });
+
   it("keeps a skill the model read whole, however old", () => {
     const skill = `# Strategy\n${"rule ".repeat(10_000)}LAST RULE`;
     const read: ModelMessage[] = [

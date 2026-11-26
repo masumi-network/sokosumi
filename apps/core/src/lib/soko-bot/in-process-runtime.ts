@@ -200,6 +200,8 @@ async function runTurn(
       offered: ToolSet = tools,
     ) => {
       const short = shortFormsIn(offered, turn.shortForms);
+      // A turn part's tools are a subset: another prefix, so no shared key.
+      const whole = offered === tools;
       const first = await runRound(
         [{ role: "user", content: message }],
         maxSteps,
@@ -207,6 +209,7 @@ async function runTurn(
         short.length ? withShortForms(offered, short) : offered,
         short,
         inputTokenBudget,
+        whole ? (short.length ? turn.cacheKey : turn.fullCacheKey) : null,
       );
       // The full tool's round needs steps, time and tokens left.
       const left = maxSteps - first.steps.length;
@@ -228,6 +231,7 @@ async function runTurn(
         offered,
         [],
         tokensLeft,
+        whole ? turn.fullCacheKey : null,
       );
     };
     const runRound = async (
@@ -237,6 +241,7 @@ async function runTurn(
       offered: ToolSet,
       short: readonly CmoShortFormTool[],
       tokenBudget: number,
+      cacheKey: string | null,
     ) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
       const request = sokoBotModelRequest({
@@ -262,7 +267,7 @@ async function runTurn(
                   }
                 : {}),
             },
-            turn.cacheKey,
+            cacheKey,
             turn.model,
           ),
           system: turn.system,

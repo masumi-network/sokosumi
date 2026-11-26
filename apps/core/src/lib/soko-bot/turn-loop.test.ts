@@ -34,12 +34,14 @@ import { expectCoreLogWhys } from "@/test/core-log";
 import { withPromptCache } from "./stream-model-call";
 import {
   finishTurn,
+  offeredCapabilities,
   promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
   sokoBotMaxSteps,
   sokoBotToolCallTimeoutMs,
   stableCapabilities,
+  turnRequiresActionProof,
 } from "./turn-loop";
 
 describe("a version with one fixed tool set", () => {
@@ -54,6 +56,18 @@ describe("a version with one fixed tool set", () => {
     expect(narrow).toContain("read_skill");
     expect(narrow).not.toContain("search_exa");
     expect(stableCapabilities(v24, ["search_exa"])).toContain("search_exa");
+  });
+
+  it("decides the answer format from the offered tools, start and finish alike", () => {
+    const readOnly = {
+      grant: { capabilities: ["read_calendar"] },
+      turn: { source: "SCHEDULE", chainDepth: 0 },
+    } as never;
+    const offered = offeredCapabilities(v24, readOnly, { sandbox: true });
+    expect(offered).toContain("create_social_post");
+    expect(turnRequiresActionProof(offered)).toBe(true);
+    // Before the fixed tool set, the grant alone decided.
+    expect(turnRequiresActionProof(["read_calendar"])).toBe(false);
   });
 
   it("offers the sandbox's own tools only when the route grants them", () => {

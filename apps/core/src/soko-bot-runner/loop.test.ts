@@ -442,6 +442,7 @@ describe("runTurnLoop", () => {
 
   it("offers the full save tool on the round after a short-form call", async () => {
     const offered: string[][] = [];
+    const keys: unknown[] = [];
     const saved: unknown[] = [];
     const stream = (
       content: Answer["content"],
@@ -454,11 +455,12 @@ describe("runTurnLoop", () => {
         usage,
       });
     const model = new MockLanguageModelV3({
-      doStream: async ({ tools: sent, prompt }) => {
+      doStream: async ({ tools: sent, prompt, providerOptions }) => {
         const schema = sent?.find((t) => t.name === "save_strategy") as
           | { inputSchema: { properties?: Record<string, unknown> } }
           | undefined;
         offered.push(Object.keys(schema?.inputSchema.properties ?? {}));
+        keys.push(providerOptions?.openai?.promptCacheKey);
         const results = prompt.filter((m) => m.role === "tool").length;
         if (results === 0)
           return stream(
@@ -506,11 +508,16 @@ describe("runTurnLoop", () => {
       deadline: Date.now() + 10 * MINUTE,
       stopped: new AbortController().signal,
       shortForms: ["save_strategy"],
+      cacheKey: "cmo-v24:short",
+      fullCacheKey: "cmo-v24:full",
     });
 
     expect(result.text).toBe("Moved it.");
     expect(offered[0]).toEqual(["shortForm", "what"]);
     expect(offered.slice(1).every((keys) => keys.includes("part"))).toBe(true);
+    // Each tool set has its own prefix, so its own cache key.
+    expect(keys[0]).toBe("cmo-v24:short");
+    expect(keys.slice(1).every((key) => key === "cmo-v24:full")).toBe(true);
     expect(saved).toEqual([
       { shortForm: true, what: "move a post" },
       { part: "pieces" },

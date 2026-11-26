@@ -72,7 +72,10 @@ export function compactHistory(
   messages: readonly ModelMessage[],
   budgetChars = HISTORY_BUDGET_CHARS,
 ): ModelMessage[] | null {
-  if (JSON.stringify(messages).length <= budgetChars) return null;
+  // The first message is the turn's own (on cmo-v24 on, with its packet and
+  // preloaded skills) and is never shortened: only what the turn added
+  // since counts against the budget.
+  if (JSON.stringify(messages.slice(1)).length <= budgetChars) return null;
   const oldEnd = Math.max(
     0,
     Math.floor((messages.length - RECENT_MESSAGES) / BOUNDARY_BLOCK) *

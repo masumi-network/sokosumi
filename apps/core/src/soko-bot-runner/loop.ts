@@ -36,6 +36,8 @@ import {
 export interface TurnLoopInput {
   /** The provider's prompt cache key for this system and tool set. */
   cacheKey?: string | null;
+  /** The key once the full save tools replace their short forms. */
+  fullCacheKey?: string | null;
   model: LanguageModel;
   system: string;
   message: string;
@@ -105,6 +107,7 @@ export async function runTurnLoop(
   let finishReason = "";
   let idleRounds = 0;
   let short = shortFormsIn(input.tools, input.shortForms ?? []);
+  const fullKey = input.fullCacheKey ?? input.cacheKey;
   for (let round = 0; ; round++) {
     const result = await streamModelCall({
       model: input.model,
@@ -126,7 +129,7 @@ export async function runTurnLoop(
       // chat can show what the bot considered, as Coworker replies do.
       providerOptions: withPromptCache(
         modelReasoningSummaryOptions(input.model),
-        input.cacheKey,
+        short.length ? input.cacheKey : fullKey,
         modelIdOf(input.model),
       ),
       onStepFinish: async (step) => {
@@ -198,11 +201,7 @@ export async function runTurnLoop(
       ],
       tools: input.tools,
       toolChoice: "none",
-      providerOptions: withPromptCache(
-        {},
-        input.cacheKey,
-        modelIdOf(input.model),
-      ),
+      providerOptions: withPromptCache({}, fullKey, modelIdOf(input.model)),
       abortSignal: signal(),
       maxRetries: 1,
     });

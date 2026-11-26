@@ -23,10 +23,7 @@ import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
-import {
-  ACTION_CAPABILITIES,
-  actionInputHash,
-} from "@/lib/soko-bot/action-receipts";
+import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
@@ -57,6 +54,7 @@ import {
   failTurn,
   finishTurn,
   isTaintBlocked,
+  offeredCapabilities,
   type PreparedTurn,
   prepareTurn,
   RuntimeEventLog,
@@ -65,6 +63,7 @@ import {
   SokoBotTaintedActionError,
   sokoBotInputTokenBudget,
   sokoBotMaxSteps,
+  turnRequiresActionProof,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import {
@@ -768,10 +767,16 @@ export async function completeSandboxTurn(
       turnId: claims.turnId,
       text: input.text,
       finishReason: input.finishReason,
-      // Same rule the prompt was built with, so the answer is parsed the way
-      // the model was told to write it.
-      requiresActionProof: authorized.grant.capabilities.some((capability) =>
-        ACTION_CAPABILITIES.has(capability),
+      // Same tools and rule the prompt was built with, so the answer is
+      // parsed the way the model was told to write it.
+      requiresActionProof: turnRequiresActionProof(
+        offeredCapabilities(
+          await resolveRunnableSokoBotVersion(
+            authorized.turn.versionId ?? null,
+          ),
+          authorized,
+          { sandbox: true },
+        ),
       ),
     });
   } catch (error) {
