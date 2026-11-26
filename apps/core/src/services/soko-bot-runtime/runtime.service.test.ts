@@ -391,6 +391,8 @@ vi.mock("@/services/social-posts.service", () => ({
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
   ownMessageProblem: social.ownMessage,
+  withSocialPostBatch: (_unsaved: ReadonlySet<string>, run: () => unknown) =>
+    run(),
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -7841,6 +7843,7 @@ describe("Soko Bot project social tools", () => {
     "get_social_post",
     "create_social_post",
     "update_social_post",
+    "update_social_posts",
     "schedule_social_post",
     "cancel_social_post",
     "publish_social_post",
@@ -8073,6 +8076,59 @@ describe("Soko Bot project social tools", () => {
       text: "Fees again",
     });
     expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("saves a batch of posts one by one and names every refused post in one answer", async () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b2";
+    social.update.mockResolvedValueOnce(post);
+    social.ownMessage
+      .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+      .mockResolvedValueOnce({
+        problem: 'Rewrite the post: it says nearly what the post "Fees" says.',
+        costUsd: 0,
+      });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_posts",
+      toolCallId: "batch",
+      input: {
+        projectId,
+        posts: [
+          { postId, revision: 2, text: "Stake today" },
+          { postId: otherId, revision: 1, text: "Fees again" },
+        ],
+      },
+    });
+
+    expect(result).toEqual({
+      saved: [{ postId, revision: 2, status: "DRAFT" }],
+      refused: [
+        {
+          postId: otherId,
+          problem:
+            'Rewrite the post: it says nearly what the post "Fees" says.',
+        },
+      ],
+    });
+    expect(social.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a batch that names one post twice", async () => {
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "batch-twice",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "One" },
+            { postId, revision: 2, text: "Two" },
+          ],
+        },
+      }),
+    ).rejects.toThrow("Each post can be in one update_social_posts call once.");
   });
 
   it("reads the Project's posting instructions in the turn's workspace", async () => {

@@ -791,7 +791,7 @@ export async function saveCmoRecord(
               : draftProblems.length > 0
                 ? {
                     problems: draftProblems,
-                    next: "Rewrite these drafts: a Social post (by its id) with update_social_post, any other piece with save_strategy part pieces.",
+                    next: "Rewrite these drafts: the Social posts (by their ids) together in one update_social_posts call, any other piece with save_strategy part pieces.",
                   }
                 : {}),
           },

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   Prisma,
   ProjectSocialConnection,
@@ -691,6 +692,25 @@ async function requireOwnInMonth(
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
 }
 
+const batchStorage = new AsyncLocalStorage<ReadonlySet<string>>();
+
+/**
+ * Runs an update_social_posts batch. `unsaved` holds the batch's posts still
+ * waiting for their new text: the checks leave them out, since the words
+ * they hold now are about to be replaced.
+ */
+export function withSocialPostBatch<T>(
+  unsaved: ReadonlySet<string>,
+  run: () => Promise<T>,
+): Promise<T> {
+  return batchStorage.run(unsaved, run);
+}
+
+/** The post itself and the batch's posts that still wait for their text. */
+function notComparedWith(postId: string): string[] {
+  return [postId, ...(batchStorage.getStore() ?? [])];
+}
+
 /**
  * Why a Soko Bot's new text for a post in a marketing month says what
  * another post of the month says (a month once repeated four messages
@@ -715,7 +735,7 @@ export async function ownMessageProblem(
   const siblings = await prisma.socialPost.findMany({
     where: {
       marketingStrategyId: post.marketingStrategyId,
-      id: { not: input.postId },
+      id: { notIn: notComparedWith(input.postId) },
       status: { not: "CANCELED" },
     },
     select: { text: true, planning: true },
@@ -803,7 +823,7 @@ export async function linkedInOpeningProblem(
   const others = await prisma.socialPost.findMany({
     where: {
       marketingStrategyId: post.marketingStrategyId,
-      id: { not: input.postId },
+      id: { notIn: notComparedWith(input.postId) },
       provider: post.provider,
       status: { not: "CANCELED" },
     },

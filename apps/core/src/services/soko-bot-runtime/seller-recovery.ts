@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { redactSokoBotSensitiveText } from "@sokosumi/soko-bot";
+import { HTTPException } from "hono/http-exception";
 import { canonicalActionJson } from "@/lib/soko-bot/action-receipts";
 import { truncateUtf8 } from "@/lib/soko-bot/persisted-value";
 
@@ -46,10 +47,19 @@ export function serializeSellerReservationMarker(
   });
 }
 
+/**
+ * A Core refusal (a 4xx it raised itself, such as "Rewrite the post: …") is
+ * kept as written: the post words it quotes tripped the secret patterns, so
+ * 69 post refusals in a week were stored as "[Sensitive value removed]",
+ * unreadable for the opening check's count of earlier refusals and for
+ * anyone looking into a failure. Anything else can carry a provider's or
+ * seller's text, and is redacted.
+ */
 export function persistedErrorDetail(error: unknown): string {
   const detail = error instanceof Error ? error.message : "Unknown error";
+  const coreRefusal = error instanceof HTTPException && error.status < 500;
   return truncateUtf8(
-    redactSokoBotSensitiveText(detail),
+    coreRefusal ? detail : redactSokoBotSensitiveText(detail),
     ERROR_DETAIL_MAX_BYTES,
   );
 }

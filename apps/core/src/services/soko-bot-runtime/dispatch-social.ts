@@ -54,6 +54,8 @@ export async function dispatchSocialTools(
 
     case "update_social_post":
 
+    case "update_social_posts":
+
     case "schedule_social_post":
 
     case "cancel_social_post":

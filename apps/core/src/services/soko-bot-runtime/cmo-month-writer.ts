@@ -1051,7 +1051,7 @@ export async function writeCmoMonthPieces(
       left > 0
         ? "Call write_month_pieces again for the rest."
         : refused.size > 0
-          ? "Fix each refused piece yourself (get_social_post and update_social_post for its words, save_strategy part pieces for its visual or script), then write the pieces your brief lists as yours and report."
+          ? "Fix each refused piece yourself (the refused Social posts' words in one update_social_posts call, revisions from get_social_post, save_strategy part pieces for its visual or script), then write the pieces your brief lists as yours and report."
           : "Write the pieces your brief lists as yours, then report.",
   };
 }
