@@ -2829,6 +2829,16 @@ export class SokoBotControlPlane {
           if (active)
             throw new SokoBotTurnInProgressError("Soko Bot is already working");
         }
+        // A mention closed while this start waited for the bot (its case or
+        // its asker gave up on it) starts nothing, so no late answer follows.
+        if (input.chat?.mentionId) {
+          const mention = await tx.chatRoomMention.findUnique({
+            where: { id: input.chat.mentionId },
+            select: { status: true },
+          });
+          if (mention?.status === "failed")
+            throw new SokoBotStartAbortedError("The mention is no longer open");
+        }
         const memoryVersion = context.packet.memory.version;
         const memoryRevision = requireContextMemoryRevision(
           memoryVersion,

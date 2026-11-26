@@ -7,6 +7,7 @@ import {
 import { z } from "zod";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import {
   EMPTY_COWORKER_RESPONSE,
@@ -435,13 +436,21 @@ export async function endA2aCase(
   const deadline = Date.now() + settleMs;
   for (;;) {
     const scope = await a2aCaseScope(chain);
-    await prisma.chatRoomMention.updateMany({
-      where: {
-        status: { in: ["staged", "pending", "sent"] },
-        messageId: { in: scope.messageIds },
-      },
-      data: { status: "failed", error: "The eval case ended" },
-    });
+    // Fenced with a read of the turns those mentions started, serializably:
+    // a start that saw a mention open conflicts with this, and one retries.
+    await serializableTransaction(async (tx) => {
+      await tx.chatRoomMention.updateMany({
+        where: {
+          status: { in: ["staged", "pending", "sent"] },
+          messageId: { in: scope.messageIds },
+        },
+        data: { status: "failed", error: "The eval case ended" },
+      });
+      await tx.sokoBotTurn.findMany({
+        where: { chatMention: { messageId: { in: scope.messageIds } } },
+        select: { id: true },
+      });
+    }, "Ending an eval case collided with a recipient's start");
     const running = await prisma.sokoBotTurn.findMany({
       where: {
         id: { in: scope.turnIds },

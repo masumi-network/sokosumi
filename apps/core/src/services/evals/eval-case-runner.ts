@@ -547,8 +547,8 @@ async function pollA2aScenario(
   if (step.kind === "waiting") return step;
   // Every exit ends the case first: nothing of it may still run, post or
   // cost once it is scored, and its world closes whatever happens next.
-  const end = await endA2aCase(step.turnIds);
   try {
+    const end = await endA2aCase(step.turnIds);
     return {
       kind: "done",
       outcome: await a2aOutcome(scenario, step, end, lane, context),

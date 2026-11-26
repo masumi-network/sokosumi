@@ -466,26 +466,59 @@ async function startNextCase(
   return "started";
 }
 
+/** How long a finished run waits on a case's outliving turns before it completes with that cost marked incomplete. */
+const UNSETTLED_COST_WAIT_MS = 30 * 60_000;
+
 /**
- * A case that ended while its turns still ran was charged too early: read
- * its cost again from all of its turns (`caseTurnIds`) when the run completes.
+ * A case that ended while its turns still ran was charged too early: its
+ * cost is read again from all of its turns (`caseTurnIds`). True while one of
+ * them still runs and the case ended under UNSETTLED_COST_WAIT_MS ago, so the
+ * run waits; after that its cost stands, marked `costIncomplete`.
  */
-export async function reconcileUnsettledCosts(runId: string) {
+export async function reconcileUnsettledCosts(
+  runId: string,
+  now = new Date(),
+): Promise<boolean> {
   // Few per run: an errored case whose turns outlived it records them.
-  const unsettled = await prisma.evalResult.findMany({
+  const errored = await prisma.evalResult.findMany({
     where: { runId, status: "ERROR" },
-    select: { id: true, output: true },
+    select: { id: true, output: true, finishedAt: true },
   });
-  for (const result of unsettled) {
+  let waiting = false;
+  for (const result of errored) {
     const parsed = z
       .object({ caseTurnIds: z.array(z.string()) })
       .safeParse(result.output);
     if (!parsed.success) continue;
+    const ids = parsed.data.caseTurnIds;
+    const running = await prisma.sokoBotTurn.count({
+      where: {
+        id: { in: ids },
+        status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+      },
+    });
+    const costUsdMicros = await turnsCost(ids);
+    const ended = result.finishedAt?.getTime() ?? now.getTime();
+    if (running > 0 && now.getTime() - ended < UNSETTLED_COST_WAIT_MS) {
+      waiting = true;
+      await prisma.evalResult.update({
+        where: { id: result.id },
+        data: { costUsdMicros },
+      });
+      continue;
+    }
     await prisma.evalResult.update({
       where: { id: result.id },
-      data: { costUsdMicros: await turnsCost(parsed.data.caseTurnIds) },
+      data: {
+        costUsdMicros,
+        output: jsonInput({
+          ...(result.output as Record<string, unknown>),
+          costIncomplete: running > 0,
+        }),
+      },
     });
   }
+  return waiting;
 }
 
 /** Whether the run completed, and why its regression email failed if it did. */
@@ -498,7 +531,7 @@ async function completeIfDone(run: {
     where: { runId: run.id, status: { in: ["PENDING", "RUNNING"] } },
   });
   if (open > 0) return { completed: false };
-  await reconcileUnsettledCosts(run.id);
+  if (await reconcileUnsettledCosts(run.id)) return { completed: false };
   await prisma.evalRun.update({
     where: { id: run.id },
     data: { status: "COMPLETED", finishedAt: new Date() },

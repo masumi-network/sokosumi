@@ -7,6 +7,10 @@ import {
   EMPTY_COWORKER_RESPONSE,
   takeEvalCoworkerReply,
 } from "@/lib/evals/fake-coworker";
+import {
+  SokoBotStartAbortedError,
+  sokoBotControlPlane,
+} from "@/services/soko-bot-control-plane.service";
 import { deliverSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { expectCoreLog } from "@/test/core-log";
 import { drainWaitUntil } from "@/test/wait-until";
@@ -579,17 +583,20 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
       await endCase(lane, coworkerId);
     }
   }, 30_000);
-  it("charges a case that ended unsettled with all its turns once the run completes", async () => {
+  it("holds a finished run for a case's outliving turns, then charges all of them", async () => {
     const [lane] = await ensureEvalLanes(1);
     if (!lane) throw new Error("no lane");
-    const turn = (costUsdMicros: bigint) =>
+    const turn = (
+      costUsdMicros: bigint,
+      status: "COMPLETED" | "CANCEL_REQUESTED",
+    ) =>
       prisma.sokoBotTurn.create({
         data: {
           sokoBotId: lane.sokoBotId,
           requestedByUserId: lane.userId,
           workspaceId: lane.workspaceId,
           source: "CHAT",
-          status: "COMPLETED",
+          status,
           clientTurnId: randomUUID(),
           userMessage: "Fixture",
           capabilityNames: [],
@@ -597,12 +604,13 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
           costUsdMicros,
         },
       });
-    const [first, late] = [await turn(BigInt(100)), await turn(BigInt(250))];
+    const first = await turn(BigInt(100), "COMPLETED");
+    const late = await turn(BigInt(0), "CANCEL_REQUESTED");
     const run = await prisma.evalRun.create({
       data: { trigger: "MANUAL", repeats: 1, environment: "test" },
     });
-    try {
-      const result = await prisma.evalResult.create({
+    const result = (finishedAt: Date) =>
+      prisma.evalResult.create({
         data: {
           runId: run.id,
           caseId: "a2a-ask-and-relay",
@@ -610,6 +618,7 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
           repeat: 1,
           position: 0,
           status: "ERROR",
+          finishedAt,
           costUsdMicros: BigInt(100),
           output: {
             infrastructure: { code: "case_unsettled" },
@@ -617,18 +626,80 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
             caseTurnIds: [first.id, late.id],
           },
         },
+        select: { id: true },
       });
-      await reconcileUnsettledCosts(run.id);
-      expect(
-        (
-          await prisma.evalResult.findUniqueOrThrow({
-            where: { id: result.id },
-            select: { costUsdMicros: true },
-          })
-        ).costUsdMicros,
-      ).toBe(BigInt(350));
+    const read = (id: string) =>
+      prisma.evalResult.findUniqueOrThrow({
+        where: { id },
+        select: { costUsdMicros: true, output: true },
+      });
+    try {
+      const recent = await result(new Date());
+      // The recipient is still cancelling: the run waits.
+      expect(await reconcileUnsettledCosts(run.id)).toBe(true);
+      await prisma.sokoBotTurn.update({
+        where: { id: late.id },
+        data: { status: "CANCELLED", costUsdMicros: BigInt(250) },
+      });
+      expect(await reconcileUnsettledCosts(run.id)).toBe(false);
+      expect(await read(recent.id)).toMatchObject({
+        costUsdMicros: BigInt(350),
+        output: expect.objectContaining({ costIncomplete: false }),
+      });
+
+      // One that never settles stops holding the run after the wait.
+      await prisma.evalResult.delete({ where: { id: recent.id } });
+      await prisma.sokoBotTurn.update({
+        where: { id: late.id },
+        data: { status: "CANCEL_REQUESTED" },
+      });
+      const stale = await result(new Date(Date.now() - 31 * 60_000));
+      expect(await reconcileUnsettledCosts(run.id)).toBe(false);
+      expect(await read(stale.id)).toMatchObject({
+        output: expect.objectContaining({ costIncomplete: true }),
+      });
     } finally {
       await prisma.evalRun.delete({ where: { id: run.id } });
+      await prisma.sokoBotTurn.updateMany({
+        where: { id: { in: [first.id, late.id] } },
+        data: { status: "CANCELLED" },
+      });
     }
+  });
+
+  it("starts no recipient turn for a mention the case already closed", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    const question = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: lane.world.roomId,
+        senderUserId: lane.userId,
+        content: "Can you check this?",
+      },
+    });
+    const mention = await prisma.chatRoomMention.create({
+      data: {
+        messageId: question.id,
+        sokoBotId: lane.sokoBotId,
+        status: "failed",
+        error: "The eval case ended",
+      },
+    });
+    await expect(
+      sokoBotControlPlane.startTurn({
+        userId: lane.userId,
+        workspaceId: lane.workspaceId,
+        clientTurnId: randomUUID(),
+        message: "Can you check this?",
+        source: "CHAT",
+        presetRoute: { route: "DIRECT_RESPONSE", reason: "fixture" },
+        chat: { mentionId: mention.id },
+      }),
+    ).rejects.toThrow(
+      new SokoBotStartAbortedError("The mention is no longer open"),
+    );
+    expect(
+      await prisma.sokoBotTurn.count({ where: { chatMentionId: mention.id } }),
+    ).toBe(0);
   });
 });
