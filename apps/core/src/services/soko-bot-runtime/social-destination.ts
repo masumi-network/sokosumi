@@ -7,19 +7,20 @@ import {
 
 /**
  * An ambiguous destination is asked, not guessed. When the owner asks for a
- * post and more than one connected account could take it, the draft goes
- * where the owner chose: an @handle, an id or a Project name in their own
- * words (quoted copy is the post), or their answer to the bot's question on
- * the turn before. Otherwise Core refuses the draft with the question to ask.
- * Asking only from the skill failed every time: the bot drafted first.
+ * post and more than one connected account could take it, Core lets a draft
+ * through only on an account the owner named exactly (its @handle or id, in
+ * their own words, not in quoted copy), or one the bot picked from the
+ * options of a question that was actually shown. Core reads no other words:
+ * which option an answer means is the model's call, made explicit as the
+ * socialConnectionId it passes.
  */
 
-/** Starts the refusal; the next turn finds it to know the question was asked. */
+/** Starts the refusal, which records the options it showed, in order. */
 export const ASK_WHICH_ACCOUNT = "Several accounts could take this post";
-/** An answer belongs to a question asked this recently in the same chat. */
+/** A question stays open this long, over this many turns, until a post is saved. */
 const ANSWER_WINDOW_MS = 24 * 60 * 60 * 1_000;
-/** How many earlier turns an open question survives ("wait, let me check"). */
 const OPEN_QUESTION_TURNS = 5;
+const SHOWN = 10;
 
 interface Candidate {
   id: string;
@@ -27,109 +28,44 @@ interface Candidate {
   project: { id: string; name: string };
 }
 
-const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 const handleOf = (candidate: Candidate) =>
   candidate.externalHandle?.replace(/^@/, "") ?? null;
 
-/** "not @acme", "instead of Acme": a name the owner turned down. */
-const REFUSAL =
-  /(?:\bnot|\bno|\bnever|\bexcept|\binstead of|\brather than)\s+(?:on\s+|the\s+)?$/iu;
-
-/**
- * The owner says this name as a whole word ("Pat" never in "patch"), and not
- * in order to turn it down.
- */
-function saysFor(text: string, phrase: string): boolean {
-  const value = phrase.trim();
-  if (value.length < 2) return false;
-  const pattern = new RegExp(
-    `(^|[^\\p{L}\\p{N}_])${escape(value)}(?![\\p{L}\\p{N}_])`,
-    "giu",
-  );
-  for (const match of text.matchAll(pattern)) {
-    const before = text.slice(0, (match.index ?? 0) + (match[1]?.length ?? 0));
-    if (!REFUSAL.test(before)) return true;
-  }
-  return false;
-}
-
 /** The owner's own words: quoted or fenced text is the post, never where it goes. */
 export function withoutQuotedCopy(message: string): string {
-  return (
-    message
-      .replaceAll(/```[\s\S]*?```/g, " ")
-      .replaceAll(/"[^"]*"|“[^”]*”|‘[^’]*’|«[^»]*»|„[^“”]*[“”]/g, " ")
-      // 'copy' between single quotes, but not the apostrophe in "it's".
-      .replaceAll(/(^|[\s(:])'[^'\n]+'(?=[\s.,!?;:)]|$)/g, "$1 ")
-      .split("\n")
-      .filter((line) => !line.trimStart().startsWith(">"))
-      .join("\n")
-  );
+  return message
+    .replaceAll(/```[\s\S]*?```/g, " ")
+    .replaceAll(/"[^"]*"|“[^”]*”|‘[^’]*’|«[^»]*»|„[^“”]*[“”]/g, " ")
+    .replaceAll(/(^|[\s(:])'[^'\n]+'(?=[\s.,!?;:)]|$)/g, "$1 ")
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith(">"))
+    .join("\n");
 }
 
-/** The owner picked this account itself: its @handle or its id. */
-function namedAccount(text: string, candidate: Candidate): boolean {
-  const handle = handleOf(candidate);
-  return (
-    (handle !== null && saysFor(text, `@${handle}`)) ||
-    saysFor(text, candidate.id)
-  );
-}
-
-/** Named by @handle or id, or by Project name or id. */
-function mentioned(text: string, candidate: Candidate): boolean {
-  return (
-    namedAccount(text, candidate) ||
-    saysFor(text, candidate.project.name) ||
-    saysFor(text, candidate.project.id)
-  );
-}
-
-const place = (word: string, digit: number) =>
-  new RegExp(
-    `\\b(${word})\\b|(#|\\boption |\\bnumber |\\bno\\. ?)${digit}\\b`,
-    "iu",
-  );
-const ORDINALS: [RegExp, (count: number) => number][] = [
-  [place("first|1st|former", 1), () => 0],
-  [place("second|2nd", 2), () => 1],
-  [place("third|3rd", 3), () => 2],
-  [/\b(last|latter)\b/iu, (count) => count - 1],
-];
-
-/**
- * The accounts the owner chose, or null when their words do not say. Names
- * win; a place in the list ("the second one", "both") only answers a
- * question that listed them, in that order.
- */
-export function resolveChoice(
-  message: string,
-  candidates: readonly Candidate[],
-  asked: readonly Candidate[] | null,
-): Candidate[] | null {
-  const text = withoutQuotedCopy(message);
-  const accounts = candidates.filter((candidate) =>
-    namedAccount(text, candidate),
-  );
-  if (accounts.length > 0) return accounts;
-  const byProject = candidates.filter((candidate) =>
-    mentioned(text, candidate),
-  );
-  // One Project can hold a personal and a company account of a network.
-  const projects = new Set(byProject.map((candidate) => candidate.project.id));
-  if (byProject.length > 0 && byProject.length === projects.size)
-    return byProject;
-  if (!asked) return null;
-  if (/\b(both|all( of them)?)\b/iu.test(text)) return [...asked];
-  for (const [pattern, index] of ORDINALS) {
-    const pick = pattern.test(text) ? asked[index(asked.length)] : undefined;
-    if (pick) return [pick];
+/** Where the text names this account exactly (@handle or id), or -1. */
+function namedAt(text: string, candidate: Candidate): number {
+  const lower = text.toLowerCase();
+  const handle = handleOf(candidate)?.toLowerCase();
+  const places = [lower.indexOf(candidate.id.toLowerCase())];
+  if (handle) {
+    const pattern = new RegExp(
+      `@${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`,
+      "iu",
+    );
+    places.push(lower.search(pattern));
   }
-  return null;
+  const found = places.filter((index) => index >= 0);
+  return found.length ? Math.min(...found) : -1;
 }
 
-const SHOWN = 10;
+/** The accounts this text names exactly, in the order it names them. */
+function namedIn(text: string, candidates: readonly Candidate[]): Candidate[] {
+  return candidates
+    .map((candidate) => ({ candidate, at: namedAt(text, candidate) }))
+    .filter((entry) => entry.at >= 0)
+    .sort((a, b) => a.at - b.at)
+    .map((entry) => entry.candidate);
+}
 
 function label(candidate: Candidate): string {
   const handle = handleOf(candidate);
@@ -154,17 +90,15 @@ function ownersOwnChat(authorized: AuthorizedSokoBotRuntime): boolean {
 }
 
 /**
- * The accounts the bot's previous turn in this chat asked about, in the order
- * it listed them, or null when it asked nothing: Core refused a draft with
- * the question, or the bot asked on its own, naming two of them.
+ * The options of the account question still open in this chat, in the order
+ * they were shown: Core's refusal (its record), or a reply of the bot that
+ * listed two or more accounts by @handle. A post saved since closes it.
  */
-async function askedJustBefore(
+async function openQuestion(
   authorized: AuthorizedSokoBotRuntime,
   current: { createdAt: Date; destinationRoomId: string | null },
   candidates: readonly Candidate[],
 ): Promise<Candidate[] | null> {
-  // The question stays open over a few turns ("wait, let me check") until a
-  // post is saved after it.
   const recent = await prisma.sokoBotTurn.findMany({
     where: {
       sokoBotId: authorized.turn.sokoBotId,
@@ -172,18 +106,6 @@ async function askedJustBefore(
       destinationRoomId: current.destinationRoomId,
       source: "CHAT",
       id: { not: authorized.turn.id },
-      // A turn that failed asked nothing, unless Core's refusal did.
-      OR: [
-        { status: "COMPLETED" },
-        {
-          toolCalls: {
-            some: {
-              capability: "create_social_post",
-              errorDetail: { startsWith: ASK_WHICH_ACCOUNT },
-            },
-          },
-        },
-      ],
       createdAt: {
         lt: current.createdAt,
         gte: new Date(current.createdAt.getTime() - ANSWER_WINDOW_MS),
@@ -192,6 +114,7 @@ async function askedJustBefore(
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: OPEN_QUESTION_TURNS,
     select: {
+      status: true,
       finalAnswer: true,
       toolCalls: {
         where: {
@@ -204,38 +127,25 @@ async function askedJustBefore(
             },
           ],
         },
-        select: { status: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { status: true, errorDetail: true },
       },
     },
   });
   for (const previous of recent) {
     if (previous.toolCalls.some((call) => call.status === "COMPLETED"))
       return null;
-    const question = previous.finalAnswer ?? "";
-    const listed = candidates
-      .map((candidate) => ({
-        candidate,
-        at: firstMention(question, candidate),
-      }))
-      .filter((entry) => entry.at >= 0)
-      .sort((a, b) => a.at - b.at)
-      .map((entry) => entry.candidate);
-    if (listed.length > 1) return listed;
-    // Core's refusal showed the oldest ten; the bot relays that list.
-    if (previous.toolCalls.length > 0) return candidates.slice(0, SHOWN);
+    const refusal = previous.toolCalls.find((call) => call.errorDetail);
+    if (refusal?.errorDetail) {
+      const shown = namedIn(refusal.errorDetail, candidates);
+      if (shown.length > 1) return shown;
+    }
+    if (previous.status === "COMPLETED") {
+      const listed = namedIn(previous.finalAnswer ?? "", candidates);
+      if (listed.length > 1) return listed;
+    }
   }
   return null;
-}
-
-/** Where the question first names this account (@handle or Project), or -1. */
-function firstMention(text: string, candidate: Candidate): number {
-  const handle = handleOf(candidate);
-  const lower = text.toLowerCase();
-  const places = [
-    handle ? lower.indexOf(`@${handle.toLowerCase()}`) : -1,
-    lower.indexOf(candidate.project.name.toLowerCase()),
-  ].filter((index) => index >= 0);
-  return places.length ? Math.min(...places) : -1;
 }
 
 export async function requireChosenSocialDestination(
@@ -280,20 +190,21 @@ export async function requireChosenSocialDestination(
   const pick = candidates.find(
     (candidate) => candidate.id === params.socialConnectionId,
   );
-  const asked = await askedJustBefore(authorized, turn, candidates);
-  const choice = resolveChoice(turn.userMessage, candidates, asked);
-  if (choice) {
-    if (pick && choice.includes(pick)) return;
+  const named = namedIn(withoutQuotedCopy(turn.userMessage), candidates);
+  if (named.length > 0) {
+    if (pick && named.includes(pick)) return;
     throw new SokoBotRefusedUnsentError(
-      `The owner chose ${labels(choice)}. Create the post there, with that socialConnectionId and projectId.`,
+      `The owner named ${labels(named)}. Create the post there, with that socialConnectionId and projectId.`,
     );
   }
-  // The question stays open until the answer names one of the options.
-  if (asked)
+  const options = await openQuestion(authorized, turn, candidates);
+  if (options) {
+    if (pick && options.includes(pick)) return;
     throw new SokoBotRefusedUnsentError(
-      `The owner has not picked an account yet. Draft nothing; ask them to pick one by name or place in your list: ${labels(asked)}.`,
+      `Pass the socialConnectionId and projectId of the option the owner picked, once they have picked one: ${labels(options)}. Until then, draft nothing.`,
     );
+  }
   throw new SokoBotRefusedUnsentError(
-    `${ASK_WHICH_ACCOUNT}, and the owner has not chosen one: ${labels(candidates)}. Ask the owner once which one, naming them, and draft nothing until they answer. Then create the post with that account's socialConnectionId and projectId.`,
+    `${ASK_WHICH_ACCOUNT}, and the owner has not named one: ${labels(candidates)}. Ask the owner once which one, listing them by @handle in this order, and draft nothing until they answer. Then create the post with the socialConnectionId and projectId of the one they picked.`,
   );
 }

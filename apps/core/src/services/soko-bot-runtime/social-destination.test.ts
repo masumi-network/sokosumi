@@ -70,25 +70,33 @@ function ownerSays(message: string) {
 
 /** Earlier turns in this chat, newest first. */
 function earlierTurns(
-  ...turns: { finalAnswer: string; refused?: boolean; posted?: boolean }[]
+  ...turns: { answer?: string; refusal?: string; posted?: boolean }[]
 ) {
   db.turnFindMany.mockResolvedValue(
     turns.map((earlier) => ({
-      finalAnswer: earlier.finalAnswer,
+      status: "COMPLETED",
+      finalAnswer: earlier.answer ?? "",
       toolCalls: [
-        ...(earlier.refused ? [{ status: "FAILED" }] : []),
-        ...(earlier.posted ? [{ status: "COMPLETED" }] : []),
+        ...(earlier.posted ? [{ status: "COMPLETED", errorDetail: null }] : []),
+        ...(earlier.refusal
+          ? [{ status: "FAILED", errorDetail: earlier.refusal }]
+          : []),
       ],
     })),
   );
 }
 
-function previousTurn(finalAnswer: string, refused = false) {
-  earlierTurns({ finalAnswer, refused });
-}
-
 const check = (params: typeof onCompany | { projectId: string }) =>
   requireChosenSocialDestination(turn(), params);
+
+/** What Core said the first time, as recorded on the failed tool call. */
+async function firstRefusal(): Promise<string> {
+  ownerSays("Write an X post about our launch.");
+  return check(onCompany).then(
+    () => "",
+    (error: Error) => error.message,
+  );
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -98,41 +106,29 @@ beforeEach(() => {
 });
 
 describe("requireChosenSocialDestination", () => {
-  it("refuses a draft when two accounts fit and none was chosen, listing them", async () => {
-    ownerSays("Write an X post about how our harness works.");
-    const refusal = check(onCompany);
-    await expect(refusal).rejects.toThrow(ASK_WHICH_ACCOUNT);
-    await expect(refusal).rejects.toThrow(/@acme_hq .*@pat /);
+  it("refuses a first draft when two accounts fit, listing them in order", async () => {
+    const refusal = await firstRefusal();
+    expect(refusal).toMatch(new RegExp(`^${ASK_WHICH_ACCOUNT}`));
+    expect(refusal).toMatch(/@acme_hq .*@pat /);
   });
 
-  it("never reads a name inside a longer word (Pat in patch)", async () => {
-    ownerSays("Draft an X post about our latest patch.");
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
+  it("goes ahead on the account the owner named by @handle or id, and only there", async () => {
+    ownerSays("Post this on @pat: shipping today.");
+    await expect(check(onPersonal)).resolves.toBeUndefined();
+    await expect(check(onCompany)).rejects.toThrow(/owner named @pat /);
+    ownerSays(`Use ${COMPANY}.`);
+    await expect(check(onCompany)).resolves.toBeUndefined();
+    ownerSays("Post it on @acme_hq and on @pat.");
+    await expect(check(onCompany)).resolves.toBeUndefined();
+    await expect(check(onPersonal)).resolves.toBeUndefined();
   });
 
-  it("does not take a name the post is about for the answer", async () => {
-    ownerSays("Draft an X post about acme_hq's launch.");
-    previousTurn("Which account: @acme_hq or @pat?");
-    await expect(check(onPersonal)).rejects.toThrow(/has not picked/);
-    await expect(check(onCompany)).rejects.toThrow(/has not picked/);
-  });
-
-  it("goes ahead when the owner chose by @handle or Project name", async () => {
+  it("reads no account from ordinary words, names or quoted copy", async () => {
     for (const message of [
-      "Post this on @pat: shipping today.",
-      "Draft it for Founder notes.",
-    ]) {
-      ownerSays(message);
-      await expect(check(onPersonal)).resolves.toBeUndefined();
-    }
-    // A bare handle is as likely the post's topic: it is asked.
-    ownerSays("Write about pat for this one.");
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
-  });
-
-  it("reads no destination from quoted or fenced post copy", async () => {
-    for (const message of [
+      "Draft an X post about our latest patch.",
+      "Write about pat and Founder notes.",
       'Post this: "Big thanks to @pat for the help!"',
+      "Post this: 'Big thanks to @pat for the help!'",
       "Post this:\n```\nShipped with @pat today\n```",
       "Post this:\n> Shipped with @pat today",
     ]) {
@@ -141,171 +137,77 @@ describe("requireChosenSocialDestination", () => {
     }
   });
 
-  it("binds the draft to the owner's answer, by place in the question", async () => {
-    ownerSays("the second one");
-    previousTurn("Which account: @acme_hq (Company marketing) or @pat?");
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-    await expect(check(onCompany)).rejects.toThrow(/owner chose @pat /);
-    // The question's order, not the accounts' age.
-    previousTurn("Which account: @pat or @acme_hq?");
-    await expect(check(onCompany)).resolves.toBeUndefined();
-    await expect(check(onPersonal)).rejects.toThrow(/owner chose @acme_hq /);
+  it("after Core's question, lets through the option the bot picked from it", async () => {
+    const refusal = await firstRefusal();
+    earlierTurns({ answer: "Which one?", refusal });
+    // What the answer means is the model's call; Core reads no words.
+    for (const message of ["the second one", "my personal one"]) {
+      ownerSays(message);
+      await expect(check(onPersonal)).resolves.toBeUndefined();
+    }
   });
 
-  it("binds the draft to the account the owner named in the answer", async () => {
-    ownerSays("@acme_hq please");
-    previousTurn("Which account: @acme_hq or @pat?");
-    await expect(check(onPersonal)).rejects.toThrow(/owner chose @acme_hq /);
+  it("counts a question the bot asked on its own when it listed the accounts", async () => {
+    earlierTurns({ answer: "Which account: @acme_hq or @pat?" });
+    ownerSays("the first");
     await expect(check(onCompany)).resolves.toBeUndefined();
+    // A reply naming one account is no question.
+    earlierTurns({ answer: "Drafting on @pat now." });
+    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
   });
 
-  it("drafts on each account when the owner answers both", async () => {
-    ownerSays("both");
-    previousTurn("Which account: @acme_hq or @pat?");
-    await expect(check(onCompany)).resolves.toBeUndefined();
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-  });
-
-  it("checks the chosen account among every eligible one, listing only ten", async () => {
+  it("only options that were shown can be picked", async () => {
     const many = Array.from({ length: 12 }, (_, index) => ({
-      id: `01960001-0001-7001-8001-0000000001${String(index).padStart(2, "0")}`,
+      id: `01960001-0001-7001-8001-0000000003${String(index).padStart(2, "0")}`,
       externalHandle: `brand_${index}`,
-      project: { id: `p${index}`, name: `Brand ${index} team` },
+      project: { id: `p${index}`, name: `Brand ${index}` },
     }));
     db.connectionFindMany.mockResolvedValue(many);
+    ownerSays("Write an X post.");
+    const refusal = await check({
+      projectId: "p0",
+      socialConnectionId: many[0]?.id ?? "",
+    }).then(
+      () => "",
+      (error: Error) => error.message,
+    );
+    expect(refusal).toMatch(/and 2 more/);
+    earlierTurns({ refusal });
+    ownerSays("the last one");
+    await expect(
+      check({ projectId: "p9", socialConnectionId: many[9]?.id ?? "" }),
+    ).resolves.toBeUndefined();
+    await expect(
+      check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
+    ).rejects.toThrow(/option the owner picked/);
+    // Named exactly, an account beyond the ten still goes.
     ownerSays("Post it on @brand_11.");
     await expect(
       check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
     ).resolves.toBeUndefined();
-    ownerSays("Write an X post.");
-    await expect(
-      check({ projectId: "p0", socialConnectionId: many[0]?.id ?? "" }),
-    ).rejects.toThrow(/and 2 more/);
-    expect(db.connectionFindMany.mock.calls[0]?.[0].take).toBeUndefined();
   });
 
-  it("sends the post to the @handle the owner chose", async () => {
-    ownerSays("Put it on @pat.");
-    await expect(check(onCompany)).rejects.toThrow(/owner chose @pat /);
-    await expect(check({ projectId: "p1" })).rejects.toThrow(
-      /owner chose @pat .*socialConnectionId/,
-    );
-  });
-
-  it("drafts on the answer after Core refused with the question", async () => {
+  it("keeps the question open over a few turns until a post is saved", async () => {
+    const refusal = await firstRefusal();
     ownerSays("the second one");
-    previousTurn("Which one should I use?", true);
+    earlierTurns({ answer: "Sure, take your time." }, { refusal });
     await expect(check(onPersonal)).resolves.toBeUndefined();
+    earlierTurns({ answer: "Drafted.", posted: true }, { refusal });
+    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
   });
 
-  it("drafts on the answer after the bot asked on its own, without a refused draft", async () => {
-    ownerSays("the second one");
-    previousTurn("Which account: @acme_hq (Company marketing) or @pat?");
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-  });
-
-  it("looks for the question only just before, in this chat", async () => {
-    ownerSays("the second one");
-    await check(onPersonal).catch(() => undefined);
+  it("looks for the question in this chat and the last day", async () => {
+    await firstRefusal();
     const [{ where }] = db.turnFindMany.mock.calls[0];
     expect(where.destinationRoomId).toBeNull();
     expect(where.createdAt.lt).toEqual(NOW);
     expect(where.createdAt.gte).toEqual(new Date(NOW.getTime() - 86_400_000));
-  });
-
-  it("never posts on an account the owner turned down, and keeps asking", async () => {
-    ownerSays("Not @acme_hq, use my personal account!");
-    previousTurn("Which account: @acme_hq or @pat?");
-    await expect(check(onCompany)).rejects.toThrow(/has not picked/);
-    await expect(check(onPersonal)).rejects.toThrow(/has not picked/);
-    db.turnFindMany.mockResolvedValue([]);
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
-  });
-
-  it("keeps the question open while the owner has not picked", async () => {
-    ownerSays("Please wait, I have not picked an account");
-    previousTurn("Which account: @acme_hq or @pat?");
-    await expect(check(onCompany)).rejects.toThrow(/has not picked/);
-    // Answered a turn later, the open question still counts.
-    ownerSays("the second one");
-    earlierTurns(
-      { finalAnswer: "Sure, take your time." },
-      { finalAnswer: "Which account: @acme_hq or @pat?" },
-    );
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-    // A post saved after the question closes it.
-    earlierTurns(
-      { finalAnswer: "Drafted.", posted: true },
-      { finalAnswer: "Which account: @acme_hq or @pat?" },
-    );
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
-  });
-
-  it("reads no destination from single-quoted copy", async () => {
-    ownerSays("Post this: 'Big thanks to @pat for the help!'");
-    await expect(check(onPersonal)).rejects.toThrow(ASK_WHICH_ACCOUNT);
-    // An apostrophe is not a quote.
-    ownerSays("It's for @pat's account");
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-  });
-
-  it("reads a place in the list among the options shown, not every account", async () => {
-    const many = Array.from({ length: 12 }, (_, index) => ({
-      id: `01960001-0001-7001-8001-0000000002${String(index).padStart(2, "0")}`,
-      externalHandle: `brand_${index}`,
-      project: { id: `p${index}`, name: `Brand ${index} team` },
-    }));
-    db.connectionFindMany.mockResolvedValue(many);
-    ownerSays("the last one");
-    previousTurn("", true);
-    await expect(
-      check({ projectId: "p11", socialConnectionId: many[11]?.id ?? "" }),
-    ).rejects.toThrow(/owner chose @brand_9 /);
-    await expect(
-      check({ projectId: "p9", socialConnectionId: many[9]?.id ?? "" }),
-    ).resolves.toBeUndefined();
-  });
-
-  it("still asks when the named Project holds two accounts of the network", async () => {
-    db.connectionFindMany.mockResolvedValue([
-      candidates[0],
-      { ...candidates[1], project: candidates[0]?.project },
-    ]);
-    ownerSays("Write an X post for Company marketing.");
-    await expect(check(onCompany)).rejects.toThrow(ASK_WHICH_ACCOUNT);
-    ownerSays("Write it for Company marketing on @pat.");
-    await expect(
-      check({ projectId: "p1", socialConnectionId: PERSONAL }),
-    ).resolves.toBeUndefined();
-  });
-
-  it("drafts on each account when the owner chose several", async () => {
-    ownerSays("Post it on @acme_hq and on @pat.");
-    await expect(check(onCompany)).resolves.toBeUndefined();
-    await expect(check(onPersonal)).resolves.toBeUndefined();
-  });
-
-  it("ignores closed Projects and a question from a failed turn", async () => {
-    ownerSays("the second one");
-    await check(onPersonal).catch(() => undefined);
     const [{ where: connections }] = db.connectionFindMany.mock.calls[0];
     expect(connections.project).toMatchObject({
       closedAt: null,
       closingAt: null,
     });
-    const [{ where: previous }] = db.turnFindMany.mock.calls[0];
-    expect(previous.OR).toContainEqual({ status: "COMPLETED" });
-  });
-
-  it("names the answered account when the draft names none", async () => {
-    ownerSays("the second one");
-    // Core's refusal listed them oldest first.
-    previousTurn("", true);
-    await expect(check({ projectId: "p2" })).rejects.toThrow(
-      /owner chose @pat .*socialConnectionId/,
-    );
-    ownerSays("my personal one, please");
-    await expect(check({ projectId: "p2" })).rejects.toThrow(/has not picked/);
+    expect(db.connectionFindMany.mock.calls[0]?.[0].take).toBeUndefined();
   });
 
   it("asks nothing with one fitting account, on a turn the owner did not type, or for Cuso", async () => {
