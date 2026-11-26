@@ -45,12 +45,11 @@ export function seoRunDiffOf(
   );
 }
 
-/** The check a stop compares: its newest page check, as the day counts, else its newest check of any kind. */
+/** The newest page check of a stop's events, as the day counts: a ranking check there may be an older one. */
 export function seoStopCheckId(nodes: SeoStopNode[]): string | undefined {
-  const checks = nodes.flatMap(({ observation }) =>
-    observation ? [observation] : [],
-  );
-  return (checks.find(({ kind }) => isSeoRuleCheck(kind)) ?? checks[0])?.id;
+  return nodes.find(
+    ({ observation }) => observation && isSeoRuleCheck(observation.kind),
+  )?.observation?.id;
 }
 
 export function seoRunDiffView(diff: ProjectSeoRunDiff): SeoRunDiffView {

@@ -249,7 +249,12 @@ export function SeoRunDayDialog({
   /** Where focus goes when the dialog closes: it has no trigger of its own to go back to. */
   onCloseAutoFocus?: (event: Event) => void;
 }) {
-  const diff = seoRunDiffOf(workspace, checkId ?? seoStopCheckId(nodes));
+  const diff = seoRunDiffOf(
+    workspace,
+    checkId ??
+      seoStopCheckId(nodes) ??
+      seoStopDigest(nodes).newestCheck?.observation?.id,
+  );
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent

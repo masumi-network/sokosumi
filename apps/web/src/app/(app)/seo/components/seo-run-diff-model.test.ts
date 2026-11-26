@@ -125,7 +125,7 @@ describe("seoStopCheckId", () => {
     ).toBe("page");
   });
 
-  it("compares the newest check of a stop that holds no page check", () => {
-    expect(seoStopCheckId([node("ranking", "rankings")])).toBe("ranking");
+  it("names no check of a stop that holds no page check", () => {
+    expect(seoStopCheckId([node("ranking", "rankings")])).toBeUndefined();
   });
 });

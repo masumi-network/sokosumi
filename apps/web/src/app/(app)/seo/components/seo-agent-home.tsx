@@ -93,17 +93,18 @@ function SeoAgentPanel({
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
   const lastCheckDiff = seoRunDiffOf(model.data, brief.lastCheck?.id);
-  // The written plan and the verdict card both show it: the plan takes the place of the card.
-  const runDiffFold = lastCheckDiff ? (
-    <details data-testid="seo-agent-run-diff">
-      <SeoFoldSummary className="text-muted-foreground text-sm">
-        <span lang="en">{report("runDiff.open")}</span>
-      </SeoFoldSummary>
-      <div className="pt-2">
-        <SeoRunDiff diff={lastCheckDiff} />
-      </div>
-    </details>
-  ) : null;
+  // The written plan and the verdict card both show one: the plan takes the place of the card.
+  const runDiffFold = (diff: typeof lastCheckDiff) =>
+    diff ? (
+      <details data-testid="seo-agent-run-diff">
+        <SeoFoldSummary className="text-muted-foreground text-sm">
+          <span lang="en">{report("runDiff.open")}</span>
+        </SeoFoldSummary>
+        <div className="pt-2">
+          <SeoRunDiff diff={diff} />
+        </div>
+      </details>
+    ) : null;
   const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
@@ -356,7 +357,8 @@ function SeoAgentPanel({
           }
           figures={
             <>
-              {runDiffFold}
+              {/* The plan stays on its audit after a newer focused check: it compares its own check. */}
+              {runDiffFold(seoRunDiffOf(model.data, selectedPlan.report?.id))}
               {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
               <SeoAgentFigures
                 model={model}
@@ -423,7 +425,7 @@ function SeoAgentPanel({
               <SeoDate report day value={brief.lastCheck.at} />
             </p>
           ) : null}
-          {runDiffFold}
+          {runDiffFold(lastCheckDiff)}
           <SeoStrategyLine strategy={model.data.strategy} />
           {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
           <SeoAgentFigures
