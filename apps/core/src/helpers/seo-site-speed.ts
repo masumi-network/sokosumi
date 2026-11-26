@@ -85,7 +85,8 @@ function readNotChecked(value: unknown): StoredSiteSpeed["notChecked"] {
 /**
  * A site Report's speed table. It names pages outside the audit's frozen scope, so each one is bound to the
  * start page's host. A row Core cannot trust is dropped and counted: this never fails the import. The worker's
- * `source`, `clicks`, `n`, `note` and the names of pages it left out are not read, so no Search Console fact reaches the stored audit.
+ * `source`, `clicks`, `n`, `note` and the names of pages it left out are not read, so no Search Console value reaches the stored audit as a field.
+ * A row's `why` is the worker's free text: only the public text guard reads it.
  */
 export function readSiteSpeed(
   raw: unknown,
@@ -255,7 +256,11 @@ export function scopedSiteSpeed(
     !data.pageUrls.every((url) => selected.has(auditedSeoPageKey(url)))
   )
     return null;
-  const speed = data.pageSpeed ?? [];
+  // Only a measurement of an audited page counts: its tested URL is that page's redirect target.
+  const own = new Set(data.pageUrls.map(auditedSeoPageKey));
+  const speed = (data.pageSpeed ?? []).filter((row) =>
+    own.has(auditedSeoPageKey(row.pageUrl)),
+  );
   // A stored row is bound to the audit as a fresh import binds it: an audited page, or the start page's host.
   const start = URL.parse(data.pageUrls[0] ?? "");
   const audited = new Set(

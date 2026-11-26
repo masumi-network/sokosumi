@@ -333,10 +333,10 @@ describe("the speed table in a workspace view", () => {
             dropped: 0,
           },
           pageSpeed,
-          pageUrls: [SEO_TEST_PAGE],
+          pageUrls: [SEO_TEST_PAGE, other, EXTRA],
         },
         row,
-        new Set([SEO_TEST_PAGE]),
+        new Set([SEO_TEST_PAGE, other, EXTRA]),
       )?.rows[0]?.devices.map((item) => [item.pageUrl, item.device]);
     // Two pages redirect to this page on mobile.
     expect(
@@ -928,6 +928,17 @@ describe("the guards of speed data on each path", () => {
           ],
           dropped: 1,
         },
+        // A stored measurement of a page outside the audit makes no page an audited one.
+        pageSpeed: [
+          "https://other.test/pricing",
+          "https://other.test/audited",
+        ].map((url) => ({
+          pageUrl: url,
+          testedUrl: url,
+          device: "mobile" as const,
+          lab: { status: "unavailable" as const },
+          field: { status: "no_data" as const },
+        })),
         pageUrls: [SEO_TEST_PAGE],
       },
       view,
