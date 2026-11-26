@@ -125,7 +125,7 @@ it("reads a falling LCP as getting faster and breaks the line at a week without 
   expect(trend.limit).toBeLessThan(1);
 });
 
-it("places each week on the time axis by its date, so a missing week leaves a gap", () => {
+it("places each week on the time axis by its date, so a missing week leaves a gap on the axis", () => {
   const trend = seoVitalTrend("lcp", {
     status: "comparable",
     weeks: ["2026-10-04", "2026-10-11", "2026-10-18", "2026-11-01"],
@@ -216,7 +216,7 @@ it("names no share of visitors when Google gave no device mix", () => {
     basis: "crux-url" as const,
     notChecked: null,
   };
-  expect(seoDeviceReason({ ...check, mix: null }).basis).toBe("default");
+  expect(seoDeviceReason({ ...check, mix: null })?.basis).toBe("default");
   expect(
     seoDeviceReason({
       ...check,
@@ -229,4 +229,16 @@ it("names no share of visitors when Google gave no device mix", () => {
       },
     }),
   ).toEqual({ basis: "crux-url", share: 0.72 });
+  // Review pass 15: a check that the rate limit stopped before it picked a device names no device.
+  expect(
+    seoDeviceReason({
+      ...check,
+      basis: "default",
+      mix: null,
+      notChecked: "quota",
+    }),
+  ).toBeNull();
+  expect(
+    seoDeviceReason({ ...check, basis: "default", mix: null })?.basis,
+  ).toBe("default");
 });

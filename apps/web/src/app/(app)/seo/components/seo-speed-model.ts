@@ -308,8 +308,12 @@ export function seoPageTrend(
   );
 }
 
-/** Why a page with the short check was read on its one device. The share is that device's part of the visits, when Google gave one. */
+/**
+ * Why a page with the short check was read on its one device. The share is that device's part of the visits, when Google gave one.
+ * Null: the check stopped before it picked a device (the worker then writes basis default with the gap), so it checked no device.
+ */
 export function seoDeviceReason(check: NonNullable<SeoSiteSpeedRow["check"]>) {
+  if (check.basis === "default" && check.notChecked) return null;
   const share =
     check.mix?.[check.device === "mobile" ? "phone" : "desktop"] ?? null;
   const counted = check.basis === "crux-url" || check.basis === "crux-origin";

@@ -94,6 +94,7 @@ export function SeoSiteSpeed({
               ({ row, verdict, trend }, index) => {
                 const isOpen = open === row.url;
                 const detailId = `${id}-${index}`;
+                const reason = row.check && seoDeviceReason(row.check);
                 const added = row.audited
                   ? t("siteSpeed.audited")
                   : row.cause
@@ -168,17 +169,13 @@ export function SeoSiteSpeed({
                         )}
                         {row.check && (
                           <p className="text-muted-foreground max-w-prose text-xs">
-                            {t(
-                              `siteSpeed.deviceReason.${seoDeviceReason(row.check).basis}`,
-                              {
+                            {reason &&
+                              t(`siteSpeed.deviceReason.${reason.basis}`, {
                                 device: t(
                                   `breakdown.devices.${row.check.device}`,
                                 ).toLowerCase(),
-                                share: percent(
-                                  seoDeviceReason(row.check).share ?? 0,
-                                ),
-                              },
-                            )}
+                                share: percent(reason.share ?? 0),
+                              })}
                             {row.check.mix && (
                               <>
                                 {" "}
