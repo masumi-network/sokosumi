@@ -2,6 +2,8 @@ import type {
   ProjectSeoRunDiff,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
+import { isSeoRuleCheck } from "./seo-runs-model";
+import type { SeoStopNode } from "./seo-timeline-model";
 
 type Issue = ProjectSeoRunDiff["new"][number];
 
@@ -41,6 +43,14 @@ export function seoRunDiffOf(
     workspace.runs?.find((run) => run.observationId === observationId)
       ?.runDiff ?? null
   );
+}
+
+/** The check a stop compares: its newest page check, as the day counts, else its newest check of any kind. */
+export function seoStopCheckId(nodes: SeoStopNode[]): string | undefined {
+  const checks = nodes.flatMap(({ observation }) =>
+    observation ? [observation] : [],
+  );
+  return (checks.find(({ kind }) => isSeoRuleCheck(kind)) ?? checks[0])?.id;
 }
 
 export function seoRunDiffView(diff: ProjectSeoRunDiff): SeoRunDiffView {

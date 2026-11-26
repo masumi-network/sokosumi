@@ -1,6 +1,11 @@
 import type { ProjectSeoRunDiff } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoRunDiffOf, seoRunDiffView } from "./seo-run-diff-model";
+import {
+  seoRunDiffOf,
+  seoRunDiffView,
+  seoStopCheckId,
+} from "./seo-run-diff-model";
+import type { SeoStopNode } from "./seo-timeline-model";
 
 const issue = (rowId: string) => ({
   rowId,
@@ -103,5 +108,24 @@ describe("seoRunDiffOf", () => {
     expect(seoRunDiffOf(workspace, "check-1")).toBeNull();
     expect(seoRunDiffOf(workspace, undefined)).toBeNull();
     expect(seoRunDiffOf({}, "check-2")).toBeNull();
+  });
+});
+
+describe("seoStopCheckId", () => {
+  const node = (id: string, kind: string) =>
+    ({ observation: { id, kind } }) as unknown as SeoStopNode;
+
+  it("compares the newest page check of a stop, not a newer ranking check", () => {
+    expect(
+      seoStopCheckId([
+        node("ranking", "rankings"),
+        node("page", "page_check"),
+        node("older", "page_check"),
+      ]),
+    ).toBe("page");
+  });
+
+  it("compares the newest check of a stop that holds no page check", () => {
+    expect(seoStopCheckId([node("ranking", "rankings")])).toBe("ranking");
   });
 });

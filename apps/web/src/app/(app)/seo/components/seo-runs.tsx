@@ -399,6 +399,7 @@ export function SeoRuns({
                     pinned={previewDay === WHOLE}
                     allowHover={!previewDay && !detailsOpen}
                     onPinnedChange={(open) => changePreview(WHOLE, open)}
+                    hasComparison={hasDetails}
                     onDetails={() => {
                       returnTo.current = rangeTrigger.current;
                       openDetails(WHOLE);
