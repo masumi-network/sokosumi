@@ -2076,6 +2076,70 @@ export async function cancelSocialPost(
   return mapSocialPost(canceled);
 }
 
+export interface RestoreCanceledSocialPostInput extends CancelSocialPostInput {
+  organizationId?: string | null;
+  /** The time it was planned at before the cancel; kept on the draft. */
+  scheduledAt: Date | null;
+  timezone?: string;
+  /** It was scheduled: it is scheduled again through Social's own checks. */
+  schedule: boolean;
+}
+
+/**
+ * Takes back a cancel (an owner's change undone, cmo-v25): the post comes
+ * back as a draft at its planned time, still at the revision the cancel
+ * left, and the posts quoting it lose the flag the cancel put on them. A
+ * post that was scheduled is then scheduled again through
+ * `scheduleSocialPost`, so every check a schedule passes runs again.
+ */
+export async function restoreCanceledSocialPost(
+  input: RestoreCanceledSocialPostInput,
+): Promise<SocialPostSummary> {
+  const draft = await serializableTransaction(async (tx) => {
+    await requireScopedProject(input, { client: tx });
+    const post = await requireScopedPost(input, tx);
+    if (post.status !== "CANCELED")
+      throw conflict("Only a canceled post can be restored");
+    requireRevision(post, input.revision);
+    const restored = await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: "DRAFT",
+        canceledAt: null,
+        scheduledAt: input.scheduledAt,
+        ...(input.timezone ? { timezone: input.timezone } : {}),
+      },
+      tx,
+    );
+    await tx.socialPost.updateMany({
+      where: {
+        quotedPostId: post.id,
+        needsAttentionReason: QUOTED_POST_CANCELLED,
+        status: { notIn: ["PUBLISHED", "CANCELED"] },
+      },
+      data: {
+        needsAttentionReason: null,
+        lastError: null,
+        revision: { increment: 1 },
+      },
+    });
+    return mapSocialPost(restored);
+  }, "Post changed while restoring a Social post");
+  if (!input.schedule || !input.scheduledAt) return draft;
+  return scheduleSocialPost({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    organizationId: input.organizationId,
+    ...(input.coworkerId ? { coworkerId: input.coworkerId } : {}),
+    postId: draft.id,
+    revision: draft.revision,
+    scheduledAt: input.scheduledAt,
+    ...(input.timezone ? { timezone: input.timezone } : {}),
+  });
+}
+
 export async function approveSocialPost(
   input: ApproveSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
