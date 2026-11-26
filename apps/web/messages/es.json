@@ -15257,7 +15257,7 @@
           "none": "No trend yet"
         },
         "trendTitle": "Real visitors, week by week",
-        "trendText": "{metric}: {first} in the week to {firstDate}, {last} in the week to {lastDate}.",
+        "trendText": "{metric}: {first} in the 28 days to {firstDate}, {last} in the 28 days to {lastDate}.",
         "trendLimit": "The dashed line is the good limit: {good}.",
         "noTrend": {
           "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",

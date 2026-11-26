@@ -140,7 +140,7 @@ it("says the trend in words, why a short check used one device and how many page
   fireEvent.click(screen.getByText(/^Mobile · Real visitors ·/));
   expect(
     screen.getByText(
-      /Largest item appears \(LCP\): 4\.2 s in the week to Oct 18, 2026, 3 s in the week to Nov 1, 2026\./,
+      /Largest item appears \(LCP\): 4\.2 s in the 28 days to Oct 18, 2026, 3 s in the 28 days to Nov 1, 2026\./,
     ),
   ).toBeVisible();
   // One week with a value is no trend: a sentence stands in for the line.
