@@ -93,6 +93,36 @@ describe("a launch short", () => {
     expect(seen!.captions).toContain("December.");
   });
 
+  it("shows the date over a launch told in one sentence, the hook line making way", async () => {
+    renderVideoCards.mockResolvedValue([new Uint8Array([9])]);
+    const one = WORDS.slice(0, 3).map((word, index) =>
+      index === 2 ? { ...word, text: "menu, 3 December." } : word,
+    );
+
+    await launch({ words: one, seconds: 1.5 });
+
+    expect(renderVideoCards).toHaveBeenCalledWith(
+      [{ kind: "date", date: "3 December", text: "New winter menu" }],
+      BRAND,
+      "9:16",
+    );
+    expect(seen!.files).toContain("card-0.png");
+    expect(seen!.args.join(" ")).toMatch(/between\(t,0(\.0+)?,/);
+    expect(seen!.captions).not.toContain(",Hook,");
+    expect(seen!.captions).not.toContain("December.");
+  });
+
+  it("keeps a one-sentence launch's hook line and captions when its card cannot be drawn", async () => {
+    renderVideoCards.mockResolvedValue(null);
+    const one = WORDS.slice(0, 3);
+
+    await launch({ words: one, seconds: 1.5 });
+
+    expect(seen!.files).not.toContain("card-0.png");
+    expect(seen!.captions).toContain(",Hook,,0,0,0,,New winter menu");
+    expect(seen!.captions).toContain("menu.");
+  });
+
   it("draws no card for any other format", async () => {
     await launch({ format: "voiceover" });
 

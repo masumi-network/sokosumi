@@ -425,9 +425,11 @@ export function planShortVideo(
         lines.push({ ...span, text: String(sentence), style: "Number" });
     }
   }
-  // The second sentence says when; the hook keeps the first to itself.
-  const dateSpan = options.format === "launch" ? spans[1] : undefined;
-  const dateText = texts[1];
+  // The second sentence says when, and the hook keeps the first to itself;
+  // a launch told in one sentence shows its date over that sentence.
+  const dated = sentences > 1 ? 1 : 0;
+  const dateSpan = options.format === "launch" ? spans[dated] : undefined;
+  const dateText = texts[dated];
   return {
     ...base,
     cuts: shots,
@@ -536,7 +538,7 @@ export function talkingVideoSubtitles(
     `Style: ${name},${CAPTION_FONT_FAMILY},${values.size},${values.colour},${values.colour},${values.outlineColour},${values.outlineColour},0,0,0,0,100,100,0,0,${values.borderStyle},${values.outline},0,${values.alignment},${sideMargin},${sideMargin},${values.marginV},1`;
   const hook = hookLine ? assText(hookLine) : "";
   const events = [
-    ...(hook
+    ...(hook && plan.hookSeconds > 0
       ? [
           `Dialogue: 1,${assTime(0)},${assTime(plan.hookSeconds)},Hook,,0,0,0,,${hook}`,
         ]
@@ -1050,7 +1052,7 @@ export async function editShortVideo(
       ? await launchCard(plan.cardSpan, input)
       : null;
   if (!card) return await renderEdit(plan, input.hookLine, input);
-  // The card says it, so the captions under it make way.
+  // The card says it, so the captions under it and the hook line make way.
   const span = plan.cardSpan!;
   return await renderEdit(
     {
@@ -1058,6 +1060,7 @@ export async function editShortVideo(
       captions: plan.captions.filter(
         (caption) => caption.end <= span.start || caption.start >= span.end,
       ),
+      hookSeconds: Math.min(plan.hookSeconds, span.start),
     },
     input.hookLine,
     { ...input, cards: [card] },

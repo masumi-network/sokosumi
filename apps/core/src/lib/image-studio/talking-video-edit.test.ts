@@ -480,10 +480,16 @@ describe("planShortVideo", () => {
     expect(
       planShortVideo(FIVE, 5, { ...options, format: "voiceover" })!.cardSpan,
     ).toBeUndefined();
-    expect(
-      planShortVideo(FIVE.slice(0, 1), 1, { ...options, format: "launch" })!
-        .cardSpan,
-    ).toBeUndefined();
+    // Told in one sentence, the date shows over that sentence.
+    const one = planShortVideo(FIVE.slice(0, 1), 1, {
+      ...options,
+      format: "launch",
+    })!;
+    expect(one.cardSpan).toEqual({
+      start: 0,
+      end: expect.closeTo(one.speechSeconds),
+      text: "Stop.",
+    });
   });
 
   it("puts a slideshow's words on its pictures instead of captions", () => {
