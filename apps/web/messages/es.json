@@ -7841,7 +7841,7 @@
       "SeoAlerts": {
         "type": "Tipo de alerta",
         "impactTab": "Efecto de las acciones",
-        "impactDescription": "Totales de Search Console de la página de cada acción SEO hecha, para el mismo número de días antes y después. Cada entrada es una auditoría y la persona cuyos datos de Search Console contiene. Las cifras no descartan la temporada, otros cambios en la página ni una actualización de Google.",
+        "impactDescription": "Totales de Search Console de la página de cada acción SEO hecha, para el mismo número de días antes y después. Cada entrada es una auditoría y la persona cuyos datos de Search Console contiene. Las cifras no descartan la estacionalidad, otros cambios en la página ni una actualización de Google.",
         "impactWindow": "Días antes y después",
         "impactEmpty": "Ninguna auditoría ha guardado datos diarios de página todavía.",
         "impactNoActions": "Ninguna acción hecha en una página con datos diarios guardados.",
@@ -7854,6 +7854,7 @@
         "impactImpressions": "Impresiones",
         "impactPosition": "Posición media",
         "impactNotMeasured": "Sin medir",
+        "impactPending": "Aún no es definitivo",
         "impactNoPosition": "Sin impresiones",
         "impactState": {
           "measured": "Medido",
@@ -13859,8 +13860,8 @@
           "noPosition": "Sin impresiones",
           "tooEarly": "Search Console tiene datos definitivos de los {days, number} días posteriores desde el {date}. La siguiente auditoría después de ese día los lee.",
           "notMeasuredNote": "Ninguna auditoría ha leído los datos diarios de Search Console de esta página para todo el periodo. Una auditoría nueva lee los 400 días anteriores.",
-          "lowCounts": "Un periodo tiene menos de {min, number} impresiones. Es muy poco para un porcentaje.",
-          "caveat": "Son cifras de Search Console solo de esta página. No descartan la temporada, otros cambios en la página ni una actualización de Google."
+          "lowCounts": "Un periodo tiene menos de {min, number} impresiones o clics. Es muy poco para un porcentaje.",
+          "caveat": "Son cifras de Search Console solo de esta página. No descartan la estacionalidad, otros cambios en la página ni una actualización de Google."
         }
       },
       "pages": {

@@ -16,6 +16,7 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import { withFreshSeoActionImpact } from "./seo-action-impact-model";
 import {
   type seoReportVersions,
   seoTaskReportFiles,
@@ -135,6 +136,11 @@ export function useSeoReportFiles(
             return cached;
           return {
             ...cached,
+            // The recovery also stored each page's daily rows, which the impact of a done action reads.
+            actions: withFreshSeoActionImpact(
+              cached.actions,
+              workspace.actions,
+            ),
             auditSearchConsole: [
               ...(cached.auditSearchConsole ?? []).filter(
                 (entry) => entry.taskId !== id,

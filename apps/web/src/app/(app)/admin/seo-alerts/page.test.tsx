@@ -1,13 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import { createFormatter, createTranslator } from "next-intl";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 import AdminSeoAlertsPage from "./page";
 
-const { read, readImpact } = vi.hoisted(() => ({
+const { read, readImpact, zone } = vi.hoisted(() => ({
   read: vi.fn(),
   readImpact: vi.fn(),
+  zone: { current: "UTC" },
 }));
 vi.mock("@/lib/services/admin-seo-alerts.service", () => ({
   readAdminSeoAlerts: read,
@@ -23,10 +24,13 @@ vi.mock("next-intl/server", () => ({
   getFormatter: async () =>
     createFormatter({
       locale: "en",
-      timeZone: "UTC",
+      timeZone: zone.current,
       formats: createFormats(),
     }),
 }));
+afterEach(() => {
+  zone.current = "UTC";
+});
 
 it("shows aggregate counts, incident time, page impact and an admin-only task link", async () => {
   read.mockResolvedValue({
@@ -333,6 +337,19 @@ it("shows staff the before and after of a done action and keeps the window acros
               },
             },
           },
+          {
+            id: "b",
+            pageUrl: "https://example.test/b",
+            title: "Fix the links",
+            impact: {
+              anchor: "2026-06-20",
+              anchorKind: "verified",
+              days: 14,
+              state: "too_early",
+              before: null,
+              after: null,
+            },
+          },
         ],
       },
       {
@@ -346,6 +363,8 @@ it("shows staff the before and after of a done action and keeps the window acros
       },
     ],
   });
+  // Noon UTC is the next day in Auckland. The day of the action stays a Search Console day.
+  zone.current = "Pacific/Auckland";
   render(
     await AdminSeoAlertsPage({
       searchParams: Promise.resolve({ view: "impact", days: "14" }),
@@ -368,6 +387,8 @@ it("shows staff the before and after of a done action and keeps the window acros
     "1,000 (0%)",
     "8.3",
     "No impressions",
+    // A too-early after side is not a missing read.
+    ...Array(3).fill(["Not measured", "Not final yet"]).flat(),
   ]);
   expect(
     screen.getByText("No done action on a page with stored daily data."),

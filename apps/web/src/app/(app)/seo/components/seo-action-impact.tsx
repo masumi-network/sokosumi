@@ -20,10 +20,13 @@ export function SeoActionImpact({
   impact: ProjectSeoActionImpact;
 }) {
   const t = useSeoResultTranslations("App.Seo.actions.impact");
-  const { rows, readableFrom } = seoActionImpactModel(impact);
+  const { rows, lowCounts, notMeasured, readableFrom } =
+    seoActionImpactModel(impact);
   const day = (value: string) =>
+    // A Search Console day is a calendar day. The reader's time zone must not move it.
     seoResultFormat.dateTime(new Date(`${value}T12:00:00Z`), {
       dateStyle: "medium",
+      timeZone: "UTC",
     });
   const figure = (
     row: SeoActionImpactRow,
@@ -108,10 +111,8 @@ export function SeoActionImpact({
       {impact.state === "too_early" && (
         <p>{t("tooEarly", { days: impact.days, date: day(readableFrom) })}</p>
       )}
-      {impact.state === "not_measured" && <p>{t("notMeasuredNote")}</p>}
-      {impact.state === "low_counts" && (
-        <p>{t("lowCounts", { min: SEO_IMPACT_MIN_COUNT })}</p>
-      )}
+      {notMeasured && <p>{t("notMeasuredNote")}</p>}
+      {lowCounts && <p>{t("lowCounts", { min: SEO_IMPACT_MIN_COUNT })}</p>}
       <p className="text-muted-foreground">{t("caveat")}</p>
     </section>
   );

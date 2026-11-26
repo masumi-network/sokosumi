@@ -7877,19 +7877,20 @@
       "SeoAlerts": {
         "type": "Alert type",
         "impactTab": "Action impact",
-        "impactDescription": "Search Console totals for the page of each done SEO action, for the same number of days before and after it. Each entry is one audit and the person whose Search Console data it holds. The figures do not rule out the season, other changes on the page or a Google update.",
+        "impactDescription": "Search Console totals for the page of each done SEO action, for the same number of days before and after it. Each entry is one audit and the person whose Search Console data it holds. The figures do not rule out seasonality, other changes on the page or a Google update.",
         "impactWindow": "Days before and after",
         "impactEmpty": "No audit has stored daily page data yet.",
         "impactNoActions": "No done action on a page with stored daily data.",
         "impactCompleted": "Task completed on {date}",
         "impactVerified": "Fix verified on {date}",
-        "impactMetric": "Figure",
+        "impactMetric": "Metric",
         "impactBefore": "{days, number} days before",
         "impactAfter": "{days, number} days after",
         "impactClicks": "Clicks",
         "impactImpressions": "Impressions",
         "impactPosition": "Average position",
         "impactNotMeasured": "Not measured",
+        "impactPending": "Not final yet",
         "impactNoPosition": "No impressions",
         "impactState": {
           "measured": "Measured",
@@ -13848,7 +13849,7 @@
           "title": "Before and after",
           "completed": "Counted from {date}, the day the Task was completed.",
           "verified": "Counted from {date}, the day the fix was verified.",
-          "metric": "Figure",
+          "metric": "Metric",
           "beforeDays": "{days, number} days before",
           "afterDays": "{days, number} days after",
           "clicks": "Clicks",
@@ -13857,10 +13858,10 @@
           "notMeasured": "Not measured",
           "pending": "Not final yet",
           "noPosition": "No impressions",
-          "tooEarly": "Search Console has final data for the {days, number} days after from {date}. The next audit after that day reads them.",
+          "tooEarly": "From {date}, Search Console has final data for the {days, number} days after. The next audit after that day reads them.",
           "notMeasuredNote": "No audit has read the daily Search Console data of this page for the whole period. A new audit reads the 400 days before it.",
-          "lowCounts": "One period has fewer than {min, number} impressions. That is too few for a percent.",
-          "caveat": "These are Search Console figures for this page alone. They do not rule out the season, other changes on the page or a Google update."
+          "lowCounts": "A period has fewer than {min, number} impressions or clicks. That is too few for a percent.",
+          "caveat": "These are Search Console figures for this page alone. They do not rule out seasonality, other changes on the page or a Google update."
         }
       },
       "pages": {

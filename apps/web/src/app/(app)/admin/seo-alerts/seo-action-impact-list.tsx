@@ -44,7 +44,13 @@ function ImpactTable({
             : undefined,
         )
       : // A read window without impressions has no position. That is a result, not a missing read.
-        t(impact[side] ? "impactNoPosition" : "impactNotMeasured");
+        t(
+          impact[side]
+            ? "impactNoPosition"
+            : side === "after" && impact.state === "too_early"
+              ? "impactPending"
+              : "impactNotMeasured",
+        );
   return (
     <table className="w-full text-start text-xs tabular-nums">
       <thead>
@@ -162,7 +168,8 @@ export function SeoActionImpactList({
                       {
                         date: format.dateTime(
                           new Date(`${action.impact.anchor}T12:00:00Z`),
-                          { dateStyle: "medium" },
+                          // A Search Console day is a calendar day. The reader's time zone must not move it.
+                          { dateStyle: "medium", timeZone: "UTC" },
                         ),
                       },
                     )}
