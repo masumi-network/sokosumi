@@ -183,11 +183,9 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
     statements.push({ node, template: expression, unsafe });
   }
   visit(source);
-  return {
-    statements,
-    templates: fragments,
-    fragments: fragments.difference(usedTemplates).size,
-  };
+  // A template passed whole to a raw call is that statement, not a fragment.
+  const templates = fragments.difference(usedTemplates);
+  return { statements, templates, fragments: templates.size };
 }
 
 function canPrepare(sql: string) {
