@@ -123,6 +123,7 @@ import {
   failSandboxTurn,
   grantSandboxUpload,
   proxySandboxModelCall,
+  reasoningSummaryOptions,
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
@@ -1395,5 +1396,35 @@ describe("sandbox turn service", () => {
         expect(stopSandboxMock).toHaveBeenCalled();
       },
     );
+  });
+});
+
+describe("reasoningSummaryOptions", () => {
+  it("passes a prompt cache key through with the longest cache life, and nothing else", () => {
+    expect(
+      reasoningSummaryOptions(
+        {
+          openai: {
+            reasoningSummary: "auto",
+            promptCacheKey: "cmo-v24:0123456789abcdef",
+            store: true,
+          },
+          gateway: { only: ["openai"] },
+        },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:0123456789abcdef",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      reasoningSummaryOptions(
+        { openai: { promptCacheKey: "anything else" } },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({});
   });
 });

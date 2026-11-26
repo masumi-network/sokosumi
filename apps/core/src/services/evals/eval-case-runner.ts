@@ -65,6 +65,7 @@ import {
   REPORT_HEADLINE_CASE_ID,
   reportHeadlineChecks,
 } from "./eval-cmo-report-headline";
+import { startCusoRhythmTurn } from "./eval-cmo-rhythm";
 import {
   commentChecks,
   pollCmoCase,
@@ -77,10 +78,10 @@ import {
   CMO_SHORT_FORM_CASE_IDS,
   shortFormChecks,
 } from "./eval-cmo-short-forms";
+import { CMO_SKILL_CASE_IDS, skillChecks } from "./eval-cmo-skills";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import {
   CMO_WEEKLY_REVIEW_CASE_ID,
-  cmoWeeklyReviewMessage,
   weeklyReviewChecks,
 } from "./eval-cmo-weekly-review";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
@@ -292,18 +293,17 @@ async function startScenario(
     bot === "cuso"
       ? scenario.trigger?.kind === "follow_up"
         ? await startFollowUp(scenario.trigger, lane, clientTurnId)
-        : (
-            await sokoBotControlPlane.startTurn({
-              userId: lane.userId,
-              workspaceId: lane.workspaceId,
-              sokoBotId,
-              clientTurnId,
-              message:
-                prepare === "cmo-weekly-review"
-                  ? await cmoWeeklyReviewMessage(lane)
-                  : scenario.prompt,
-            })
-          ).turnId
+        : scenario.cusoRhythm
+          ? await startCusoRhythmTurn(lane, scenario.cusoRhythm)
+          : (
+              await sokoBotControlPlane.startTurn({
+                userId: lane.userId,
+                workspaceId: lane.workspaceId,
+                sokoBotId,
+                clientTurnId,
+                message: scenario.prompt,
+              })
+            ).turnId
       : await startLabScenarioTurn(
           scenario,
           {
@@ -408,6 +408,12 @@ async function pollScenario(
       turn.finalAnswer ?? "",
       context.startedAt,
     );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (CMO_SKILL_CASE_IDS.includes(scenario.id)) {
+    const extra = await skillChecks(scenario.id, turnId);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

@@ -44,6 +44,7 @@ import {
   modelReasoningSummaryOptions,
   stepReasoningSummary,
   streamModelCall,
+  withPromptCache,
 } from "@/lib/soko-bot/stream-model-call";
 import {
   modelUserMessage,
@@ -76,6 +77,7 @@ import {
 } from "./turn-loop";
 import {
   endedByTool,
+  partMessage,
   partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
@@ -245,18 +247,22 @@ async function runTurn(
         streamModelCall({
           ...request,
           // The provider's reasoning summary, as the sandbox runner asks for.
-          providerOptions: {
-            ...modelReasoningSummaryOptions(turn.model),
-            ...request.providerOptions,
-            ...(turn.reasoningEffort.openai
-              ? {
-                  openai: {
-                    ...modelReasoningSummaryOptions(turn.model).openai,
-                    ...turn.reasoningEffort.openai,
-                  },
-                }
-              : {}),
-          },
+          providerOptions: withPromptCache(
+            {
+              ...modelReasoningSummaryOptions(turn.model),
+              ...request.providerOptions,
+              ...(turn.reasoningEffort.openai
+                ? {
+                    openai: {
+                      ...modelReasoningSummaryOptions(turn.model).openai,
+                      ...turn.reasoningEffort.openai,
+                    },
+                  }
+                : {}),
+            },
+            turn.cacheKey,
+            turn.model,
+          ),
           system: turn.system,
           messages,
           telemetry: modelCallTelemetryFor("soko-bot-agent"),
@@ -345,7 +351,7 @@ async function runTurn(
       async (part) =>
         (
           await runModel(
-            part.message,
+            partMessage(turn.preamble, part),
             TURN_PART_MAX_STEPS,
             AbortSignal.any([abortSignal, AbortSignal.timeout(partMs)]),
             partTools(tools, part),

@@ -1,8 +1,4 @@
-import {
-  renderWritingSkill,
-  SOKO_BOT_TOOL_INPUT_SCHEMAS,
-  WRITING_SKILLS,
-} from "@sokosumi/soko-bot";
+import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { readSocialProfile } from "@/lib/social-profile";
 import {
   RuntimeEventLog,
@@ -25,6 +21,7 @@ import {
 } from "../soko-bot-runtime.service";
 import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
+import { readWritingSkill } from "./read-skill";
 
 export async function dispatchSocialTools(
   runtime: RuntimeOperations,
@@ -100,14 +97,10 @@ export async function dispatchSocialTools(
     case "read_writing_skill": {
       const { skill: id } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.read_writing_skill.parse(input.input);
-      const skill = WRITING_SKILLS.find((candidate) => candidate.id === id);
+      const skill = readWritingSkill(id);
       if (!skill)
         throw new SokoBotRuntimeValidationError("No such writing skill.");
-      return {
-        skill: skill.id,
-        name: skill.name,
-        content: renderWritingSkill(skill),
-      };
+      return skill;
     }
 
     case "find_style_references": {

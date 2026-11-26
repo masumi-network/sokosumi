@@ -314,16 +314,23 @@ export {
   CMO_SOKO_BOT_VERSION_IDS,
   cmoWhatsNew,
   composeSystemPrompt,
+  composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
+  type SokoBotPromptTurn,
   type SokoBotVersion,
   sokoBotIdentity,
   sokoBotToolDescription,
   versionShowsResultCards,
 } from "./versions/index.js";
+export {
+  SKILL_INDEX,
+  type SkillOccasion,
+  splitSkillsForTurn,
+} from "./versions/skill-index.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,

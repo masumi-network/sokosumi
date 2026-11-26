@@ -15,6 +15,7 @@ import {
   modelReasoningSummaryOptions,
   stepReasoningSummary,
   streamModelCall,
+  withPromptCache,
 } from "../lib/soko-bot/stream-model-call";
 import { endedByTool, toolEndedTurn } from "../lib/soko-bot/turn-parts";
 import { compactHistory } from "./history";
@@ -33,6 +34,8 @@ import {
 } from "./rounds";
 
 export interface TurnLoopInput {
+  /** The provider's prompt cache key for this system and tool set. */
+  cacheKey?: string | null;
   model: LanguageModel;
   system: string;
   message: string;
@@ -68,6 +71,10 @@ export interface TurnLoopResult {
  * until it reports DONE, stops working REPORT_RESERVE_MS before its deadline,
  * and then writes its report without tools.
  */
+function modelIdOf(model: TurnLoopInput["model"]): string {
+  return typeof model === "string" ? model : model.modelId;
+}
+
 export async function runTurnLoop(
   input: TurnLoopInput,
 ): Promise<TurnLoopResult> {
@@ -117,7 +124,11 @@ export async function runTurnLoop(
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
-      providerOptions: modelReasoningSummaryOptions(input.model),
+      providerOptions: withPromptCache(
+        modelReasoningSummaryOptions(input.model),
+        input.cacheKey,
+        modelIdOf(input.model),
+      ),
       onStepFinish: async (step) => {
         const summary = stepReasoningSummary(step);
         if (summary) await input.onReasoning?.(summary);
@@ -185,6 +196,11 @@ export async function runTurnLoop(
       ],
       tools: input.tools,
       toolChoice: "none",
+      providerOptions: withPromptCache(
+        {},
+        input.cacheKey,
+        modelIdOf(input.model),
+      ),
       abortSignal: signal(),
       maxRetries: 1,
     });

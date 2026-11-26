@@ -1,19 +1,23 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
+  applyVersionCapabilities,
   CMO_SHORT_FORM_TOOLS,
   type CmoShortFormTool,
   cmoHighlightsTools,
   cmoShortFormAnswer,
   isCmoShortFormCall,
+  isSokoBotAnnouncementCapability,
   isSokoBotSandboxCapability,
   isSokoBotSilentAnswer,
   type RuntimeEvent,
   type RuntimeJsonValue,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
+  type SokoBotVersion,
   sokoBotIdentity,
   sokoBotToolDescription,
 } from "@sokosumi/soko-bot";
@@ -42,7 +46,7 @@ import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
 import { fitToolResult, TOOL_RESULT_SHORTENED_EVENT } from "./tool-result-fit";
-import { modelContextBlock } from "./turn-model-context";
+import { modelContextBlock, modelContextParts } from "./turn-model-context";
 import type { TurnPart } from "./turn-parts";
 
 /**
@@ -114,6 +118,8 @@ export function sokoBotToolCallTimeoutMs(
 
 /** Runtime event type Core writes when a turn reads the open web or a shell. */
 export const WEB_TAINT_EVENT = "sandbox.untrusted_input";
+/** The skills a turn's prompt carried in full (versions with a skill index). */
+export const SKILLS_PRELOADED_EVENT = "skills.preloaded";
 
 /**
  * Loaded when a turn actually runs. The tool service reaches most of Core —
@@ -308,6 +314,15 @@ export interface PreparedTurn {
   /** Provider options for how hard the model thinks on this turn. */
   reasoningEffort: ReturnType<typeof turnReasoningEffortOptions>;
   /**
+   * What the first message opens with, before the turn's own message: the
+   * packet, the persona and this kind of turn's skills, kept out of `system`
+   * so system and tools stay the same across turns (versions that load
+   * skills on demand). Empty for every other version.
+   */
+  preamble: string;
+  /** The provider's prompt cache key for this system and tool set, or null. */
+  cacheKey: string | null;
+  /**
    * Save tools offered in their short form until the turn calls one
    * (cmo-v24); the runtime then offers the full tool for the rest of it.
    */
@@ -351,6 +366,37 @@ async function mcpServersGuidance(sokoBotId: string): Promise<string[]> {
   ];
 }
 
+/**
+ * Every tool the version can use, the same on every turn a person or a
+ * schedule starts: the route decides at execution. Announcements stay with
+ * the bots allowed them, and Exa only with a key, as the grant has it.
+ */
+export function stableCapabilities(
+  version: SokoBotVersion,
+  granted: readonly SokoBotCapability[],
+): SokoBotCapability[] {
+  return applyVersionCapabilities(version, SOKO_BOT_CAPABILITIES).filter(
+    (capability) =>
+      (!isSokoBotAnnouncementCapability(capability) &&
+        capability !== "search_exa") ||
+      granted.includes(capability),
+  );
+}
+
+/** One key per system prompt and tool set, so equal prefixes share a cache. */
+export function promptCacheKey(
+  versionId: string,
+  system: string,
+  capabilities: readonly string[],
+  shortForms: readonly string[],
+): string {
+  const hash = createHash("sha256")
+    .update(JSON.stringify([system, capabilities, shortForms]))
+    .digest("hex")
+    .slice(0, 16);
+  return `${versionId}:${hash}`;
+}
+
 export async function prepareTurn(
   sessionId: string,
   turnId: string,
@@ -367,13 +413,21 @@ export async function prepareTurn(
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
+  // A version that loads skills on demand offers one fixed tool set, so the
+  // provider caches system and tools across turns; the turn's grant still
+  // decides at execution what runs.
+  const stable = version.skillsOnDemand === true;
+  const offerable =
+    stable && !authorized.meetingPrep && authorized.askedByKind !== "ASSISTANT"
+      ? stableCapabilities(version, authorized.grant.capabilities)
+      : authorized.grant.capabilities;
   // A runtime without a sandbox cannot run those tools; the model should not
   // be offered what nothing will execute. Read-only web tools need no
   // sandbox: the in-process runtime runs them itself.
   const capabilities = (
     options.sandbox
-      ? authorized.grant.capabilities
-      : authorized.grant.capabilities.filter(
+      ? offerable
+      : offerable.filter(
           (capability) =>
             !isSokoBotSandboxCapability(capability) ||
             (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
@@ -391,6 +445,16 @@ export async function prepareTurn(
   const hasWebOnly =
     !hasSandbox &&
     capabilities.some((capability) => IN_PROCESS_WEB_TOOLS.has(capability));
+  const mcpServers = capabilities.includes("list_mcp_tools")
+    ? await mcpServersGuidance(authorized.turn.sokoBotId)
+    : [];
+  const meetingPrep = authorized.meetingPrep === true;
+  const contextParts = stable
+    ? await modelContextParts(context.packet, meetingPrep)
+    : {
+        fixed: await modelContextBlock(context.packet, meetingPrep),
+        perTurn: [],
+      };
   const system = [
     "# Identity",
     "",
@@ -404,15 +468,21 @@ export async function prepareTurn(
       : []),
     ...(hasSandbox ? ["", SANDBOX_GUIDANCE] : []),
     ...(hasWebOnly ? ["", WEB_GUIDANCE] : []),
-    ...(capabilities.includes("list_mcp_tools")
-      ? await mcpServersGuidance(authorized.turn.sokoBotId)
-      : []),
+    ...(stable ? [] : mcpServers),
     ...(requiresActionProof ? [ACTION_PROOF_INSTRUCTION] : []),
-    ...(await modelContextBlock(
-      context.packet,
-      authorized.meetingPrep === true,
-    )),
+    ...contextParts.fixed,
   ].join("\n");
+  // What changes from turn to turn opens the first message instead, after
+  // the cached system prompt and tools.
+  const preamble = stable
+    ? [
+        context.version.turnPreamble ?? "",
+        ...mcpServers,
+        ...contextParts.perTurn,
+      ]
+        .join("\n")
+        .trim()
+    : "";
   // Only a Cuso's first read has parts today (SOKD-167).
   const parts =
     version.profile === "cmo" && !authorized.meetingPrep
@@ -431,23 +501,38 @@ export async function prepareTurn(
     )
       ? CMO_SHORT_FORM_TOOLS.filter((tool) => capabilities.includes(tool))
       : [];
-  return {
-    turnId,
-    sessionId,
-    system,
-    model: turnRunModel(version, authorized.turn.modelId),
-    inferenceRegion: version.inferenceRegion,
-    capabilities,
-    toolDescriptions: version.texts
+  const cacheKey = stable
+    ? promptCacheKey(version.id, system, capabilities, shortForms)
+    : null;
+  if (context.version.preloadedSkills)
+    await new RuntimeEventLog(turnId, sessionId).append(
+      runtimeEvent(SKILLS_PRELOADED_EVENT, {
+        occasions: context.version.skillOccasions ?? [],
+        preloaded: context.version.preloadedSkills,
+        cacheKey,
+      }),
+    );
+  const toolDescriptions: Partial<Record<SokoBotCapability, string>> =
+    version.texts
       ? Object.fromEntries(
           capabilities.map((capability) => [
             capability,
             sokoBotToolDescription(capability, version),
           ]),
         )
-      : {},
+      : {};
+  return {
+    turnId,
+    sessionId,
+    system,
+    preamble,
+    cacheKey,
+    model: turnRunModel(version, authorized.turn.modelId),
+    inferenceRegion: version.inferenceRegion,
+    capabilities,
+    toolDescriptions,
     requiresActionProof,
-    meetingPrep: authorized.meetingPrep === true,
+    meetingPrep,
     parts,
     reasoningEffort: turnReasoningEffortOptions({
       version,
@@ -535,6 +620,8 @@ export class SokoBotTaintedActionError extends Error {
 }
 
 /** Runs one Sokosumi tool with its audit events, as the model sees it. */
+const NOT_GRANTED = "Capability is not granted for this turn";
+
 export async function runTurnTool(input: {
   log: RuntimeEventLog;
   capability: SokoBotCapability;
@@ -590,7 +677,15 @@ export async function runTurnTool(input: {
     }),
     sokoBotToolCallTimeoutMs(capability),
     capability,
-  );
+  ).catch((error: unknown) => {
+    // A version with one fixed tool set offers tools this turn's route does
+    // not open: the model reads why and works on without it.
+    if (error instanceof Error && error.message === NOT_GRANTED)
+      throw new Error(
+        `${capability} is not open on this turn (Core started it for narrower work). Do the work with the tools it opens, or say in your answer what you would do with ${capability}.`,
+      );
+    throw error;
+  });
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
   // A script reads the whole result; the model reads one that fits.
   if (input.cite === false) return result;

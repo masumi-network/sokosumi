@@ -48,6 +48,7 @@ import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
   MODEL_CALL_MAX_MS,
   ModelStreamStalledError,
+  promptCacheTtlOptions,
   readUntilIdle,
 } from "@/lib/soko-bot/stream-model-call";
 import {
@@ -108,20 +109,35 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+/** A prompt cache key as `prepareTurn` makes it: version id and hash. */
+const PROMPT_CACHE_KEY = /^[\w.-]{1,40}:[0-9a-f]{16}$/;
+
 /**
- * The reasoning-summary switches a runner request may carry, and nothing
- * else: a summary is what the provider chooses to show, never raw thoughts.
+ * The reasoning-summary switches a runner request may carry, and its prompt
+ * cache key, and nothing else: a summary is what the provider chooses to
+ * show, never raw thoughts.
  * Replacing the whole `providerOptions` dropped these, so no bot reply ever
  * had a summary to show.
  */
 export function reasoningSummaryOptions(
   value: unknown,
+  model: string,
 ): Record<string, Record<string, unknown>> {
   const options = asRecord(value) ?? {};
   const out: Record<string, Record<string, unknown>> = {};
-  const summary = asRecord(options.openai)?.reasoningSummary;
+  const openai = asRecord(options.openai);
+  const summary = openai?.reasoningSummary;
   if (summary === "auto" || summary === "detailed")
     out.openai = { reasoningSummary: summary };
+  // A version with one fixed system prompt and tool set keys its cache;
+  // Core sets the retention.
+  const cacheKey = openai?.promptCacheKey;
+  if (typeof cacheKey === "string" && PROMPT_CACHE_KEY.test(cacheKey))
+    out.openai = {
+      ...out.openai,
+      promptCacheKey: cacheKey,
+      ...promptCacheTtlOptions(model),
+    };
   const thinking = asRecord(asRecord(options.google)?.thinkingConfig);
   if (thinking?.includeThoughts === true)
     out.google = { thinkingConfig: { includeThoughts: true } };
@@ -601,7 +617,7 @@ export async function proxySandboxModelCall(
     inferenceRegion: version.inferenceRegion,
     purpose,
   });
-  const summary = reasoningSummaryOptions(payload.providerOptions);
+  const summary = reasoningSummaryOptions(payload.providerOptions, model);
   const effort = turnReasoningEffortOptions({
     version,
     model,
@@ -614,11 +630,13 @@ export async function proxySandboxModelCall(
       : {}),
   };
   payload.providerOptions = {
-    // The runner may only ask for a reasoning summary; routing, region,
-    // retention and effort stay Core's.
+    // The runner may only ask for a reasoning summary and a well-formed
+    // prompt cache key; routing, region, retention and effort stay Core's.
     ...reasoning,
-    // No promptCacheKey or Gateway caching: "auto". Tried on the Personal
-    // CRM run, the cache share fell from 43% to 26% and a step cost 3x.
+    // No Gateway caching: "auto". A promptCacheKey only comes from a version
+    // whose system prompt and tools stay the same across turns: tried while
+    // the packet sat in the system prompt (the Personal CRM run), a key
+    // dropped the cache share from 43% to 26%.
     gateway: policy.providerOptions.gateway,
   };
 

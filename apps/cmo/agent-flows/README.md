@@ -27,6 +27,8 @@ From cmo-v23 every turn starts from a short core (the business, the plan in one 
 
 From cmo-v24 the core also names the tools that fit the turn (`toolsForThisTurn`), and on a question or an event `save_strategy` and `save_brand_brain` come in a short form: Cuso calls it, nothing is saved, and the full tool is his from the next step. A save on such a turn therefore shows two calls; that is the design, not a retry after an error.
 
+From cmo-v24 Cuso's prompt also lists his skills by one line each instead of carrying all of them. The kind of turn preloads the skills it always needs (strategy: strategy, Brand Brain and industry; production: production and month points; daily: daily watch; weekly: measurement and SEO reports; brand refresh and onboarding: Brand Brain and site pages). On a chat or event he reads the skill the work needs with `read_skill`, which also reads the writing skills. The turn's `skills.preloaded` event records what it carried. See ADR 0085.
+
 ## How to judge what Cuso makes
 
 Count and grade the output per channel, not only whether a flow ran. Track it over days and weeks.
