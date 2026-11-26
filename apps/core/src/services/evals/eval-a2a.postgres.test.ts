@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import { A2A_SCENARIOS } from "@sokosumi/soko-bot";
 import {
   afterAll,
@@ -34,7 +35,24 @@ import {
 import { type EvalLaneRecord, ensureEvalLanes } from "./eval-lanes.service";
 import { reconcileUnsettledCosts } from "./eval-runs.service";
 
-const { failRealtime } = vi.hoisted(() => ({ failRealtime: { times: 0 } }));
+const { failRealtime, cleanupSession } = vi.hoisted(() => ({
+  failRealtime: { times: 0 },
+  cleanupSession: { tx: undefined as Prisma.TransactionClient | undefined },
+}));
+vi.mock("@/lib/db/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/db/prisma")>();
+  return {
+    ...actual,
+    default: new Proxy(actual.default, {
+      get(target, key) {
+        if (key === "$executeRaw" && cleanupSession.tx) {
+          return cleanupSession.tx.$executeRaw.bind(cleanupSession.tx);
+        }
+        return Reflect.get(target, key, target);
+      },
+    }),
+  };
+});
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
@@ -202,6 +220,51 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
   afterAll(async () => {
     await prisma.$disconnect();
   });
+
+  it.each(["UTC", "Europe/Berlin", "America/New_York"])(
+    "ages only messages newer than the UTC hourly cutoff in %s",
+    async (zone) => {
+      const [lane] = await ensureEvalLanes(1);
+      if (!lane) throw new Error("no lane");
+      const now = await databaseNow();
+      const recent = new Date(+now - 30 * 60_000);
+      const older = new Date(+now - 90 * 60_000);
+      const [recentId, olderId] = [randomUUID(), randomUUID()];
+      const fixtures = { id: { in: [recentId, olderId] } };
+      await prisma.chatRoomMessage.createMany({
+        data: [
+          { id: recentId, createdAt: recent },
+          { id: olderId, createdAt: older },
+        ].map((row) => ({
+          ...row,
+          roomId: lane.world.roomId,
+          senderSokoBotId: lane.sokoBotId,
+          content: "Previous case",
+        })),
+      });
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT set_config('TimeZone', ${zone}, true)`;
+          cleanupSession.tx = tx;
+          try {
+            await prepareA2aCase(lane, scenario("a2a-ask-and-relay"));
+          } finally {
+            cleanupSession.tx = undefined;
+          }
+          const rows = await tx.chatRoomMessage.findMany({ where: fixtures });
+          expect(rows.find((row) => row.id === recentId)?.createdAt).toEqual(
+            older,
+          );
+          expect(rows.find((row) => row.id === olderId)?.createdAt).toEqual(
+            older,
+          );
+        });
+      } finally {
+        await prisma.chatRoomMessage.deleteMany({ where: fixtures });
+        await closeA2aWorld(lane);
+      }
+    },
+  );
 
   it("gives a case Mira, Juno and Hannah's Task, and takes them away after", async () => {
     const [lane] = await ensureEvalLanes(1);
