@@ -15267,7 +15267,7 @@
           "unavailable": "Earlier weeks could not be verified.",
           "legacy_unverified": "This audit was saved before earlier weeks were checked. Run a new audit to see the trend.",
           "too_few": "Too few weeks with data to show a trend.",
-          "no_series": "This audit holds no week-by-week values of LCP, INP or CLS for this page."
+          "no_series": "This audit holds no week-by-week values of LCP, INP or CLS."
         },
         "deviceReason": {
           "crux-url": "Short check on {device}: {share} of the page loads Google measured for this address or similar addresses were on it.",
