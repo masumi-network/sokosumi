@@ -294,6 +294,17 @@ export {
   cmoReadsOnDemand,
 } from "./versions/cmo-v23-skills.js";
 export {
+  CMO_SHORT_FORM_DESCRIPTIONS,
+  CMO_SHORT_FORM_TOOLS,
+  CMO_TOOL_HIGHLIGHTS_SKILL,
+  type CmoShortFormTool,
+  cmoHighlightsTools,
+  cmoShortFormAnswer,
+  cmoShortFormInputSchema,
+  isCmoShortFormCall,
+  isCmoShortFormTool,
+} from "./versions/cmo-v24-skills.js";
+export {
   CMO_STRATEGY_STEP_SKILL,
   cmoWritesStrategyStep,
 } from "./versions/cmo-v25-skills.js";
@@ -303,16 +314,23 @@ export {
   CMO_SOKO_BOT_VERSION_IDS,
   cmoWhatsNew,
   composeSystemPrompt,
+  composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
+  type SokoBotPromptTurn,
   type SokoBotVersion,
   sokoBotIdentity,
   sokoBotToolDescription,
   versionShowsResultCards,
 } from "./versions/index.js";
+export {
+  SKILL_INDEX,
+  type SkillOccasion,
+  splitSkillsForTurn,
+} from "./versions/skill-index.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,

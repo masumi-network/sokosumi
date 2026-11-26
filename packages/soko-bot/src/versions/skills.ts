@@ -6,7 +6,8 @@ import { MESSAGING_SOKO_BOT_SKILLS } from "./messaging-skills.js";
 /**
  * Skills are reusable instruction modules a version can include. Keep each
  * one self-contained; a version lists them by id and the runtime appends
- * their content to the version's system prompt.
+ * their content to the version's system prompt, or with `skillsOnDemand`
+ * lists them in an index the bot reads from (`skill-index.ts`).
  */
 export interface SokoBotSkill {
   id: string;

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SokoBotRuntimeEvent } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
+  type CmoShortFormTool,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
   type RuntimeCancelInput,
@@ -17,7 +18,7 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-import { stepCountIs, type ToolSet, tool } from "ai";
+import { type ModelMessage, stepCountIs, type ToolSet, tool } from "ai";
 import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
 import {
   aiGatewayBudgetScope,
@@ -43,6 +44,7 @@ import {
   modelReasoningSummaryOptions,
   stepReasoningSummary,
   streamModelCall,
+  withPromptCache,
 } from "@/lib/soko-bot/stream-model-call";
 import {
   modelUserMessage,
@@ -55,6 +57,12 @@ import {
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import {
+  endedByShortForm,
+  fullToolRoundAllowed,
+  shortFormsIn,
+  withShortForms,
+} from "./short-forms";
 import {
   announceTurn,
   closeTurn,
@@ -69,6 +77,7 @@ import {
 } from "./turn-loop";
 import {
   endedByTool,
+  partMessage,
   partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
@@ -176,14 +185,63 @@ async function runTurn(
       });
     }
 
+    const inputTokensOf = (
+      steps: readonly { usage?: { inputTokens?: number | undefined } }[],
+    ) => steps.reduce((sum, step) => sum + (step.usage?.inputTokens ?? 0), 0);
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
     const purpose = await loadSokoBotTurnPurpose(input.turnId);
+    // cmo-v24: the big save tools start in their short form; a call to one
+    // ends the round and the next round offers the full tool.
     const runModel = async (
       message: string,
       maxSteps: number,
       signal: AbortSignal,
       offered: ToolSet = tools,
+    ) => {
+      const short = shortFormsIn(offered, turn.shortForms);
+      // A turn part's tools are a subset: another prefix, so no shared key.
+      const whole = offered === tools;
+      const first = await runRound(
+        [{ role: "user", content: message }],
+        maxSteps,
+        signal,
+        short.length ? withShortForms(offered, short) : offered,
+        short,
+        inputTokenBudget,
+        whole ? (short.length ? turn.cacheKey : turn.fullCacheKey) : null,
+      );
+      // The full tool's round needs steps, time and tokens left.
+      const left = maxSteps - first.steps.length;
+      const tokensLeft = inputTokenBudget - inputTokensOf(first.steps);
+      if (
+        !fullToolRoundAllowed({
+          steps: first.steps,
+          shortForms: short,
+          stepsLeft: left,
+          tokensLeft,
+          timeUp: signal.aborted,
+        })
+      )
+        return first;
+      return runRound(
+        [{ role: "user", content: message }, ...first.responseMessages],
+        left,
+        signal,
+        offered,
+        [],
+        tokensLeft,
+        whole ? turn.fullCacheKey : null,
+      );
+    };
+    const runRound = async (
+      messages: ModelMessage[],
+      maxSteps: number,
+      signal: AbortSignal,
+      offered: ToolSet,
+      short: readonly CmoShortFormTool[],
+      tokenBudget: number,
+      cacheKey: string | null,
     ) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
       const request = sokoBotModelRequest({
@@ -196,20 +254,24 @@ async function runTurn(
         streamModelCall({
           ...request,
           // The provider's reasoning summary, as the sandbox runner asks for.
-          providerOptions: {
-            ...modelReasoningSummaryOptions(turn.model),
-            ...request.providerOptions,
-            ...(turn.reasoningEffort.openai
-              ? {
-                  openai: {
-                    ...modelReasoningSummaryOptions(turn.model).openai,
-                    ...turn.reasoningEffort.openai,
-                  },
-                }
-              : {}),
-          },
+          providerOptions: withPromptCache(
+            {
+              ...modelReasoningSummaryOptions(turn.model),
+              ...request.providerOptions,
+              ...(turn.reasoningEffort.openai
+                ? {
+                    openai: {
+                      ...modelReasoningSummaryOptions(turn.model).openai,
+                      ...turn.reasoningEffort.openai,
+                    },
+                  }
+                : {}),
+            },
+            cacheKey,
+            turn.model,
+          ),
           system: turn.system,
-          messages: [{ role: "user", content: message }],
+          messages,
           telemetry: modelCallTelemetryFor("soko-bot-agent"),
           tools: offered,
           prepareStep: (step) => {
@@ -221,11 +283,8 @@ async function runTurn(
           stopWhen: [
             stepCountIs(maxSteps),
             endedByTool,
-            ({ steps }) =>
-              steps.reduce(
-                (sum, step) => sum + (step.usage.inputTokens ?? 0),
-                0,
-              ) >= inputTokenBudget,
+            endedByShortForm(short),
+            ({ steps }) => inputTokensOf(steps) >= tokenBudget,
           ],
           abortSignal: signal,
           async onStepFinish(step) {
@@ -282,7 +341,12 @@ async function runTurn(
         toolEndedTurn(result.steps) ??
         (result.text ||
           (result.steps.findLast((step) => step.text.trim())?.text ?? ""));
-      return { text, finishReason: result.finishReason };
+      return {
+        text,
+        finishReason: result.finishReason,
+        steps: result.steps,
+        responseMessages: result.responseMessages,
+      };
     };
 
     // On Vercel the budget is one invocation: parts may use at most half of
@@ -294,7 +358,7 @@ async function runTurn(
       async (part) =>
         (
           await runModel(
-            part.message,
+            partMessage(turn.preamble, part),
             TURN_PART_MAX_STEPS,
             AbortSignal.any([abortSignal, AbortSignal.timeout(partMs)]),
             partTools(tools, part),

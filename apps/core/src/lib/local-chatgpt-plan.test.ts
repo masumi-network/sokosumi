@@ -40,6 +40,8 @@ describe("local ChatGPT plan", () => {
       max_output_tokens: 4000,
       temperature: 0.2,
       prompt_cache_retention: "24h",
+      prompt_cache_options: { ttl: "12h" },
+      prompt_cache_key: "cmo-v24:0123456789abcdef",
       reasoning: { summary: "auto" },
       input: [
         { role: "system", content: "Be brief." },

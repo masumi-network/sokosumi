@@ -46,6 +46,39 @@ export function modelReasoningSummaryOptions(
 }
 
 /**
+ * How long OpenAI keeps a cached prompt prefix, the longest it offers (all
+ * of it ZDR-compatible): 24 hours before GPT-6; GPT-6 and later take a TTL
+ * instead, at most 12 hours, and refuse the older option.
+ */
+export function promptCacheTtlOptions(model: string): Record<string, unknown> {
+  return /^openai\/gpt-(?:[6-9]|5\.[6-9])/.test(model)
+    ? { promptCacheOptions: { ttl: "12h" } }
+    : { promptCacheRetention: "24h" };
+}
+
+/**
+ * Provider options with OpenAI's prompt cache key and lifetime for a turn
+ * whose system prompt and tools stay the same across turns; unchanged
+ * without a key.
+ */
+export function withPromptCache<T extends Record<string, unknown>>(
+  options: T,
+  cacheKey: string | null | undefined,
+  model: string,
+): T {
+  if (!cacheKey) return options;
+  const openai = (options.openai ?? {}) as Record<string, unknown>;
+  return {
+    ...options,
+    openai: {
+      ...openai,
+      promptCacheKey: cacheKey,
+      ...promptCacheTtlOptions(model),
+    },
+  };
+}
+
+/**
  * A step's reasoning summary, one paragraph per part; undefined when the
  * provider returned none. `reasoningText` runs the parts together.
  */

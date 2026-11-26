@@ -29,14 +29,91 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
+import { getSokoBotVersion } from "@sokosumi/soko-bot";
 import { expectCoreLogWhys } from "@/test/core-log";
+import { withPromptCache } from "./stream-model-call";
 import {
   finishTurn,
+  offeredCapabilities,
+  promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
   sokoBotMaxSteps,
   sokoBotToolCallTimeoutMs,
+  stableCapabilities,
+  turnRequiresActionProof,
 } from "./turn-loop";
+
+describe("a version with one fixed tool set", () => {
+  const v24 = getSokoBotVersion("cmo-v24");
+
+  it("offers the same tools whatever the route granted", () => {
+    const narrow = stableCapabilities(v24, ["read_calendar"]);
+    expect(stableCapabilities(v24, ["create_task", "read_calendar"])).toEqual(
+      narrow,
+    );
+    expect(narrow).toContain("save_strategy");
+    expect(narrow).toContain("read_skill");
+    expect(narrow).not.toContain("search_exa");
+    expect(stableCapabilities(v24, ["search_exa"])).toContain("search_exa");
+  });
+
+  it("decides the answer format from the offered tools, start and finish alike", () => {
+    const readOnly = {
+      grant: { capabilities: ["read_calendar"] },
+      turn: { source: "SCHEDULE", chainDepth: 0 },
+    } as never;
+    const offered = offeredCapabilities(v24, readOnly, { sandbox: true });
+    expect(offered).toContain("create_social_post");
+    expect(turnRequiresActionProof(offered)).toBe(true);
+    // Before the fixed tool set, the grant alone decided.
+    expect(turnRequiresActionProof(["read_calendar"])).toBe(false);
+  });
+
+  it("offers the sandbox's own tools only when the route grants them", () => {
+    const v36 = { ...getSokoBotVersion("v36"), skillsOnDemand: true as const };
+    const scheduled = stableCapabilities(v36, ["create_task"]);
+    expect(scheduled).not.toContain("bash");
+    expect(scheduled).not.toContain("web_fetch");
+    expect(scheduled).toContain("create_task");
+    expect(scheduled).toContain("hire_agent");
+    const asked = stableCapabilities(v36, ["bash", "web_fetch"]);
+    expect(asked).toContain("bash");
+    expect(asked).toContain("web_fetch");
+  });
+
+  it("keys the cache by system prompt and tools, not by turn", () => {
+    const key = promptCacheKey("cmo-v24", "system", ["a", "b"], []);
+    expect(promptCacheKey("cmo-v24", "system", ["a", "b"], [])).toBe(key);
+    expect(promptCacheKey("cmo-v24", "system", ["a"], [])).not.toBe(key);
+    expect(
+      promptCacheKey("cmo-v24", "system", ["a", "b"], ["save_strategy"]),
+    ).not.toBe(key);
+    expect(key).toMatch(/^cmo-v24:[0-9a-f]{16}$/);
+  });
+
+  it("asks OpenAI to keep the prefix as long as the model allows", () => {
+    expect(
+      withPromptCache(
+        { openai: { reasoningSummary: "auto" } },
+        "cmo-v24:k",
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:k",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      withPromptCache<Record<string, unknown>>({}, "v36:k", "openai/gpt-5.4")
+        .openai,
+    ).toMatchObject({ promptCacheRetention: "24h" });
+    const plain = { openai: { reasoningSummary: "auto" } };
+    expect(withPromptCache(plain, null, "openai/gpt-6-luna")).toBe(plain);
+  });
+});
 
 describe("sokoBotToolCallTimeoutMs", () => {
   it("gives the month writer its time, inside the sandbox runner's two minutes", () => {

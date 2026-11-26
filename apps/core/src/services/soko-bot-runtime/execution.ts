@@ -49,6 +49,7 @@ import {
 } from "./execution-limits";
 import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
+import { isSkillRead, readSkillAgain } from "./read-skill";
 import { persistedErrorDetail } from "./seller-recovery";
 
 export async function executeTool(
@@ -167,6 +168,10 @@ export async function executeTool(
       if (isSokoBotSeoCapability(input.capability)) {
         return runtime.executeSeoTool(input, authorized, true);
       }
+      // A skill read changes nothing and its stored row is a shortened audit
+      // copy: the replay reads the whole skill again.
+      if (isSkillRead(input.capability))
+        return readSkillAgain(authorized, input.capability, input.input);
       let replayResult = existing.result;
       if (input.capability === "preview_result") {
         if (authorized.askedByKind !== "OWNER")

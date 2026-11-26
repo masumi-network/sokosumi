@@ -239,6 +239,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
                 : scenario.id === "cmo-reads-last-weeks-report"
                   ? "cmo-report"
                   : scenario.id === "cmo-change-request" ||
+                      scenario.id === "cmo-chat-strategy-skill" ||
                       scenario.id === "cmo-reads-week-four" ||
                       scenario.id === "cmo-change-reply-plain" ||
                       scenario.id === CMO_CORRECTION_CASE_ID ||
@@ -248,7 +249,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
                       ? "cmo-plan-ads"
                       : scenario.id === "cmo-seo-skipped-idea"
                         ? "cmo-seo-skipped"
-                        : scenario.id === "cmo-weekly-review-last-week"
+                        : scenario.id === "cmo-weekly-review-last-week" ||
+                            scenario.id === "cmo-daily-run-watch"
                           ? "cmo-weekly-review"
                           : isCmoSeoReportCase(scenario.id)
                             ? "cmo-seo-report"
