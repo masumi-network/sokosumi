@@ -150,7 +150,7 @@ dump=$("${pg_dump[@]}" --schema-only --no-owner --no-privileges --schema=preprod
   <<<"ALTER SCHEMA preprod RENAME TO mainnet;
 $dump"
 
-bodies="$here/../prisma/network-layout/shared-trigger-bodies.sql"
+bodies="${here%/scripts}/prisma/network-layout/shared-trigger-bodies.sql"
 {
   # Every function no extension owns, in any schema, as it is before the file.
   cat <<'SQL'

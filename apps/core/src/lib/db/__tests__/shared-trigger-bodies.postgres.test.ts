@@ -99,7 +99,7 @@ async function readCatalog(db: Queryable): Promise<Catalog> {
  * view, sequence or enum by its name (also before a column list), a function
  * before `(`, a sequence as a whole string. Not a lookup: a column of
  * something (`r."kind"`), the qualifier of a column (`project.id`), an alias
- * after `AS`.
+ * after `AS` (an enum after `AS` is the type of a `CAST`).
  */
 function references(body: string, catalog: Catalog): Reference[] {
   const all = tokens(body);
@@ -123,7 +123,9 @@ function references(body: string, catalog: Catalog): Reference[] {
     if (
       token.kind !== "name" ||
       isSymbol(all[index + 1], ".") ||
-      (before?.kind === "name" && before.text === "as")
+      (before?.kind === "name" &&
+        before.text === "as" &&
+        catalog.objects.get(token.text) !== "TYPE")
     ) {
       continue;
     }
@@ -292,6 +294,7 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
             PERFORM enqueue_calendar_invalidation(NULL, NULL, NULL, NULL);
             PERFORM nextval('calendar_invalidation_revision_seq');
             PERFORM nextval('"calendar_invalidation_revision_seq"');
+            PERFORM CAST('DRAFT' AS "SocialPostStatus");
             RETURN NEW;
           END`,
           catalog,
@@ -304,6 +307,7 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
         "enqueue_calendar_invalidation",
         "calendar_invalidation_revision_seq",
         "calendar_invalidation_revision_seq",
+        "SocialPostStatus",
       ]);
     });
 
@@ -366,6 +370,11 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
           name: "missing table: shared.task",
           sql: `ALTER TABLE shared."task" RENAME TO moved_19a;
                 CREATE SEQUENCE shared."task"`,
+        },
+        {
+          name: 'missing enum type: shared."TaskStatus"',
+          sql: `ALTER TYPE shared."TaskStatus" RENAME TO moved_19a;
+                CREATE DOMAIN shared."TaskStatus" AS text`,
         },
       ];
 
