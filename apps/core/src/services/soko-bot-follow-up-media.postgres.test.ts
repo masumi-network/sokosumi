@@ -234,6 +234,10 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     } as never);
   }
 
+  /** The studio jobs this fixture's workspace has submitted. */
+  const studioJobs = () =>
+    prisma.projectImageJob.count({ where: { workspaceId } });
+
   /** generate_image, the provider finishing it, then get_image. */
   async function madeImage(turnId: string, maxCredits: number) {
     const started = (await call(turnId, "generate_image", {
@@ -347,12 +351,17 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
       where: { id: { in: images.map(({ fileId }) => fileId) } },
       select: { sourceId: true },
     });
+    // Two pictures, each its own File: one listed twice would not do.
+    expect(new Set(images.map(({ fileId }) => fileId)).size).toBe(2);
+    expect(files).toHaveLength(2);
     const media = saved.media as { pathname: string; kind: string }[];
+    expect(new Set(media.map((item) => item.pathname)).size).toBe(2);
     expect(media.map((item) => item.pathname).sort()).toEqual(
       files.map((file) => file.sourceId).sort(),
     );
     expect(media.every((item) => item.kind === "image")).toBe(true);
     // A third image is past the owner's count.
+    const jobsBefore = await studioJobs();
     await expect(
       call(turnId, "generate_image", {
         projectId,
@@ -360,6 +369,8 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
         maxCredits: 1,
       }),
     ).rejects.toThrow("The owner asked for 2 images in this plan");
+    // Refused before anything was submitted.
+    expect(await studioJobs()).toBe(jobsBefore);
   });
 
   it("refuses a retry's image past the owner's credits while it is under the image count", async () => {
@@ -398,6 +409,7 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     });
     await madeImage(retry, credits);
     // Two images of three, but their credits already use the allowance.
+    const jobsBefore = await studioJobs();
     await expect(
       call(retry, "generate_image", {
         projectId,
@@ -407,5 +419,6 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     ).rejects.toThrow(
       `The owner allowed ${2 * credits} credits on media for this plan`,
     );
+    expect(await studioJobs()).toBe(jobsBefore);
   });
 });
