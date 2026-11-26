@@ -18,11 +18,12 @@
 -- One fixed word replaced, rather than a generator or two committed copies:
 -- the split script and the cutover can both do it, nothing can be edited in
 -- one copy and forgotten in the other, and PostgreSQL refuses the text when
--- the replacement was not made. Never write `mainnet` or `preprod` in a body
--- here: that copy would then reach into the other Network. The schema's name
--- is also the value of a shared row's `network` column, so `'@network@'` is
--- how a body writes or matches its own Network on `shared."history"`. The one
--- place a body compares it with a Network's name is the Task refresh below.
+-- the replacement was not made. Never write `mainnet.` or `preprod.` before a
+-- name in a body here: that copy would then reach into the other Network. The
+-- schema's name is also the value of a shared row's `network` column, so
+-- `'@network@'` is how a body writes or matches its own Network on
+-- `shared."history"`. The one place a body compares it with a Network's name
+-- is the Task refresh below.
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test

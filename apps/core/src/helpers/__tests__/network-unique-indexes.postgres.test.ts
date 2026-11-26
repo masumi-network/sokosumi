@@ -131,9 +131,13 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
           SELECT c.relname::text AS name
           FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
           WHERE i.indrelid = ${sharedTable(table).sql}::regclass
-            AND i.indisvalid AND c.relname::text IN (${old}, ${network}, ${untagged})
+            AND i.indisvalid AND c.relname::text IN (${network}, ${untagged})
           ORDER BY c.relname`;
           expect(valid.map(({ name }) => name)).toEqual([network, untagged]);
+          // Absent, whether valid or not.
+          const [gone] = await tx.$queryRaw<{ old: string | null }[]>`
+            SELECT to_regclass(${`"${sharedSchema}"."${old}"`})::text AS old`;
+          expect(gone.old).toBeNull();
         });
       },
     );

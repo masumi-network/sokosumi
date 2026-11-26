@@ -260,15 +260,18 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
     // amount is first set to a value no refresh computes. One transaction on
     // one connection, so nothing depends on timing or on committed rows.
     it("refreshes a Task's History row only from Mainnet's Transactions of Mainnet's events", async () => {
-      // `ours` is charged on Mainnet by an event without a Network; Preprod
-      // holds a Transaction of the same id. `theirs` is charged on Preprod;
-      // Mainnet holds a Transaction of the same id.
-      const [ours, theirs, charge, preprodCharge] = [
+      // `ours` is charged on Mainnet by an event without a Network and
+      // `tagged` by an event tagged `mainnet`; `theirs` is charged on Preprod.
+      // Each Transaction id is on both Networks.
+      const [ours, tagged, theirs, charge, taggedCharge, preprodCharge] = [
+        randomUUID(),
+        randomUUID(),
         randomUUID(),
         randomUUID(),
         randomUUID(),
         randomUUID(),
       ];
+      const tasks = [ours, tagged, theirs];
       const MARKED = 777;
       const amounts = `SELECT "entityId", amount::int FROM shared.history
         WHERE kind = 'TASK' AND "entityId" = ANY ($1)`;
@@ -285,7 +288,7 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
         },
         async (db) => {
           for (const schema of ["mainnet", "preprod"]) {
-            for (const id of [charge, preprodCharge]) {
+            for (const id of [charge, taggedCharge, preprodCharge]) {
               await db.query(insert(schema), [id]);
             }
           }
@@ -293,6 +296,7 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
         async (db) => {
           for (const [task, transaction, network] of [
             [ours, charge, null],
+            [tagged, taggedCharge, "mainnet"],
             [theirs, preprodCharge, "preprod"],
           ]) {
             await db.query(
@@ -311,21 +315,24 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
             await db.query(
               `UPDATE shared.history SET amount = ${MARKED}
                WHERE kind = 'TASK' AND "entityId" = ANY ($1)`,
-              [[ours, theirs]],
+              [tasks],
             );
             await db.query(sql, [id]);
-            const { rows: found } = await db.query(amounts, [[ours, theirs]]);
+            const { rows: found } = await db.query(amounts, [tasks]);
             rows.push(
               Object.fromEntries(
                 found.map((row) => [row.entityId, row.amount]),
               ),
             );
           };
-          // Each write of a Transaction, on the Network that must not refresh
-          // the Task: update runs both loops of the function, delete the first
-          // and insert the second.
+          // Each write of a Transaction that must not refresh a Task: every
+          // one of Preprod's, its own event's included, and Mainnet's for a
+          // Preprod event. Update runs both loops of the function, delete the
+          // first and insert the second.
           for (const [schema, id] of [
             ["preprod", charge],
+            ["preprod", taggedCharge],
+            ["preprod", preprodCharge],
             ["mainnet", preprodCharge],
           ]) {
             await after(
@@ -338,24 +345,23 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
             );
             await after(insert(schema), id);
           }
-          // Mainnet's Transaction of a Mainnet event does refresh its Task.
-          await after(
-            `UPDATE mainnet."Transaction" SET amount = -150 WHERE id = $1`,
-            charge,
-          );
+          // Mainnet's Transaction of a Mainnet event does refresh its Task,
+          // with or without the tag.
+          for (const id of [charge, taggedCharge]) {
+            await after(
+              `UPDATE mainnet."Transaction" SET amount = -150 WHERE id = $1`,
+              id,
+            );
+          }
           return rows;
         },
       );
 
-      const untouched = { [ours]: MARKED, [theirs]: MARKED };
+      const untouched = { [ours]: MARKED, [tagged]: MARKED, [theirs]: MARKED };
       expect(seen).toEqual([
-        untouched,
-        untouched,
-        untouched,
-        untouched,
-        untouched,
-        untouched,
-        { [ours]: 150, [theirs]: MARKED },
+        ...Array.from({ length: 12 }, () => untouched),
+        { ...untouched, [ours]: 150 },
+        { ...untouched, [tagged]: 150 },
       ]);
     });
 
