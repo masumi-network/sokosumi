@@ -152,6 +152,7 @@ import {
   unreadDividerIn,
 } from "@/app/chat/utils/unread-divider-place";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
+import { getActiveRoomIdFromPathname } from "@/components/chat/active-room-id";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import {
   fetchRoomMessages,
@@ -1807,6 +1808,7 @@ function RoomView({
 
   const { markThreadRead, syncRoomAttentionAfterThreadLook } =
     useRoomReadAttention({
+      committedRoomId: getActiveRoomIdFromPathname(routePathname),
       room: selectedRoom,
       messagesPending,
       messageLoadFailed: effectiveMessageLoadFailed,

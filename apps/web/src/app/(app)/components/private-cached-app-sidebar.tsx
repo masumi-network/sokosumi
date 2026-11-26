@@ -1,13 +1,14 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { Suspense } from "react";
-import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
 import { loadSidebarChatList } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
+import PersonalAssistantNav from "./sidebar/components/personal-assistant-nav";
 import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
 import { SidebarChatList } from "./sidebar-chat-list.client";
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
 } from "./sidebar-deferred-account";
+import WorkspaceSwitcherMenu from "./workspace-switcher/workspace-switcher-menu.client";
 
 interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
@@ -30,7 +31,7 @@ export default function PrivateCachedAppSidebar({
 }: PrivateCachedAppSidebarProps) {
   return (
     <Sidebar
-      workspaceSwitcher={<WorkspaceSwitcherMenu placement="sidebar" />}
+      workspaceSwitcher={<WorkspaceSwitcherMenu placement="drawer" />}
       newsletterEnabled={newsletterEnabled}
       chatList={
         <Suspense
@@ -87,6 +88,7 @@ async function PrivateCachedSidebarRooms({
       deferred={deferred}
       currentUserId={userId}
       organizationId={activeOrganizationId}
+      directFooter={<PersonalAssistantNav />}
     />
   );
 }

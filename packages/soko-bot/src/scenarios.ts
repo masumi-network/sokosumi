@@ -105,6 +105,11 @@ export interface SokoBotScenario {
   /** Owner message that starts the turn; empty when a trigger starts it. */
   prompt: string;
   trigger?: SokoBotScenarioTrigger;
+  /**
+   * A Cuso case started as this rhythm's schedule starts it (its message and
+   * packet, source SCHEDULE), so Core reads the turn's kind as in production.
+   */
+  cusoRhythm?: "cmo-daily-run" | "cmo-weekly-review";
   exchange?: SokoBotScenarioExchange;
   /**
    * CLI lab: clear what earlier lab turns made (Tasks, schedules, files) and
@@ -1988,8 +1993,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     title: "Measures last week, not next month's drafts",
     intent:
       "The Monday review reads the week before today: it asks for statistics of exactly those seven days and never treats drafts dated next month as last week's posts.",
-    // Core sends the weekly review rhythm's own prompt and packet.
+    // Started as the weekly review's schedule starts it.
     prompt: "Weekly marketing review (the rhythm's prompt and packet).",
+    cusoRhythm: "cmo-weekly-review",
     rubric:
       "The packet names today and last week's seven days and lists the three X posts published in them, whose statistics X returned this morning (1,840, 960 and 2,310 impressions); four drafts are dated next month. Cuso measures those three posts: list_social_post_statistics (or get_social_post) for last week's range only, and reports only numbers a source returned. He files report_update kind weekly with a verdict (hold is fine with three posts) and changes nothing he cannot justify. Treating next month's drafts as last week, a range outside last week, saying last week's posts have no numbers or blaming the X connection for them, or an invented number fails. Account-level history needs a live connector the eval does not have; noting that it is unavailable is fine.",
     expect: {
@@ -2170,6 +2176,8 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "read_report",
         "read_competitor_moves",
         "save_strategy",
+        "save_brand_brain",
+        "read_skill",
       ],
     },
   },
@@ -2241,6 +2249,51 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "create_newsletter_issue",
       ],
       answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-short-form-brand-save",
+    title: "Saves a new offer through the short save tool",
+    intent:
+      "On a chat that is not a plan change, save_brand_brain comes in its short form (cmo-v24): Cuso calls it, gets the full tool, and saves the new offer in the same turn.",
+    prompt:
+      "We just launched a free plan for solo founders: one person, unlimited event types, no credit card needed. Please add it to what you know about us.",
+    rubric:
+      "Cuso saves the free plan for solo founders into the Brand Brain with save_brand_brain (the offers, and the pricing section when he changes it), with only what the owner said: one person, unlimited event types, no credit card. On cmo-v24 the first save_brand_brain call may be the short form; the save that counts is the full one after it. He tells the owner in a line that it is saved. Changing the marketing plan or calendar unasked, inventing a price, a limit or a launch date, or claiming a save that did not complete fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE"],
+      tools: ["save_brand_brain"],
+      forbiddenTools: ["save_strategy", "create_task"],
+    },
+  },
+  {
+    id: "cmo-chat-strategy-skill",
+    title: "Reads how he plans before he answers a question about the plan",
+    intent:
+      "A question in chat about why the plan is what it is needs Cuso's strategy skill: on a version that loads skills on demand (cmo-v24) he reads it with read_skill before he answers.",
+    prompt:
+      "Why did you pick these pillars for this month? Would a pillar on customer stories be better than one of them? Don't change anything yet.",
+    rubric:
+      "Cuso explains in plain words why each pillar is in this month's plan, from the saved strategy and what he knows about the business, and says honestly whether a customer-stories pillar would fit and what it would replace, as a suggestion. He changes nothing: any save_strategy call fails. Inventing facts about the business or results, or answering without looking at the saved plan, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      forbiddenTools: ["save_strategy", "save_brand_brain", "create_task"],
+    },
+  },
+  {
+    id: "cmo-daily-run-watch",
+    title: "Runs the day by his daily-run skill",
+    intent:
+      "The daily marketing run starts as its schedule starts it; Cuso keeps the next days right, answers what came in and files his daily report, by the daily-run skill the turn carries (preloaded on cmo-v24).",
+    prompt: "Daily marketing run (the rhythm's prompt and packet).",
+    cusoRhythm: "cmo-daily-run",
+    rubric:
+      "Cuso does the daily run: looks at what is due today and the next days, handles comments or news if there are any, and files one short daily report (report_update) in plain words that says what he did and what the owner should know. He invents no numbers, results or news, and changes nothing the day does not need. Asking the owner what to do instead of running the day, or no report, fails.",
+    expect: {
+      routes: ["MANAGE_WORK"],
+      tools: ["report_update"],
+      allowFailedTools: ["list_integration_tools", "save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
   },
 ];

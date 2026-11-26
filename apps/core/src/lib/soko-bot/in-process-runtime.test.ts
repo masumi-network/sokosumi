@@ -388,7 +388,7 @@ describe("InProcessSokoBotRuntime", () => {
 
     const main = streamModelCallMock.mock.calls.at(-1)?.[0];
     expect(main.toolChoice).toBe("none");
-    expect(main.messages[0].content).toContain("you cannot call tools");
+    expect(main.messages.at(-1).content).toContain("you cannot call tools");
     // One wrap-up step, not a loop.
     expect(main.stopWhen).toBe(1);
   });

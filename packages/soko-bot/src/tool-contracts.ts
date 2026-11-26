@@ -1626,6 +1626,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
       WRITING_SKILLS.map((skill) => skill.id) as [string, ...string[]],
     ),
   }),
+  read_skill: z.object({
+    skill: z.string().trim().min(1).max(80),
+  }),
   find_style_references: z.object({
     about: z.string().trim().min(3).max(300),
     kinds: z.array(z.enum(REFERENCE_KINDS)).max(4).optional(),
@@ -1977,6 +1980,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Read what a business's public social profile shows today without signing in: followers, post count, recent posts with their dates where the network shows them, and the visible text (themes, formats). Works for Instagram (counts only), YouTube (subscribers and recent uploads), X, LinkedIn and TikTok; Facebook shows nothing signed out. Only read profile links from the business's own site or a search that names the business: a lookalike handle is someone else.",
   read_writing_skill:
     "Read one writing skill in full, by its id from writingSkills in your context: how to write for that network or kind of piece, its formats, examples and the 'Before you save' checklist every made piece is checked against. Before you write any post, ad, newsletter, article or page fix, read brand-voice and the piece's own skill; for a social post or an ad also post-formatting and hooks-and-endings. A production run's brief already holds its skills.",
+  read_skill:
+    "Read one of your skills in full by its id from the skill index in your instructions (for Cuso also a writing skill by its id from writingSkills in your context). Read a skill before the work its line names, and follow it for the rest of the turn.",
   find_style_references:
     'Find old prints in the reference library (ads, posters, magazine covers, fruit crate labels, trade cards, playbills, record and book covers, illustrations, infographics from about 1700 to the 2000s) whose look would carry a piece. Describe in about what the piece shows and the look you want ("a launch announcement, bold Art Deco travel poster", "three steps of a process, Isotype pictograms"); kinds narrows the kind of print, purpose what it suits (event, offer, product, quote, how-to; data or comparison for a picture that shows numbers, the only purposes that take an infographic). Each result has its id, kind, era, technique, layout, lettering and palette. To make a picture in that style, put the id in the piece\'s styleReferenceId and the few words it carries in headline (left out, the picture has no words): Core makes it in that style with the brand\'s logo, colours and DESIGN.md, checks it and remakes a weak one. Pick a style that suits the piece and the brand, and vary styles across the month.',
   write_month_pieces:

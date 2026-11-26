@@ -1,10 +1,6 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
-import { SOKO_BOT_CMO_RHYTHMS } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import {
-  buildCmoBeatPacket,
-  cmoLastWeek,
-} from "@/services/cmo-context.service";
+import { cmoLastWeek } from "@/services/cmo-context.service";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 
 export const CMO_WEEKLY_REVIEW_CASE_ID = "cmo-weekly-review-last-week";
@@ -81,23 +77,6 @@ export async function prepareCmoWeeklyReview(
         scheduledAt: new Date(now.getTime() + daysAhead * DAY_MS),
       },
     });
-}
-
-/** The weekly review rhythm's prompt and packet, as the schedule sends them. */
-export async function cmoWeeklyReviewMessage(
-  lane: EvalLaneRecord,
-  now: Date = new Date(),
-): Promise<string> {
-  const schedule = SOKO_BOT_CMO_RHYTHMS.find(
-    (candidate) => candidate.key === "cmo-weekly-review",
-  );
-  if (!schedule) throw new Error("No weekly review schedule");
-  const { packet } = await buildCmoBeatPacket(
-    lane.cusoBotId,
-    now,
-    "cmo-weekly-review",
-  );
-  return [schedule.prompt, "", packet].join("\n").trim();
 }
 
 /**

@@ -164,6 +164,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "search_exa",
   "read_social_profile",
   "read_writing_skill",
+  "read_skill",
   "find_style_references",
   "write_month_pieces",
   "write_strategy",

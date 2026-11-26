@@ -1,3 +1,4 @@
+import type { CmoShortFormTool } from "@sokosumi/soko-bot";
 import {
   type LanguageModel,
   type ModelMessage,
@@ -5,9 +6,16 @@ import {
   type ToolSet,
 } from "ai";
 import {
+  endedByShortForm,
+  fullToolRoundAllowed,
+  shortFormsIn,
+  withShortForms,
+} from "../lib/soko-bot/short-forms";
+import {
   modelReasoningSummaryOptions,
   stepReasoningSummary,
   streamModelCall,
+  withPromptCache,
 } from "../lib/soko-bot/stream-model-call";
 import {
   StepAdmission,
@@ -30,6 +38,10 @@ import {
 } from "./rounds";
 
 export interface TurnLoopInput {
+  /** The provider's prompt cache key for this system and tool set. */
+  cacheKey?: string | null;
+  /** The key once the full save tools replace their short forms. */
+  fullCacheKey?: string | null;
   model: LanguageModel;
   system: string;
   message: string;
@@ -47,6 +59,11 @@ export interface TurnLoopInput {
   /** Told each step's reasoning summary as the step ends, when it has one. */
   onReasoning?: (summary: string) => Promise<void>;
   now?: () => number;
+  /**
+   * Save tools offered in their short form until one is called; the next
+   * round offers the full tool (cmo-v24).
+   */
+  shortForms?: readonly CmoShortFormTool[];
 }
 
 export interface TurnLoopResult {
@@ -59,6 +76,10 @@ export interface TurnLoopResult {
  * until it reports DONE, stops working REPORT_RESERVE_MS before its deadline,
  * and then writes its report without tools.
  */
+function modelIdOf(model: TurnLoopInput["model"]): string {
+  return typeof model === "string" ? model : model.modelId;
+}
+
 export async function runTurnLoop(
   input: TurnLoopInput,
 ): Promise<TurnLoopResult> {
@@ -90,6 +111,8 @@ export async function runTurnLoop(
   let text = "";
   let finishReason = "";
   let idleRounds = 0;
+  let short = shortFormsIn(input.tools, input.shortForms ?? []);
+  const fullKey = input.fullCacheKey ?? input.cacheKey;
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
     if (budgetSpent()) break;
@@ -97,17 +120,27 @@ export async function runTurnLoop(
       model: input.model,
       system: input.system,
       messages: compactHistory(messages) ?? messages,
-      tools: input.tools,
+      tools: short.length ? withShortForms(input.tools, short) : input.tools,
       // The budget is checked last, so it reserves room only for a step
       // that will run.
-      stopWhen: [stepCountIs(stepsLeft), timeUp, endedByTool, budgetSpent],
+      stopWhen: [
+        stepCountIs(stepsLeft),
+        timeUp,
+        endedByTool,
+        endedByShortForm(short),
+        budgetSpent,
+      ],
       prepareStep: ({ messages: current }) => {
         const compacted = compactHistory(current);
         return compacted ? { messages: compacted } : {};
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
-      providerOptions: modelReasoningSummaryOptions(input.model),
+      providerOptions: withPromptCache(
+        modelReasoningSummaryOptions(input.model),
+        short.length ? input.cacheKey : fullKey,
+        modelIdOf(input.model),
+      ),
       onStepFinish: async (step) => {
         admission.settle(step.usage.inputTokens);
         const summary = stepReasoningSummary(step);
@@ -131,6 +164,24 @@ export async function runTurnLoop(
     // Every step's messages: `response.messages` holds the last step's alone,
     // and a nudged round that cannot see its own calls does the brief again.
     messages = [...messages, ...result.responseMessages];
+    // A short-form save ended the round: the next offers the full tool, as
+    // long as steps, time and tokens all leave room for it.
+    if (
+      fullToolRoundAllowed({
+        steps: result.steps,
+        shortForms: short,
+        stepsLeft,
+        tokensLeft: refused
+          ? 0
+          : input.budget
+            ? input.budget.limit - input.budget.used - input.budget.reserved
+            : Number.POSITIVE_INFINITY,
+        timeUp: timeUp(),
+      })
+    ) {
+      short = [];
+      continue;
+    }
     const keepGoing =
       input.background &&
       !isFinalReport(text) &&
@@ -163,6 +214,7 @@ export async function runTurnLoop(
       ],
       tools: input.tools,
       toolChoice: "none",
+      providerOptions: withPromptCache({}, fullKey, modelIdOf(input.model)),
       abortSignal: signal(),
       maxRetries: 1,
     });

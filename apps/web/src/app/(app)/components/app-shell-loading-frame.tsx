@@ -5,7 +5,6 @@ import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
-
 import { AppHeaderFallback } from "./app-header-fallback";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import {
@@ -14,6 +13,8 @@ import {
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
 } from "./app-shell-safe-area";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
+import { SidebarWorkspaceRow } from "./workspace-switcher/sidebar-workspace-row";
+import { WorkspaceSwitcherSkeleton } from "./workspace-switcher/workspace-switcher-skeleton";
 
 /** Stub session id for Instant Nav Suspense fallback (not a real session). */
 const INSTANT_NAV_SHELL_FALLBACK_SESSION_ID = "instant-nav-shell-fallback";
@@ -25,10 +26,24 @@ interface AppShellLoadingFrameProps {
 export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
     <LiveChatRoomsProvider>
+      <SidebarWorkspaceRow
+        actions={["search", "new-task"].map((action) => (
+          <span
+            key={action}
+            aria-hidden
+            className="bg-muted size-8 shrink-0 animate-pulse rounded-md"
+          />
+        ))}
+      >
+        <WorkspaceSwitcherSkeleton placement="sidebar" />
+      </SidebarWorkspaceRow>
       <GlobalRail />
       <AppSidebarFallback />
       <SidebarEdgeHandle />
-      <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
+      <div
+        className="flex min-w-0 flex-1 overflow-clip md:pt-16"
+        data-app-content
+      >
         <div
           className="flex min-w-0 flex-1 flex-col overflow-clip"
           data-app-content-inner

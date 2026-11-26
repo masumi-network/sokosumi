@@ -6,7 +6,7 @@ import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
  * with the sidebar rows that set `prefetchContent`.
  */
 const CONTENT_PREFETCH_PATHS = new Set<string>([
-  "/",
+  "/chat",
   "/projects",
   "/agents",
   "/tasks",

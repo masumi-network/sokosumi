@@ -10,6 +10,7 @@
 
 import { spawn } from "node:child_process";
 import {
+  type CmoShortFormTool,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_TURN_TOKEN_HEADER,
@@ -36,6 +37,7 @@ import {
   turnTokenBudget,
 } from "../lib/soko-bot/turn-budget";
 import {
+  partMessage,
   partTools,
   TURN_PART_MAX_MS,
   TURN_PART_MAX_STEPS,
@@ -74,6 +76,14 @@ interface TurnStart {
   parts?: TurnPart[];
   /** Tool descriptions written for this bot; an older Core sends none. */
   toolDescriptions?: Partial<Record<SokoBotCapability, string>>;
+  /** Save tools offered in their short form first (cmo-v24); an older Core sends none. */
+  shortForms?: CmoShortFormTool[];
+  /** The packet and persona, ahead of each part's message (cmo-v24 on). */
+  preamble?: string;
+  /** The provider's prompt cache key for this system and tool set. */
+  cacheKey?: string | null;
+  /** The key once the full save tools replace their short forms. */
+  fullCacheKey?: string | null;
   /** The owner's setup commands and the keys shell commands get (ADR 0074). */
   shell?: { setupCommands: string[]; env: Record<string, string> };
 }
@@ -496,7 +506,8 @@ async function main(): Promise<void> {
           await runTurnLoop({
             model: gateway(start.model),
             system: start.system,
-            message: part.message,
+            message: partMessage(start.preamble ?? "", part),
+            // A part's tools are a subset: another prefix, so no shared key.
             tools: partTools(tools, part),
             maxSteps: TURN_PART_MAX_STEPS,
             budget,
@@ -517,6 +528,9 @@ async function main(): Promise<void> {
       deadline,
       stopped: stopped.signal,
       onReasoning: reportReasoning,
+      shortForms: start.shortForms ?? [],
+      cacheKey: start.cacheKey,
+      fullCacheKey: start.fullCacheKey,
     });
     await callCore("/complete", { text, finishReason });
   } catch (error) {

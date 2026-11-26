@@ -42,6 +42,7 @@ const UNSUPPORTED_FIELDS = [
   "moderation",
   "prompt",
   "prompt_cache_key",
+  "prompt_cache_options",
   "prompt_cache_retention",
   "previous_response_id",
   "safety_identifier",
