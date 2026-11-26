@@ -52,7 +52,7 @@ export async function DeveloperVendorsList({
   }
 
   return (
-    <ul className="divide-border divide-y rounded-lg border">
+    <ul className="bg-background divide-border divide-y rounded-lg border">
       <PageSearchRows
         rows={adminVendors.map((vendor) => {
           const logos = getVendorLogoUrls(vendor);
