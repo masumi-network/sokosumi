@@ -711,6 +711,29 @@ export async function startJourney(
  * So when the next step is the Coworker's and the owner's own turn is done,
  * the current step ends and the answer goes out.
  */
+/**
+ * The turn the step started: the one recorded at its start, or, for a
+ * schedule step whose run was deferred, the run's turn once it began (it is
+ * recorded on the step then, so later polls and the score see it too).
+ */
+export async function foregroundTurnId(
+  journey: OwnerJourney,
+  current: StepRecord,
+  state: JourneyState,
+): Promise<string | null> {
+  if (current.turnIds[0]) return current.turnIds[0];
+  if (journey.steps[current.index]?.kind !== "schedule_fires") return null;
+  const [, runId] = state.memo.scheduleRun ?? [];
+  const run = runId
+    ? await prisma.sokoBotScheduleRun.findUnique({
+        where: { id: runId },
+        select: { turnId: true },
+      })
+    : null;
+  if (run?.turnId) current.turnIds = [run.turnId];
+  return run?.turnId ?? null;
+}
+
 async function coworkerCanAnswer(
   journey: OwnerJourney,
   current: StepRecord,
@@ -718,7 +741,7 @@ async function coworkerCanAnswer(
   state: JourneyState,
 ): Promise<boolean> {
   const next = journey.steps[current.index + 1];
-  const [foreground] = current.turnIds;
+  const foreground = await foregroundTurnId(journey, current, state);
   if (next?.kind !== "coworker" || !foreground) return false;
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: foreground },

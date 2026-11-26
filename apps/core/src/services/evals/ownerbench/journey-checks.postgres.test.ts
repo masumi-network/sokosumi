@@ -14,6 +14,7 @@ import { type CheckContext, outcomeCheck } from "./journey-checks";
 import {
   claimedRunCheck,
   claimedRunState,
+  foregroundTurnId,
   freshConversationCheck,
 } from "./journey-runner";
 import type { JourneyWorld } from "./journey-world";
@@ -354,6 +355,37 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     };
     expect(await claimedRunState(ran, botId)).toBe("started");
     expect((await claimedRunCheck(ran)).pass).toBe(true);
+    // A deferred run's step starts with no turn; once the run's turn exists
+    // it is the step's own, so the Coworker handover can see it.
+    const journey = OWNER_JOURNEYS.find(
+      (entry) => entry.id === "owner-codepat-daily-post",
+    )!;
+    const scheduleStep = journey.steps.findIndex(
+      (step) => step.kind === "schedule_fires",
+    );
+    const record = {
+      index: scheduleStep,
+      kind: "schedule_fires" as const,
+      label: "",
+      startedAt: new Date().toISOString(),
+      turnIds: [] as string[],
+      checks: [],
+    };
+    const state = {
+      world: context.world,
+      journeyStartedAt: since.toISOString(),
+      steps: [record],
+      memo: ran,
+    };
+    expect(await foregroundTurnId(journey, record, state)).toBe(turn.id);
+    expect(record.turnIds).toEqual([turn.id]);
+    expect(
+      await foregroundTurnId(
+        journey,
+        { ...record, index: 0, turnIds: [] },
+        state,
+      ),
+    ).toBeNull();
     expect((await claimedRunCheck({})).actual).toBe("no run claimed");
     await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
