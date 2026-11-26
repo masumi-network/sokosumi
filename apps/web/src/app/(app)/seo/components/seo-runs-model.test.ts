@@ -5,6 +5,7 @@ import {
   seoRunDays,
   seoRunsDateCheck,
   seoRunsNameSpan,
+  seoStopRuleCheck,
 } from "./seo-runs-model";
 
 const run = (observedAt: string, issues: number, kind = "audit_full") => ({
@@ -142,6 +143,25 @@ describe("SEO runs of a site", () => {
     expect(
       seoRunDays({ runs }, { from: "2026-11-02", to: "2026-11-02" }).rangeCheck,
     ).toBe("2026-11-02T10:00:00Z");
+  });
+
+  it("gives a stop the newest page check observed in its days, whatever events the filter keeps", () => {
+    const workspace = {
+      runs: [
+        run("2026-11-03T09:00:00Z", 1),
+        run("2026-11-02T10:00:00Z", 1, "rankings"),
+        run("2026-11-01T09:00:00Z", 1),
+      ],
+    };
+    expect(seoStopRuleCheck(workspace, null, "2026-11-02")).toBe(
+      "2026-11-01T09:00:00Z",
+    );
+    expect(
+      seoStopRuleCheck(workspace, "2026-11-01", "2026-11-02"),
+    ).toBeUndefined();
+    expect(seoStopRuleCheck(workspace, "2026-11-02", null)).toBe(
+      "2026-11-03T09:00:00Z",
+    );
   });
 
   it("keeps the five newest days, and an older day only while it is in view", () => {

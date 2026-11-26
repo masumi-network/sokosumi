@@ -114,6 +114,31 @@ export function seoRunCountDays(days: Pick<SeoRunDay, "day" | "issues">[]) {
 }
 
 /**
+ * The newest page check observed inside the days of a stop: after the day before it, up to its own day (no end on the
+ * newest stop). It reads the runs, not the events, so a date filter that drops the save event of an older check keeps
+ * the stop on the same check.
+ */
+export function seoStopRuleCheck(
+  workspace: Pick<ProjectSeoWorkspace, "runs">,
+  after: string | null,
+  through: string | null,
+) {
+  return (workspace.runs ?? [])
+    .filter((run) => {
+      const day = new Date(run.observedAt).toISOString().slice(0, 10);
+      return (
+        isSeoRuleCheck(run.kind) &&
+        (after === null || day > after) &&
+        (through === null || day <= through)
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.observedAt).getTime() - new Date(a.observedAt).getTime(),
+    )[0]?.observationId;
+}
+
+/**
  * The next check a schedule starts: the soonest one of a running schedule, else null. A paused or ended schedule
  * starts none, and a time in the past is one the schedule already passed.
  */

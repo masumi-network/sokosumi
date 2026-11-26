@@ -19,6 +19,7 @@ import {
   seoNextScheduledCheck,
   seoRunCountDays,
   seoRunDays,
+  seoStopRuleCheck,
 } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
 import { seoStops } from "./seo-timeline-model";
@@ -144,12 +145,17 @@ export function SeoRuns({
   // The stop whose details the footer opens: the day in view, or every event of a range.
   const detailsStop =
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
-  // The check a stop compares: the newest page check of its day or range, else of its events, else any check.
+  // The check a stop compares: the newest page check of its day or range, else of its days, else any check.
   const checkOf = (stop: string) => {
     if (stop === WHOLE)
       return rangeCheck ?? seoStopCheckId(stopOf(WHOLE).nodes);
     const entry = days.find((item) => item.day === stop);
-    return entry?.check ?? seoStopCheckId(stopOf(stop).nodes) ?? entry?.latest;
+    const { after, newest } = stopOf(stop);
+    return (
+      entry?.check ??
+      seoStopRuleCheck(model.data, after, newest ? null : stop) ??
+      entry?.latest
+    );
   };
   // A stop with no events can still hold a check that was stored after it: its comparison is worth opening.
   const comparesAt = (stop: string) =>
