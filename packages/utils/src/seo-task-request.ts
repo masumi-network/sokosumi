@@ -5,7 +5,25 @@
  */
 export type SeoTaskMarker = "seo_audit" | "seo_job";
 
-const REQUEST_LINE = /^\s*seo_(?:audit|job)\s*:/i;
+/**
+ * JavaScript's `\s` (also the set `trim` removes), written out: Core's Task
+ * search runs the same line rule in SQL, and Postgres reads `\s` as another set.
+ */
+export const SEO_LINE_SPACE = String.raw`[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]`;
+
+/** The start of a request line (case-insensitive), as regex source for JS and Postgres. */
+export function seoRequestLinePrefix(marker: SeoTaskMarker): string {
+  return `^${SEO_LINE_SPACE}*${marker}${SEO_LINE_SPACE}*:`;
+}
+
+const REQUEST_LINE = new RegExp(
+  `^${SEO_LINE_SPACE}*seo_(?:audit|job)${SEO_LINE_SPACE}*:`,
+  "i",
+);
+const PREFIX = {
+  seo_audit: new RegExp(seoRequestLinePrefix("seo_audit"), "i"),
+  seo_job: new RegExp(seoRequestLinePrefix("seo_job"), "i"),
+};
 const LINE_BREAK = /\r?\n/;
 
 export function seoTaskDescription(
@@ -34,11 +52,18 @@ export function seoTaskRequestPacket(
   return JSON.parse(lines[0].replace(prefix, ""));
 }
 
+/**
+ * A request line: the marker, then JSON that is an object or an array. Core's
+ * Task search has a SQL twin of this rule (`visibleDescriptionSql`); a parity
+ * test runs the same cases through both.
+ */
 const isRequestLine = (line: string, markers: readonly SeoTaskMarker[]) => {
-  const marker = /^\s*(seo_(?:audit|job))\s*:/i.exec(line)?.[1].toLowerCase();
-  if (!markers.some((wanted) => wanted === marker)) return false;
+  const prefix = markers
+    .map((marker) => PREFIX[marker])
+    .find((pattern) => pattern.test(line));
+  if (!prefix) return false;
   try {
-    const value: unknown = JSON.parse(line.replace(REQUEST_LINE, ""));
+    const value: unknown = JSON.parse(line.replace(prefix, ""));
     return typeof value === "object" && value !== null;
   } catch {
     return false;
