@@ -165,7 +165,13 @@ export async function loadLabScenarioTurn(turnId: string) {
       errorDetail: true,
       toolCalls: {
         orderBy: { createdAt: "asc" },
-        select: { capability: true, status: true, input: true, result: true },
+        select: {
+          capability: true,
+          status: true,
+          input: true,
+          result: true,
+          errorKind: true,
+        },
       },
       events: { select: { type: true, toolName: true } },
       delegations: {

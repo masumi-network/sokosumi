@@ -4,6 +4,7 @@ import {
   isSokoBotNewsletterCapability,
   isSokoBotSeoCapability,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  SOKO_BOT_TOOL_REFUSED,
 } from "@sokosumi/soko-bot";
 import {
   createDataTableSchema,
@@ -54,6 +55,12 @@ import { type RuntimeOperations } from "./operations";
 import { isSkillRead, readSkillAgain } from "./read-skill";
 import { persistedErrorDetail } from "./seller-recovery";
 import { alternateCreateTaskEventInput } from "./task-policy";
+
+/** A refusal Core meant is stored as such, so a report can tell it from a failure. */
+function toolErrorKind(error: unknown): string {
+  if (error instanceof SokoBotRefusedUnsentError) return SOKO_BOT_TOOL_REFUSED;
+  return error instanceof Error ? error.name : "unknown";
+}
 
 export async function executeTool(
   runtime: RuntimeOperations,
@@ -531,7 +538,7 @@ export async function executeTool(
           status: "FAILED",
           disposition: "REJECTED",
           operationKey: null,
-          errorKind: error instanceof Error ? error.name : "unknown",
+          errorKind: toolErrorKind(error),
           errorDetail: persistedErrorDetail(error),
         },
       });
@@ -610,7 +617,7 @@ export async function executeTool(
                 externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
             }
           : {}),
-        errorKind: error instanceof Error ? error.name : "unknown",
+        errorKind: toolErrorKind(error),
         errorDetail: persistedErrorDetail(error),
       },
     });

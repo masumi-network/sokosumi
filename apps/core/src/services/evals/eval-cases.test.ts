@@ -1,4 +1,4 @@
-import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
+import { SAVES_FILE_TOOLS, SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import { EVAL_CASES, isJudgedEvalCase, selectEvalCases } from "./eval-cases";
 
@@ -16,6 +16,7 @@ function toolsCaseChecks(): Set<string> {
       ...(wanted.tools ?? []),
       ...(wanted.anyTools ?? []),
       ...(wanted.forbiddenTools ?? []),
+      ...(wanted.savesFile ? SAVES_FILE_TOOLS : []),
     ])
       tools.add(tool);
   }

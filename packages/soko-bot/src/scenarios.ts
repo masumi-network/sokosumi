@@ -24,7 +24,14 @@ export interface SokoBotLabTurn {
   status: string;
   route: string | null;
   finalAnswer: string | null;
-  toolCalls: { capability: string; status: string; result: unknown }[];
+  toolCalls: {
+    capability: string;
+    status: string;
+    result: unknown;
+    input?: unknown;
+    /** SOKO_BOT_TOOL_REFUSED when Core refused the call on purpose. */
+    errorKind?: string | null;
+  }[];
   events: { type: string; toolName: string | null }[];
   delegations: {
     id: string;
@@ -148,6 +155,12 @@ export interface SokoBotScenario {
      * so a failed call to one is not counted against the bot.
      */
     allowFailedTools?: string[];
+    /**
+     * A file the bot must save, by any path that shows its contents
+     * (workspace_write, upload_file with content, or a bash command that
+     * writes it inline): the name and every listed piece of content.
+     */
+    savesFile?: { name: string; contains: string[] };
     /** Minimum number of tasks/jobs the turn touched. */
     minDelegations?: number;
     /** Nothing may be delegated. */
@@ -190,6 +203,46 @@ export interface SokoBotScenario {
      */
     staysSilent?: boolean;
   };
+}
+
+/**
+ * The errorKind Core stores when it refuses a tool call on purpose (a
+ * feature off, a permission missing): an outcome to report, not a failure.
+ */
+export const SOKO_BOT_TOOL_REFUSED = "refused";
+
+const asText = (value: unknown) => (typeof value === "string" ? value : "");
+
+/** The calls a savesFile check can read a file from. */
+export const SAVES_FILE_TOOLS = ["workspace_write", "upload_file", "bash"];
+
+/** A completed call that wrote this file with all of this content. */
+function savedFile(
+  calls: SokoBotLabTurn["toolCalls"],
+  file: { name: string; contains: string[] },
+): string | null {
+  for (const call of calls) {
+    if (
+      call.status !== "COMPLETED" ||
+      !SAVES_FILE_TOOLS.includes(call.capability)
+    )
+      continue;
+    const input = (call.input ?? {}) as Record<string, unknown>;
+    const [where, content] =
+      call.capability === "workspace_write"
+        ? [asText(input.path), asText(input.content)]
+        : call.capability === "upload_file"
+          ? [asText(input.filename), asText(input.content)]
+          : call.capability === "bash"
+            ? [asText(input.command), asText(input.command)]
+            : ["", ""];
+    if (
+      where.includes(file.name) &&
+      file.contains.every((piece) => content.includes(piece))
+    )
+      return call.capability;
+  }
+  return null;
 }
 
 export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
@@ -885,7 +938,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "The bot writes pipeline.csv to its workspace and computes the totals (won 17000, open 35000), ideally with bash or a script rather than mental arithmetic. The answer gives both numbers and names the file. No task or hire.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK"],
-      anyTools: ["workspace_write", "bash"],
+      savesFile: {
+        name: "pipeline.csv",
+        contains: ["Acme", "12000", "Beta", "Gamma", "Delta", "Epsilon"],
+      },
       forbiddenTools: ["create_task", "hire_agent"],
       noDelegations: true,
       answerMatches:
@@ -2554,9 +2610,11 @@ export function evaluateScenario(
     pass: turn.status === "COMPLETED",
     actual: turn.status,
   });
+  // Core refusing on purpose is the case's outcome, judged on the answer.
   const failedTools = turn.toolCalls.filter(
     (call) =>
       call.status === "FAILED" &&
+      call.errorKind !== SOKO_BOT_TOOL_REFUSED &&
       !expect.allowFailedTools?.includes(call.capability),
   );
   checks.push({
@@ -2593,6 +2651,14 @@ export function evaluateScenario(
         used.length > 0
           ? `called ${list(used)}`
           : `none called — used ${list(tools)}`,
+    });
+  }
+  if (expect.savesFile) {
+    const by = savedFile(turn.toolCalls, expect.savesFile);
+    checks.push({
+      label: `Saves ${expect.savesFile.name} with its contents`,
+      pass: by !== null,
+      actual: by ? `saved with ${by}` : "no completed call wrote it",
     });
   }
   for (const [tool, least] of Object.entries(expect.minCalls ?? {})) {

@@ -4,6 +4,7 @@ import {
   CMO_SCENARIOS,
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
+  SOKO_BOT_TOOL_REFUSED,
   type SokoBotLabTurn,
   type SokoBotScenario,
 } from "../scenarios.js";
@@ -482,5 +483,78 @@ describe("playbook cases", () => {
   it("lets a draft link its button but not leave a placeholder", () => {
     expect(avoids("[Start your trial](https://cal.com/teams)")).toBe(true);
     expect(avoids("Hi [first name], welcome.")).toBe(false);
+  });
+});
+
+describe("scoring what the bot did, not how", () => {
+  const check = (
+    scenarioId: string,
+    done: Partial<SokoBotLabTurn>,
+    label: RegExp,
+  ) =>
+    evaluateScenario(byId(scenarioId), turn(done)).checks.find((c) =>
+      label.test(c.label),
+    );
+
+  it("counts Core refusing on purpose as an outcome, other failures as failures", () => {
+    const refused = {
+      ...call("fundraising_pipeline"),
+      status: "FAILED",
+      errorKind: SOKO_BOT_TOOL_REFUSED,
+    };
+    expect(
+      check("fundraising-pipeline-off", { toolCalls: [refused] }, /No failed/)
+        ?.pass,
+    ).toBe(true);
+    const broken = { ...refused, errorKind: "Error" };
+    expect(
+      check("fundraising-pipeline-off", { toolCalls: [broken] }, /No failed/)
+        ?.pass,
+    ).toBe(false);
+  });
+
+  it("accepts the saved file by any path that shows its contents", () => {
+    const rows =
+      "Company,Amount\nAcme,12000\nBeta,8000\nGamma,20000\nDelta,5000\nEpsilon,15000\n";
+    const saved = (capability: string, input: unknown) =>
+      check(
+        "workspace-data-work",
+        { toolCalls: [{ ...call(capability), input }] },
+        /Saves pipeline\.csv/,
+      )?.pass;
+    expect(
+      saved("upload_file", { filename: "pipeline.csv", content: rows }),
+    ).toBe(true);
+    expect(
+      saved("workspace_write", { path: "pipeline.csv", content: rows }),
+    ).toBe(true);
+    expect(
+      saved("bash", { command: `cat > pipeline.csv <<'EOF'\n${rows}EOF` }),
+    ).toBe(true);
+    // A call alone proves nothing: the name and every row must be there.
+    expect(saved("bash", { command: "python3 make.py > pipeline.csv" })).toBe(
+      false,
+    );
+    expect(
+      saved("upload_file", {
+        filename: "pipeline.csv",
+        content: "Acme,12000\n",
+      }),
+    ).toBe(false);
+    expect(
+      check(
+        "workspace-data-work",
+        {
+          toolCalls: [
+            {
+              ...call("upload_file"),
+              status: "FAILED",
+              input: { filename: "pipeline.csv", content: rows },
+            },
+          ],
+        },
+        /Saves pipeline\.csv/,
+      )?.pass,
+    ).toBe(false);
   });
 });
