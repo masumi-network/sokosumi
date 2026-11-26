@@ -399,3 +399,29 @@ test("an environment token never reads the OS vault", async () => {
     assert.equal(result.authenticated, true);
   }
 });
+
+test("a usable OAuth session never reads the stored API key", async () => {
+  const result = await resolveInitialAuth({
+    authManager: new AuthManager({
+      credentialStore: {
+        read: () => ({
+          authToken: "oauth-access-token",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+        }),
+        write: () => {},
+        clear: () => {},
+      },
+      apiKeyStore: {
+        read: () => {
+          throw new Error("OS vault read would show a keychain prompt");
+        },
+        write: () => {},
+        clear: () => {},
+      },
+      environment: {},
+    }),
+    config: MAINNET_CONFIG,
+    environment: {},
+  });
+  assert.equal(result.authMethod, "oauth");
+});

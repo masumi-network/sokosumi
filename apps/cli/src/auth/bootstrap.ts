@@ -191,9 +191,22 @@ export async function resolveInitialAuth({
   const envApiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
   if (envApiKey) assertApiKeyTarget(envApiKey, config, targetExplicit);
 
-  // An environment token wins over stored credentials, so skip the OS vault.
+  const token = await authManager.getAuthTokenAsync({
+    authBaseUrl: config.authBaseUrl,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret || undefined,
+    environment,
+  });
+  const authMethod = authManager.getAuthMethod(environment);
+
+  // Each OS vault read can show a keychain dialog. An environment token or a
+  // usable OAuth session never needs the stored API key, so check it only
+  // when it is the selected credential.
   const envBearer = envBearerCredential(environment);
-  const storedApiKey = envBearer ? null : authManager.getApiKeyCredentials();
+  const storedApiKey =
+    !envBearer && authMethod === "api-key"
+      ? authManager.getApiKeyCredentials()
+      : null;
   if (storedApiKey?.apiKey) {
     assertApiKeyTarget(storedApiKey.apiKey, config, targetExplicit);
     if (storedApiKey.target && storedApiKey.target !== config.target) {
@@ -202,14 +215,6 @@ export async function resolveInitialAuth({
       );
     }
   }
-
-  const token = await authManager.getAuthTokenAsync({
-    authBaseUrl: config.authBaseUrl,
-    clientId: config.clientId,
-    clientSecret: config.clientSecret || undefined,
-    environment,
-  });
-  const authMethod = authManager.getAuthMethod(environment);
   const expiresAt = envBearer
     ? null
     : authMethod === "api-key"
