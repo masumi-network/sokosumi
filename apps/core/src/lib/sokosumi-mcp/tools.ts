@@ -2882,8 +2882,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "chats_send",
     operation: "POST /chats/rooms/{id}/messages",
     description:
-      "Spends workspace credits. A Coworker or Soko Bot the message mentions, or the Soko Bot of a Soko Bot Direct, replies into the room as a paid turn. In a Direct with one Coworker and you alone, the Coworker replies only in Sokosumi Web. Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. Confirm the text with the person first.",
-    spendsCredits: true,
+      "Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. A mentioned Coworker or Soko Bot, or the Soko Bot of a Soko Bot Direct, replies into the room. In a Direct with one Coworker and you alone, the Coworker replies only in Sokosumi Web.",
   },
   {
     name: "chats_get_message",
@@ -2953,8 +2952,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation:
       "POST /chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry",
     description:
-      "Spends workspace credits. Ask a Coworker again after its mention on your message failed: it runs a paid turn and replies into the room. Confirm with the person first.",
-    spendsCredits: true,
+      "Ask a Coworker again after its mention on your message failed: it replies into the room.",
   },
   {
     name: "chats_saved",
