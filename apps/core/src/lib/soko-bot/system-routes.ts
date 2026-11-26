@@ -311,6 +311,7 @@ export interface ScheduleAuthorityRouteInput {
   botUserId: string | null;
   botProjectId: string | null;
   botVersionId: string | null;
+  revoked?: boolean;
   now?: Date;
 }
 
@@ -318,8 +319,8 @@ export interface ScheduleAuthorityRouteInput {
  * Computes the route for a user- or bot-created schedule run, intersecting its
  * stored capabilities with persisted `SokoBotSchedule.authority`. Legacy rows
  * (`authority == null`) preserve `inheritedScheduleRoute`; non-null expired,
- * mismatched, or malformed authorities fail closed without falling back to
- * `PERSON_SCHEDULE_CAPABILITIES`.
+ * revoked, mismatched, or malformed authorities fail closed without falling
+ * back to `PERSON_SCHEDULE_CAPABILITIES`.
  */
 export function scheduleAuthorityRoute(
   input: ScheduleAuthorityRouteInput,
@@ -341,6 +342,7 @@ export function scheduleAuthorityRoute(
     botProjectId: input.botProjectId,
     botVersionId: input.botVersionId,
     offeredCapabilities: baseCapabilities,
+    ...(input.revoked ? { revoked: true } : {}),
     now: input.now,
   });
   return {

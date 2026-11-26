@@ -25,17 +25,22 @@ import {
 } from "@/lib/soko-bot/authority-spend";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
+  deriveDelegationAuthority,
+  deriveWatchAuthority,
   evaluateSocialWriteAuthority,
   resolveSocialWriteOrigin,
   resolveSocialWriteOriginSource,
+  resolveWorkItemParentAuthority,
   SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
   SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+  SCHEDULE_AUTHORITY_REVOKED_MESSAGE,
   SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
   SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
   SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
   SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
   WATCH_AUTHORITY_EXPIRED_MESSAGE,
   WATCH_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_REVOKED_MESSAGE,
   WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
   WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
   WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
@@ -3764,6 +3769,566 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           grants: life2Allowance!.grants!,
         }),
       ).rejects.toThrow("The owner asked for 1 image in this plan");
+    });
+
+    it("propagates live OwnerAuthority revocation on schedule pause/delete and cancelled root turns without breaking spent one-time schedules", async () => {
+      const { failedRetryInput, loadAdminScheduleRun, scheduleRetryInput } =
+        await import("./soko-bot-admin-retry.service");
+      const bot = await prisma.sokoBot.findUniqueOrThrow({
+        where: { id: botId },
+      });
+      const projectA = randomUUID();
+      const makeTurn = (
+        source: "CHAT" | "SCHEDULE" | "EVENT" | "ADMIN_RETRY",
+        clientTurnId: string,
+        overrides?: {
+          parentTurnId?: string | null;
+          status?: "COMPLETED" | "FAILED" | "CANCELLED" | "RUNNING";
+          capabilityNames?: string[];
+        },
+      ) =>
+        prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            askedByUserId: source === "CHAT" ? userId : null,
+            source,
+            clientTurnId,
+            parentTurnId: overrides?.parentTurnId ?? null,
+            userMessage: "Run scheduled follow-up",
+            versionId: "v36",
+            status: overrides?.status ?? "COMPLETED",
+            deadlineAt: new Date(Date.now() + HOUR),
+            capabilityNames: overrides?.capabilityNames ?? [
+              "list_social_posts",
+              "create_social_post",
+              "schedule_social_post",
+              "generate_image",
+              "create_task",
+            ],
+          },
+        });
+      const asAuthorized = (row: {
+        id: string;
+        source: string | null;
+        clientTurnId: string;
+      }) =>
+        ({
+          askedByKind: "OWNER",
+          reader: { sharedScope: null },
+          turn: {
+            id: row.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: row.source,
+            clientTurnId: row.clientTurnId,
+            actingUserId: userId,
+            chainDepth: 0,
+          },
+        }) as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+      const mediaRuntime = {
+        mayActForOwner: async (auth: { turn: { source: string | null } }) =>
+          auth.turn.source === "CHAT",
+      };
+
+      // 1. Recurring schedule creates child watch + child delegation carrying scheduleId.
+      const schedRootTurn = await makeTurn(
+        "CHAT",
+        `chat-sched-root:${randomUUID()}`,
+      );
+      const schedId = randomUUID();
+      const schedGrantId = `sched-rev-${randomUUID()}`;
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: schedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Weekly launch post",
+          cronExpression: "0 9 * * 1",
+          timezone: "UTC",
+          prompt: "Generate 1 image and schedule a post.",
+          nextRunAt: new Date(Date.now() + HOUR),
+          runOnce: false,
+          enabled: true,
+          capabilityNames: [
+            "list_social_posts",
+            "create_social_post",
+            "schedule_social_post",
+            "generate_image",
+          ],
+          authority: {
+            version: 1,
+            grantId: schedGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: schedRootTurn.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: schedId,
+            scope: "owner_writes",
+            socialMode: "schedule_posts",
+            limits: {
+              grantId: schedGrantId,
+              period: "per_occurrence",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const slot = new Date("2026-12-01T09:00:00.000Z");
+      const schedTurn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${schedId}:${slot.toISOString()}`,
+        { status: "FAILED" },
+      );
+      const schedRun = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: schedId,
+          scheduledFor: slot,
+          status: "FAILED",
+          turnId: schedTurn.id,
+        },
+      });
+      const schedRetryTurn = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-schedule-retry:${schedRun.id}:op1`,
+      );
+      const childWatchAuthority = await deriveWatchAuthority(
+        {
+          id: schedTurn.id,
+          sokoBotId: botId,
+          workspaceId,
+          versionId: "v36",
+          source: "SCHEDULE",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: userId,
+          actingUserId: userId,
+          chainDepth: 0,
+        },
+        { kind: "studio_job", projectId: projectA },
+      );
+      expect(childWatchAuthority.scheduleId).toBe(schedId);
+      const childWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: schedTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Post the generated image",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: childWatchAuthority,
+        },
+      });
+      const childWatchWake = await makeTurn(
+        "SCHEDULE",
+        `watch:${childWatch.id}`,
+        { parentTurnId: schedTurn.id, status: "FAILED" },
+      );
+
+      const childDelegationAuthority = await deriveDelegationAuthority(
+        {
+          id: schedTurn.id,
+          sokoBotId: botId,
+          workspaceId,
+          versionId: "v36",
+          source: "SCHEDULE",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: userId,
+          actingUserId: userId,
+          chainDepth: 0,
+        },
+        { followUpAllows: { images: 1, maxCredits: 10 }, projectId: projectA },
+      );
+      expect(childDelegationAuthority.scheduleId).toBe(schedId);
+      const childEventWake = await makeTurn(
+        "EVENT",
+        `event:sched-child:${randomUUID()}`,
+      );
+      const delegatedTask = await prisma.task.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          name: "Scheduled child task",
+          status: "COMPLETED",
+        },
+      });
+      await prisma.sokoBotDelegation.create({
+        data: {
+          turnId: schedTurn.id,
+          toolCallId: `tool-sched-del-${randomUUID()}`,
+          action: "create_task",
+          kind: "TASK",
+          taskId: delegatedTask.id,
+          followUp: "Make an image from the completed task",
+          followUpAllows: { images: 1, maxCredits: 10 },
+          followUpTurnId: childEventWake.id,
+          authority: childDelegationAuthority,
+        },
+      });
+
+      // While enabled: schedule run, admin retry, child watch, and child delegation succeed.
+      const enabledSchedOrigin = await resolveSocialWriteOrigin(schedTurn);
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: schedTurn.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: enabledSchedOrigin.source,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+            sharedBot: false,
+          },
+          capability: "create_social_post",
+          rawInput: {
+            projectId: projectA,
+            text: "Enabled run",
+            scheduledAt: "2026-12-02T10:00:00Z",
+          },
+          tainted: false,
+          scheduleAuthority: enabledSchedOrigin.scheduleAuthority,
+        }).allowed,
+      ).toBe(true);
+      const enabledWatchOrigin = await resolveSocialWriteOrigin(childWatchWake);
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: childWatchWake.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: enabledWatchOrigin.source,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+            sharedBot: false,
+          },
+          capability: "create_social_post",
+          rawInput: { projectId: projectA, text: "Enabled watch" },
+          tainted: false,
+          watchAuthority: enabledWatchOrigin.watchAuthority,
+        }).allowed,
+      ).toBe(true);
+      expect(
+        (
+          await mayMakeMediaForOwner(
+            mediaRuntime,
+            asAuthorized(childWatchWake),
+            {
+              projectId: projectA,
+              capability: "generate_image",
+            },
+          )
+        )?.images,
+      ).toBe(1);
+      expect(
+        (
+          await mayMakeMediaForOwner(
+            mediaRuntime,
+            asAuthorized(childEventWake),
+            {
+              projectId: projectA,
+              capability: "generate_image",
+            },
+          )
+        )?.images,
+      ).toBe(1);
+
+      // 2. Pause schedule (`enabled: false`) -> immediately revokes schedule run,
+      //    retries, child watch, child delegation, and parent derivation without
+      //    mutating child rows.
+      await prisma.sokoBotSchedule.update({
+        where: { id: schedId },
+        data: { enabled: false },
+      });
+      for (const turnRow of [schedTurn, schedRetryTurn]) {
+        const origin = await resolveSocialWriteOrigin(turnRow);
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: {
+              id: turnRow.id,
+              sokoBotId: botId,
+              workspaceId,
+              versionId: "v36",
+              source: origin.source,
+              actingUserId: userId,
+              askedByKind: "OWNER",
+              sharedBot: false,
+            },
+            capability: "create_social_post",
+            rawInput: { projectId: projectA, text: "Paused run" },
+            tainted: false,
+            scheduleAuthority: origin.scheduleAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "schedule_authority",
+          detail: SCHEDULE_AUTHORITY_REVOKED_MESSAGE,
+        });
+        await expect(
+          mayMakeMediaForOwner(mediaRuntime, asAuthorized(turnRow), {
+            projectId: projectA,
+            capability: "generate_image",
+          }),
+        ).rejects.toThrow(/was revoked/);
+      }
+      const pausedWatchOrigin = await resolveSocialWriteOrigin(childWatchWake);
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: childWatchWake.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: pausedWatchOrigin.source,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+            sharedBot: false,
+          },
+          capability: "create_social_post",
+          rawInput: { projectId: projectA, text: "Paused watch" },
+          tainted: false,
+          watchAuthority: pausedWatchOrigin.watchAuthority,
+        }),
+      ).toEqual({
+        allowed: false,
+        kind: "watch_authority",
+        detail: WATCH_AUTHORITY_REVOKED_MESSAGE,
+      });
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(childWatchWake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(childEventWake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
+
+      // Admin retry builders strip write tools on both paused schedule and child watch.
+      const loadedRun = await loadAdminScheduleRun(botId, schedRun.id);
+      const pausedSchedRetryRoute = (
+        await scheduleRetryInput(bot, loadedRun!, null)
+      ).presetRoute;
+      expect(pausedSchedRetryRoute?.capabilities).toEqual([
+        "list_social_posts",
+      ]);
+      expect(
+        pausedSchedRetryRoute && "sandbox" in pausedSchedRetryRoute
+          ? pausedSchedRetryRoute.sandbox
+          : false,
+      ).toBe(false);
+      const pausedWatchRetryRoute = (
+        await failedRetryInput(
+          bot,
+          childWatchWake,
+          `admin-retry:${childWatchWake.id}:op1`,
+        )
+      ).presetRoute;
+      expect(pausedWatchRetryRoute?.capabilities).toEqual([
+        "list_social_posts",
+      ]);
+      expect(pausedWatchRetryRoute?.sandbox).toBe(false);
+
+      // Chained child work from paused schedule or watch degrades to system read_only.
+      expect(
+        (
+          await resolveWorkItemParentAuthority({
+            id: schedTurn.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: "SCHEDULE",
+            parentTurnId: null,
+            askedByUserId: null,
+            requestedByUserId: userId,
+            actingUserId: userId,
+            chainDepth: 0,
+          })
+        ).origin,
+      ).toBe("system");
+      expect(
+        (
+          await resolveWorkItemParentAuthority({
+            id: childWatchWake.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: "SCHEDULE",
+            clientTurnId: childWatchWake.clientTurnId,
+            parentTurnId: schedTurn.id,
+            askedByUserId: userId,
+            requestedByUserId: userId,
+            actingUserId: userId,
+            chainDepth: 0,
+          })
+        ).origin,
+      ).toBe("system");
+
+      // 3. Delete schedule row -> child watch & child delegation remain revoked.
+      await prisma.sokoBotSchedule.delete({ where: { id: schedId } });
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(childWatchWake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(childEventWake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
+
+      // 4. Spent one-time schedule (`runOnce: true, enabled: false, lastRunAt != null`)
+      //    stays authorized until its root CHAT turn is CANCELLED.
+      const onceRoot = await makeTurn("CHAT", `chat-once-root:${randomUUID()}`);
+      const onceSchedId = randomUUID();
+      const onceGrantId = `once-grant-${randomUUID()}`;
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: onceSchedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "One-time launch",
+          cronExpression: "0 9 1 12 *",
+          timezone: "UTC",
+          prompt: "Generate 1 launch image.",
+          nextRunAt: slot,
+          lastRunAt: slot,
+          runOnce: true,
+          enabled: false,
+          capabilityNames: ["list_social_posts", "generate_image"],
+          authority: {
+            version: 1,
+            grantId: onceGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: onceRoot.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: onceSchedId,
+            scope: "owner_writes",
+            socialMode: "schedule_posts",
+            limits: {
+              grantId: onceGrantId,
+              period: "per_occurrence",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const onceTurn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${onceSchedId}:${slot.toISOString()}`,
+      );
+      const onceRun = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: onceSchedId,
+          scheduledFor: slot,
+          status: "RUNNING",
+          turnId: onceTurn.id,
+        },
+      });
+      expect(
+        (
+          await mayMakeMediaForOwner(mediaRuntime, asAuthorized(onceTurn), {
+            projectId: projectA,
+            capability: "generate_image",
+          })
+        )?.images,
+      ).toBe(1);
+      const loadedOnceRun = await loadAdminScheduleRun(botId, onceRun.id);
+      expect(
+        (await scheduleRetryInput(bot, loadedOnceRun!, null)).presetRoute
+          ?.capabilities,
+      ).toEqual(["list_social_posts", "generate_image"]);
+
+      // Cancelling the one-time schedule's root CHAT turn revokes it immediately.
+      await prisma.sokoBotTurn.update({
+        where: { id: onceRoot.id },
+        data: { status: "CANCELLED" },
+      });
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(onceTurn), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
+      expect(
+        (await scheduleRetryInput(bot, loadedOnceRun!, null)).presetRoute
+          ?.capabilities,
+      ).toEqual(["list_social_posts"]);
+
+      // 5. Cancelling a direct CHAT root turn revokes its child watch, delegation,
+      //    and background run while a sibling COMPLETED root stays authorized.
+      const cancelledRoot = await makeTurn(
+        "CHAT",
+        `chat-cancel-root:${randomUUID()}`,
+        { status: "CANCELLED" },
+      );
+      const liveRoot = await makeTurn(
+        "CHAT",
+        `chat-live-root:${randomUUID()}`,
+        {
+          status: "COMPLETED",
+        },
+      );
+      const cancelledBg = await makeTurn("CHAT", `bg-cancel:${randomUUID()}`, {
+        parentTurnId: cancelledRoot.id,
+      });
+      const liveBg = await makeTurn("CHAT", `bg-live:${randomUUID()}`, {
+        parentTurnId: liveRoot.id,
+      });
+      expect(
+        (
+          await resolveWorkItemParentAuthority({
+            id: cancelledBg.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: "CHAT",
+            parentTurnId: cancelledRoot.id,
+            askedByUserId: userId,
+            requestedByUserId: userId,
+            actingUserId: userId,
+            chainDepth: 0,
+          })
+        ).origin,
+      ).toBe("system");
+      expect(
+        (
+          await resolveWorkItemParentAuthority({
+            id: liveBg.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: "CHAT",
+            parentTurnId: liveRoot.id,
+            askedByUserId: userId,
+            requestedByUserId: userId,
+            actingUserId: userId,
+            chainDepth: 0,
+          })
+        ).origin,
+      ).toBe("owner_chat");
     });
   });
 });
