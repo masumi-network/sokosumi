@@ -529,6 +529,10 @@ export async function runCoworkersCommand({
   if (command === "api-key") {
     const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("coworker id is required for `coworkers api-key`");
+    if (option(options, "name") !== undefined)
+      throw new Error(
+        "`coworkers api-key` names the key with --api-key-name NAME, not --name",
+      );
     const { apiKey } = await createCoworkerApiKey(
       client,
       id,

@@ -181,6 +181,14 @@ export async function runRuntimeCommand({
           : command === "events"
             ? EVENTS_OPTIONS
             : NO_OPTIONS;
+  if (
+    command === "receipt" &&
+    (options["organization-slug"] !== undefined ||
+      options["coworker-id"] === undefined)
+  )
+    throw new Error(
+      "runtime receipt reads a receipt as a Coworker, with --coworker-id ID on Preprod. To read one as yourself, use sokosumi tasks receipt TASK_ID [--organization-slug WORKSPACE_SLUG].",
+    );
   for (const name of Object.keys(options)) {
     if (
       (!COMMON_OPTIONS.has(name) && !commandOptions.has(name)) ||
@@ -189,7 +197,7 @@ export async function runRuntimeCommand({
       throw new Error(
         command === "receipt" && name === "organization-id"
           ? "runtime receipt does not accept --organization-id; the Task ID selects the Task"
-          : `runtime ${command} does not accept --${name}; runtime uses Preprod only`,
+          : `runtime ${command} does not accept --${name}; runtime runs as a Coworker on Preprod`,
       );
     }
   }

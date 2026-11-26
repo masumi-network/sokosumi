@@ -64,12 +64,24 @@ export const CLI_COMMAND_CATALOG = [
     usage: "AGENT_ID",
     operation: "GET /agents/{id}/ratings/eligibility",
   },
-  { command: "coworkers list", usage: "" },
+  {
+    command: "coworkers list",
+    usage:
+      "[--scope whitelisted|owned|all|archived|available] [--capability C] [--search TEXT] [--limit N]",
+  },
+  {
+    command: "coworkers get",
+    usage: "COWORKER_ID",
+    operation: "GET /coworkers/{id}",
+  },
   { command: "coworkers register", usage: "[--personal] [options]" },
   { command: "coworkers provision", usage: "[options]" },
   { command: "coworkers connect", usage: "COWORKER_ID [--personal] [options]" },
   { command: "coworkers update", usage: "COWORKER_ID [options]" },
-  { command: "coworkers api-key", usage: "COWORKER_ID [options]" },
+  {
+    command: "coworkers api-key",
+    usage: "COWORKER_ID [--api-key-name NAME] [--api-key-expires-at ISO_DATE]",
+  },
   {
     command: "coworkers list-api-keys",
     usage: "COWORKER_ID",
@@ -234,6 +246,11 @@ export const CLI_COMMAND_CATALOG = [
   {
     command: "tasks events",
     usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks receipt",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /tasks/{id}/receipt",
   },
   {
     command: "tasks jobs",
