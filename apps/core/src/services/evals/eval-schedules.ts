@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { DAY_MS } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import type { LabScenario } from "@/services/soko-bot-lab-scenario.service";
+import { ensureA2aWorld } from "./eval-a2a";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 
 /**
@@ -35,20 +36,81 @@ export const SCHEDULES_SCENARIO: LabScenario = {
   expect: {
     routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "CLARIFY", "MIXED"],
     tools: ["list_schedules"],
-    forbiddenTools: ["update_schedule", "delete_schedule", "create_schedule"],
+    forbiddenTools: [
+      "update_schedule",
+      "delete_schedule",
+      "create_schedule",
+      "save_task_schedule",
+      "delete_task_schedule",
+    ],
     answerMatches: "summer campaign|Q2 launch",
     noDelegations: true,
   },
 };
 
+/** Robin's own bot schedule that hands Mira her daily research by hand. */
+const MIRA_RESEARCH = "Mira's daily competitor research";
+
+/**
+ * Patrick asked Joseph (2026-11-26) to move a Coworker's daily work ("the
+ * Hannah research") to a real Task Schedule and drop the old bot schedule;
+ * Joseph said he could not. In a lane the research Coworker is Mira.
+ */
+export const MOVE_TO_TASK_SCHEDULE_SCENARIO: LabScenario = {
+  id: "move-work-to-task-schedule",
+  title: "Moves a Coworker's recurring work to a Task Schedule",
+  intent:
+    "Turns its own schedule that hands a Coworker daily work into a Task Schedule assigned to that Coworker, then removes the old one.",
+  prompt: "Move the Mira research to a real schedule and remove the old one.",
+  rubric: `The bot found its own schedule "${MIRA_RESEARCH}" (weekdays 09:00 Europe/Berlin), created a Task Schedule with save_task_schedule assigned to Mira (assigneeCoworkerId) with the same cadence and timezone and a brief from the old prompt, then deleted the old bot schedule with delete_schedule, and said both in a few lines. Robin made the old schedule, so no extra question is needed. Making another bot schedule, leaving the old one, or saying it cannot create a Task Schedule fails.`,
+  setup: {},
+  expect: {
+    routes: ["MANAGE_WORK", "DELEGATE_TASK", "MIXED", "DIRECT_RESPONSE"],
+    tools: ["save_task_schedule", "delete_schedule"],
+    forbiddenTools: ["create_schedule", "create_task"],
+  },
+};
+
 export function isSchedulesCase(id: string): boolean {
-  return id === SCHEDULES_SCENARIO.id;
+  return (
+    id === SCHEDULES_SCENARIO.id || id === MOVE_TO_TASK_SCHEDULE_SCENARIO.id
+  );
+}
+
+/**
+ * The old bot schedule the move case starts from, with Mira granted to the
+ * lane as for the agent-to-agent cases; Task Schedules of earlier runs go.
+ */
+async function prepareMoveCase(lane: EvalLaneRecord): Promise<void> {
+  await ensureA2aWorld(lane);
+  await prisma.taskSchedule.deleteMany({
+    where: {
+      workspaceId: lane.workspaceId,
+      creatorSokoBotId: lane.sokoBotId,
+    },
+  });
+  await prisma.sokoBotSchedule.create({
+    data: {
+      sokoBotId: lane.sokoBotId,
+      workspaceId: lane.workspaceId,
+      requestedByUserId: lane.userId,
+      name: MIRA_RESEARCH,
+      timezone: "Europe/Berlin",
+      cronExpression: "0 9 * * 1-5",
+      prompt:
+        "Create a Task for Mira: today's competitor research, new launches, price changes and campaigns of our five competitors, posted in the Launch team room.",
+      nextRunAt: new Date(Date.now() + DAY_MS),
+    },
+  });
 }
 
 /** Seeds after the lane reset, which clears the bot's schedules but not Task Schedules. */
 export async function prepareSchedulesCase(
   lane: EvalLaneRecord,
+  scenarioId: string,
 ): Promise<void> {
+  if (scenarioId === MOVE_TO_TASK_SCHEDULE_SCENARIO.id)
+    return prepareMoveCase(lane);
   const now = Date.now();
   const ago = (days: number) => new Date(now - days * DAY_MS);
   const ahead = (days: number) => new Date(now + days * DAY_MS);

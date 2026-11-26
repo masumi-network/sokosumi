@@ -747,7 +747,7 @@ export async function deleteSokoBotSchedule(
   const schedule = await findScheduleForUser(userId, ref, transaction);
   if (schedule.systemKey) {
     throw new SokoBotScheduleValidationError(
-      `"${schedule.name}" is a built-in rhythm; pause it instead of deleting it`,
+      `"${schedule.name}" is a built-in rhythm: it can be paused (update_schedule with enabled false), not deleted. Pause it and tell the owner it is paused and can be turned back on.`,
     );
   }
   await db.sokoBotSchedule.delete({ where: { id: schedule.id } });

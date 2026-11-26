@@ -24,7 +24,6 @@ import {
 import { type RuntimeOperations } from "./operations";
 import { listSchedules } from "./schedule-reads";
 import { requireOwnScheduleScope, runScheduleTool } from "./schedule-scope";
-
 export async function dispatchSchedulesTools(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -89,6 +88,15 @@ export async function dispatchSchedulesTools(
 
     case "list_schedules":
       return listSchedules(authorized, input.input);
+
+    case "save_task_schedule":
+
+    case "delete_task_schedule": {
+      const taskSchedules = await import("./task-schedules");
+      return input.capability === "save_task_schedule"
+        ? taskSchedules.saveTaskSchedule(runtime, input, authorized)
+        : taskSchedules.removeTaskSchedule(runtime, input, authorized);
+    }
 
     case "create_schedule":
 
