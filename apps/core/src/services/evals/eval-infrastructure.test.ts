@@ -28,6 +28,7 @@ import type { CaseOutcome } from "./eval-case-runner";
 import {
   evalInfrastructureFailure,
   guardOrganizer,
+  judgeUnlessExcluded,
   organizerCaseOutcome,
   organizerFailure,
 } from "./eval-infrastructure";
@@ -100,6 +101,32 @@ describe("a context organizer that lost its read", () => {
     expect(await guardOrganizer(scored, {})).toBe(scored);
     const skipped: CaseOutcome = { ...scored, status: "SKIPPED" };
     expect(await guardOrganizer(skipped, PLAN)).toBe(skipped);
+  });
+
+  it("never asks the judge (which stores a grade) about an excluded case", async () => {
+    turns.push(
+      { id: "owner", parentTurnId: null, packet: organized({ ms: 900 }) },
+      { id: "follow-up", parentTurnId: null, packet: TIMED_OUT },
+    );
+    const judge = vi.fn(async () => ({ verdict: "pass" }));
+    const graded = await judgeUnlessExcluded(
+      ["owner", "follow-up"],
+      { answer: "Done" },
+      judge,
+      PLAN,
+    );
+    expect(judge).not.toHaveBeenCalled();
+    expect(graded).toMatchObject({
+      excluded: { status: "ERROR", turnIds: ["owner", "follow-up"] },
+    });
+    // A clean case, and any gateway case, is judged as before.
+    expect(
+      await judgeUnlessExcluded(["owner", "follow-up"], {}, judge, {}),
+    ).toEqual({ judged: { verdict: "pass" } });
+    expect(await judgeUnlessExcluded(["owner"], {}, judge, PLAN)).toEqual({
+      judged: { verdict: "pass" },
+    });
+    expect(judge).toHaveBeenCalledTimes(2);
   });
 
   it("leaves a clean plan case and every gateway case scored", async () => {

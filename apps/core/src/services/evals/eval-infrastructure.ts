@@ -147,6 +147,20 @@ export async function organizerCaseOutcome(
 }
 
 /**
+ * Asks the judge only when no turn of the case is excluded: the judge stores
+ * its grade on the turn, and an excluded turn must not carry one.
+ */
+export async function judgeUnlessExcluded<T>(
+  turnIds: readonly string[],
+  output: Record<string, unknown>,
+  judge: () => Promise<T>,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ excluded: CaseOutcome } | { judged: T }> {
+  const excluded = await organizerCaseOutcome(turnIds, output, env);
+  return excluded ? { excluded } : { judged: await judge() };
+}
+
+/**
  * Every scored case passes here before it is stored, so all of its turns are
  * checked: follow-ups, finish turns, chain and month turns alike.
  */
