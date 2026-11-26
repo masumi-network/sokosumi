@@ -26,8 +26,10 @@ const OUTER_SPACE = `^${SEO_LINE_SPACE}+|${SEO_LINE_SPACE}+$`;
 
 /**
  * Postgres parses JSON by recursion and throws (not a soft error) on deep
- * nesting, near 20,000 levels. A marker line with more `[` and `{` than this
- * is hidden without a parse, so the search fails closed and never errors.
+ * nesting, near 20,000 levels. A marker line that starts an object or array
+ * and has more `[` and `{` than this is hidden without a parse, so the search
+ * fails closed and never errors. Other JSON cannot nest: brackets in a string
+ * are text and stay searchable.
  */
 const MAX_JSON_OPENERS = 1000;
 
@@ -49,7 +51,8 @@ export function visibleDescriptionSql(description: Prisma.Sql): Prisma.Sql {
     FROM (
       SELECT s.line, s.n,
         s.line ~* ${LINE_PREFIX} AND CASE
-          WHEN length(${rest}) - length(translate(${rest}, '[{', '')) > ${MAX_JSON_OPENERS}
+          WHEN left(ltrim(${rest}, E' \t\r\n'), 1) IN ('[', '{')
+            AND length(${rest}) - length(translate(${rest}, '[{', '')) > ${MAX_JSON_OPENERS}
             THEN true
           WHEN pg_input_is_valid(${rest}, 'json')
             THEN json_typeof(${rest}::json) IN ('object', 'array')

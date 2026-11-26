@@ -51,6 +51,8 @@ const PARITY_CASES: Record<string, string> = {
   leadingZero: "Audit\nseo_audit: [01]",
   rawTabInString: 'Audit\nseo_audit: {"a":"x\ty"}',
   deepArray: `Audit\nseo_audit: ${"[".repeat(DEEP)}${"]".repeat(DEEP)}`,
+  // A JSON string cannot nest: its brackets are text, and the line stays.
+  bracketString: `Audit\nseo_audit: "label ${"[".repeat(1001)}"`,
 };
 
 describe.skipIf(!enabled)("visibleDescriptionSql", () => {
