@@ -462,7 +462,7 @@ sokosumi contacts export --query listId=LIST_ID > contacts.csv
 ```
 
 - Reads: `list`, `get`, `map`, `breakdown`, `list-duplicates`, `list-organizations`, `list-companies`, `get-company`, `list-company-lists`, `list-interactions`, `activity`, `list-lists`, `list-suggestions`. `list`, `map`, `breakdown` and `export` share the same `--query` filters.
-- Writes: `create`, `update`, `archive`, `unarchive`, `add-channel`, `remove-channel`, `add-interaction`, `delete-interaction`, `set-importance`, `set-stage`, `undo-stage`, `merge`, `dismiss-duplicates`, `update-company`, `create-company-list`, `update-company-list`, `delete-company-list`, `update-company-list-members`, `create-list`, `update-list`, `delete-list`, `update-list-members`, `add-suggestions`, `dismiss-suggestions`.
+- Writes: `create`, `update`, `archive`, `unarchive`, `add-channel`, `remove-channel`, `add-interaction`, `delete-interaction`, `set-importance`, `set-user`, `set-stage`, `undo-stage`, `merge`, `dismiss-duplicates`, `update-company`, `create-company-list`, `update-company-list`, `delete-company-list`, `update-company-list-members`, `create-list`, `update-list`, `delete-list`, `update-list-members`, `add-suggestions`, `dismiss-suggestions`.
 - `update` and `update-company` need the `version` last read; a stale one is a 409. `set-stage` returns an `undo` body for `undo-stage`. `merge` cannot be undone.
 - `enrich` (1 credit) and `find-people` spend workspace credits: confirm with the person first.
 - CLI only: `export` (CSV), `import` (a Files table), `import-linkedin` (`{"csv": …}` with the text of LinkedIn's Connections.csv) and `import-list` (pasted addresses). Over MCP they are not tools.

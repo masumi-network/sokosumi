@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { z } from "zod";
 import {
   getComposio,
@@ -230,7 +231,7 @@ export async function lockSeoSearchConsoleIntegration(
 ) {
   // These no-op writes serialize disconnect/replacement and inherited account revocation with the final save.
   await tx.$executeRaw`
-    UPDATE "seo_connection" SET "updatedAt" = "updatedAt"
+    UPDATE ${sharedTable("seo_connection")} SET "updatedAt" = "updatedAt"
     WHERE "workspaceId" = ${actor.workspaceId}::uuid AND "userId" = ${actor.userId} AND provider = 'search_console'
   `;
   let integration = await resolveSeoStatisticsIntegration(
@@ -240,12 +241,12 @@ export async function lockSeoSearchConsoleIntegration(
   );
   if (integration?.connectionRevision.startsWith("personal:")) {
     await tx.$executeRaw`
-      UPDATE "soko_bot_integration" SET "updatedAt" = "updatedAt"
+      UPDATE ${sharedTable("soko_bot_integration")} SET "updatedAt" = "updatedAt"
       WHERE "composioAccountId" = ${integration.composioAccountId}
     `;
     await tx.$executeRaw`
-      UPDATE "soko_bot" SET "updatedAt" = "updatedAt" WHERE id IN (
-        SELECT "sokoBotId" FROM "soko_bot_integration" WHERE "composioAccountId" = ${integration.composioAccountId}
+      UPDATE ${sharedTable("soko_bot")} SET "updatedAt" = "updatedAt" WHERE id IN (
+        SELECT "sokoBotId" FROM ${sharedTable("soko_bot_integration")} WHERE "composioAccountId" = ${integration.composioAccountId}
       )
     `;
     integration = await resolveSeoStatisticsIntegration(

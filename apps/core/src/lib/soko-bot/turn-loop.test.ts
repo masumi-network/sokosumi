@@ -92,6 +92,23 @@ describe("a version with one fixed tool set", () => {
     expect(asked).toContain("web_fetch");
   });
 
+  it("offers update_plan without a sandbox only where Core keeps the plan", () => {
+    const owner = {
+      grant: { capabilities: ["update_plan", "bash", "create_task"] },
+      turn: { source: "CHAT", chainDepth: 0 },
+    } as never;
+    const v37 = getSokoBotVersion("v37");
+    expect(
+      offeredCapabilities(v37, owner, { sandbox: false, web: true }),
+    ).toEqual(["create_task"]);
+    expect(
+      offeredCapabilities({ ...v37, planLoop: true }, owner, {
+        sandbox: false,
+        web: true,
+      }),
+    ).toEqual(["update_plan", "create_task"]);
+  });
+
   it("keys the cache by system prompt and tools, not by turn", () => {
     const key = promptCacheKey("cmo-v24", "system", ["a", "b"], []);
     expect(promptCacheKey("cmo-v24", "system", ["a", "b"], [])).toBe(key);
@@ -574,11 +591,17 @@ describe("sokoBotMaxSteps", () => {
 
 describe("isOwnerDirected and isTaintBlocked", () => {
   const ownerChat = {
+    id: "turn-direct",
+    sokoBotId: "bot-1",
+    workspaceId: "ws-1",
+    versionId: "v36" as string | null,
     source: "CHAT",
+    clientTurnId: "chat:1",
     parentTurnId: null as string | null,
     askedByUserId: null as string | null,
     requestedByUserId: "owner-1",
     chainDepth: 0,
+    sokoBot: { userId: "owner-1" as string | null },
     parentTurn: null as Record<string, unknown> | null,
   };
 
@@ -596,12 +619,13 @@ describe("isOwnerDirected and isTaintBlocked", () => {
     expect(await isOwnerDirected("turn-chained")).toBe(false);
   });
 
-  it("requires an owner CHAT root for background children and rejects INGEST or EVENT children", async () => {
+  it("requires an owner CHAT root for background children and rejects INGEST, EVENT, or cross-bot children", async () => {
     // Background run started from owner CHAT
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "child-of-chat",
       parentTurnId: "root-chat",
-      parentTurn: { ...ownerChat },
+      parentTurn: { ...ownerChat, id: "root-chat" },
     });
     expect(await isOwnerDirected("child-of-chat")).toBe(true);
 
@@ -609,26 +633,58 @@ describe("isOwnerDirected and isTaintBlocked", () => {
     turnFind
       .mockResolvedValueOnce({
         ...ownerChat,
+        id: "grandchild-of-chat",
         parentTurnId: "child-1",
-        parentTurn: { ...ownerChat, parentTurnId: "root-chat" },
+        parentTurn: { ...ownerChat, id: "child-1", parentTurnId: "root-chat" },
       })
-      .mockResolvedValueOnce({ ...ownerChat, parentTurnId: null });
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        id: "root-chat",
+        parentTurnId: null,
+      });
     expect(await isOwnerDirected("grandchild-of-chat")).toBe(true);
+
+    // Cross-bot or cross-workspace parent spoof fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-cross-bot",
+      parentTurnId: "other-bot-chat",
+      parentTurn: {
+        ...ownerChat,
+        id: "other-bot-chat",
+        sokoBotId: "bot-other",
+      },
+    });
+    expect(await isOwnerDirected("child-cross-bot")).toBe(false);
+
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      id: "child-cross-ws",
+      parentTurnId: "other-ws-chat",
+      parentTurn: {
+        ...ownerChat,
+        id: "other-ws-chat",
+        workspaceId: "ws-other",
+      },
+    });
+    expect(await isOwnerDirected("child-cross-ws")).toBe(false);
 
     // Background run started from non-owner INGEST (must stay blocked)
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "child-of-ingest",
       source: "INGEST",
       parentTurnId: "root-ingest",
-      parentTurn: { ...ownerChat, source: "INGEST" },
+      parentTurn: { ...ownerChat, id: "root-ingest", source: "INGEST" },
     });
     expect(await isOwnerDirected("child-of-ingest")).toBe(false);
 
     // Even if a child claims source CHAT, an INGEST parent fails closed
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "chat-child-of-ingest",
       parentTurnId: "root-ingest",
-      parentTurn: { ...ownerChat, source: "INGEST" },
+      parentTurn: { ...ownerChat, id: "root-ingest", source: "INGEST" },
     });
     expect(await isOwnerDirected("chat-child-of-ingest")).toBe(false);
 
@@ -636,11 +692,17 @@ describe("isOwnerDirected and isTaintBlocked", () => {
     turnFind
       .mockResolvedValueOnce({
         ...ownerChat,
+        id: "grandchild-of-ingest",
         parentTurnId: "child-1",
-        parentTurn: { ...ownerChat, parentTurnId: "root-ingest" },
+        parentTurn: {
+          ...ownerChat,
+          id: "child-1",
+          parentTurnId: "root-ingest",
+        },
       })
       .mockResolvedValueOnce({
         ...ownerChat,
+        id: "root-ingest",
         source: "INGEST",
         parentTurnId: null,
       });
@@ -649,22 +711,28 @@ describe("isOwnerDirected and isTaintBlocked", () => {
     // Autonomous EVENT child hung under an owner CHAT (e.g. CMO production)
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "event-child-of-chat",
       source: "EVENT",
       parentTurnId: "root-chat",
-      parentTurn: { ...ownerChat },
+      parentTurn: { ...ownerChat, id: "root-chat" },
     });
     expect(await isOwnerDirected("event-child-of-chat")).toBe(false);
 
     // Cycle or missing parent fails closed
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "self-cycle",
       parentTurnId: "self-cycle",
-      parentTurn: { ...ownerChat, parentTurnId: "self-cycle" },
+      parentTurn: {
+        ...ownerChat,
+        id: "self-cycle",
+        parentTurnId: "self-cycle",
+      },
     });
     expect(await isOwnerDirected("self-cycle")).toBe(false);
   });
 
-  it("allows owner-directed tainted drafts and newsletters while keeping outward social actions and INGEST children blocked", async () => {
+  it("allows owner-directed tainted drafts and newsletters while blocking scheduled posts, paid investor research, outward social actions, and INGEST children", async () => {
     runtimeEventFind.mockResolvedValue({ id: "taint-1" });
     turnFind.mockResolvedValue(ownerChat);
 
@@ -679,6 +747,32 @@ describe("isOwnerDirected and isTaintBlocked", () => {
     ] as const) {
       expect(await isTaintBlocked("turn-direct", allowed)).toBe(false);
     }
+
+    // Input-aware taint gates: unscheduled draft allowed, scheduledAt blocked;
+    // free investor_warm_paths read allowed, paid research: true blocked.
+    expect(
+      await isTaintBlocked("turn-direct", "create_social_post", {
+        text: "Draft for owner approval",
+      }),
+    ).toBe(false);
+    expect(
+      await isTaintBlocked("turn-direct", "create_social_post", {
+        text: "Scheduled post",
+        scheduledAt: "2026-12-01T09:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      await isTaintBlocked("turn-direct", "investor_warm_paths", {
+        contactId: "01960001-0001-7001-8001-000000000001",
+        research: false,
+      }),
+    ).toBe(false);
+    expect(
+      await isTaintBlocked("turn-direct", "investor_warm_paths", {
+        contactId: "01960001-0001-7001-8001-000000000001",
+        research: true,
+      }),
+    ).toBe(true);
 
     for (const blocked of [
       "schedule_social_post",
@@ -707,11 +801,13 @@ describe("isOwnerDirected and isTaintBlocked", () => {
 
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "event-child-of-chat",
       source: "EVENT",
       parentTurnId: "root-chat",
-      parentTurn: { ...ownerChat },
+      parentTurn: { ...ownerChat, id: "root-chat" },
     });
     for (const blocked of [
+      "create_social_post",
       "update_social_post",
       "update_social_posts",
     ] as const) {
@@ -721,8 +817,9 @@ describe("isOwnerDirected and isTaintBlocked", () => {
     // Background child of an INGEST turn must remain blocked on every tainted write
     turnFind.mockResolvedValue({
       ...ownerChat,
+      id: "child-of-ingest",
       parentTurnId: "root-ingest",
-      parentTurn: { ...ownerChat, source: "INGEST" },
+      parentTurn: { ...ownerChat, id: "root-ingest", source: "INGEST" },
     });
     for (const blocked of [
       "send_email_draft",

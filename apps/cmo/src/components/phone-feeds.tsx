@@ -3,6 +3,7 @@
 import "./phone-feeds.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoOfferedFormats, cmoShapedVideoTarget } from "@sokosumi/utils";
 import { ImageIcon, Play } from "lucide-react";
 
 import {
@@ -118,12 +119,16 @@ function onEveryNetwork(pieces: Entry[]): Entry[] {
       ? [entry]
       : [
           entry,
-          ...(entry.alsoOn ?? []).map((channel) => ({
-            ...entry,
-            id: `${entry.id}@${channel}`,
-            channel,
-            format: formatOn(entry, channel),
-          })),
+          ...(entry.alsoOn ?? []).map((name) => {
+            // A video in another shape (instagram_feed) shows on its network.
+            const shaped = cmoShapedVideoTarget(name);
+            return {
+              ...entry,
+              id: `${entry.id}@${name}`,
+              channel: shaped?.channel ?? name,
+              format: shaped?.format ?? formatOn(entry, name),
+            };
+          }),
         ],
   );
 }
@@ -185,7 +190,9 @@ function screenKinds(screen: Screen): string[] {
  */
 export function proposalScreens(strategy: Strategy): Screen[] {
   return (strategy.proposals ?? []).flatMap((proposal) => {
-    const formats = Object.keys(channelInfo(proposal.channel)?.formats ?? {});
+    // A copy-only format (a video in another shape) is no piece of its own.
+    const key = channelKey(proposal.channel);
+    const formats = key ? cmoOfferedFormats(key) : [];
     const base = SCREENS.find(
       (screen) =>
         screen.key === screenKey({ channel: proposal.channel } as Entry),

@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { failOpenChatRoomMentions } from "@/helpers/chat-room-mention-status";
 import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
@@ -20,7 +21,7 @@ export async function archiveProjectSokoBotsForClose(
   // Same row lock as an archive or a deletion, so neither runs past the close.
   const bots = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT "id"
-    FROM "soko_bot"
+    FROM ${sharedTable("soko_bot")}
     WHERE "projectId" = ${projectId}::uuid
       AND "archivedAt" IS NULL
       AND "deletedAt" IS NULL

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { parseSokoBotMemory } from "@sokosumi/soko-bot";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -39,15 +40,15 @@ async function preferences() {
 
 describe.skipIf(!enabled)("preference capture", () => {
   afterAll(async () => {
-    await prisma.$executeRaw`DELETE FROM soko_bot WHERE id = ${BOT}::uuid`;
-    await prisma.$executeRaw`DELETE FROM workspace WHERE id = ${WS}::uuid`;
-    await prisma.$executeRaw`DELETE FROM "user" WHERE id = ${OWNER}`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("soko_bot")} WHERE id = ${BOT}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE id = ${WS}::uuid`;
+    await prisma.$executeRaw`DELETE FROM ${sharedTable("user")} WHERE id = ${OWNER}`;
   });
 
   it("saves a stated preference once, and nothing when there is none", async () => {
-    await prisma.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OWNER}, ${OWNER}, ${`${OWNER}@fixture.invalid`}, true, now(), now())`;
-    await prisma.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
-    await prisma.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OWNER}, ${OWNER}, ${`${OWNER}@fixture.invalid`}, true, now(), now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
+    await prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
     const message = "stop messaging me about these deployment failures pls";
 
     expect(

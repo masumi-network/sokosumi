@@ -274,9 +274,10 @@ export async function runSandboxTool(
       toolInput: input.toolInput,
     });
   }
+  // A planLoop version's plan is Core's; Core refuses it on any other.
   if (
     !isSokoBotCapability(capability) ||
-    isSokoBotSandboxCapability(capability)
+    (isSokoBotSandboxCapability(capability) && capability !== "update_plan")
   )
     throw badRequest("Unknown Sokosumi tool");
   return runTurnTool({

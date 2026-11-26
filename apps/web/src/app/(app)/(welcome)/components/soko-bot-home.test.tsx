@@ -303,7 +303,7 @@ describe("SokoBotHome", () => {
     // that never shrinks, so a long name cannot push the time out of view.
     const name = screen.getByText(from);
     expect(name).toHaveClass("min-w-0", "truncate");
-    const phoneTime = name.parentElement?.querySelector(".sm\\:hidden");
+    const phoneTime = name.nextElementSibling;
     expect(phoneTime?.querySelector("time")).not.toBeNull();
     expect(phoneTime).toHaveClass("shrink-0");
     expect(name.contains(phoneTime ?? null)).toBe(false);
@@ -327,9 +327,36 @@ describe("SokoBotHome", () => {
       "/personal-assistant?schedule=sched-1",
       "/tasks/task-1",
     ]);
-    expect(links[0]?.textContent).toContain('newSchedule:{"name":"Joseph"}');
-    expect(links[0]?.textContent).toContain("Monday invoices");
-    expect(links[0]?.textContent).toContain("2h");
+    // The schedule's name leads; who got it and when sit under it.
+    expect(links[0]?.textContent).toMatch(
+      /^Monday invoices.*newSchedule:\{"name":"Joseph"\}.*2h.*open$/,
+    );
+  });
+
+  it("ends every row in Open", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Hi",
+          from: "Maya",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+      schedules: [
+        {
+          id: "sched-1",
+          name: "Monday invoices",
+          createdAt: new Date("2026-10-24T09:30:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links).toHaveLength(3);
+    for (const link of links) expect(link.textContent).toMatch(/open$/);
   });
 
   it("drops the quiet line once the bot set up a schedule, with no Tasks", async () => {

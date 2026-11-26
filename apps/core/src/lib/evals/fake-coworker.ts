@@ -18,6 +18,9 @@ export const EVAL_COWORKER = {
     "Research Coworker: desk research, market and competitor comparisons, written briefs. Answers questions in chat.",
 } as const;
 
+/** A mention's error when a Coworker answers nothing: Mira's scripted silence, too. */
+export const EMPTY_COWORKER_RESPONSE = "Coworker returned an empty response";
+
 const scriptSchema = z.object({
   replies: z.array(z.string().nullable()),
   next: z.number().int().min(0),

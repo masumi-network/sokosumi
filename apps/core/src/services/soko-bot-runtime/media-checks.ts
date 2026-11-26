@@ -5,7 +5,7 @@ import {
   sokoBotGenerateTalkingVideoInputSchema as generateTalkingVideoInputSchema,
   sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   getSokoBotVersion,
-  sokoBotFollowUpAllowsSchema,
+  type OwnerAuthority,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -36,8 +36,18 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import {
+  checkGrantSpendPreflight,
+  type MediaSpendGrant,
+  type MediaSpendRequest,
+  summarizeGrantBuckets,
+} from "@/lib/soko-bot/authority-spend";
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
-import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
+import {
+  intersectOwnerAuthority,
+  type OwnerAuthorityAskedByKind,
+  resolveDelegationWakeAuthority,
+} from "@/lib/soko-bot/owner-authority";
 import { sokoBotProjectRefusal } from "@/lib/soko-bot/write-scope";
 import {
   MAX_STYLE_BRAND_PICTURES,
@@ -105,14 +115,33 @@ export async function socialCommentScopeOf(
   };
 }
 
+function wakeAskedByKind(
+  authorized: AuthorizedSokoBotRuntime,
+): OwnerAuthorityAskedByKind {
+  if (
+    authorized.askedByKind === "OWNER" ||
+    authorized.askedByKind === "TEAMMATE" ||
+    authorized.askedByKind === "ASSISTANT"
+  ) {
+    return authorized.askedByKind;
+  }
+  return (authorized.turn.chainDepth ?? 0) > 0 ? "ASSISTANT" : "OWNER";
+}
+
 /**
  * A person asked in chat, or this turn carries out a follow-up the owner
  * asked for: "have a Coworker research this, then make images and a post"
  * reaches the images on the turn Core starts when the research is back.
+ *
+ * Evaluates each carried delegation's persisted `OwnerAuthority` (falling back
+ * deterministically for pre-migration rows where `authority === null`),
+ * intersects with live binding/actor/expiry, and collapses parallel siblings
+ * sharing one `grantId` into a single shared spend bucket.
  */
 export async function mayMakeMediaForOwner(
   runtime: Pick<RuntimeOperations, "mayActForOwner">,
   authorized: AuthorizedSokoBotRuntime,
+  options?: { projectId?: string },
 ): Promise<MediaAllowance | null> {
   if (await runtime.mayActForOwner(authorized)) return {};
   if (authorized.turn.source !== "EVENT") return null;
@@ -125,30 +154,157 @@ export async function mayMakeMediaForOwner(
   const carried = await prisma.sokoBotDelegation.findMany({
     where: { followUpTurnId: authorized.turn.id, followUp: { not: null } },
     select: {
+      id: true,
+      authority: true,
       followUpAllows: true,
       turn: {
         select: {
+          id: true,
+          sokoBotId: true,
+          workspaceId: true,
+          versionId: true,
           ...owner,
           parentTurnId: true,
           parentTurn: { select: owner },
+          sokoBot: { select: { userId: true, projectId: true } },
         },
       },
     },
   });
-  const asked = carried.filter((delegation) =>
-    isOwnerRequest(delegation.turn, { schedules: true }),
+  if (!carried.length) return null;
+
+  const now = new Date();
+  const askedByKind = wakeAskedByKind(authorized);
+  const fallbackSokoBotId = authorized.turn.sokoBotId ?? "unknown-bot";
+  const fallbackWorkspaceId =
+    authorized.turn.workspaceId ?? "unknown-workspace";
+  const versionId = authorized.turn.versionId ?? null;
+  const allLiveEffective: { authority: OwnerAuthority }[] = [];
+  const matchedEffective: { authority: OwnerAuthority }[] = [];
+  let sawExpired = false;
+  let sawScopeMismatch = false;
+
+  for (let index = 0; index < carried.length; index += 1) {
+    const delegation = carried[index]!;
+    const authority = resolveDelegationWakeAuthority(
+      {
+        id: delegation.id ?? `legacy-${index}`,
+        authority: delegation.authority,
+        followUpAllows: delegation.followUpAllows,
+        turn: delegation.turn,
+      },
+      {
+        sokoBotId: fallbackSokoBotId,
+        workspaceId: fallbackWorkspaceId,
+        versionId,
+      },
+    );
+    if (authority.origin === "system") continue;
+    const sokoBotId = authorized.turn.sokoBotId ?? authority.sokoBotId;
+    const workspaceId = authorized.turn.workspaceId ?? authority.workspaceId;
+    const actingUserId =
+      authorized.turn.actingUserId !== undefined
+        ? authorized.turn.actingUserId
+        : (delegation.turn.requestedByUserId ?? null);
+    const sharedBot = delegation.turn.sokoBot?.userId === null;
+    const botProjectId =
+      authorized.turn.botProjectId ??
+      delegation.turn.sokoBot?.projectId ??
+      null;
+    const baseContext = {
+      sokoBotId,
+      workspaceId,
+      versionId,
+      actingUserId,
+      askedByKind,
+      sharedBot,
+      source: "EVENT",
+      hasWorkspaceAccess: true,
+      botAlive: true,
+      offeredCapabilities: ["generate_image", "generate_video"] as const,
+      now,
+    };
+    const liveBotScoped = intersectOwnerAuthority(authority, {
+      ...baseContext,
+      targetScope: botProjectId
+        ? {
+            kind: "project" as const,
+            projectId: botProjectId,
+          }
+        : authority.targetScope,
+    });
+    if (!liveBotScoped.effective) {
+      if (liveBotScoped.denialReason === "expired") sawExpired = true;
+      if (liveBotScoped.denialReason === "target_scope_mismatch") {
+        sawScopeMismatch = true;
+      }
+      continue;
+    }
+    if (
+      liveBotScoped.authority.origin === "system" ||
+      liveBotScoped.authority.scope === "read_only"
+    ) {
+      continue;
+    }
+    allLiveEffective.push({ authority: liveBotScoped.authority });
+
+    const requestedProjectId = options?.projectId ?? botProjectId;
+    if (requestedProjectId) {
+      const matched = intersectOwnerAuthority(liveBotScoped.authority, {
+        ...baseContext,
+        targetScope: {
+          kind: "project" as const,
+          projectId: requestedProjectId,
+        },
+      });
+      if (!matched.effective) {
+        if (matched.denialReason === "target_scope_mismatch") {
+          sawScopeMismatch = true;
+        }
+        continue;
+      }
+      matchedEffective.push({ authority: matched.authority });
+    } else {
+      matchedEffective.push({ authority: liveBotScoped.authority });
+    }
+  }
+
+  if (!matchedEffective.length) {
+    if (sawScopeMismatch) {
+      throw new SokoBotRuntimeValidationError(
+        "The owner's media authorization for this follow-up is scoped to a different Project.",
+      );
+    }
+    if (sawExpired) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "The owner's media authorization for this follow-up has expired. Ask the owner in chat to renew it.",
+      );
+    }
+    return null;
+  }
+
+  const turns = await planTurnIds(authorized);
+  const matchedSummarized = summarizeGrantBuckets(
+    matchedEffective.map((item) => ({
+      authority: item.authority,
+      legacyTurnIds: turns,
+    })),
   );
-  if (!asked.length) return null;
-  // A limit holds only when every plan this turn carries out gave one.
-  const allows = asked.map(
-    (delegation) =>
-      sokoBotFollowUpAllowsSchema.safeParse(delegation.followUpAllows).data,
-  );
-  // The limits the owner gave hold, summed; a plan without media limits
-  // ("give the findings to Alex") in the same wake does not lift them.
-  const total = (key: "images" | "maxCredits") => {
-    const given = allows.flatMap((allow) =>
-      allow?.[key] !== undefined ? [allow[key]] : [],
+  // Preserve sibling-project limited grants on the wake so historical legacy
+  // spend for Project A is attributed to Project A's grant before evaluating
+  // capacity on Project B's eligible grants.
+  const allSummarized = matchedSummarized.unboundedPerTurn
+    ? matchedSummarized
+    : summarizeGrantBuckets(
+        allLiveEffective.map((item) => ({
+          authority: item.authority,
+          legacyTurnIds: turns,
+        })),
+      );
+  const total = (key: "images" | "maxMediaCredits") => {
+    if (matchedSummarized.unboundedPerTurn) return undefined;
+    const given = matchedSummarized.grants.flatMap((grant) =>
+      grant[key] !== undefined ? [grant[key]] : [],
     );
     return given.length
       ? given.reduce((sum, value) => sum + value, 0)
@@ -156,8 +312,10 @@ export async function mayMakeMediaForOwner(
   };
   return {
     images: total("images"),
-    maxCredits: total("maxCredits"),
-    planTurnIds: await planTurnIds(authorized),
+    maxCredits: total("maxMediaCredits"),
+    planTurnIds: turns,
+    grants: matchedSummarized.unboundedPerTurn ? [] : allSummarized.grants,
+    unboundedPerTurn: matchedSummarized.unboundedPerTurn,
   };
 }
 
@@ -197,41 +355,10 @@ export interface MediaAllowance {
   maxCredits?: number;
   /** The turns the allowance is spent across; this turn alone when unset. */
   planTurnIds?: string[];
-}
-
-/**
- * Refuses media past the credits the owner allowed for the plan this turn
- * carries out: what earlier images and videos of the turn may cost, plus
- * this one.
- */
-async function refuseOverAllowance(
-  allowance: MediaAllowance,
-  authorized: AuthorizedSokoBotRuntime,
-  toolCallId: string,
-  maxCredits: number,
-): Promise<void> {
-  if (allowance.maxCredits === undefined) return;
-  const earlier = await prisma.sokoBotToolCall.findMany({
-    where: {
-      turnId: { in: allowance.planTurnIds ?? [authorized.turn.id] },
-      capability: { in: ["generate_image", "generate_video"] },
-      OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
-      // Only this call: another turn's call can carry the same id.
-      NOT: { turnId: authorized.turn.id, toolCallId },
-    },
-    select: { input: true },
-  });
-  const spent = earlier.reduce(
-    (sum, call) =>
-      sum +
-      (z.object({ maxCredits: z.number() }).safeParse(call.input).data
-        ?.maxCredits ?? 0),
-    0,
-  );
-  if (spent + maxCredits > allowance.maxCredits)
-    throw new SokoBotRuntimeValidationError(
-      `The owner allowed ${allowance.maxCredits} credits on media for this plan, and ${spent} are set aside already. Make it fit with a lower maxCredits, or tell the owner what more would cost.`,
-    );
+  /** Distinct shared durable `grantId` buckets enforced across parallel children and retries. */
+  grants?: MediaSpendGrant[];
+  /** True when carried owner authority did not impose explicit media count/credit caps. */
+  unboundedPerTurn?: boolean;
 }
 
 export async function checkImageRequest(
@@ -239,9 +366,12 @@ export async function checkImageRequest(
   authorized: AuthorizedSokoBotRuntime,
   raw: unknown,
   toolCallId: string,
+  operationKey: string | null = null,
 ) {
   const input = generateImageInputSchema.parse(raw);
-  const allowance = await mayMakeMediaForOwner(runtime, authorized);
+  const allowance = await mayMakeMediaForOwner(runtime, authorized, {
+    projectId: input.projectId,
+  });
   if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Images are generated only when a person asks in chat. Describe the image you would make instead.",
@@ -252,7 +382,11 @@ export async function checkImageRequest(
       where: {
         turnId: { in: turnIds },
         capability: "generate_image",
-        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        replayedReceiptId: null,
+        OR: [
+          { disposition: null },
+          { disposition: { notIn: ["REJECTED", "ALREADY_SATISFIED"] } },
+        ],
         NOT: { turnId: authorized.turn.id, toolCallId },
       },
     });
@@ -261,21 +395,27 @@ export async function checkImageRequest(
     throw new SokoBotRuntimeValidationError(
       `One turn may start at most ${perTurn} images. Show your owner these first.`,
     );
-  // The owner's count holds across the plan's turns, a retry included.
-  if (
-    allowance.images !== undefined &&
-    (await startedOn(allowance.planTurnIds ?? [authorized.turn.id])) >=
-      allowance.images
-  )
-    throw new SokoBotRuntimeValidationError(
-      `The owner asked for ${allowance.images} image${allowance.images > 1 ? "s" : ""} in this plan. Use those in the draft.`,
-    );
-  await refuseOverAllowance(
-    allowance,
-    authorized,
-    toolCallId,
-    input.maxCredits,
-  );
+  const authoritySpend: MediaSpendRequest | null =
+    allowance.grants &&
+    allowance.grants.length > 0 &&
+    !allowance.unboundedPerTurn
+      ? {
+          sokoBotId: authorized.turn.sokoBotId,
+          workspaceId: authorized.turn.workspaceId,
+          turnId: authorized.turn.id,
+          toolCallId,
+          operationKey,
+          capability: "generate_image",
+          projectId: input.projectId,
+          images: 1,
+          videos: 0,
+          credits: input.maxCredits,
+          grants: allowance.grants,
+        }
+      : null;
+  if (authoritySpend) {
+    await checkGrantSpendPreflight(prisma, authoritySpend);
+  }
   const aspectRatio = z
     .enum(IMAGE_ASPECT_RATIOS)
     .optional()
@@ -346,7 +486,15 @@ export async function checkImageRequest(
           `A picture in a library style costs ${credits} credits, and up to ${dearestTry} when a stronger model has to make it again, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(dearestTry)}.`
         : `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
-  return { input, model, settings, credits, referenceFileIds, style };
+  return {
+    input,
+    model,
+    settings,
+    credits,
+    referenceFileIds,
+    style,
+    authoritySpend,
+  };
 }
 
 /**
@@ -412,25 +560,47 @@ export async function checkVideoRequest(
   authorized: AuthorizedSokoBotRuntime,
   raw: unknown,
   toolCallId: string,
+  operationKey: string | null = null,
 ) {
   const input = generateVideoInputSchema.parse(raw);
-  const allowance = await mayMakeMediaForOwner(runtime, authorized);
+  const allowance = await mayMakeMediaForOwner(runtime, authorized, {
+    projectId: input.projectId,
+  });
   if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
     );
   runtime.refuseCmoRunMedia(authorized);
-  await refuseOverAllowance(
-    allowance,
-    authorized,
-    toolCallId,
-    input.maxCredits,
-  );
+  const authoritySpend: MediaSpendRequest | null =
+    allowance.grants &&
+    allowance.grants.length > 0 &&
+    !allowance.unboundedPerTurn
+      ? {
+          sokoBotId: authorized.turn.sokoBotId,
+          workspaceId: authorized.turn.workspaceId,
+          turnId: authorized.turn.id,
+          toolCallId,
+          operationKey,
+          capability: "generate_video",
+          projectId: input.projectId,
+          images: 0,
+          videos: 1,
+          credits: input.maxCredits,
+          grants: allowance.grants,
+        }
+      : null;
+  if (authoritySpend) {
+    await checkGrantSpendPreflight(prisma, authoritySpend);
+  }
   const started = await prisma.sokoBotToolCall.count({
     where: {
       turnId: authorized.turn.id,
       capability: "generate_video",
-      OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+      replayedReceiptId: null,
+      OR: [
+        { disposition: null },
+        { disposition: { notIn: ["REJECTED", "ALREADY_SATISFIED"] } },
+      ],
       NOT: { toolCallId },
     },
   });
@@ -508,7 +678,7 @@ export async function checkVideoRequest(
     throw new SokoBotRuntimeValidationError(
       `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
-  return { input, model, settings, credits, sourceAssetId };
+  return { input, model, settings, credits, sourceAssetId, authoritySpend };
 }
 
 /**

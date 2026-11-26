@@ -259,6 +259,125 @@ describe("website-scoped Search Console traffic", () => {
     ).rejects.toThrow();
     expect(read).not.toHaveBeenCalled();
   });
+  it("splits the listed queries by brand terms inside the same website boundary", async () => {
+    const queries = [
+      { keys: ["2026-11-17", "sample site login"], clicks: 4, impressions: 9 },
+      { keys: ["2026-11-17", "running shoes"], clicks: 1, impressions: 30 },
+    ];
+    const read = vi.fn((args: Record<string, unknown>) =>
+      (args.dimensions as string[]).join() === "date,query"
+        ? Promise.resolve({ rows: queries })
+        : google(args),
+    );
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      read,
+      ["Sample Site"],
+    );
+    expect(report.brand).toEqual({
+      limited: false,
+      terms: ["Sample Site"],
+      daily: [
+        {
+          date: "2026-11-17",
+          branded: { clicks: 4, impressions: 9 },
+          nonBranded: { clicks: 1, impressions: 30 },
+        },
+      ],
+    });
+    const [pageRead, queryRead] = [["page"], ["date", "query"]].map(
+      (dimensions) =>
+        read.mock.calls.find(
+          ([args]) => String(args.dimensions) === String(dimensions),
+        )?.[0],
+    );
+    expect(queryRead?.dimension_filter_groups).toEqual(
+      pageRead?.dimension_filter_groups,
+    );
+  });
+  it("keeps the totals and pages when the query rows cannot be read", async () => {
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      (args) =>
+        (args.dimensions as string[]).includes("query")
+          ? Promise.reject(new Error("no query rows for this search type"))
+          : google(args),
+      ["Sample Site"],
+    );
+    expect(report.brand).toBeUndefined();
+    expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
+  });
+  it("reads a query page over the 2 MB limit of the other reads", async () => {
+    // 3,000 rows of 800 bytes each: about 2.4 MB.
+    const rows = Array.from({ length: 3_000 }, (_, index) => ({
+      keys: ["2026-11-17", `${"q".repeat(760)} ${index}`],
+      clicks: 1,
+      impressions: 1,
+    }));
+    const report = await readSiteTraffic(
+      request,
+      apex,
+      [apex],
+      [inspection],
+      (args) =>
+        (args.dimensions as string[]).includes("query")
+          ? Promise.resolve({ rows })
+          : google(args),
+      ["Sample Site"],
+    );
+    expect(report.brand?.daily).toEqual([
+      {
+        date: "2026-11-17",
+        branded: { clicks: 0, impressions: 0 },
+        nonBranded: { clicks: 3_000, impressions: 3_000 },
+      },
+    ]);
+  });
+  it("returns the totals when the query read never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = readSiteTraffic(
+        request,
+        apex,
+        [apex],
+        [inspection],
+        (args) =>
+          (args.dimensions as string[]).includes("query")
+            ? new Promise<never>(() => {})
+            : google(args),
+        ["Sample Site"],
+      );
+      await vi.advanceTimersByTimeAsync(40_000);
+      const report = await pending;
+      expect(report.brand).toBeUndefined();
+      expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("asks a feed for no query rows", async () => {
+    const read = vi.fn(google);
+    const report = await readSiteTraffic(
+      { ...request, searchType: "discover" },
+      apex,
+      [apex],
+      [inspection],
+      read,
+      ["Sample Site"],
+    );
+    expect(report.brand).toBeUndefined();
+    expect(
+      read.mock.calls.some(([args]) =>
+        (args.dimensions as string[]).includes("query"),
+      ),
+    ).toBe(false);
+  });
   it("rejects an unexpected page from the provider before returning private measurements", async () => {
     await expect(
       readSiteTraffic(request, apex, [apex], [], async (args) => ({

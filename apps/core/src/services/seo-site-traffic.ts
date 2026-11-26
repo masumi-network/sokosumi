@@ -11,6 +11,7 @@ import { readSiteTraffic } from "@/lib/seo/site-traffic";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { SiteTrafficInput } from "@/schemas/seo-site-traffic.schema";
 import { listIntegrationTools } from "./composio-integration-tools.service";
+import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
   propertyChoices,
   readNativeSeoTool,
@@ -36,7 +37,7 @@ export async function getSeoSiteTraffic(
 ) {
   const owner = await requireSeoOwner(actor);
   const where = seoOwnerWhere(actor);
-  const [first, selected] = await Promise.all([
+  const [first, selected, brandTerms] = await Promise.all([
     owner.websiteUrl
       ? null
       : prisma.projectSeoPage.findFirst({
@@ -45,6 +46,8 @@ export async function getSeoSiteTraffic(
           select: { url: true },
         }),
     requireSeoPages(actor, input.pageIds),
+    // The split is an extra: without the terms the report has totals and pages only.
+    loadSeoBrandTerms(actor).catch(() => undefined),
   ]);
   const siteUrl = owner.websiteUrl ?? first?.url;
   const urls = selected.map((p) => p.url);
@@ -84,6 +87,7 @@ export async function getSeoSiteTraffic(
       urls,
       inspections.indexedPages,
       (args) => readNativeSeoTool(account, GSC_STATS_TOOL, args, tools),
+      brandTerms,
     );
     const current = await resolveSeoStatisticsIntegration(
       actor,

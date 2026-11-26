@@ -19,12 +19,15 @@ import {
   Presentation,
   Table,
   Users,
+  X,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -587,6 +590,7 @@ export function OfferDetailDialog({
   typeLabel?: (type: OutputKind) => string;
   labels: OfferDetailLabels;
 }) {
+  const t = useTranslations("Components.Agents.ActionButtons");
   return (
     <Dialog
       open={item != null}
@@ -594,7 +598,24 @@ export function OfferDetailDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl">
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl"
+      >
+        {/* On phones the preview fills the top of the dialog, so the X needs
+            its own surface; the default faded X vanished on a white page.
+            Its focus ring swaps the two tokens so the band next to the chip
+            always contrasts, whatever page shows behind it. */}
+        <DialogClose asChild>
+          <Button
+            variant="default"
+            size="icon"
+            className="focus-visible:ring-background focus-visible:ring-offset-ring absolute top-3 right-3 z-10 focus-visible:ring-2 md:size-8"
+          >
+            <X aria-hidden />
+            <span className="sr-only">{t("close")}</span>
+          </Button>
+        </DialogClose>
         {item ? (
           <OfferDetailBody
             key={`${item.coworkerName}-${item.offer.title}`}

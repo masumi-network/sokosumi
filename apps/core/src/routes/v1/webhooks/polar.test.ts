@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -325,16 +326,19 @@ describe("POST /v1/webhooks/polar", () => {
     it("grants nothing for an order Polar refunded before its payment arrived", async () => {
       const refundedAt = new Date("2026-11-13T10:00:01.000Z");
       m.prisma.polarOrder.findUnique.mockResolvedValue({ refundedAt });
-      m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-        sql.join("?").includes("polar_order")
-          ? [{ refundedAt }]
-          : [
-              {
-                endedAt: null,
-                lastPaidOrderId: null,
-                lastPaidOrderRefundedAt: null,
-              },
-            ],
+      m.prisma.$queryRaw.mockImplementation(
+        async (strings: TemplateStringsArray, ...values: unknown[]) =>
+          PrismaRaw.sql(strings, ...values).sql.includes(
+            'INSERT INTO "public"."polar_order"',
+          )
+            ? [{ refundedAt }]
+            : [
+                {
+                  endedAt: null,
+                  lastPaidOrderId: null,
+                  lastPaidOrderRefundedAt: null,
+                },
+              ],
       );
       m.verifyPolarWebhook.mockResolvedValue(orderPaid());
 

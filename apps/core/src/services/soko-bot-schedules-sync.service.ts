@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { redactSokoBotSensitiveText } from "@sokosumi/soko-bot";
+import { sharedTable } from "@sokosumi/database/sql-tables";
+import {
+  parseOwnerAuthority,
+  redactSokoBotSensitiveText,
+} from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
@@ -11,7 +15,6 @@ import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
-import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
   inheritedScheduleRoute,
@@ -28,8 +31,10 @@ import {
   stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
 import {
+  disableScheduleIfCountLimitMet,
   isPlatformTurnFailure,
   MAX_CONSECUTIVE_SCHEDULE_FAILURES,
+  recordCompletedScheduleRun,
 } from "@/services/soko-bot-schedule.service";
 import { buildScheduledSystemBeat } from "@/services/soko-bot-scheduled-beat.service";
 
@@ -215,6 +220,7 @@ export function scheduleRunPrompt(schedule: {
   timezone: string;
   taskId: string | null;
   jobId: string | null;
+  authority?: unknown;
 }): string {
   if (schedule.systemKey) return schedule.prompt;
   const watches = schedule.taskId
@@ -222,13 +228,31 @@ export function scheduleRunPrompt(schedule: {
     : schedule.jobId
       ? ` It watches Job ${schedule.jobId}; Core removes it once that Job finishes.`
       : "";
-  // Only a brief that says when to stop lets the run end its schedule; a
-  // weekly report once deleted itself on a guess (Codex rounds 13 and 15).
-  const lifecycle = schedule.runOnce
-    ? "It runs once; Core removes it after this run."
-    : briefAsksToEnd(schedule.prompt)
-      ? `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). The brief below says when to end it; only then remove it with delete_schedule and scheduleId ${schedule.id}.`
-      : `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}) and keeps running: only the owner ends it. Never delete or switch it off; if it looks done or outdated, say so and let the owner decide.`;
+  const keepsRunning = `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}) and keeps running: only the owner ends it. Never delete or switch it off; if it looks done or outdated, say so and let the owner decide.`;
+  let lifecycle: string;
+  if (schedule.runOnce) {
+    lifecycle = "It runs once; Core removes it after this run.";
+  } else {
+    // Persisted OwnerAuthority is the single source of truth; legacy null or
+    // malformed rows keep running until an owner explicitly binds a stop rule.
+    const authority = parseOwnerAuthority(schedule.authority);
+    const stopRule = authority?.stopRule;
+    if (
+      !stopRule ||
+      stopRule.mode === "never" ||
+      stopRule.mode === "owner_authorized_stop"
+    ) {
+      lifecycle = keepsRunning;
+    } else if (stopRule.mode === "ends_on") {
+      lifecycle = `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). Its owner stop rule allows ending it on or after ${stopRule.endsOn}; once that time is reached, remove it with delete_schedule and scheduleId ${schedule.id}.`;
+    } else if (stopRule.mode === "ends_after_runs") {
+      const unit = stopRule.maxRuns === 1 ? "run" : "runs";
+      lifecycle = `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). Its owner stop rule ends it automatically after ${stopRule.maxRuns} successful ${unit}; do not delete or switch it off yourself.`;
+    } else {
+      const kind = stopRule.targetKind === "task" ? "Task" : "Job";
+      lifecycle = `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). Its owner stop rule allows ending it once ${kind} ${stopRule.targetId} is settled; only then remove it with delete_schedule and scheduleId ${schedule.id}.`;
+    }
+  }
   return `[Schedule "${schedule.name}" (scheduleId ${schedule.id}). ${lifecycle}${watches}]\n\n${schedule.prompt}`;
 }
 
@@ -246,14 +270,32 @@ export class SokoBotSchedulesSyncService {
             status: { not: "PAUSED" },
           },
         },
-        OR: [
+        AND: [
           {
-            status: "PENDING",
-            OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }],
+            // Keep one-time retries (`runOnce: true`) and reconciliation of
+            // already-started turns (`turnId !== null`), while fencing
+            // unstarted occurrences on disabled recurring schedules (e.g.
+            // after `ends_after_runs` disables the schedule).
+            OR: [
+              { turnId: { not: null } },
+              { schedule: { enabled: true } },
+              { schedule: { runOnce: true } },
+            ],
           },
           {
-            status: "CLAIMED",
-            leaseExpiresAt: { lte: now },
+            OR: [
+              {
+                status: "PENDING",
+                OR: [
+                  { leaseExpiresAt: null },
+                  { leaseExpiresAt: { lte: now } },
+                ],
+              },
+              {
+                status: "CLAIMED",
+                leaseExpiresAt: { lte: now },
+              },
+            ],
           },
         ],
       },
@@ -325,6 +367,14 @@ export class SokoBotSchedulesSyncService {
     if (await this.disableIfFailureBudgetExceeded(due)) {
       return null;
     }
+    const dueAuthority = parseOwnerAuthority(due.authority);
+    if (
+      dueAuthority?.stopRule.mode === "ends_after_runs" &&
+      due.completedRuns >= dueAuthority.stopRule.maxRuns &&
+      (await disableScheduleIfCountLimitMet(due.id, new Date()))
+    ) {
+      return null;
+    }
 
     const scheduledFor = due.nextRunAt;
     const walkFrom = new Date(Math.max(scheduledFor.getTime(), Date.now()));
@@ -358,7 +408,7 @@ export class SokoBotSchedulesSyncService {
         // Same lock a Calendar run change takes before it writes, so the
         // walk below sees every run moved or skipped up to this claim.
         await tx.$queryRaw`
-          SELECT "id" FROM "soko_bot_schedule"
+          SELECT "id" FROM ${sharedTable("soko_bot_schedule")}
           WHERE "id" = ${due.id}::uuid
           FOR UPDATE
         `;
@@ -476,12 +526,14 @@ export class SokoBotSchedulesSyncService {
         },
       });
       if (settled.count === 0) return false;
-      if (completed || counts) {
+      if (completed) {
+        await recordCompletedScheduleRun(tx, claimed.schedule.id, new Date());
+      } else if (counts) {
         await tx.sokoBotSchedule.update({
           where: { id: claimed.schedule.id },
-          data: completed
-            ? { consecutiveFailures: 0 }
-            : this.scheduleFailureUpdate(claimed.schedule.consecutiveFailures),
+          data: this.scheduleFailureUpdate(
+            claimed.schedule.consecutiveFailures,
+          ),
         });
       }
       return true;

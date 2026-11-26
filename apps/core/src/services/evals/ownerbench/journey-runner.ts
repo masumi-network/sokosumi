@@ -91,6 +91,7 @@ function botOf(journey: OwnerJourney, lane: EvalLaneRecord): string {
 
 function stepLabel(step: JourneyStep): string {
   if (step.kind === "owner") return `Owner: ${step.message}`;
+  if (step.kind === "teammate") return `${step.member}: ${step.message}`;
   if (step.kind === "coworker")
     return `${step.coworker} sets its Task ${step.status}: ${step.comment}`;
   return "The schedule fires";
@@ -139,7 +140,16 @@ async function startStep(
         clientTurnId,
       );
     if (!world.cusoRoomId) return { error: "The journey has no Cuso room" };
-    return askInRoom(world.cusoRoomId, lane, botId, step.message);
+    return askInRoom(world.cusoRoomId, lane.userId, botId, step.message);
+  }
+  if (step.kind === "teammate") {
+    if (!world.teammateRoomId)
+      return { error: "The journey has no teammate room" };
+    const member =
+      step.member === "Hannah"
+        ? lane.world.hannahUserId
+        : lane.world.alexUserId;
+    return askInRoom(world.teammateRoomId, member, botId, step.message);
   }
   if (step.kind === "coworker") {
     const [task] = await coworkerTasks(
@@ -156,19 +166,20 @@ async function startStep(
 }
 
 /**
- * The owner writes to Cuso as the CMO chat does: a message in his home room
- * that mentions him, answered through the chat route's own dispatch.
+ * A member writes to the bot as the chat does: a message in a room that
+ * mentions it, answered through the chat route's own dispatch (the owner in
+ * Cuso's home room, a teammate in the room they share with the owner's bot).
  */
 async function askInRoom(
   roomId: string,
-  lane: EvalLaneRecord,
+  senderUserId: string,
   botId: string,
   content: string,
 ): Promise<string | { error: string }> {
   const message = await prisma.chatRoomMessage.create({
     data: {
       roomId,
-      senderUserId: lane.userId,
+      senderUserId,
       content,
       mentionsAsSource: { create: { sokoBotId: botId, coworkerId: null } },
     },
@@ -458,7 +469,13 @@ async function journeyToolCalls(state: JourneyState, current: string[]) {
   return prisma.sokoBotToolCall.findMany({
     where: { turnId: { in: ids } },
     orderBy: { createdAt: "asc" },
-    select: { capability: true, status: true, input: true, result: true },
+    select: {
+      capability: true,
+      status: true,
+      input: true,
+      result: true,
+      errorKind: true,
+    },
   });
 }
 
@@ -685,7 +702,12 @@ export async function startJourney(
     data: { proactiveDailyLimit: 1_000 },
   });
   const world = {
-    ...(await prepareJourneyWorld(lane, journey.prepare ?? [])),
+    ...(await prepareJourneyWorld(
+      lane,
+      journey.prepare ?? [],
+      journey.fixtures,
+      botId,
+    )),
     cusoRoomId,
   };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
@@ -863,14 +885,28 @@ export function journeyRuntime(): { adapter: string; models: string } {
  */
 export async function journeyTokens(turnIds: readonly string[]) {
   const turns = await withDescendants(turnIds);
-  const sum = await prisma.sokoBotModelCall.aggregate({
-    where: { turnId: { in: turns.map((turn) => turn.id) } },
-    _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
-    _count: { _all: true },
-  });
+  const where = { turnId: { in: turns.map((turn) => turn.id) } };
+  const [sum, usageFree] = await Promise.all([
+    prisma.sokoBotModelCall.aggregate({
+      where,
+      _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
+      _count: { _all: true },
+    }),
+    // A model call that answered without reporting usage records 0 tokens:
+    // no measurement, so it can't pull the journey's cost down. (Local
+    // embeddings run in process and have no usage to report.)
+    prisma.sokoBotModelCall.count({
+      where: {
+        ...where,
+        failed: false,
+        inputTokens: 0,
+        role: { not: "embedding" },
+      },
+    }),
+  ]);
   const inputTokens = sum._sum.inputTokens ?? 0;
   // No model call measured is no measurement, not a cheap journey.
-  const measured = sum._count._all > 0 && turns.length > 0;
+  const measured = sum._count._all > 0 && turns.length > 0 && usageFree === 0;
   return {
     inputTokens,
     cachedInputTokens: sum._sum.cacheReadTokens ?? 0,
@@ -881,6 +917,44 @@ export async function journeyTokens(turnIds: readonly string[]) {
       ? Math.round(inputTokens / turns.length)
       : null,
   };
+}
+
+/**
+ * Cuso turns whose context organizer ran, and how many lost its Jev read (on
+ * the plan, a stand-in timeout). Such a turn gets fallback picks, so on a
+ * plan run it is an infrastructure error, like a failed route pick.
+ */
+export async function organizerFailures(
+  turnIds: readonly string[],
+): Promise<{ turns: number; failed: number }> {
+  const turns = await withDescendants(turnIds);
+  const snapshots = await prisma.sokoBotContextSnapshot.findMany({
+    where: { turnId: { in: turns.map((turn) => turn.id) } },
+    select: { packet: true },
+  });
+  let organized = 0;
+  let failed = 0;
+  for (const { packet } of snapshots) {
+    const jev = organizerJev(packet);
+    if (jev === undefined) continue;
+    organized += 1;
+    if (jev?.failed) failed += 1;
+  }
+  return { turns: organized, failed };
+}
+
+/** The organizer's Jev log in a stored packet; undefined when no organizer ran. */
+export function organizerJev(
+  packet: unknown,
+): { failed?: string } | null | undefined {
+  const organizer = (
+    packet as {
+      workspace?: { marketing?: { organizer?: { jev?: unknown } } | null };
+    } | null
+  )?.workspace?.marketing?.organizer;
+  if (!organizer || typeof organizer !== "object") return undefined;
+  const jev = organizer.jev;
+  return jev && typeof jev === "object" ? (jev as { failed?: string }) : null;
 }
 
 /**
@@ -938,6 +1012,19 @@ export function journeyScore(
   };
 }
 
+/**
+ * A journey's verdict: its checks and the judge's. A journey with turns and no
+ * judge verdict (the judge failed) is unscored, never a pass.
+ */
+export function journeyStatus(
+  checksPass: boolean,
+  hadTurns: boolean,
+  judge: { verdict: string } | null,
+): "PASSED" | "FAILED" | "ERROR" {
+  if (hadTurns && !judge) return "ERROR";
+  return checksPass && judge?.verdict !== "fail" ? "PASSED" : "FAILED";
+}
+
 async function journeyOutcome(
   journey: OwnerJourney,
   lane: EvalLaneRecord,
@@ -952,6 +1039,17 @@ async function journeyOutcome(
       checks: [],
       output: { journey: journey.id, routing, steps: state.steps },
       error: `Routing was unavailable: ${routing.failed} of ${routing.calls} classifier call(s) failed, so turns ran on the fallback route and the journey measures that, not the bot`,
+      turnIds,
+    };
+  const organizer = localChatGptPlanEnabled()
+    ? await organizerFailures(turnIds)
+    : { turns: 0, failed: 0 };
+  if (organizer.failed > 0)
+    return {
+      status: "ERROR",
+      checks: [],
+      output: { journey: journey.id, organizer, steps: state.steps },
+      error: `The context organizer was unavailable: its plan stand-in failed on ${organizer.failed} of ${organizer.turns} organized turn(s), so those turns ran on fallback context and the journey measures that, not the bot`,
       turnIds,
     };
   const unreached = journey.steps
@@ -981,9 +1079,11 @@ async function journeyOutcome(
         from:
           step.kind === "owner"
             ? "Owner"
-            : step.kind === "coworker"
-              ? "Task event"
-              : "Schedule",
+            : step.kind === "teammate"
+              ? "Teammate (not the owner)"
+              : step.kind === "coworker"
+                ? "Task event"
+                : "Schedule",
         content: step.label,
       })),
       context.judgeModel,
@@ -1003,8 +1103,21 @@ async function journeyOutcome(
       );
       return null;
     });
-  const passed =
-    checks.every((check) => check.pass) && judge?.verdict.verdict !== "fail";
+  const status = journeyStatus(
+    checks.every((check) => check.pass),
+    turnIds.length > 0,
+    judge?.verdict ?? null,
+  );
+  if (status === "ERROR")
+    return {
+      status,
+      checks,
+      output: { journey: journey.id, score, steps: state.steps },
+      error:
+        "The judge was unavailable, so the journey is unscored: neither a pass nor a regression",
+      turnIds,
+    };
+  const passed = status === "PASSED";
   const totals = {
     turns: turnIds.length,
     toolCalls: state.steps.reduce(

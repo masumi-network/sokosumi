@@ -60,10 +60,6 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "generate:sql-table-names": "tsx scripts/generate-sql-table-names.ts",
-    "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
-    "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
-    "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
-    "data-migration:credit-bucket-owner-xor": "tsx scripts/reconcile-credit-bucket-owner-xor.ts",
     "data-migration:task-work-type-presets": "tsx scripts/backfill-task-work-type-presets.ts",
     "data-migration:requeue-empty-company-lookups": "tsx scripts/requeue-empty-company-lookups.ts",
     "data-migration:cmo-clear-first-competitor-week": "tsx scripts/cmo-clear-first-competitor-week.ts",
@@ -78,13 +74,13 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@types/node": "26.6.7",
+    "@types/node": "26.6.11",
     "@types/pg": "8.23.1",
     "@typescript/typescript6": "6.0.2",
     "dotenv": "18.0.10",
     "prisma": "7.10.1",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vitest": "5.1.1"
+    "vitest": "5.1.2"
   }
 }

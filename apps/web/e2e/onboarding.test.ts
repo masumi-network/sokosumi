@@ -297,6 +297,40 @@ for (const { name, ...viewport } of PROJECTS) {
 
       await page.waitForURL(/\/chat\/rooms\//);
       const message = page.getByRole("textbox", { name: `Message ${BOT}` });
+      await message.waitFor();
+      // Screen readers hear the bot as what it is, a Soko Bot, not an Agent.
+      await page
+        .getByRole("main")
+        .getByRole("button", { name: `${BOT} (Soko Bot)`, exact: true })
+        .first()
+        .waitFor();
+      const banner = page.getByRole("banner");
+      const globalSearch = banner.getByRole("button", {
+        name: "Search",
+        exact: true,
+      });
+      const newTask = banner.getByRole("button", { name: /^New task/ });
+      if (viewport.width < 768) {
+        // On a phone the room's name and subtitle get the header row whole:
+        // the global Search and New task step aside, and nothing is cut.
+        assert.ok(await globalSearch.isHidden(), "no global Search in a room");
+        assert.ok(await newTask.isHidden(), "no New task button in a room");
+        for (const id of ["room-open-title", "room-open-subtitle"]) {
+          const cut = await banner
+            .getByTestId(id)
+            .evaluate((el) => el.scrollWidth > el.clientWidth);
+          assert.ok(!cut, `${id} fits the phone header`);
+        }
+        // Alt+N still opens New task from the room, outside a text field.
+        await page.evaluate(() =>
+          (document.activeElement as HTMLElement | null)?.blur(),
+        );
+        await page.keyboard.press("Alt+KeyN");
+        const wizard = page.getByRole("dialog", { name: "New task" });
+        await wizard.waitFor();
+        await page.keyboard.press("Escape");
+        await wizard.waitFor({ state: "hidden" });
+      }
       await message.fill(QUESTION);
       await page.getByRole("button", { name: "Send message" }).click();
       await shot("4-chat");
@@ -330,6 +364,13 @@ for (const { name, ...viewport } of PROJECTS) {
       await saved
         .getByRole("menuitem", { name: /^Personal\b.*Just you$/ })
         .waitFor();
+      if (viewport.width < 768) {
+        // Back to chats is one tap to the phone's global Search and New task.
+        await page.getByRole("link", { name: "Back to chats" }).click();
+        await page.waitForURL(/\/chat\/rooms$/);
+        await globalSearch.waitFor();
+        await newTask.waitFor();
+      }
       await context.close();
       assert.deepEqual(errors, []);
     });

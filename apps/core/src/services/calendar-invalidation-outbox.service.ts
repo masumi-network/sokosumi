@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { z } from "zod";
 import { lockCalendarWorkspaceMembership } from "@/helpers/calendar-membership-fence";
 import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
@@ -104,10 +105,10 @@ function affectedProjectIds(payload: Prisma.JsonValue): string[] {
 async function prunePublishedInvalidations(): Promise<void> {
   try {
     await prisma.$executeRaw`
-      DELETE FROM "calendar_invalidation_outbox"
+      DELETE FROM ${sharedTable("calendar_invalidation_outbox")}
       WHERE id IN (
         SELECT id
-        FROM "calendar_invalidation_outbox"
+        FROM ${sharedTable("calendar_invalidation_outbox")}
         WHERE "publishedAt" < NOW() - (${INVALIDATION_RETENTION_DAYS} * INTERVAL '1 day')
         ORDER BY "publishedAt" ASC, id ASC
         LIMIT ${INVALIDATION_PRUNE_BATCH_SIZE}
@@ -290,7 +291,7 @@ export const calendarInvalidationOutboxService = {
 
               const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
             SELECT id
-            FROM "calendar_invalidation_outbox"
+            FROM ${sharedTable("calendar_invalidation_outbox")}
             WHERE id = ${readyInvalidation.id}::UUID
               AND attempts = ${attempts}
               AND "publishedAt" IS NULL

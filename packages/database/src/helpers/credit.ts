@@ -20,7 +20,6 @@ export function creditBucketActivatesAtOrBeforeSql(now: Date): Prisma.Sql {
   return Prisma.sql`(cb."activatesAt" IS NULL OR cb."activatesAt" <= ${now})`;
 }
 
-export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
 const FREE_CREDIT_REFERENCE_SEGMENT = "free";

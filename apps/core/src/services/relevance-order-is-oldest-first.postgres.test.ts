@@ -59,6 +59,7 @@
  * to the fourteen positions the model never sees being in upload order under
  * a heading that says the model ranked them.
  */
+
 import { randomUUID } from "node:crypto";
 import {
   FileResourceLifecycle,
@@ -66,7 +67,9 @@ import {
   FileSourceScope,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 const { env } = vi.hoisted(() => ({
   env: {
@@ -79,7 +82,9 @@ const { env } = vi.hoisted(() => ({
     BLOB_READ_WRITE_TOKEN: undefined as string | undefined,
   },
 }));
-vi.mock("@/config/env", () => ({ getEnv: () => env }));
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ ...env, ...testSchemaNames() }),
+}));
 vi.mock("@sentry/node", () => ({
   captureMessage: () => {},
   captureException: () => {},
@@ -251,7 +256,7 @@ describe.skipIf(!enabled)(
         });
         const text = prose(d);
         await prisma.$executeRaw(PrismaRaw.sql`
-          INSERT INTO file_chunk (id,"createdAt","versionId","chunkId",ordinal,
+          INSERT INTO ${sharedTable("file_chunk")} (id,"createdAt","versionId","chunkId",ordinal,
             text,"evidenceScopeId","scopeVersion","inputDigest",search_vector)
           VALUES (gen_random_uuid(), now(), ${version.id}::uuid, 'c1', 1,
             ${text}, ${scopeId}::uuid, 1, 'repro',
@@ -262,9 +267,9 @@ describe.skipIf(!enabled)(
       const spread = await prisma.$queryRaw<{ n: bigint }[]>(PrismaRaw.sql`
         SELECT COUNT(DISTINCT ts_rank(fc.search_vector,
                  websearch_to_tsquery('simple', ${TERM}))) AS n
-        FROM file_chunk fc
-        JOIN file_version fv ON fv.id = fc."versionId"
-        JOIN file_resource fr ON fr.id = fv."resourceId"
+        FROM ${sharedTable("file_chunk")} fc
+        JOIN ${sharedTable("file_version")} fv ON fv.id = fc."versionId"
+        JOIN ${sharedTable("file_resource")} fr ON fr.id = fv."resourceId"
         WHERE fr."workspaceId" = ${workspaceId}::uuid`);
       distinctRanks = Number(spread[0].n);
 

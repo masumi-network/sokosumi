@@ -192,6 +192,7 @@ function mention(overrides: Partial<Notification> = {}): Notification {
     isRead: false,
     readAt: null,
     createdAt: NOW,
+    network: null,
     inApp: true,
     emailId: null,
     emailScheduledAt: null,

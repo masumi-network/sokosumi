@@ -11,11 +11,17 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  JOB_WAKE_STATUSES,
+  TASK_WAKE_STATUSES,
+} from "@/lib/soko-bot/delegation-wake";
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
-  isOwnerRequest,
-  type OwnerRequestTurn,
-} from "@/lib/soko-bot/owner-request";
+  capabilitiesForDelegationFollowUp,
+  intersectOwnerAuthority,
+  resolveDelegationWakeAuthority,
+} from "@/lib/soko-bot/owner-authority";
+import { type OwnerRequestTurn } from "@/lib/soko-bot/owner-request";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   DELEGATION_EVENT_TURN_PREFIX,
@@ -32,18 +38,6 @@ import { proactiveGate } from "@/services/soko-bot-proactive.service";
 const BATCH_SIZE = 500;
 const MAX_CHANGES_PER_TURN = 8;
 
-/** Task statuses worth waking the bot for; intermediate churn stays silent. */
-const TASK_WAKE_STATUSES = new Set([
-  "COMPLETED",
-  "FAILED",
-  "CANCELED",
-  "INPUT_REQUIRED",
-  "APPROVAL_REQUIRED",
-  "AUTHENTICATION_REQUIRED",
-  "OUT_OF_CREDITS",
-  "GRANT_PENDING",
-]);
-const JOB_WAKE_STATUSES = new Set(["COMPLETED", "FAILED", "AWAITING_INPUT"]);
 const FINISHED = new Set(["COMPLETED", "FAILED", "CANCELED"]);
 
 /**
@@ -338,26 +332,124 @@ function pendingFollowUp(delegation: {
 }
 
 /**
- * The tools of the turn that attached a follow-up, when the owner asked for
- * that work themselves: in their chat, or in a background run they started.
- * Empty for work the bot took on by itself or for someone else.
+ * Authoritative media limits for a delegation's wake prompt: prefers persisted
+ * `OwnerAuthority.limits`, falling back to legacy `followUpAllows`.
+ */
+function delegationWakeAllows(delegation: {
+  id: string;
+  authority?: unknown;
+  followUpAllows?: unknown;
+  turn: OwnerRequestTurn & {
+    id?: string;
+    sokoBotId: string;
+    workspaceId: string;
+    versionId?: string | null;
+    parentTurnId: string | null;
+    parentTurn: OwnerRequestTurn | null;
+    sokoBot?: { userId?: string | null } | null;
+  };
+}): SokoBotFollowUpAllows | null {
+  const authority = resolveDelegationWakeAuthority(delegation, {
+    sokoBotId: delegation.turn.sokoBotId,
+    workspaceId: delegation.turn.workspaceId,
+    versionId: delegation.turn.versionId ?? null,
+  });
+  if (authority.origin === "system") return null;
+  if (authority.limits) {
+    const mapped: SokoBotFollowUpAllows = {
+      ...(authority.limits.images !== undefined
+        ? { images: authority.limits.images }
+        : {}),
+      ...(authority.limits.maxMediaCredits !== undefined
+        ? { maxCredits: authority.limits.maxMediaCredits }
+        : {}),
+    };
+    return mapped.images !== undefined || mapped.maxCredits !== undefined
+      ? mapped
+      : null;
+  }
+  return storedAllows(delegation.followUpAllows);
+}
+
+/**
+ * The tools of the turn that attached a follow-up, intersected through its
+ * persisted `OwnerAuthority` (with deterministic fallback for pre-migration
+ * rows where `authority === null`). Empty for expired, system, or non-owner
+ * delegations.
  */
 function ownerRequestGrant(delegation: {
+  id: string;
+  authority?: unknown;
   followUp: string | null;
+  followUpAllows?: unknown;
   followUpTurnId: string | null;
+  task?: { projectId?: string | null } | null;
+  job?: { task?: { projectId?: string | null } | null } | null;
   turn: OwnerRequestTurn & {
+    id?: string;
+    sokoBotId: string;
+    workspaceId: string;
+    versionId?: string | null;
     parentTurnId: string | null;
     parentTurn: OwnerRequestTurn | null;
     capabilityNames: string[];
+    sokoBot?: { userId?: string | null; projectId?: string | null } | null;
   };
 }): readonly string[] {
-  // A schedule's run counts: it already has the tools of whoever wrote it
-  // (`inheritedScheduleRoute`), so "every day have a Coworker research it,
-  // then draft the post" hands the draft back to that run's tools.
-  return pendingFollowUp(delegation) &&
-    isOwnerRequest(delegation.turn, { schedules: true })
-    ? delegation.turn.capabilityNames
-    : [];
+  if (!pendingFollowUp(delegation)) return [];
+  const authority = resolveDelegationWakeAuthority(delegation, {
+    sokoBotId: delegation.turn.sokoBotId,
+    workspaceId: delegation.turn.workspaceId,
+    versionId: delegation.turn.versionId ?? null,
+  });
+  if (authority.origin === "system") return [];
+  const actingUserId = sokoBotActingUserId({
+    requestedByUserId: delegation.turn.requestedByUserId,
+    sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
+  });
+  const sharedBot = delegation.turn.sokoBot?.userId === null;
+  const askedByKind =
+    delegation.turn.chainDepth > 0
+      ? ("ASSISTANT" as const)
+      : sharedBot
+        ? ("TEAMMATE" as const)
+        : delegation.turn.askedByUserId !== null &&
+            delegation.turn.askedByUserId !== delegation.turn.requestedByUserId
+          ? ("TEAMMATE" as const)
+          : ("OWNER" as const);
+  const liveProjectId =
+    delegation.task?.projectId ??
+    delegation.job?.task?.projectId ??
+    delegation.turn.sokoBot?.projectId ??
+    null;
+  const liveBase = {
+    sokoBotId: delegation.turn.sokoBotId,
+    workspaceId: delegation.turn.workspaceId,
+    versionId: delegation.turn.versionId ?? null,
+    actingUserId,
+    askedByKind,
+    sharedBot,
+    source: "EVENT" as const,
+    ...(liveProjectId
+      ? {
+          targetScope: {
+            kind: "project" as const,
+            projectId: liveProjectId,
+          },
+        }
+      : {}),
+    hasWorkspaceAccess: true,
+    botAlive: true,
+  };
+  const effective = intersectOwnerAuthority(authority, {
+    ...liveBase,
+    offeredCapabilities: [],
+  });
+  if (!effective.effective) return [];
+  return capabilitiesForDelegationFollowUp(delegation.turn.capabilityNames, {
+    authority: effective.authority,
+    live: liveBase,
+  });
 }
 
 /**
@@ -463,6 +555,7 @@ export class SokoBotEventsSyncService {
           lastSeenEventAt: true,
           followUp: true,
           followUpAllows: true,
+          authority: true,
           followUpTurnId: true,
           task: {
             select: {
@@ -472,6 +565,7 @@ export class SokoBotEventsSyncService {
               visibility: true,
               ownerId: true,
               workspaceId: true,
+              projectId: true,
               archivedAt: true,
               assigneeSokoBotId: true,
               events: {
@@ -492,7 +586,9 @@ export class SokoBotEventsSyncService {
               name: true,
               ownerId: true,
               workspaceId: true,
-              task: { select: { visibility: true, ownerId: true } },
+              task: {
+                select: { visibility: true, ownerId: true, projectId: true },
+              },
               events: {
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 take: 1,
@@ -502,10 +598,12 @@ export class SokoBotEventsSyncService {
           },
           turn: {
             select: {
+              id: true,
               sokoBotId: true,
               requestedByUserId: true,
-              sokoBot: { select: { userId: true } },
+              sokoBot: { select: { userId: true, projectId: true } },
               workspaceId: true,
+              versionId: true,
               parentTurnId: true,
               status: true,
               source: true,
@@ -621,7 +719,7 @@ export class SokoBotEventsSyncService {
           to: current.status,
           note: current.note,
           followUp: delegation.followUp,
-          followUpAllows: storedAllows(delegation.followUpAllows),
+          followUpAllows: delegationWakeAllows(delegation),
           retryOfTurnId: delegation.followUpTurnId,
           ownerGranted: ownerRequestGrant({
             ...delegation,
@@ -638,7 +736,10 @@ export class SokoBotEventsSyncService {
       }
       // A shared bot's delegations belong to different members; each result
       // turn runs for the member who asked for that work, never another one.
-      const actingUserId = sokoBotActingUserId(delegation.turn);
+      const actingUserId = sokoBotActingUserId({
+        requestedByUserId: delegation.turn.requestedByUserId,
+        sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
+      });
       const workKey = `${delegation.turn.sokoBotId}:${actingUserId ?? ""}`;
       const work = byBot.get(workKey) ?? {
         sokoBotId: delegation.turn.sokoBotId,
@@ -761,7 +862,7 @@ export class SokoBotEventsSyncService {
             to: event.status ?? current.status,
             note: event.comment,
             followUp: pendingFollowUp(delegation),
-            followUpAllows: storedAllows(delegation.followUpAllows),
+            followUpAllows: delegationWakeAllows(delegation),
             ownerGranted: ownerRequestGrant(delegation),
           });
         }
@@ -815,7 +916,7 @@ export class SokoBotEventsSyncService {
         to: current.status,
         note: current.note ?? null,
         followUp: pendingFollowUp(delegation),
-        followUpAllows: storedAllows(delegation.followUpAllows),
+        followUpAllows: delegationWakeAllows(delegation),
         ownerGranted: ownerRequestGrant(delegation),
       });
     }

@@ -457,7 +457,7 @@ it("opens card tag overflow without following the task link", async () => {
   };
   render(<TaskCard task={task} />);
   const user = userEvent.setup();
-  const overflow = screen.getByRole("button", { name: "showAll" });
+  const overflow = screen.getByRole("button", { name: "moreTags" });
   expect(overflow.closest("a")).toBeNull();
   await user.click(overflow);
   const dialog = await screen.findByRole("dialog", { name: "label" });

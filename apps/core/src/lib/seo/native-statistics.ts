@@ -127,13 +127,14 @@ export interface SeoNativeTool {
 export function unwrapNativeStatistics(
   input: unknown,
   expectedKeys: string[],
+  limit = SEO_STATS_PAYLOAD_LIMIT,
 ): Record<string, unknown> {
   let value = input;
   for (let depth = 0; depth < 4; depth++) {
     if (
       Buffer.byteLength(
         typeof value === "string" ? value : (JSON.stringify(value) ?? ""),
-      ) > SEO_STATS_PAYLOAD_LIMIT
+      ) > limit
     )
       throw new Error("Statistics response exceeded its limit");
     if (typeof value === "string") value = JSON.parse(value);

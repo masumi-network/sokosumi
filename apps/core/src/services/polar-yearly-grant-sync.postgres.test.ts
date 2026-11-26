@@ -9,11 +9,17 @@
  * lock and the bucket key on PostgreSQL. Fixtures are committed and deleted
  * after.
  */
+
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import { syncPolarYearlyGrants } from "./polar-yearly-grant-sync.service";
 
@@ -23,11 +29,21 @@ vi.mock("@/clients/polar.client", () => ({
   listPolarProducts: m.listPolarProducts,
 }));
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const schemas = testSchemaNames();
+const db =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_SHARED })
+    : null;
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_MAINNET })
+    : null;
 
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
@@ -54,18 +70,18 @@ const PRODUCT = {
   ],
 };
 
-function database() {
-  if (!db) throw new Error("Missing integration database");
-  return db;
+function networkDatabase() {
+  if (!mainnet) throw new Error("Missing integration database");
+  return mainnet;
 }
 
 describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
   beforeAll(async () => {
     if (!db) return;
     m.listPolarProducts.mockResolvedValue([PRODUCT]);
-    await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
-    await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
-    await db.$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
     await db.sokoBot.create({
       data: {
         workspaceId: WORKSPACE,
@@ -96,14 +112,15 @@ describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
 
   afterAll(async () => {
     if (!db) return;
-    await db.transaction.deleteMany({
+    await mainnet?.transaction.deleteMany({
       where: { organizationId: ORGANIZATION },
     });
     // The subscription row and the bot go with their Project.
-    await db.$executeRaw`DELETE FROM "project" WHERE "id" = ${PROJECT}::uuid`;
-    await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
-    await db.$executeRaw`DELETE FROM "organization" WHERE "id" = ${ORGANIZATION}`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("project")} WHERE "id" = ${PROJECT}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE "id" = ${WORKSPACE}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE "id" = ${ORGANIZATION}`;
     await db.$disconnect();
+    await mainnet?.$disconnect();
   });
 
   it("grants every started month no run granted, then nothing more", async () => {
@@ -112,7 +129,7 @@ describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
     const after = new Date();
 
     // Other files' rows may share the database: count this order's buckets.
-    const buckets = await database().creditBucket.findMany({
+    const buckets = await networkDatabase().creditBucket.findMany({
       where: { referenceId: { startsWith: `${ORDER}:` } },
       orderBy: { referenceId: "asc" },
       select: { referenceId: true, expiresAt: true },
@@ -136,7 +153,7 @@ describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
 
     await syncPolarYearlyGrants(() => true);
     expect(
-      await database().creditBucket.count({
+      await networkDatabase().creditBucket.count({
         where: { referenceId: { startsWith: `${ORDER}:` } },
       }),
     ).toBe(3);

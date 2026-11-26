@@ -89,6 +89,8 @@ model User {
   contactInteractions     ContactInteraction[]     @relation("ContactInteractionUser")
   contactScores           ContactScore[]           @relation("ContactScoreUser")
   linkedInConnections ContactLinkedInConnection[] @relation("ContactLinkedInConnectionUser")
+  contactSelves           Contact[]                @relation("ContactUser")
+  contactXFollows         ContactXFollow[]         @relation("ContactXFollowUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEventMentions       TaskEventMention[]       @relation("TaskEventMentionUser")
   taskFollows             TaskFollower[]           @relation("TaskFollowerUser")

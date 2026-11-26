@@ -22,6 +22,7 @@ import {
 import { defaultSokoBotOrbSeed } from "@/lib/soko-bot-orb-seed";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils/text";
 import { TaskDueBadge } from "./task-due-badge";
 import { TaskMetadataDueField } from "./task-metadata-due-field";
 import {
@@ -404,7 +405,7 @@ function PersonAvatar({ person }: { person: PersonDisplay }) {
         />
       ) : null}
       <AvatarFallback className="bg-muted text-2xs">
-        {person.name.slice(0, 1).toUpperCase()}
+        {getInitials(person.name)}
       </AvatarFallback>
     </Avatar>
   );

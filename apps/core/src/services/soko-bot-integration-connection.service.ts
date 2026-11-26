@@ -1,4 +1,5 @@
 import { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { createError } from "evlog";
@@ -143,7 +144,7 @@ export async function connectSokoBotIntegration(input: {
       // Finalization and disconnect write this row too. Lock it before
       // deciding which pending account the committed replacement supersedes.
       await tx.$queryRaw`
-        SELECT "id" FROM "soko_bot_integration"
+        SELECT "id" FROM ${sharedTable("soko_bot_integration")}
         WHERE "sokoBotId" = ${bot.id}::uuid AND "provider" = ${provider.id}
         FOR UPDATE
       `;

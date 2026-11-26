@@ -35,3 +35,14 @@ export function seoSearchUrlPrefixCovers(
 export function seoSearchSiteHost(url: string) {
   return new URL(url).host.replace(/^www\./, "");
 }
+
+/**
+ * Discover and Google News show pages in a feed, with no search query: they have no query rows.
+ * INFERRED from the Search Console help, not the Search Analytics API page, which does not say
+ * the query dimension is unsupported for these types.
+ */
+export function seoSearchTypeHasQueries(
+  type: (typeof SEO_SEARCH_TYPES)[number] = "web",
+): boolean {
+  return type !== "discover" && type !== "googleNews";
+}

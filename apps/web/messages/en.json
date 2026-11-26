@@ -2276,7 +2276,7 @@
         },
         "files": "Files",
         "assignee": "Assignee",
-        "noAssignee": "No assignee",
+        "noAssignee": "Unassigned",
         "memberFallback": "Member",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
@@ -2726,7 +2726,7 @@
         "checkingTag": "Being checked",
         "label": "Tags",
         "empty": "No tags yet",
-        "showAll": "Show all {count} tags",
+        "moreTags": "+{count} more {count, plural, one {tag} other {tags}}",
         "noProject": "No project",
         "openProject": "Open project: {name}",
         "vocabulary": {
@@ -7883,6 +7883,24 @@
         "directModelMicroUsd": "Direct model calls",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Other APIs",
+        "costDetail": "Cost breakdown",
+        "costByModel": "By model",
+        "costByDataForSeo": "By DataForSEO endpoint",
+        "costByStep": "By audit step",
+        "detailModel": "Model",
+        "detailProvider": "Provider",
+        "detailCalls": "Calls",
+        "detailEndpoint": "Endpoint",
+        "detailReads": "Reads",
+        "detailStep": "Step",
+        "detailCost": "Cost",
+        "detailModelCost": "Models",
+        "detailDataForSeoCost": "DataForSEO",
+        "detailOtherApiCost": "Other APIs",
+        "detailStepTotal": "Step total",
+        "unattributed": "Unattributed",
+        "unpriced": "Unpriced",
+        "providerUnknown": "Unknown",
         "runId": "Run ID",
         "taskId": "Task ID",
         "receiptsPending": "Waiting for cost receipts",
@@ -9423,7 +9441,9 @@
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}",
           "backToAgent": "Back to {name}",
           "yourJobs": "Your jobs",
-          "yourJobsCount": "Your jobs · {count}"
+          "yourJobsCount": "Your jobs · {count}",
+          "unavailableAgent": "Unavailable agent",
+          "noLongerListed": "No longer listed"
         },
         "Modal": {
           "back": "Back",
@@ -9450,6 +9470,8 @@
         "coworkersNote": "Specialists you can give whole tasks to or chat with.",
         "coworkersEmpty": "No coworkers in this workspace yet.",
         "marketplaceTitle": "Agent Marketplace",
+        "marketplaceShort": "Marketplace",
+        "sectionNavLabel": "Agents sections",
         "marketplaceNote": "Agents built and run by other companies. Each one does one job.",
         "marketplaceEmpty": "No agents to show right now.",
         "external": "External",
@@ -9520,7 +9542,7 @@
         "messageName": "Message {name}",
         "chat": "Chat",
         "chatName": "Chat with {name}",
-        "giveTaskName": "Give {name} a task",
+        "giveTaskName": "Give a task to {name}",
         "startTask": "Start a task",
         "startTaskName": "Start a task with {name}"
       }
@@ -9873,7 +9895,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (AI agent)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
       "openDirectMessage": "Message",
@@ -12333,7 +12356,8 @@
         "more": "More actions",
         "filter": "Filter",
         "kind": "Type",
-        "source": "Source"
+        "source": "Source",
+        "onX": "On X"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -12636,7 +12660,22 @@
         "restoreName": "Restore {name}",
         "restored": "{name} restored",
         "restoreFailed": "Could not restore {name}. The contact is still archived.",
-        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them."
+        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them.",
+        "isYou": "This is you",
+        "isTeammate": "This is {name}, a teammate",
+        "thisIs": "This is…",
+        "thisIsMe": "Me ({name})",
+        "thisIsNoOne": "No one on the team",
+        "x": {
+          "mutual": "Follow each other on X",
+          "follows": "Follows {name} on X",
+          "followed": "{name} follows them on X"
+        },
+        "xYou": {
+          "mutual": "You follow each other on X",
+          "follows": "Follows you on X · you don't follow back",
+          "followed": "You follow them on X · they don't follow back"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12821,6 +12860,11 @@
           "industry": "Industry",
           "lists": "Lists"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Not followed back",
+        "YOU_FOLLOW": "Don't follow you back",
+        "MUTUAL": "Follow each other"
       },
       "linkedInImport": {
         "menu": "Import LinkedIn connections",
@@ -14918,7 +14962,17 @@
         "loading": "Loading Search Console traffic.",
         "failed": "Could not read traffic for this selection.",
         "unavailable": "Live traffic requires a matching Search Console property for this website.",
-        "saved": "Traffic for selected pages"
+        "saved": "Traffic for selected pages",
+        "brandBuckets": {
+          "branded": "Branded",
+          "nonBranded": "Non-branded",
+          "unlisted": "No query listed"
+        },
+        "brandUnlistedNote": "Google lists no query for rare searches. That traffic is in the total and shows as No query listed.",
+        "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
+        "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
+        "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",
+        "brandEmpty": "Add your brand terms to see how much traffic comes from searches for your name."
       },
       "traffic": {
         "periodInsight": {
@@ -14968,7 +15022,8 @@
           "branded": "Branded",
           "non_branded": "Non-branded"
         },
-        "brandTotals": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
+        "brandTotals": "Listed queries: {branded} clicks branded ({brandedShare}), {nonBranded} clicks non-branded ({nonBrandedShare})",
+        "brandSuggested": "Suggested from your website name. Check the terms before you save.",
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",
         "brandTerms": "Brand terms",

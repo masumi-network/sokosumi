@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { badRequest, notFound } from "@/helpers/error";
@@ -161,7 +162,7 @@ export async function requireLockedSeoOwner(
     )
       throw notFound("Linked Project not found");
     const rows = await client.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM "seo_audit"
+      SELECT id FROM ${sharedTable("seo_audit")}
       WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid AND "deletedAt" IS NULL AND "archivedAt" IS NULL
       FOR UPDATE
     `;

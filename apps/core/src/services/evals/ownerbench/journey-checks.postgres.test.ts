@@ -7,20 +7,33 @@
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/evals/ownerbench/journey-checks.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
-import { type CheckContext, outcomeCheck } from "./journey-checks";
+import {
+  type CheckContext,
+  indexedTexts,
+  outcomeCheck,
+} from "./journey-checks";
 import {
   claimedRunCheck,
   claimedRunState,
   foregroundTurnId,
   freshConversationCheck,
+  journeyTokens,
+  organizerFailures,
   routingFailures,
   withDescendants,
 } from "./journey-runner";
-import type { JourneyWorld } from "./journey-world";
-import { OWNER_JOURNEYS } from "./journeys";
+import {
+  type JourneyWorld,
+  seedAgent,
+  seedPicturePosts,
+  seedTeammateRoom,
+} from "./journey-world";
+import { type JourneyOutcome, OWNER_JOURNEYS } from "./journeys";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -466,11 +479,525 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     expect(await routingFailures([root.id])).toEqual({ calls: 1, failed: 0 });
     await call(child.id, true);
     expect(await routingFailures([root.id])).toEqual({ calls: 2, failed: 1 });
+    // The answered pick reported no usage: the journey's tokens are unmeasured.
+    expect((await journeyTokens([root.id])).inputTokensPerTurn).toBeNull();
+    await prisma.sokoBotModelCall.updateMany({
+      where: { turnId: root.id, failed: false },
+      data: { inputTokens: 300 },
+    });
+    expect((await journeyTokens([root.id])).inputTokensPerTurn).toBe(150);
     await prisma.sokoBotModelCall.deleteMany({
       where: { turnId: { in: [root.id, child.id] } },
     });
     await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });
+  });
+
+  it("finds turns whose context organizer lost its read, background runs included", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = (parentTurnId?: string) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `lab:fixture:${randomUUID()}`,
+          userMessage: "hello",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          ...(parentTurnId ? { parentTurnId } : {}),
+        },
+        select: { id: true },
+      });
+    const snapshot = (turnId: string, organizer: unknown) =>
+      prisma.sokoBotContextSnapshot.create({
+        data: {
+          turnId,
+          generatedAt: new Date(),
+          schemaVersion: 1,
+          hash: randomUUID(),
+          packet: jsonInput({ workspace: { marketing: { organizer } } }),
+          byteSize: 1,
+          tokenEstimate: 1,
+          counts: {},
+          omissions: [],
+        },
+      });
+    const root = await turn();
+    const child = await turn(root.id);
+    const plain = await turn(root.id);
+    await snapshot(root.id, { kind: "chat", jev: { ms: 900, asked: 4 } });
+    await snapshot(plain.id, null);
+    expect(await organizerFailures([root.id])).toEqual({
+      turns: 1,
+      failed: 0,
+    });
+    await snapshot(child.id, {
+      kind: "chat",
+      jev: { ms: 4000, asked: 4, failed: "TimeoutError" },
+    });
+    expect(await organizerFailures([root.id])).toEqual({
+      turns: 2,
+      failed: 1,
+    });
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
+  });
+
+  it("grades contacts, saved files, Task replies, Cuso's schedule, published posts and hires", async () => {
+    const bot = await prisma.sokoBot.create({
+      data: { userId, workspaceId },
+      select: { id: true },
+    });
+    const vendor = await prisma.vendor.upsert({
+      where: { slug: "journey-checks-fixture" },
+      create: { slug: "journey-checks-fixture", name: "Fixture" },
+      update: {},
+      select: { id: true },
+    });
+    const coworker = await prisma.coworker.create({
+      data: {
+        slug: `fixture-${randomUUID()}`,
+        name: "Mira",
+        baseURL: "https://coworker.evals.invalid",
+        capabilities: ["tasks"],
+        vendorId: vendor.id,
+      },
+      select: { id: true },
+    });
+    const task = await prisma.task.create({
+      data: {
+        workspaceId,
+        name: "Fixture review",
+        status: "RUNNING",
+        assigneeId: coworker.id,
+      },
+      select: { id: true },
+    });
+    await prisma.taskEvent.create({
+      data: {
+        taskId: task.id,
+        sokoBotId: bot.id,
+        comment: "Friendly nudge: how is the review going?",
+      },
+    });
+    await prisma.contact.create({
+      data: {
+        workspaceId,
+        name: "Pat Example",
+        organization: "Example Fund",
+        summary: "Met today; wants a follow-up.",
+      },
+    });
+    const published = await prisma.socialPost.create({
+      data: {
+        projectId,
+        workspaceId,
+        provider: "x",
+        text: "Already out.",
+        status: "PUBLISHED",
+        creatorUserId: userId,
+        media: [
+          { pathname: "users/fixture/out.png", name: "out.png", kind: "image" },
+          { pathname: "users/fixture/two.png", name: "two.png", kind: "image" },
+        ],
+      },
+      select: { id: true, text: true },
+    });
+    for (let index = 0; index < 2; index += 1)
+      await prisma.socialPost.create({
+        data: {
+          projectId,
+          workspaceId,
+          provider: "x",
+          text: `Upcoming ${index}`,
+          status: "SCHEDULED",
+          creatorUserId: userId,
+        },
+      });
+    await file("report.md", "text/markdown");
+    const report = await prisma.fileResource.findFirstOrThrow({
+      where: { workspaceId, displayName: "report.md" },
+      select: { id: true },
+    });
+    const graded = {
+      ...context,
+      botId: bot.id,
+      world: {
+        ...context.world,
+        coworkers: { ...context.world.coworkers, Mira: coworker.id },
+        seededPublished: [
+          {
+            ...published,
+            pathnames: ["users/fixture/out.png", "users/fixture/two.png"],
+          },
+        ],
+      },
+      toolCalls: [
+        {
+          capability: "upload_file",
+          status: "SUCCEEDED",
+          input: {
+            filename: "report.md",
+            content: "Pick plan B. Link: docs.example",
+          },
+          result: { id: report.id, filename: "report.md", size: 31 },
+        },
+        {
+          capability: "hire_agent",
+          status: "FAILED",
+          input: {},
+          result: {},
+        },
+      ],
+    } satisfies CheckContext;
+    const verdicts = await Promise.all(
+      (
+        [
+          {
+            kind: "contact",
+            label: "c",
+            nameMatches: "pat example",
+            notesMatch: ["example fund", "follow-up"],
+          },
+          { kind: "contact", label: "c2", nameMatches: "someone else" },
+          {
+            kind: "file",
+            label: "f",
+            textMatches: ["plan b"],
+            textAvoids: ["plan c"],
+          },
+          {
+            kind: "file",
+            label: "f2",
+            textMatches: ["plan b"],
+            textAvoids: ["docs\\.example"],
+          },
+          {
+            kind: "taskReply",
+            label: "t",
+            coworker: "Mira",
+            textMatches: ["review"],
+          },
+          {
+            kind: "taskReply",
+            label: "t2",
+            coworker: "Mira",
+            textMatches: ["invoice"],
+          },
+          { kind: "scheduledPosts", label: "s", min: 2, max: 2 },
+          { kind: "scheduledPosts", label: "s2", max: 0 },
+          { kind: "publishedUntouched", label: "p" },
+          { kind: "noHires", label: "h" },
+        ] satisfies JourneyOutcome[]
+      ).map((outcome: JourneyOutcome) => outcomeCheck(outcome, graded)),
+    );
+    expect(
+      Object.fromEntries(verdicts.map((check) => [check.label, check.pass])),
+    ).toEqual({
+      c: true,
+      c2: false,
+      f: true,
+      f2: false,
+      t: true,
+      t2: false,
+      s: true,
+      s2: false,
+      p: true,
+      h: true,
+    });
+    const untouched = () =>
+      outcomeCheck({ kind: "publishedUntouched", label: "p" }, graded);
+    const out = { kind: "image", pathname: "users/fixture/out.png" };
+    const two = { kind: "image", pathname: "users/fixture/two.png" };
+    const setMedia = (media: object[], status?: "CANCELED") =>
+      prisma.socialPost.update({
+        where: { id: published.id },
+        data: { media, ...(status ? { status } : {}) },
+      });
+    // Same attachments, keys in another order: untouched.
+    await setMedia([
+      { name: "out.png", ...out },
+      { name: "two.png", ...two },
+    ]);
+    expect((await untouched()).pass).toBe(true);
+    // The same two images, reversed: changed.
+    await setMedia([two, out]);
+    expect((await untouched()).pass).toBe(false);
+    await setMedia([
+      { pathname: "users/fixture/other.png", kind: "image" },
+      two,
+    ]);
+    expect((await untouched()).pass).toBe(false);
+    await setMedia([out, two], "CANCELED");
+    expect(
+      (await outcomeCheck({ kind: "publishedUntouched", label: "p" }, graded))
+        .pass,
+    ).toBe(false);
+    await prisma.taskEvent.deleteMany({ where: { taskId: task.id } });
+    await prisma.task.deleteMany({ where: { id: task.id } });
+    await prisma.coworker.deleteMany({ where: { id: coworker.id } });
+    await prisma.contact.deleteMany({ where: { workspaceId } });
+    await prisma.sokoBot.deleteMany({ where: { id: bot.id } });
+    await prisma.socialPost.deleteMany({
+      where: {
+        workspaceId,
+        text: { in: ["Already out.", "Upcoming 0", "Upcoming 1"] },
+      },
+    });
+    await prisma.fileResource.deleteMany({
+      where: { workspaceId, displayName: "report.md" },
+    });
+  });
+
+  it("passes a replaced picture on the seeded posts as jsonb returns them, and fails one left in place", async () => {
+    const bot = await prisma.sokoBot.create({
+      data: { userId, workspaceId },
+      select: { id: true },
+    });
+    const lane = { ...context.lane, cusoBotId: bot.id };
+    const saveImage = async (_lane: EvalLaneRecord, image: { name: string }) =>
+      (await file(`seeded-${image.name}`, "image/svg+xml")).sourceId;
+    const seeded = await seedPicturePosts(
+      lane,
+      [
+        {
+          text: "Target post.",
+          pictureText: "Target",
+          provider: "linkedin",
+          inDays: 3,
+          target: true,
+        },
+        { text: "Other one.", pictureText: "One", provider: "x", inDays: 4 },
+        {
+          text: "Other two.",
+          pictureText: "Two",
+          provider: "linkedin",
+          inDays: 5,
+        },
+      ],
+      saveImage,
+    );
+    const startedAt = new Date();
+    const graded = {
+      ...context,
+      lane,
+      world: { ...context.world, seededPicture: seeded },
+      journeyStartedAt: startedAt,
+      stepStartedAt: startedAt,
+    } satisfies CheckContext;
+    const outcome = {
+      kind: "seededPictureReplaced",
+      label: "replaced",
+      promptAvoids: ["forbidden"],
+    } as const;
+    const kept = await outcomeCheck(
+      { ...outcome, promptAvoids: [...outcome.promptAvoids] },
+      graded,
+    );
+    expect(kept.pass).toBe(false);
+    expect(kept.actual).toContain("the old picture is still on it");
+    expect(kept.actual).not.toContain("other picture");
+    const made = await file("made-new.png", "image/png");
+    await prisma.socialPost.update({
+      where: { id: seeded.postId },
+      data: { media: [{ pathname: made.sourceId, kind: "image" }] },
+    });
+    expect(
+      await outcomeCheck(
+        { ...outcome, promptAvoids: [...outcome.promptAvoids] },
+        graded,
+      ),
+    ).toMatchObject({ pass: true });
+    await prisma.socialPost.deleteMany({
+      where: {
+        id: { in: [seeded.postId, ...seeded.others.map((o) => o.postId)] },
+      },
+    });
+    await prisma.fileResource.deleteMany({
+      where: { workspaceId, displayName: { startsWith: "seeded-" } },
+    });
+    await prisma.fileResource.deleteMany({
+      where: { workspaceId, displayName: "made-new.png" },
+    });
+    await prisma.sokoBot.deleteMany({ where: { id: bot.id } });
+  });
+
+  it("makes one fixture Agent when three repeats seed it at once, and refreshes its listing", async () => {
+    const agent = {
+      name: `Fixture Agent ${randomUUID().slice(0, 8)}`,
+      description: "Does fixture work.",
+      credits: 4,
+    };
+    const blockchainIdentifier = `sokosumi-evals-${agent.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    const read = () =>
+      prisma.agent.findMany({
+        where: { blockchainIdentifier },
+        select: {
+          id: true,
+          description: true,
+          pricingId: true,
+          pricing: {
+            select: {
+              fixedPricing: {
+                select: { id: true, amounts: { select: { amount: true } } },
+              },
+            },
+          },
+        },
+      });
+    await Promise.all([seedAgent(agent), seedAgent(agent), seedAgent(agent)]);
+    const [made, ...extra] = await read();
+    expect(extra).toEqual([]);
+    expect(made?.pricing.fixedPricing?.amounts).toEqual([
+      { amount: convertCreditsToCents(4) },
+    ]);
+    await seedAgent({ ...agent, description: "Does it better.", credits: 6 });
+    const [refreshed] = await read();
+    expect(refreshed?.description).toBe("Does it better.");
+    expect(refreshed?.pricing.fixedPricing?.amounts).toEqual([
+      { amount: convertCreditsToCents(6) },
+    ]);
+    const fixedId = refreshed?.pricing.fixedPricing?.id;
+    await prisma.agent.deleteMany({ where: { blockchainIdentifier } });
+    await prisma.agentPricing.deleteMany({
+      where: { id: refreshed?.pricingId },
+    });
+    if (fixedId) {
+      await prisma.unitValue.deleteMany({
+        where: { agentFixedPricingId: fixedId },
+      });
+      await prisma.agentFixedPricing.deleteMany({ where: { id: fixedId } });
+    }
+  });
+
+  it("seats the journey's own bot in the teammate room", async () => {
+    const organizationId = randomUUID();
+    await prisma.organization.create({
+      data: { id: organizationId, name: "Room fixture", slug: organizationId },
+    });
+    const teammates = [randomUUID(), randomUUID()];
+    for (const id of teammates)
+      await prisma.user.create({
+        data: {
+          id,
+          name: "Teammate",
+          email: `${id}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    const bot = await prisma.sokoBot.create({
+      data: { userId, workspaceId },
+      select: { id: true },
+    });
+    const roomId = await seedTeammateRoom(
+      {
+        ...context.lane,
+        organizationId,
+        world: {
+          ...context.lane.world,
+          hannahUserId: teammates[0]!,
+          alexUserId: teammates[1]!,
+        },
+      },
+      bot.id,
+    );
+    const room = await prisma.chatRoom.findUniqueOrThrow({
+      where: { id: roomId },
+      select: {
+        sokoBotMembers: { select: { sokoBotId: true } },
+        userMembers: { select: { userId: true } },
+      },
+    });
+    expect(room.sokoBotMembers).toEqual([{ sokoBotId: bot.id }]);
+    expect(room.userMembers.map((member) => member.userId).sort()).toEqual(
+      [userId, ...teammates].sort(),
+    );
+    await prisma.chatRoom.deleteMany({ where: { id: roomId } });
+    await prisma.sokoBot.deleteMany({ where: { id: bot.id } });
+    await prisma.user.deleteMany({ where: { id: { in: teammates } } });
+    await prisma.organization.deleteMany({ where: { id: organizationId } });
+  });
+
+  it("reads a file's indexed text from its latest revision only, even while that one is still indexing", async () => {
+    const resource = await prisma.fileResource.create({
+      data: {
+        workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceScope: "USER",
+        sourceId: `users/${userId}/revised.md`,
+        displayName: "revised.md",
+        normalizedName: "revised.md",
+        mimeType: "text/markdown",
+        lifecycle: "ACTIVE",
+      },
+      select: { id: true },
+    });
+    const scope = await prisma.fileEvidenceScope.create({
+      data: {
+        workspaceId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceScope: "USER",
+        sourceId: `users/${userId}/revised.md`,
+        actorKinds: ["USER"],
+      },
+      select: { id: true },
+    });
+    const version = (revision: number, text?: string) =>
+      prisma.fileVersion.create({
+        data: {
+          resourceId: resource.id,
+          revision,
+          objectKey: `revised-${revision}`,
+          ...(text
+            ? {
+                chunks: {
+                  create: {
+                    chunkId: `c${revision}`,
+                    ordinal: 0,
+                    text,
+                    evidenceScopeId: scope.id,
+                    scopeVersion: 1,
+                    inputDigest: `d${revision}`,
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+    await version(1, "Old wording.");
+    expect(await indexedTexts([resource.id])).toEqual({
+      [resource.id]: "Old wording.",
+    });
+    await version(2);
+    expect(await indexedTexts([resource.id])).toEqual({});
+    const check = await outcomeCheck(
+      { kind: "file", label: "f", textMatches: ["old wording"] },
+      {
+        ...context,
+        toolCalls: [
+          {
+            capability: "upload_file",
+            status: "SUCCEEDED",
+            input: { filename: "revised.md", workspacePath: "out/revised.md" },
+            result: { id: resource.id, filename: "revised.md", size: 1 },
+          },
+        ],
+      },
+    );
+    expect(check.pass).toBe(false);
+    await prisma.fileVersion.deleteMany({ where: { resourceId: resource.id } });
+    await prisma.fileEvidenceScope.deleteMany({ where: { id: scope.id } });
+    await prisma.fileResource.deleteMany({ where: { id: resource.id } });
   });
 
   it("counts a file read only when it returned the file's text", async () => {

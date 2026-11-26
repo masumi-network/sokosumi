@@ -11,8 +11,13 @@
  * it reads the first one's tier. Polar and the caller's role are replaced;
  * fixtures are committed and deleted after.
  */
+
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { ok } from "neverthrow";
 import {
@@ -24,6 +29,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import { changePolarPlan } from "./polar-plan-change.service";
 
@@ -51,11 +57,18 @@ vi.mock("@/lib/image-studio/access", async (importOriginal) => ({
   }),
 }));
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 
 const { ORGANIZATION, WORKSPACE } = vi.hoisted(() => ({
   ORGANIZATION: `org-${crypto.randomUUID()}`,
@@ -130,9 +143,9 @@ describe.skipIf(!db)("two plan changes for one Cuso", () => {
   beforeAll(async () => {
     if (!db) return;
     m.listPolarProducts.mockResolvedValue(PRODUCTS);
-    await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
-    await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
-    await db.$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
     await db.sokoBot.create({
       data: {
         workspaceId: WORKSPACE,
@@ -169,9 +182,9 @@ describe.skipIf(!db)("two plan changes for one Cuso", () => {
     if (!db) return;
     await db.polarSubscription.deleteMany({ where: { projectId: PROJECT } });
     await db.sokoBot.deleteMany({ where: { workspaceId: WORKSPACE } });
-    await db.$executeRaw`DELETE FROM "project" WHERE "id" = ${PROJECT}::uuid`;
-    await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
-    await db.$executeRaw`DELETE FROM "organization" WHERE "id" = ${ORGANIZATION}`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("project")} WHERE "id" = ${PROJECT}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE "id" = ${WORKSPACE}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE "id" = ${ORGANIZATION}`;
     await db.$disconnect();
   });
 

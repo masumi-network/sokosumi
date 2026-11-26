@@ -24,7 +24,14 @@ export interface SokoBotLabTurn {
   status: string;
   route: string | null;
   finalAnswer: string | null;
-  toolCalls: { capability: string; status: string; result: unknown }[];
+  toolCalls: {
+    capability: string;
+    status: string;
+    result: unknown;
+    input?: unknown;
+    /** The refusal's kind when Core refused the call on purpose. */
+    errorKind?: string | null;
+  }[];
   events: { type: string; toolName: string | null }[];
   delegations: {
     id: string;
@@ -148,6 +155,19 @@ export interface SokoBotScenario {
      * so a failed call to one is not counted against the bot.
      */
     allowFailedTools?: string[];
+    /**
+     * A file the bot must leave saved: its final content, as the last record
+     * of it shows (a write, an upload with content, or a readback), has one
+     * line holding every field of each listed row.
+     */
+    savesFile?: { name: string; rows: string[][] };
+    /**
+     * Refusals the scenario sets up, by tool and the refusal's kind (such as
+     * SOKO_BOT_FEATURE_OFF): an outcome, not a failure, and one of them must
+     * happen, or the case never met what it sets up. Any other refusal or
+     * error still fails the case.
+     */
+    expectedRefusals?: Record<string, string>;
     /** Minimum number of tasks/jobs the turn touched. */
     minDelegations?: number;
     /** Nothing may be delegated. */
@@ -190,6 +210,176 @@ export interface SokoBotScenario {
      */
     staysSilent?: boolean;
   };
+}
+
+/**
+ * The errorKind Core stores when it refuses a tool call on purpose (a
+ * feature off, a permission missing): an outcome to report, not a failure.
+ */
+export const SOKO_BOT_TOOL_REFUSED = "refused";
+/** The refusal of a tool whose feature is off for this workspace. */
+export const SOKO_BOT_FEATURE_OFF = "feature_off";
+
+const asText = (value: unknown) => (typeof value === "string" ? value : "");
+
+/** The calls a savesFile check reads a file's content from. */
+export const SAVES_FILE_TOOLS = [
+  "workspace_write",
+  "upload_file",
+  "workspace_read",
+  "bash",
+];
+
+const basename = (path: string) => path.split("/").at(-1) ?? "";
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** A cell as written: trimmed, and a number (even "$12,000") as its value. */
+function cellValue(cell: string): string {
+  const text = cell.trim().replace(/^'|'$/g, "").trim().toLowerCase();
+  const number = text.replace(/[$€£\s]/g, "");
+  return /^-?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$/.test(number)
+    ? String(Number(number.replaceAll(",", "")))
+    : text;
+}
+
+/** A line's cells, split at , ; tab or | outside double quotes. */
+function lineCells(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index] ?? "";
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else quoted = !quoted;
+    } else if (!quoted && ",;\t|".includes(char)) {
+      cells.push(cell);
+      cell = "";
+    } else cell += char;
+  }
+  cells.push(cell);
+  return cells;
+}
+
+/** Every row is one line whose cells include each of its fields, exactly. */
+function hasRows(content: string, rows: string[][]): boolean {
+  const lines = content
+    .split("\n")
+    .map((line) => new Set(lineCells(line).map(cellValue)));
+  return rows.every((row) =>
+    lines.some((cells) => row.every((field) => cells.has(cellValue(field)))),
+  );
+}
+
+/**
+ * What a call returned. A sandbox tool's receipt holds it as JSON text in
+ * `output`, clipped when long: text that no longer parses shows nothing.
+ */
+function toolResult(result: unknown): Record<string, unknown> {
+  const record = (result ?? {}) as Record<string, unknown>;
+  if (typeof record.output !== "string") return record;
+  try {
+    const parsed: unknown = JSON.parse(record.output);
+    return parsed !== null && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The file after one completed call, from what it was before (`previous`,
+ * null when unknown): new content when the call wrote, appended to or read
+ * all of it, `null` when the call changed it out of sight (a shell redirect,
+ * a script writing it, a move or delete), or `undefined` when it says nothing.
+ */
+function nextContent(
+  call: SokoBotLabTurn["toolCalls"][number],
+  name: string,
+  rows: string[][],
+  previous: string | null,
+): string | null | undefined {
+  if (call.status !== "COMPLETED") return undefined;
+  const input = (call.input ?? {}) as Record<string, unknown>;
+  const result = toolResult(call.result);
+  const appended = (text: string) =>
+    previous === null ? null : `${previous}\n${text}`;
+  switch (call.capability) {
+    case "workspace_write": {
+      if (basename(asText(input.path)) !== name) return undefined;
+      const content = asText(input.content);
+      return input.append === true ? appended(content) : content;
+    }
+    case "upload_file":
+      return asText(input.content) &&
+        basename(asText(result.filename) || asText(input.filename)) === name
+        ? asText(input.content)
+        : undefined;
+    case "workspace_read": {
+      // A receipt without the content (clipped, or another shape) says nothing.
+      if (
+        basename(asText(input.path)) !== name ||
+        typeof result.content !== "string"
+      )
+        return undefined;
+      const content = result.content;
+      // A preview or a later slice is not the whole file.
+      const whole =
+        !input.offset &&
+        (typeof result.totalChars !== "number" ||
+          result.totalChars <= content.length);
+      return whole ? content : undefined;
+    }
+    case "bash": {
+      const command = asText(input.command);
+      if (!command.includes(name)) return undefined;
+      const stdout = asText(result.stdout);
+      // Printing every row reads the file back, whatever wrote it.
+      if (hasRows(stdout, rows)) return stdout;
+      const file = escapeRegExp(name);
+      const target = `["']?[^\\s"';|&]*${file}["']?`;
+      // An echo or printf appended to it: its text follows what was there.
+      const echoed = new RegExp(
+        `^\\s*(?:echo|printf)\\s+(?:-\\w+\\s+)*(["']?)(.*)\\1\\s*>>\\s*${target}\\s*$`,
+      ).exec(command);
+      if (echoed) return appended((echoed[2] ?? "").replaceAll("\\n", "\n"));
+      const changes = new RegExp(
+        [
+          `(>>?|\\btee\\b[^|;&]*)\\s*${target}`,
+          `${file}["']?\\s*,\\s*["'][wa]`,
+          `writeFile\\w*\\(\\s*["'][^"']*${file}`,
+          `\\b(mv|rm)\\b[^;&|]*${file}`,
+          // A copy changes only the file it writes: the last argument.
+          `\\bcp\\b[^;&|]*\\s${target}\\s*($|[;&|])`,
+        ].join("|"),
+      );
+      return changes.test(command) ? null : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+/** The file as the last call that showed or changed it left it, and which call. */
+function savedFile(
+  calls: SokoBotLabTurn["toolCalls"],
+  file: { name: string; rows: string[][] },
+): { by: string; content: string | null } | null {
+  let last: { by: string; content: string | null } | null = null;
+  for (const call of calls) {
+    const content = nextContent(
+      call,
+      file.name,
+      file.rows,
+      last?.content ?? null,
+    );
+    if (content !== undefined) last = { by: call.capability, content };
+  }
+  return last;
 }
 
 export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
@@ -885,7 +1075,16 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "The bot writes pipeline.csv to its workspace and computes the totals (won 17000, open 35000), ideally with bash or a script rather than mental arithmetic. The answer gives both numbers and names the file. No task or hire.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK"],
-      anyTools: ["workspace_write", "bash"],
+      savesFile: {
+        name: "pipeline.csv",
+        rows: [
+          ["Acme", "12000", "won"],
+          ["Beta", "8000", "lost"],
+          ["Gamma", "20000", "open"],
+          ["Delta", "5000", "won"],
+          ["Epsilon", "15000", "open"],
+        ],
+      },
       forbiddenTools: ["create_task", "hire_agent"],
       noDelegations: true,
       answerMatches:
@@ -1110,6 +1309,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "CLARIFY", "MIXED"],
       anyTools: ["fundraising_pipeline", "investor_warm_paths"],
+      expectedRefusals: {
+        fundraising_pipeline: SOKO_BOT_FEATURE_OFF,
+        investor_warm_paths: SOKO_BOT_FEATURE_OFF,
+      },
       forbiddenTools: ["send_email_draft", "create_task", "hire_agent"],
       noDelegations: true,
     },
@@ -1132,6 +1335,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "MIXED",
       ],
       anyTools: ["find_investors"],
+      expectedRefusals: { find_investors: SOKO_BOT_FEATURE_OFF },
       forbiddenTools: [
         "upsert_contact",
         "create_task",
@@ -2463,6 +2667,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-video-shapes-alsoon",
+    title: "Posts a talking video on X and the Instagram feed in their shapes",
+    intent:
+      "On a version with cmo-video-shapes (cmo-v26), the owner asks for one more talking video that also goes out on X and in the Instagram feed: Cuso plans it with those targets in alsoOn, so Core posts it there in 16:9 and 4:5 from the same video.",
+    prompt:
+      "Can you add one talking video next week about how a team books its first demo in under a minute? Put it on LinkedIn, and also on X and in our Instagram feed, not just as a Reel.",
+    rubric:
+      "Cuso adds exactly one talking_video entry next week about booking a first demo in under a minute, on LinkedIn, with a script in the brand's own voice (never as a customer), through save_strategy. On a version with the cmo-video-shapes skill its alsoOn names x and instagram_feed (an instagram Reel copy may be there too); he tells the owner in plain words that it goes out on X and in the Instagram feed in the right shape. Changing other entries, inventing results or customers, more than one new video, or claiming it went out on X or Instagram when alsoOn does not name them fails. A version without the skill says plainly it cannot post the video on X or in the feed yet instead of pretending.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      forbiddenTools: ["create_task", "publish_social_post", "hire_agent"],
+    },
+  },
+  {
     id: "cmo-daily-run-watch",
     title: "Runs the day by his daily-run skill",
     intent:
@@ -2539,9 +2758,14 @@ export function evaluateScenario(
     pass: turn.status === "COMPLETED",
     actual: turn.status,
   });
+  // A refusal the scenario sets up is its outcome, judged on the answer.
   const failedTools = turn.toolCalls.filter(
     (call) =>
       call.status === "FAILED" &&
+      !(
+        call.errorKind != null &&
+        expect.expectedRefusals?.[call.capability] === call.errorKind
+      ) &&
       !expect.allowFailedTools?.includes(call.capability),
   );
   checks.push({
@@ -2578,6 +2802,37 @@ export function evaluateScenario(
         used.length > 0
           ? `called ${list(used)}`
           : `none called — used ${list(tools)}`,
+    });
+  }
+  if (expect.savesFile) {
+    const saved = savedFile(turn.toolCalls, expect.savesFile);
+    const complete =
+      saved?.content != null && hasRows(saved.content, expect.savesFile.rows);
+    checks.push({
+      label: `Saves ${expect.savesFile.name} with every row`,
+      pass: complete,
+      actual: !saved
+        ? "no completed call wrote or read it"
+        : saved.content === null
+          ? `last rewritten by ${saved.by} with no readback`
+          : complete
+            ? `final content from ${saved.by}`
+            : `final content from ${saved.by} is missing rows`,
+    });
+  }
+  if (expect.expectedRefusals) {
+    const refused = turn.toolCalls.filter(
+      (call) =>
+        call.status === "FAILED" &&
+        call.errorKind != null &&
+        expect.expectedRefusals?.[call.capability] === call.errorKind,
+    );
+    checks.push({
+      label: "Meets the refusal the scenario sets up",
+      pass: refused.length > 0,
+      actual: refused.length
+        ? list(refused.map((call) => call.capability))
+        : "no matching refusal",
     });
   }
   for (const [tool, least] of Object.entries(expect.minCalls ?? {})) {

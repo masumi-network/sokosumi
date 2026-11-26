@@ -2276,7 +2276,7 @@
         },
         "files": "Archivos",
         "assignee": "Responsable",
-        "noAssignee": "Sin responsable",
+        "noAssignee": "Sin asignar",
         "memberFallback": "Miembro",
         "schedule": "Programación",
         "privateSchedule": "Programación privada",
@@ -2726,7 +2726,7 @@
         "checkingTag": "En revisión",
         "label": "Etiquetas",
         "empty": "Sin etiquetas todavía",
-        "showAll": "Mostrar las {count} etiquetas",
+        "moreTags": "+{count} {count, plural, one {etiqueta más} other {etiquetas más}}",
         "noProject": "Sin proyecto",
         "openProject": "Abrir proyecto: {name}",
         "vocabulary": {
@@ -7847,6 +7847,24 @@
         "directModelMicroUsd": "Llamadas directas a modelos",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Otras API",
+        "costDetail": "Desglose de costes",
+        "costByModel": "Por modelo",
+        "costByDataForSeo": "Por endpoint de DataForSEO",
+        "costByStep": "Por paso de la auditoría",
+        "detailModel": "Modelo",
+        "detailProvider": "Proveedor",
+        "detailCalls": "Llamadas",
+        "detailEndpoint": "Endpoint",
+        "detailReads": "Consultas",
+        "detailStep": "Paso",
+        "detailCost": "Coste",
+        "detailModelCost": "Modelos",
+        "detailDataForSeoCost": "DataForSEO",
+        "detailOtherApiCost": "Otras API",
+        "detailStepTotal": "Total del paso",
+        "unattributed": "Sin asignar",
+        "unpriced": "Sin precio",
+        "providerUnknown": "Desconocido",
         "runId": "ID de ejecución",
         "taskId": "ID de tarea",
         "receiptsPending": "Pendiente de recibos",
@@ -9387,7 +9405,9 @@
           "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}",
           "backToAgent": "Volver a {name}",
           "yourJobs": "Tus jobs",
-          "yourJobsCount": "Tus jobs · {count}"
+          "yourJobsCount": "Tus jobs · {count}",
+          "unavailableAgent": "Agente no disponible",
+          "noLongerListed": "Ya no está en el catálogo"
         },
         "Modal": {
           "back": "Atrás",
@@ -9414,6 +9434,8 @@
         "coworkersNote": "Especialistas a los que puedes encargar tareas completas o escribir.",
         "coworkersEmpty": "Todavía no hay coworkers en este espacio de trabajo.",
         "marketplaceTitle": "Mercado de agentes",
+        "marketplaceShort": "Mercado",
+        "sectionNavLabel": "Secciones de agentes",
         "marketplaceNote": "Agentes creados y gestionados por otras empresas. Cada uno hace un trabajo.",
         "marketplaceEmpty": "Ahora no hay agentes que mostrar.",
         "external": "Externo",
@@ -9481,7 +9503,7 @@
         "yourJobs": "{count, plural, one {Tu # trabajo con este agente} other {Tus # trabajos con este agente}}",
         "groupPersonal": "Personales",
         "groupShared": "Equipo y proyectos",
-        "messageName": "Escribir a {name}",
+        "messageName": "Mensaje a {name}",
         "chat": "Chat",
         "chatName": "Chatear con {name}",
         "giveTaskName": "Dar una tarea a {name}",
@@ -9873,7 +9895,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (agente de IA)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Asistente personal",
       "openDirectMessage": "Mensaje",
@@ -12333,7 +12356,8 @@
         "more": "Más acciones",
         "filter": "Filtrar",
         "kind": "Tipo",
-        "source": "Origen"
+        "source": "Origen",
+        "onX": "En X"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -12636,7 +12660,22 @@
         "restoreName": "Restaurar a {name}",
         "restored": "{name} restaurado",
         "restoreFailed": "No se pudo restaurar a {name}. El contacto sigue archivado.",
-        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures."
+        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures.",
+        "isYou": "Eres tú",
+        "isTeammate": "Es {name}, de tu equipo",
+        "thisIs": "Es…",
+        "thisIsMe": "Yo ({name})",
+        "thisIsNoOne": "Nadie del equipo",
+        "x": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Sigue a {name} en X",
+          "followed": "{name} sigue a esta persona en X"
+        },
+        "xYou": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Te sigue en X · tú no lo sigues",
+          "followed": "Lo sigues en X · no te sigue"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12821,6 +12860,11 @@
           "industry": "Sector",
           "lists": "Listas"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Sin seguir de vuelta",
+        "YOU_FOLLOW": "No te siguen de vuelta",
+        "MUTUAL": "Se siguen mutuamente"
       },
       "linkedInImport": {
         "menu": "Importar contactos de LinkedIn",
@@ -14918,7 +14962,17 @@
         "loading": "Cargando el tráfico de Search Console.",
         "failed": "No se pudo consultar el tráfico de esta selección.",
         "unavailable": "Los datos actuales requieren una propiedad de Search Console que corresponda a este sitio.",
-        "saved": "Tráfico de las páginas seleccionadas"
+        "saved": "Tráfico de las páginas seleccionadas",
+        "brandBuckets": {
+          "branded": "De marca",
+          "nonBranded": "Sin marca",
+          "unlisted": "Sin consulta"
+        },
+        "brandUnlistedNote": "Google no muestra la consulta de las búsquedas poco frecuentes. Ese tráfico está en el total y aparece como Sin consulta.",
+        "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras de marca y sin marca son un límite inferior.",
+        "brandListedOnly": "Estas cifras solo cuentan las consultas listadas. No se pudieron comparar los totales diarios, por lo que no hay porcentajes.",
+        "brandUnavailable": "No se pudieron leer las consultas de este periodo, por lo que no hay división por marca.",
+        "brandEmpty": "Añade tus términos de marca para ver cuánto tráfico viene de búsquedas de tu nombre."
       },
       "traffic": {
         "periodInsight": {
@@ -14968,7 +15022,8 @@
           "branded": "De marca",
           "non_branded": "Sin marca"
         },
-        "brandTotals": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "brandTotals": "Consultas listadas: {branded} clics de marca ({brandedShare}), {nonBranded} clics sin marca ({nonBrandedShare})",
+        "brandSuggested": "Sugerencia a partir del nombre de tu sitio web. Revisa los términos antes de guardar.",
         "editBrandTerms": "Editar términos de marca",
         "addBrandTerms": "Añadir términos de marca",
         "brandTerms": "Términos de marca",

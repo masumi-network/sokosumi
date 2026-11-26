@@ -31,6 +31,7 @@ const base: ContactView = {
   kind: null,
   knownBy: null,
   source: null,
+  xFollow: null,
   sort: "updatedAt",
   direction: "desc",
 };

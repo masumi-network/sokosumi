@@ -2726,7 +2726,7 @@
         "checkingTag": "Wird geprüft",
         "label": "Tags",
         "empty": "Noch keine Tags",
-        "showAll": "Alle {count} Tags anzeigen",
+        "moreTags": "+{count} {count, plural, one {weiterer Tag} other {weitere Tags}}",
         "noProject": "Kein Projekt",
         "openProject": "Projekt öffnen: {name}",
         "vocabulary": {
@@ -7847,6 +7847,24 @@
         "directModelMicroUsd": "Direkte Modellaufrufe",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Andere APIs",
+        "costDetail": "Kostenaufschlüsselung",
+        "costByModel": "Nach Modell",
+        "costByDataForSeo": "Nach DataForSEO-Endpunkt",
+        "costByStep": "Nach Audit-Schritt",
+        "detailModel": "Modell",
+        "detailProvider": "Anbieter",
+        "detailCalls": "Aufrufe",
+        "detailEndpoint": "Endpunkt",
+        "detailReads": "Abfragen",
+        "detailStep": "Schritt",
+        "detailCost": "Kosten",
+        "detailModelCost": "Modelle",
+        "detailDataForSeoCost": "DataForSEO",
+        "detailOtherApiCost": "Andere APIs",
+        "detailStepTotal": "Schritt gesamt",
+        "unattributed": "Nicht zugeordnet",
+        "unpriced": "Ohne Preis",
+        "providerUnknown": "Unbekannt",
         "runId": "Lauf-ID",
         "taskId": "Task-ID",
         "receiptsPending": "Kostenbelege ausstehend",
@@ -9387,7 +9405,9 @@
           "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
           "backToAgent": "Zurück zu {name}",
           "yourJobs": "Deine Jobs",
-          "yourJobsCount": "Deine Jobs · {count}"
+          "yourJobsCount": "Deine Jobs · {count}",
+          "unavailableAgent": "Nicht verfügbarer Agent",
+          "noLongerListed": "Nicht mehr gelistet"
         },
         "Modal": {
           "back": "Zurück",
@@ -9414,6 +9434,8 @@
         "coworkersNote": "Spezialisten, denen du ganze Aufgaben gibst oder mit denen du chattest.",
         "coworkersEmpty": "In diesem Workspace gibt es noch keine Coworker.",
         "marketplaceTitle": "Agent-Marktplatz",
+        "marketplaceShort": "Marktplatz",
+        "sectionNavLabel": "Agents-Bereiche",
         "marketplaceNote": "Agents, die andere Firmen bauen und betreiben. Jeder erledigt eine Aufgabe.",
         "marketplaceEmpty": "Gerade gibt es keine Agents.",
         "external": "Extern",
@@ -9486,7 +9508,7 @@
         "chatName": "Mit {name} chatten",
         "giveTaskName": "{name} eine Aufgabe geben",
         "startTask": "Aufgabe starten",
-        "startTaskName": "Aufgabe mit {name} starten"
+        "startTaskName": "Aufgabe starten mit {name}"
       }
     },
     "EmailVerificationNotice": {
@@ -9873,7 +9895,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (KI-Agent)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Persönlicher Assistent",
       "openDirectMessage": "Nachricht",
@@ -12333,7 +12356,8 @@
         "more": "Weitere Aktionen",
         "filter": "Filter",
         "kind": "Art",
-        "source": "Quelle"
+        "source": "Quelle",
+        "onX": "Auf X"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -12636,7 +12660,22 @@
         "restoreName": "{name} wiederherstellen",
         "restored": "{name} wiederhergestellt",
         "restoreFailed": "{name} konnte nicht wiederhergestellt werden. Der Kontakt bleibt archiviert.",
-        "archivedOn": "Archiviert am {date}. Archivierte Kontakte erscheinen nicht in Listen und Suchen, bis du sie wiederherstellst."
+        "archivedOn": "Archiviert am {date}. Archivierte Kontakte erscheinen nicht in Listen und Suchen, bis du sie wiederherstellst.",
+        "isYou": "Das bist du",
+        "isTeammate": "Das ist {name} aus deinem Team",
+        "thisIs": "Das ist …",
+        "thisIsMe": "Ich ({name})",
+        "thisIsNoOne": "Niemand aus dem Team",
+        "x": {
+          "mutual": "Folgen sich auf X gegenseitig",
+          "follows": "Folgt {name} auf X",
+          "followed": "{name} folgt der Person auf X"
+        },
+        "xYou": {
+          "mutual": "Ihr folgt euch auf X gegenseitig",
+          "follows": "Folgt dir auf X · du folgst nicht zurück",
+          "followed": "Du folgst auf X · folgt dir nicht zurück"
+        }
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -12821,6 +12860,11 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Nicht zurückgefolgt",
+        "YOU_FOLLOW": "Folgen dir nicht zurück",
+        "MUTUAL": "Folgen sich gegenseitig"
       },
       "linkedInImport": {
         "menu": "LinkedIn-Kontakte importieren",
@@ -14918,7 +14962,17 @@
         "loading": "Suchzugriffe werden geladen.",
         "failed": "Die Suchzugriffe für diese Auswahl konnten nicht geladen werden.",
         "unavailable": "Für aktuelle Suchzugriffe ist eine passende Search Console-Property für diese Website erforderlich.",
-        "saved": "Traffic der ausgewählten Seiten"
+        "saved": "Traffic der ausgewählten Seiten",
+        "brandBuckets": {
+          "branded": "Marke",
+          "nonBranded": "Ohne Marke",
+          "unlisted": "Ohne Suchanfrage"
+        },
+        "brandUnlistedNote": "Google nennt bei seltenen Suchen keine Suchanfrage. Diese Zugriffe stehen in der Summe und erscheinen als Ohne Suchanfrage.",
+        "brandLimited": "Es gibt mehr Zeilen mit Suchanfragen, als die Aufteilung lesen kann. Die Zahlen mit Marke und ohne Marke sind eine Untergrenze.",
+        "brandListedOnly": "Diese Zahlen zählen nur die aufgeführten Suchanfragen. Die Tagessummen konnten nicht verglichen werden, deshalb gibt es keine Anteile.",
+        "brandUnavailable": "Die Suchanfragen für diesen Zeitraum konnten nicht gelesen werden. Deshalb gibt es keine Markenaufteilung.",
+        "brandEmpty": "Fügen Sie Ihre Markenbegriffe hinzu. Dann sehen Sie, wie viele Zugriffe aus Suchen nach Ihrem Namen kommen."
       },
       "traffic": {
         "periodInsight": {
@@ -14968,7 +15022,8 @@
           "branded": "Marke",
           "non_branded": "Ohne Marke"
         },
-        "brandTotals": "Aufgeführte Suchanfragen: {branded} Klicks mit Marke, {nonBranded} Klicks ohne Marke",
+        "brandTotals": "Aufgeführte Suchanfragen: {branded} Klicks mit Marke ({brandedShare}), {nonBranded} Klicks ohne Marke ({nonBrandedShare})",
+        "brandSuggested": "Vorschlag aus dem Namen Ihrer Website. Prüfen Sie die Begriffe vor dem Speichern.",
         "editBrandTerms": "Markenbegriffe bearbeiten",
         "addBrandTerms": "Markenbegriffe hinzufügen",
         "brandTerms": "Markenbegriffe",

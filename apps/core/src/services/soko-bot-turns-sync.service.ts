@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { SokoBotTurnStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { getEnv } from "@/config/env";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -204,7 +205,7 @@ export class SokoBotTurnsSyncService {
       const leaseToken = randomUUID();
       const updated = await prisma.$transaction(async (tx) => {
         await tx.$queryRaw`
-          SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turn.id}::uuid
+          SELECT "id" FROM ${sharedTable("soko_bot_turn")} WHERE "id" = ${turn.id}::uuid
           FOR NO KEY UPDATE
         `;
         const claimedAt = await databaseNow(tx);

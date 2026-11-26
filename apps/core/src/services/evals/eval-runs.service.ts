@@ -3,6 +3,8 @@ import {
   type EvalRunTrigger,
   Prisma,
 } from "@sokosumi/database";
+import { z } from "zod";
+
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -50,6 +52,7 @@ import {
   type EvalSuite,
   evalCase,
   isJudgedEvalCase,
+  minimumEvalRepeats,
   selectEvalCases,
 } from "./eval-cases";
 import { stopPendingAfterBudgetError } from "./eval-infrastructure";
@@ -117,13 +120,23 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   const repeats = input.repeats ?? 1;
   if (!Number.isInteger(repeats) || repeats < 1 || repeats > EVAL_LANE_COUNT)
     throw new EvalRunError(`Repeats must be 1 to ${EVAL_LANE_COUNT}`);
-  const lanes = input.judgedRepeats ?? repeats;
-  if (!Number.isInteger(lanes) || lanes < repeats || lanes > EVAL_LANE_COUNT)
+  const judgedRepeats = input.judgedRepeats ?? repeats;
+  if (
+    !Number.isInteger(judgedRepeats) ||
+    judgedRepeats < repeats ||
+    judgedRepeats > EVAL_LANE_COUNT
+  )
     throw new EvalRunError(
       `Judged repeats must be ${repeats} to ${EVAL_LANE_COUNT}`,
     );
   const cases = selectEvalCases({ suites, caseIds });
   if (cases.length === 0) throw new EvalRunError("No cases to run");
+  const repeatsOf = (evalCase: EvalCase) =>
+    Math.max(
+      isJudgedEvalCase(evalCase) ? judgedRepeats : repeats,
+      minimumEvalRepeats(evalCase),
+    );
+  const lanes = Math.max(...cases.map(repeatsOf));
   const commit = evalCommit();
   const environment = evalEnvironment();
   const local = environment === "local" || environment === "local-chatgpt-plan";
@@ -159,7 +172,7 @@ export async function createEvalRun(input: CreateEvalRunInput) {
         create: Array.from({ length: lanes }, (_, index) => index + 1).flatMap(
           (repeat) =>
             cases.flatMap((evalCase, position) =>
-              repeat <= repeats || isJudgedEvalCase(evalCase)
+              repeat <= repeatsOf(evalCase)
                 ? [
                     {
                       caseId: evalCase.id,
@@ -242,17 +255,19 @@ async function timeOutStuckRun(run: {
       finishedAt: now,
     },
   });
-  recordCoreWarning(
-    { operation: "eval_tick" },
-    {
-      message: "Timed out an eval run that was stuck",
-      why: `It was still running ${EVAL_RUN_TIMEOUT_MS / 3_600_000} hours after it started`,
-      fix: "Its open cases are errors now. Check why they never settled: a turn that never ended, or a lane that kept failing.",
-    },
-    { evalRun: { id: run.id }, evalOpenCases: open.count },
-  );
-  await completeIfDone(run);
-  return true;
+  // Once: later ticks only wait on a case's late cost.
+  if (open.count > 0)
+    recordCoreWarning(
+      { operation: "eval_tick" },
+      {
+        message: "Timed out an eval run that was stuck",
+        why: `It was still running ${EVAL_RUN_TIMEOUT_MS / 3_600_000} hours after it started`,
+        fix: "Its open cases are errors now. Check why they never settled: a turn that never ended, or a lane that kept failing.",
+      },
+      { evalRun: { id: run.id }, evalOpenCases: open.count },
+    );
+  // Still waiting on a case's late cost: the next run stays queued.
+  return (await completeIfDone(run)).completed;
 }
 
 /** The queued run first in line starts once nothing else is running. */
@@ -453,6 +468,61 @@ async function startNextCase(
   return "started";
 }
 
+/** How long a finished run waits on a case's outliving turns before it completes with that cost marked incomplete. */
+const UNSETTLED_COST_WAIT_MS = 30 * 60_000;
+
+/**
+ * A case that ended while its turns still ran was charged too early: its
+ * cost is read again from all of its turns (`caseTurnIds`). True while one of
+ * them still runs and the case ended under UNSETTLED_COST_WAIT_MS ago, so the
+ * run waits; after that its cost stands, marked `costIncomplete`.
+ */
+export async function reconcileUnsettledCosts(
+  runId: string,
+  now = new Date(),
+): Promise<boolean> {
+  // Few per run: an errored case whose turns outlived it records them.
+  const errored = await prisma.evalResult.findMany({
+    where: { runId, status: "ERROR" },
+    select: { id: true, output: true, finishedAt: true },
+  });
+  let waiting = false;
+  for (const result of errored) {
+    const parsed = z
+      .object({ caseTurnIds: z.array(z.string()) })
+      .safeParse(result.output);
+    if (!parsed.success) continue;
+    const ids = parsed.data.caseTurnIds;
+    const running = await prisma.sokoBotTurn.count({
+      where: {
+        id: { in: ids },
+        status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+      },
+    });
+    const costUsdMicros = await turnsCost(ids);
+    const ended = result.finishedAt?.getTime() ?? now.getTime();
+    if (running > 0 && now.getTime() - ended < UNSETTLED_COST_WAIT_MS) {
+      waiting = true;
+      await prisma.evalResult.update({
+        where: { id: result.id },
+        data: { costUsdMicros },
+      });
+      continue;
+    }
+    await prisma.evalResult.update({
+      where: { id: result.id },
+      data: {
+        costUsdMicros,
+        output: jsonInput({
+          ...(result.output as Record<string, unknown>),
+          costIncomplete: running > 0,
+        }),
+      },
+    });
+  }
+  return waiting;
+}
+
 /** Whether the run completed, and why its regression email failed if it did. */
 async function completeIfDone(run: {
   id: string;
@@ -463,6 +533,7 @@ async function completeIfDone(run: {
     where: { runId: run.id, status: { in: ["PENDING", "RUNNING"] } },
   });
   if (open > 0) return { completed: false };
+  if (await reconcileUnsettledCosts(run.id)) return { completed: false };
   await prisma.evalRun.update({
     where: { id: run.id },
     data: { status: "COMPLETED", finishedAt: new Date() },

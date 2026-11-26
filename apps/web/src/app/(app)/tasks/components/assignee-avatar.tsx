@@ -1,10 +1,12 @@
 "use client";
 
+import { UserRound } from "lucide-react";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils/text";
 
 export function AssigneeAvatar({
   assignee,
@@ -38,8 +40,8 @@ export function AssigneeAvatar({
   if (assignee == null) {
     return (
       <Avatar className={`${sizeClass} shrink-0`}>
-        <AvatarFallback className="bg-muted text-2xs font-medium">
-          ?
+        <AvatarFallback>
+          <UserRound className="text-muted-foreground size-3.5" aria-hidden />
         </AvatarFallback>
       </Avatar>
     );
@@ -58,7 +60,7 @@ export function AssigneeAvatar({
         />
       ) : null}
       <AvatarFallback className="bg-muted text-2xs font-medium">
-        {assignee.name?.slice(0, 1).toUpperCase()}
+        {getInitials(assignee.name ?? "")}
       </AvatarFallback>
     </Avatar>
   );

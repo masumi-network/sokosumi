@@ -7,6 +7,7 @@ import mountGetContact from "./[id]/get.js";
 import mountImportance from "./[id]/importance.js";
 import mountInteractions from "./[id]/interactions.js";
 import mountPatch from "./[id]/patch.js";
+import mountUser from "./[id]/user.js";
 import mountBreakdown from "./breakdown.js";
 import mountCompanies from "./companies.js";
 import mountCompanyLists from "./company-lists.js";
@@ -44,6 +45,7 @@ mountArchive(app);
 mountChannels(app);
 mountInteractions(app);
 mountImportance(app);
+mountUser(app);
 mountEnrich(app);
 mountActivity(app);
 

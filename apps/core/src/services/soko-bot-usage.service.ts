@@ -136,7 +136,7 @@ export async function sokoBotUsageTotals(
       SUM(COALESCE(("usage" ->> 'cacheWriteTokens')::numeric, 0))::bigint AS "cacheWriteTokens",
       SUM(COALESCE("costUsdMicros", 0))                                 AS "costUsdMicros",
       SUM(COALESCE("overheadCostUsdMicros", 0))                         AS "overheadCostUsdMicros"
-    FROM "soko_bot_turn"
+    FROM ${sharedTable("soko_bot_turn")}
     WHERE "sokoBotId" = ${sokoBotId}::uuid
   `;
 

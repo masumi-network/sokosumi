@@ -2045,6 +2045,11 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PUT /contacts/{id}/importance",
   },
   {
+    command: "contacts set-user",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "PUT /contacts/{id}/user",
+  },
+  {
     command: "contacts enrich",
     usage: "CONTACT_ID",
     operation: "POST /contacts/{id}/enrich",

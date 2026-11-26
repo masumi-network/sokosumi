@@ -127,6 +127,10 @@
       "cli": "contacts set-importance",
       "mcp": "contacts_set_importance"
     },
+    "PUT /contacts/{id}/user": {
+      "cli": "contacts set-user",
+      "mcp": "contacts_set_user"
+    },
     "POST /contacts/{id}/enrich": {
       "cli": "contacts enrich",
       "mcp": "contacts_enrich"

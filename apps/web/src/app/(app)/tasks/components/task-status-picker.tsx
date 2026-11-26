@@ -3,6 +3,8 @@
 import type { TaskStatus } from "@sokosumi/core-client";
 import { Check, ChevronDown } from "lucide-react";
 import { type KeyboardEvent, useMemo, useState } from "react";
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
+import { getColumnId } from "@/app/tasks/utils/task-column";
 import {
   Command,
   CommandEmpty,
@@ -39,6 +41,8 @@ export interface TaskStatusPickerLabels {
   ariaLabel: string;
   searchPlaceholder: string;
   noResults: string;
+  /** Board column titles, so typing "Done" finds Completed. */
+  columnLabels?: Record<KanbanColumnId, string>;
 }
 
 interface TaskStatusPickerProps {
@@ -230,7 +234,10 @@ export function TaskStatusPicker({
                 <CommandItem
                   key={status}
                   value={status}
-                  keywords={[labels.statusLabels[status]]}
+                  keywords={[
+                    labels.statusLabels[status],
+                    labels.columnLabels?.[getColumnId(status)] ?? "",
+                  ]}
                   disabled={isDisabled}
                   data-current={isCurrent || undefined}
                   onSelect={() => handleSelect(status)}

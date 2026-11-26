@@ -21,12 +21,20 @@
 #    `mainnet`, so the shared tables' foreign keys point at Mainnet.
 # 3. The copy is restored as `preprod`: the same tables, its own enums, and its
 #    keys into `shared`; no shared table points at it.
+# 4. `prisma/network-layout/shared-trigger-bodies.sql` replaces the bodies of
+#    the functions behind the triggers on shared tables, with every name given
+#    its schema. Its guard refuses when a migration changed one of them since
+#    its digest was recorded. Then, in the same transaction: every function of
+#    `shared` is either one the file replaced or, by its signature, on the
+#    list of functions that wait. So a migration that changes or adds a
+#    function fails here until the file or the list follows.
 #
-# After a failure, recreate the database: step 1 and steps 2 and 3 are two
-# transactions.
+# After a failure, recreate the database: step 1, steps 2 and 3, and step 4 are
+# three transactions.
 #
 # Left broken on purpose: function and trigger bodies that name `public.` or an
-# unqualified table (ticket 19), and unqualified raw SQL (tickets 16 and 17).
+# unqualified table (ticket 19: the functions step 4 lists as waiting), and
+# unqualified raw SQL (tickets 16 and 17).
 set -euo pipefail
 
 url=${1:?usage: split-network-layout.sh <database-url>}
@@ -138,3 +146,79 @@ dump=$("${pg_dump[@]}" --schema-only --no-owner --no-privileges --schema=preprod
 "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction \
   <<<"ALTER SCHEMA preprod RENAME TO mainnet;
 $dump"
+
+bodies="${here%/scripts}/prisma/network-layout/shared-trigger-bodies.sql"
+{
+  cat <<'SQL'
+CREATE TEMP TABLE functions_before ON COMMIT DROP AS
+SELECT oid, ctid AS row_version FROM pg_proc WHERE pronamespace = 'shared'::regnamespace;
+SQL
+  cat "$bodies"
+  cat <<'SQL'
+DO $check$
+DECLARE
+  file CONSTANT text := 'packages/database/prisma/network-layout/shared-trigger-bodies.sql';
+  list CONSTANT text := 'the waiting list in packages/database/scripts/split-network-layout.sh';
+  -- Functions the file does not replace yet.
+  waiting CONSTANT text[] := ARRAY[
+    -- Ticket 19 part 2: they read the Network named on the row (tickets 07 to 09).
+    'shared.scope_notification_to_workspace_membership()',
+    'shared.sync_history_from_project_image_asset()',
+    'shared.sync_history_from_project_image_job_charge()',
+    'shared.sync_history_from_task()',
+    'shared.sync_history_from_task_event()',
+    'shared.upsert_history_task(text)',
+    'shared.upsert_history_image_asset(uuid)',
+    'shared.history_task_amount(text)',
+    'shared.history_image_amount(uuid)',
+    -- Ticket 19 slice B: on Network tables, one copy per Network.
+    'shared.canonicalize_credit_cost_unit_write()',
+    'shared.complete_task_x402_payment_action_snapshot()',
+    'shared.normalize_task_x402_payment_replay_key()',
+    'shared.record_task_x402_payment_failure_outcome()',
+    'shared.enforce_job_project_workspace_placement()',
+    'shared.sync_history_from_job()',
+    'shared.sync_history_from_job_event()',
+    'shared.sync_history_from_job_input()',
+    'shared.sync_history_from_job_purchase()',
+    'shared.sync_history_from_transaction()',
+    'shared.canonical_credit_cost_unit(text)',
+    'shared.history_job_amount(text)',
+    'shared.upsert_history_job(text)',
+    -- Core calls it by its bare name (`EXCEPTIONS` in apps/core/scripts/prepare-raw-sql.ts).
+    'shared.compute_history_job_status(text)'
+  ];
+  gone text;
+  fn record;
+BEGIN
+  SELECT string_agg(name, ', ') INTO gone
+  FROM unnest(waiting) AS listed(name) WHERE to_regprocedure(name) IS NULL;
+  IF gone IS NOT NULL THEN
+    RAISE EXCEPTION 'no migration creates %: remove it from %', gone, list;
+  END IF;
+
+  FOR fn IN
+    SELECT p.oid::regprocedure AS signature, b.oid IS NULL AS created,
+      -- The file wrote the row: it is not the row of the snapshot.
+      b.row_version IS DISTINCT FROM p.ctid AS in_file,
+      EXISTS (SELECT FROM unnest(waiting) AS listed(name) WHERE to_regprocedure(name) = p.oid) AS waits
+    FROM pg_proc p
+    LEFT JOIN functions_before b ON b.oid = p.oid
+    WHERE p.pronamespace = 'shared'::regnamespace
+  LOOP
+    IF fn.created THEN
+      RAISE EXCEPTION '% creates %, which no migration creates with that signature: update or remove it', file, fn.signature;
+    ELSIF fn.in_file AND fn.waits THEN
+      RAISE EXCEPTION 'function % is in % now: remove it from %', fn.signature, file, list;
+    ELSIF NOT fn.in_file AND NOT fn.waits THEN
+      RAISE EXCEPTION 'function % has no body for the new layout: add it to % with its digest, or to % with the ticket it waits for',
+        fn.signature, file, list;
+    END IF;
+  END LOOP;
+END
+$check$;
+SQL
+} | "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction || {
+  echo "split-network-layout.sh: step 4 failed while applying or checking $bodies" >&2
+  exit 1
+}

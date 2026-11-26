@@ -28,7 +28,11 @@ import {
   SCHEDULES_SCENARIO,
 } from "./eval-schedules";
 import type { StandupEvalSetup } from "./eval-standup";
-import { holdoutJourneys } from "./ownerbench/holdout";
+import {
+  HOLDOUT_PREFIX,
+  HOLDOUT_REPEATS,
+  holdoutJourneys,
+} from "./ownerbench/holdout";
 import { OWNER_JOURNEYS, type OwnerJourney } from "./ownerbench/journeys";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
@@ -258,6 +262,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
                   : scenario.id === "cmo-change-request" ||
                       scenario.id === "cmo-chat-strategy-skill" ||
                       scenario.id === "cmo-change-then-drafts" ||
+                      scenario.id === "cmo-video-shapes-alsoon" ||
                       scenario.id === "cmo-reads-week-four" ||
                       scenario.id === "cmo-change-reply-plain" ||
                       scenario.id === CMO_CORRECTION_CASE_ID ||
@@ -337,4 +342,12 @@ export function selectEvalCases(input: {
 /** Scenario cases end in a judge's verdict; the others are scored by checks alone. */
 export function isJudgedEvalCase(evalCase: EvalCase): boolean {
   return evalCase.kind === "scenario" || evalCase.kind === "journey";
+}
+
+/** Runs a case gets whatever the run asked: a held-out journey is read as pass^1 and pass^3. */
+export function minimumEvalRepeats(evalCase: EvalCase): number {
+  return evalCase.kind === "journey" &&
+    evalCase.journey.id.startsWith(HOLDOUT_PREFIX)
+    ? HOLDOUT_REPEATS
+    : 1;
 }

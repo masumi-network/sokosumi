@@ -1,4 +1,4 @@
-import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
+import { SAVES_FILE_TOOLS, SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import { EVAL_CASES, isJudgedEvalCase, selectEvalCases } from "./eval-cases";
 
@@ -16,6 +16,7 @@ function toolsCaseChecks(): Set<string> {
       ...(wanted.tools ?? []),
       ...(wanted.anyTools ?? []),
       ...(wanted.forbiddenTools ?? []),
+      ...(wanted.savesFile ? SAVES_FILE_TOOLS : []),
     ])
       tools.add(tool);
   }
@@ -100,7 +101,6 @@ const NOT_YET_COVERED = new Set([
   "update_table_columns",
   "workspace_import_file",
   "workspace_list",
-  "workspace_read",
   "workspace_search",
   "write_table_rows",
   // Provider-backed SEO tools have isolated integration tests, not model cases.
@@ -204,6 +204,7 @@ describe("CMO chat setup", () => {
     expect(prepared("cmo-change-request")).toBe("cmo-plan");
     expect(prepared("cmo-change-reply-plain")).toBe("cmo-plan");
     expect(prepared("cmo-funnel-aida")).toBe("cmo-plan");
+    expect(prepared("cmo-video-shapes-alsoon")).toBe("cmo-plan");
     expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
     expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
     expect(prepared("cmo-brand-fit")).toBe("cmo-brand");
