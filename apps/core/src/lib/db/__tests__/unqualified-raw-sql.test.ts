@@ -46,8 +46,6 @@ const EXCLUDED: Record<string, string> = {
     "moves the tables out of public by name, for the test layout only",
   "packages/database/prisma/tests/task-schedule-cutover-report.sql":
     "a psql report for one finished cutover; it cannot read the configuration",
-  "packages/database/src/helpers/credit-bucket-owner-xor.test.ts":
-    "quotes migration text",
   "packages/database/src/repositories/curated-vocabulary-migration.test.ts":
     "quotes migration text",
   "packages/database/src/types/__tests__/calendar-collaboration-migration.test.ts":
@@ -223,14 +221,22 @@ describe("unqualified table names in raw SQL", () => {
     ).toEqual([]);
   });
 
-  it("leaves out an excluded file, not every path that starts like it", () => {
-    const files = sourceFiles();
-    expect(files).not.toContain(
-      "packages/database/src/helpers/credit-bucket-owner-xor.test.ts",
-    );
-    expect(files).toContain(
-      "packages/database/src/helpers/credit-bucket-owner-xor.ts",
-    );
+  it("leaves out an excluded file, not every path that starts like it", async () => {
+    const { randomUUID } = await import("node:crypto");
+    const { unlinkSync, writeFileSync } = await import("node:fs");
+    const excluded =
+      "packages/database/src/repositories/curated-vocabulary-migration.test.ts";
+    const included = `${excluded}.${randomUUID()}.ts`;
+    const fixture = join(ROOT, included);
+    writeFileSync(fixture, "", { flag: "wx" });
+    let files: string[];
+    try {
+      files = sourceFiles();
+    } finally {
+      unlinkSync(fixture);
+    }
+    expect(files).not.toContain(excluded);
+    expect(files).toContain(included);
     expect(files.some((file) => file.includes("/prisma/migrations/"))).toBe(
       false,
     );
