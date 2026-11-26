@@ -19,6 +19,7 @@ import {
   prepareA2aCase,
 } from "./eval-a2a";
 import { type EvalLaneRecord, ensureEvalLanes } from "./eval-lanes.service";
+import { reconcileUnsettledCosts } from "./eval-runs.service";
 
 const { failRealtime } = vi.hoisted(() => ({ failRealtime: { times: 0 } }));
 vi.mock("@/lib/ably/client", async () =>
@@ -331,7 +332,7 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
 
       // Ending the case leaves nothing of it to publish into the next one,
       // and touches nothing that is not its own.
-      await endA2aCase(await a2aCaseScope(step.turnIds));
+      await endA2aCase(step.turnIds);
       expect(await effectRow(asked.effectId)).toMatchObject({
         status: "SUPPRESSED",
         reason: "EVAL_CASE_ENDED",
@@ -487,7 +488,70 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
           })
           .then(() => undefined);
       }, 1_000);
-      expect(await endA2aCase(scope, 10_000)).toEqual([]);
+      // Juno's reply mentions the bot, and the dispatch already under way
+      // starts its answer meanwhile: the refreshed scope finds and cancels it.
+      const reply = await prisma.chatRoomMessage.create({
+        data: {
+          roomId: lane.world.roomId,
+          senderSokoBotId: junoId,
+          content: "Asked about the EU plan",
+        },
+      });
+      await prisma.sokoBotTurn.update({
+        where: { id: answering.id },
+        data: { chatResponseMessageId: reply.id },
+      });
+      const second = await prisma.chatRoomMention.create({
+        data: {
+          messageId: reply.id,
+          sokoBotId: lane.sokoBotId,
+          status: "pending",
+        },
+      });
+      let late: { id: string } | null = null;
+      const admitLater = setTimeout(() => {
+        prisma.chatRoomMention
+          .update({ where: { id: second.id }, data: { status: "sent" } })
+          .then(() =>
+            prisma.sokoBotTurn.create({
+              data: {
+                sokoBotId: lane.sokoBotId,
+                requestedByUserId: lane.userId,
+                workspaceId: lane.workspaceId,
+                source: "CHAT",
+                status: "RUNNING",
+                clientTurnId: randomUUID(),
+                userMessage: "Juno answered",
+                capabilityNames: [],
+                deadlineAt: new Date(Date.now() + 60_000),
+                chatMentionId: second.id,
+              },
+            }),
+          )
+          .then((turn) => {
+            late = turn;
+          });
+      }, 200);
+      const stopAll = setTimeout(() => {
+        prisma.sokoBotTurn
+          .updateMany({
+            where: {
+              chatMentionId: { in: [mention.id, second.id] },
+              status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
+            },
+            data: { status: "CANCELLED" },
+          })
+          .then(() => undefined);
+      }, 2_500);
+      const end = await endA2aCase([asked.turnId], 10_000);
+      clearTimeout(admitLater);
+      clearTimeout(stopAll);
+      expect(end.unsettled).toEqual([]);
+      expect(late).not.toBeNull();
+      expect(end.scope.turnIds).toEqual(
+        expect.arrayContaining([asked.turnId, answering.id, late!.id]),
+      );
+      expect(end.scope.turnIds).not.toContain(unrelated.id);
       clearTimeout(settleLater);
       expect(await status(answering.id)).toBe("CANCELLED");
       // The sent mention is fenced, so a late answer cannot post.
@@ -504,7 +568,9 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
         where: { id: answering.id },
         data: { status: "CANCEL_REQUESTED" },
       });
-      expect(await endA2aCase(scope, 600)).toEqual([answering.id]);
+      expect((await endA2aCase([asked.turnId], 600)).unsettled).toEqual([
+        answering.id,
+      ]);
       await prisma.sokoBotTurn.updateMany({
         where: { id: { in: [answering.id, unrelated.id] } },
         data: { status: "CANCELLED" },
@@ -513,4 +579,56 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
       await endCase(lane, coworkerId);
     }
   }, 30_000);
+  it("charges a case that ended unsettled with all its turns once the run completes", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    const turn = (costUsdMicros: bigint) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: lane.sokoBotId,
+          requestedByUserId: lane.userId,
+          workspaceId: lane.workspaceId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: randomUUID(),
+          userMessage: "Fixture",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          costUsdMicros,
+        },
+      });
+    const [first, late] = [await turn(BigInt(100)), await turn(BigInt(250))];
+    const run = await prisma.evalRun.create({
+      data: { trigger: "MANUAL", repeats: 1, environment: "test" },
+    });
+    try {
+      const result = await prisma.evalResult.create({
+        data: {
+          runId: run.id,
+          caseId: "a2a-ask-and-relay",
+          suite: "soko-bot",
+          repeat: 1,
+          position: 0,
+          status: "ERROR",
+          costUsdMicros: BigInt(100),
+          output: {
+            infrastructure: { code: "case_unsettled" },
+            unsettledTurnIds: [late.id],
+            caseTurnIds: [first.id, late.id],
+          },
+        },
+      });
+      await reconcileUnsettledCosts(run.id);
+      expect(
+        (
+          await prisma.evalResult.findUniqueOrThrow({
+            where: { id: result.id },
+            select: { costUsdMicros: true },
+          })
+        ).costUsdMicros,
+      ).toBe(BigInt(350));
+    } finally {
+      await prisma.evalRun.delete({ where: { id: run.id } });
+    }
+  });
 });

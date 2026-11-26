@@ -24,7 +24,8 @@ export interface EvalInfrastructureFailure {
     | "provider_budget_exhausted"
     | "provider_failure"
     | "runner_exited"
-    | "chat_delivery_failed";
+    | "chat_delivery_failed"
+    | "case_unsettled";
   stopsRun: boolean;
   message: string;
   detail: string;

@@ -3,6 +3,8 @@ import {
   type EvalRunTrigger,
   Prisma,
 } from "@sokosumi/database";
+import { z } from "zod";
+
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -464,6 +466,28 @@ async function startNextCase(
   return "started";
 }
 
+/**
+ * A case that ended while its turns still ran was charged too early: read
+ * its cost again from all of its turns (`caseTurnIds`) when the run completes.
+ */
+export async function reconcileUnsettledCosts(runId: string) {
+  // Few per run: an errored case whose turns outlived it records them.
+  const unsettled = await prisma.evalResult.findMany({
+    where: { runId, status: "ERROR" },
+    select: { id: true, output: true },
+  });
+  for (const result of unsettled) {
+    const parsed = z
+      .object({ caseTurnIds: z.array(z.string()) })
+      .safeParse(result.output);
+    if (!parsed.success) continue;
+    await prisma.evalResult.update({
+      where: { id: result.id },
+      data: { costUsdMicros: await turnsCost(parsed.data.caseTurnIds) },
+    });
+  }
+}
+
 /** Whether the run completed, and why its regression email failed if it did. */
 async function completeIfDone(run: {
   id: string;
@@ -474,6 +498,7 @@ async function completeIfDone(run: {
     where: { runId: run.id, status: { in: ["PENDING", "RUNNING"] } },
   });
   if (open > 0) return { completed: false };
+  await reconcileUnsettledCosts(run.id);
   await prisma.evalRun.update({
     where: { id: run.id },
     data: { status: "COMPLETED", finishedAt: new Date() },

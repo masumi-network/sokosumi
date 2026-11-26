@@ -30,7 +30,8 @@ import {
   followUpMessage,
 } from "@/services/soko-bot-watches.service";
 import {
-  a2aCaseScope,
+  type A2aCaseEnd,
+  type A2aPoll,
   a2aChecks,
   a2aRoomLog,
   closeA2aWorld,
@@ -544,34 +545,68 @@ async function pollA2aScenario(
     startedAt: context.startedAt,
   });
   if (step.kind === "waiting") return step;
-  if (step.kind === "undelivered") {
-    const unsettled = await endA2aCase(await a2aCaseScope(step.turnIds));
-    await closeA2aWorld(lane);
-    const infrastructure: EvalInfrastructureFailure = {
-      code: "chat_delivery_failed",
-      stopsRun: false,
-      message: "A chat message of the case was never delivered",
-      detail: step.detail,
-    };
+  // Every exit ends the case first: nothing of it may still run, post or
+  // cost once it is scored, and its world closes whatever happens next.
+  const end = await endA2aCase(step.turnIds);
+  try {
     return {
       kind: "done",
-      outcome: {
-        status: "ERROR",
-        checks: [],
-        output: {
-          infrastructure,
-          notExecuted: false,
-          ...(unsettled.length ? { unsettledTurnIds: unsettled } : {}),
-        },
-        error: `${infrastructure.message}: ${step.detail}`,
-        turnIds: step.turnIds,
-      },
+      outcome: await a2aOutcome(scenario, step, end, lane, context),
     };
+  } finally {
+    await closeA2aWorld(lane);
   }
+}
+
+function a2aInfrastructureError(
+  infrastructure: EvalInfrastructureFailure,
+  end: A2aCaseEnd,
+): CaseOutcome {
+  return {
+    status: "ERROR",
+    checks: [],
+    output: {
+      infrastructure,
+      notExecuted: false,
+      ...(end.unsettled.length
+        ? { unsettledTurnIds: end.unsettled, caseTurnIds: end.scope.turnIds }
+        : {}),
+    },
+    error: `${infrastructure.message}: ${infrastructure.detail}`,
+    turnIds: end.scope.turnIds,
+  };
+}
+
+async function a2aOutcome(
+  scenario: SokoBotScenario,
+  step: Exclude<A2aPoll, { kind: "waiting" }>,
+  end: A2aCaseEnd,
+  lane: EvalLaneRecord,
+  context: CaseContext,
+): Promise<CaseOutcome> {
+  if (step.kind === "undelivered")
+    return a2aInfrastructureError(
+      {
+        code: "chat_delivery_failed",
+        stopsRun: false,
+        message: "A chat message of the case was never delivered",
+        detail: step.detail,
+      },
+      end,
+    );
+  // Still running after the wait: its score and cost would be read too early.
+  if (end.unsettled.length)
+    return a2aInfrastructureError(
+      {
+        code: "case_unsettled",
+        stopsRun: false,
+        message: "The case's turns were still running after it was cancelled",
+        detail: end.unsettled.join(", "),
+      },
+      end,
+    );
   const { turnIds, timedOut } = step;
-  // Whatever is left of the case ends now, before it is read and judged.
-  const scope = await a2aCaseScope(turnIds);
-  const unsettled = await endA2aCase(scope);
+  const { scope } = end;
   const { turns, merged } = await loadA2aChain(turnIds);
   const output = {
     ...scenarioOutput(merged),
@@ -583,7 +618,7 @@ async function pollA2aScenario(
     })),
   };
   const infrastructure = infrastructureCaseOutcome(turnIds[0]!, merged, output);
-  if (infrastructure) return { kind: "done", outcome: infrastructure };
+  if (infrastructure) return { ...infrastructure, turnIds: scope.turnIds };
   const result = evaluateScenario(scenario, merged);
   const extra = await a2aChecks({
     scenario,
@@ -621,22 +656,12 @@ async function pollA2aScenario(
   const passed =
     result.passed === result.total && judged?.verdict.verdict !== "fail";
   return {
-    kind: "done",
-    outcome: {
-      status: passed ? "PASSED" : "FAILED",
-      checks: result.checks,
-      judge: judged?.verdict ?? null,
-      judgeModel: judged?.model ?? null,
-      output: {
-        ...output,
-        roomLog,
-        ...(unsettled.length ? { unsettledTurnIds: unsettled } : {}),
-      },
-      turnIds: [
-        ...turnIds,
-        ...scope.turnIds.filter((id) => !turnIds.includes(id)),
-      ],
-    },
+    status: passed ? "PASSED" : "FAILED",
+    checks: result.checks,
+    judge: judged?.verdict ?? null,
+    judgeModel: judged?.model ?? null,
+    output: { ...output, roomLog },
+    turnIds: scope.turnIds,
   };
 }
 

@@ -35,6 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
     evalRun: { findFirst: boundary.run, update: boundary.finishRun },
     evalResult: {
       findFirst: boundary.result,
+      findMany: vi.fn().mockResolvedValue([]),
       count: boundary.resultCount,
       update: boundary.finish,
     },

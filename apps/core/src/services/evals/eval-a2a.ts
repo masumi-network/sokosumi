@@ -414,76 +414,84 @@ async function caseDeliveryFailure(
     : null;
 }
 
+export interface A2aCaseEnd {
+  scope: A2aCaseScope;
+  /** Turns of the case still running when the wait ran out. */
+  unsettled: string[];
+}
+
 /**
- * Ends what the case left running: its open mentions are fenced, each active
- * turn is cancelled as the member it runs for (Juno's as Hannah), its unsent
- * messages are closed, so none of it reaches the next case, and it waits up
- * to `settleMs` for the turns to stop. Returns the turns still running then.
+ * Ends what the case left running: its open mentions are fenced (a sent one
+ * too: its answer checks the row before posting), each active turn is
+ * cancelled as the member it runs for (Juno's as Hannah), and its unsent
+ * messages are closed, so none of it reaches the next case. The scope is read
+ * again each round, since a dispatch already under way can still start a
+ * recipient, until it holds still with nothing running or `settleMs` passes.
  */
 export async function endA2aCase(
-  scope: A2aCaseScope,
+  chain: string[],
   settleMs = A2A_SETTLE_MS,
-): Promise<string[]> {
-  // A mention already sent is fenced too: its answer checks the row before posting.
-  await prisma.chatRoomMention.updateMany({
-    where: {
-      status: { in: ["staged", "pending", "sent"] },
-      messageId: { in: scope.messageIds },
-    },
-    data: { status: "failed", error: "The eval case ended" },
-  });
-  const active = await prisma.sokoBotTurn.findMany({
-    where: {
-      id: { in: scope.turnIds },
-      status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
-    },
-    select: {
-      id: true,
-      requestedByUserId: true,
-      sokoBot: { select: { userId: true } },
-    },
-  });
-  for (const turn of active) {
-    const member = turn.requestedByUserId ?? turn.sokoBot.userId;
-    await (member
-      ? sokoBotControlPlane.cancelTurn(member, turn.id)
-      : Promise.reject(new Error("The turn runs for no member"))
-    ).catch((error: unknown) =>
-      recordCoreWarning(
-        { operation: "eval_tick", turnId: turn.id },
-        {
-          message: "Could not cancel a turn of an ended eval case",
-          why: "Cancelling it as the member it runs for threw",
-        },
-        { failure: messageSafeErrorFields(error) },
-      ),
-    );
-  }
-  await prisma.sokoBotEffectOutbox.updateMany({
-    where: {
-      purpose: "CHAT_MESSAGE",
-      status: { in: ["PENDING", "PERSISTED"] },
-      receipt: { turnId: { in: scope.turnIds } },
-    },
-    data: {
-      status: "SUPPRESSED",
-      reason: "EVAL_CASE_ENDED",
-      leaseToken: null,
-      leaseUntil: null,
-    },
-  });
-  // Read and charged only once its turns stop: a cancel is a request.
+): Promise<A2aCaseEnd> {
   const deadline = Date.now() + settleMs;
   for (;;) {
+    const scope = await a2aCaseScope(chain);
+    await prisma.chatRoomMention.updateMany({
+      where: {
+        status: { in: ["staged", "pending", "sent"] },
+        messageId: { in: scope.messageIds },
+      },
+      data: { status: "failed", error: "The eval case ended" },
+    });
     const running = await prisma.sokoBotTurn.findMany({
       where: {
         id: { in: scope.turnIds },
         status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        status: true,
+        requestedByUserId: true,
+        sokoBot: { select: { userId: true } },
+      },
     });
-    if (running.length === 0 || Date.now() >= deadline)
-      return running.map((turn) => turn.id);
+    for (const turn of running) {
+      if (turn.status === "CANCEL_REQUESTED") continue;
+      const member = turn.requestedByUserId ?? turn.sokoBot.userId;
+      await (member
+        ? sokoBotControlPlane.cancelTurn(member, turn.id)
+        : Promise.reject(new Error("The turn runs for no member"))
+      ).catch((error: unknown) =>
+        recordCoreWarning(
+          { operation: "eval_tick", turnId: turn.id },
+          {
+            message: "Could not cancel a turn of an ended eval case",
+            why: "Cancelling it as the member it runs for threw",
+          },
+          { failure: messageSafeErrorFields(error) },
+        ),
+      );
+    }
+    await prisma.sokoBotEffectOutbox.updateMany({
+      where: {
+        purpose: "CHAT_MESSAGE",
+        status: { in: ["PENDING", "PERSISTED"] },
+        receipt: { turnId: { in: scope.turnIds } },
+      },
+      data: {
+        status: "SUPPRESSED",
+        reason: "EVAL_CASE_ENDED",
+        leaseToken: null,
+        leaseUntil: null,
+      },
+    });
+    if (running.length === 0) {
+      const again = await a2aCaseScope(chain);
+      if (again.turnIds.length === scope.turnIds.length)
+        return { scope, unsettled: [] };
+      continue;
+    }
+    if (Date.now() >= deadline)
+      return { scope, unsettled: running.map((turn) => turn.id) };
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 }
