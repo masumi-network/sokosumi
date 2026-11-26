@@ -74,6 +74,12 @@ const ENDED = "cmo.strategy_step.ended";
 const STEP_BUDGET_MS = 250_000;
 /** A repair starts only with this much of the budget left. */
 const REPAIR_MIN_MS = 70_000;
+/**
+ * Repairs after the first answer. One cleared 11 of 12 mainnet strategies;
+ * Mailchimp's rewrite of a funnel goal broke a neighbouring rule, which a
+ * second round, told what is left, fixes.
+ */
+const REPAIR_ROUNDS = 2;
 const POLL_MS = 2_000;
 /** A step with no end this long after its start died with its invocation. */
 const STALE_MS = 6 * 60_000;
@@ -153,9 +159,14 @@ export function cmoOwnerLine(
 }
 
 /** The repair's message: every problem at once, as Core's checks name them. */
-export function cmoStrategyRepairPrompt(problems: readonly string[]): string {
+export function cmoStrategyRepairPrompt(
+  problems: readonly string[],
+  round = 1,
+): string {
   return [
-    `Core saved your strategy and checked the whole of it. Fix each of these ${problems.length} problems, then answer once more with only what changes:`,
+    round === 1
+      ? `Core saved your strategy and checked the whole of it. Fix each of these ${problems.length} problems, then answer once more with only what changes:`
+      : `Core saved your fix and checked the whole strategy again. These ${problems.length} problems are left or came with the fix: fix each one without breaking another rule, then answer once more with only what changes:`,
     ...problems.map((problem) => `- ${problem}`),
   ].join("\n");
 }
@@ -393,7 +404,7 @@ async function calendarChecks(
   return [...language.problems, ...fit.problems];
 }
 
-/** Generate, save and check, one repair, save: the whole step. */
+/** Generate, save and check, then repairs told every problem left: the whole step. */
 async function runStep(context: StepContext): Promise<StepEnd> {
   const { authorized, change } = context;
   const version = getSokoBotVersion(authorized.turn.versionId);
@@ -419,22 +430,25 @@ async function runStep(context: StepContext): Promise<StepEnd> {
   ];
   const first = await answer(context, system, messages);
   const part = change ? "patch" : "all";
-  const candidate = first.strategy;
+  let candidate = first.strategy;
   let toOwner = first.toOwner;
   let saved = await saveAnswer(context, 1, part, candidate, first.issues);
   const problems = saved.problems;
-  if (
-    problems.length > 0 &&
-    STEP_BUDGET_MS - (Date.now() - context.startedAt) >= REPAIR_MIN_MS
+  let last = first.message;
+  for (
+    let round = 1;
+    round <= REPAIR_ROUNDS &&
+    saved.problems.length > 0 &&
+    STEP_BUDGET_MS - (Date.now() - context.startedAt) >= REPAIR_MIN_MS;
+    round++
   ) {
-    const call = first.message.find((message) => message.role === "assistant");
+    const call = last.find((message) => message.role === "assistant");
     const toolCall = (Array.isArray(call?.content) ? call.content : []).find(
       (item) => item.type === "tool-call",
     );
-    const repairPrompt = cmoStrategyRepairPrompt(problems);
-    const repair = await answer(context, system, [
-      ...messages,
-      ...first.message,
+    const repairPrompt = cmoStrategyRepairPrompt(saved.problems, round);
+    messages.push(
+      ...last,
       toolCall?.type === "tool-call"
         ? {
             role: "tool",
@@ -448,7 +462,9 @@ async function runStep(context: StepContext): Promise<StepEnd> {
             ],
           }
         : { role: "user", content: repairPrompt },
-    ]);
+    );
+    const repair = await answer(context, system, messages);
+    last = repair.message;
     // A new strategy's line says what it does first; a repair's says what
     // it fixed, which is Core's business. A change's line is the change.
     toOwner = cmoOwnerLine(part, toOwner, repair.toOwner);
@@ -459,8 +475,14 @@ async function runStep(context: StepContext): Promise<StepEnd> {
         ? repair.strategy
         : withStrategyFix(candidate, repair.strategy);
     const fitted = cmoFitStrategy(fix);
-    const issues = fitted.issues;
-    const fixed = await saveAnswer(context, 2, part, fitted.strategy, issues);
+    if (part === "all") candidate = fitted.strategy;
+    const fixed = await saveAnswer(
+      context,
+      round + 1,
+      part,
+      fitted.strategy,
+      fitted.issues,
+    );
     if (fixed.versionId) saved = fixed;
     else saved = { ...saved, problems: fixed.problems };
   }

@@ -76,6 +76,12 @@ describe("Core's strategy step", () => {
     );
   });
 
+  it("tells a second repair what is left or came with the fix", () => {
+    expect(cmoStrategyRepairPrompt(["one"], 2)).toContain(
+      "left or came with the fix",
+    );
+  });
+
   it("names every problem in one repair message", () => {
     const prompt = cmoStrategyRepairPrompt(["one", "two"]);
     expect(prompt).toContain("these 2 problems");
