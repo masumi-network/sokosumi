@@ -17,6 +17,8 @@ export interface SeoRunDay {
   issues: number | null;
   /** The newest check of the day that tested page rules: the check the page shows when this day is picked. */
   check: string | null;
+  /** The newest check of the day of any kind: a day without a page check compares it. */
+  latest: string;
   selected: boolean;
   /** A monitor started a check of the day. */
   scheduled: boolean;
@@ -49,6 +51,7 @@ export function seoRunDays(
         at: run.at,
         issues: null,
         check: null,
+        latest: run.observationId,
         selected: false,
         scheduled: false,
         inRange: false,
@@ -79,14 +82,18 @@ export function seoRunDays(
     days: all.filter((entry, index) => index < SEO_RUN_DAYS || entry.selected),
     /** The end date is the pick of an older run, not a date the reader set in the date fields. */
     picked: Boolean(selected && !selected.newest && selected.day === to),
-    /** The newest page check between the two dates, also on a day the row does not show: a range compares it. */
-    rangeCheck:
-      all.find(
-        (entry) =>
-          entry.check &&
-          (!from || entry.day >= from) &&
-          (!to || entry.day <= to),
-      )?.check ?? null,
+    /**
+     * The newest page check between the two dates, also on a day the row does not show: a range compares it. A range
+     * without one compares its newest check of any kind.
+     */
+    rangeCheck: (() => {
+      const inside = all.filter(
+        (entry) => (!from || entry.day >= from) && (!to || entry.day <= to),
+      );
+      return (
+        inside.find((entry) => entry.check)?.check ?? inside[0]?.latest ?? null
+      );
+    })(),
     /** Every day with a check, newest first: the calendar under "Other dates" marks them. */
     checkDays: all.map((entry) => entry.day),
   };

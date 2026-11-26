@@ -134,6 +134,16 @@ describe("SEO runs of a site", () => {
     expect(rangeCheck("2026-11-03", "2026-11-04")).toBeNull();
   });
 
+  it("gives a range with no page check its newest check of any kind", () => {
+    const runs = [
+      run("2026-11-02T10:00:00Z", 1, "rankings"),
+      run("2026-11-01T09:00:00Z", 1),
+    ];
+    expect(
+      seoRunDays({ runs }, { from: "2026-11-02", to: "2026-11-02" }).rangeCheck,
+    ).toBe("2026-11-02T10:00:00Z");
+  });
+
   it("keeps the five newest days, and an older day only while it is in view", () => {
     const runs = [3, 4, 5, 6, 7, 8, 9].map((day) =>
       run(`2026-11-0${day}T09:00:00Z`, day),
