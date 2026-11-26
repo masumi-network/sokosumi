@@ -2,6 +2,7 @@ import { CONTEXT_ON_DEMAND_SKILL } from "./context-on-demand-skills.js";
 import type { SokoBotVersion } from "./types.js";
 import { v37 } from "./v37.js";
 import {
+  RESULT_CARDS_SEND_MESSAGE_SKILL,
   SOCIAL_POSTING_ACCOUNT_SKILL,
   SOKO_BOT_PLAYBOOKS_SKILL,
 } from "./v39-skills.js";
@@ -24,10 +25,14 @@ export const v39: SokoBotVersion = {
     "I look up the exact Task, mail or contact you ask about, even an old one, follow a proven playbook when I write a page, an email sequence or a launch, and ask which account to post on when you have more than one.",
   skillsOnDemand: true,
   skills: [
+    // v37's skills, two rewritten: posting that asks which account, and
+    // result cards shared with send_message, the messaging tool v39 holds.
     ...v37.skills.map((skill) =>
       skill === "social-posting-instructions"
         ? SOCIAL_POSTING_ACCOUNT_SKILL
-        : skill,
+        : skill === "result-cards"
+          ? RESULT_CARDS_SEND_MESSAGE_SKILL
+          : skill,
     ),
     CONTEXT_ON_DEMAND_SKILL,
     SOKO_BOT_PLAYBOOKS_SKILL,

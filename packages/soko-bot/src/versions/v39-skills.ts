@@ -21,6 +21,29 @@ const socialPosting = COMPACT_SOKO_BOT_SKILLS.find(
 );
 if (!socialPosting) throw new Error("social-posting-instructions is missing");
 
+export const RESULT_CARDS_SEND_MESSAGE_SKILL = "result-cards-send-message";
+
+const resultCards = COMPACT_SOKO_BOT_SKILLS.find(
+  (skill) => skill.id === "result-cards",
+);
+const POST_CHAT_LINE =
+  "Cards only read. To share cards into a room the owner asked you to post in, call `post_chat` with `resultReferences`.";
+if (!resultCards?.content.includes(POST_CHAT_LINE))
+  throw new Error("result-cards no longer ends with its post_chat line");
+
+/**
+ * Result cards for a version that messages with send_message (v35 on): the
+ * same cards, shared into a room through the tool the turn holds.
+ */
+export const RESULT_CARDS_SEND_MESSAGE: SokoBotSkill = {
+  ...resultCards,
+  id: RESULT_CARDS_SEND_MESSAGE_SKILL,
+  content: resultCards.content.replace(
+    POST_CHAT_LINE,
+    "Cards only read. To share cards into a room the owner asked you to post in, `send_message` that room with `resultReferences`; where this turn has no `send_message`, say where to find them instead.",
+  ),
+};
+
 /**
  * An open destination is asked, not guessed (Core enforces it too:
  * social-destination.ts). The owner's choices decide, however they are made;

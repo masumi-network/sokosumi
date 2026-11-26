@@ -331,7 +331,11 @@ export function composeTurnPreamble(
     .join("\n\n");
 }
 
-const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+const RESULT_CARD_SKILLS = new Set([
+  "chat-result-previews",
+  "result-cards",
+  "result-cards-send-message",
+]);
 
 /** Whether the version teaches the bot to attach result cards. */
 export function versionShowsResultCards(

@@ -229,6 +229,11 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "every turn: what your context packet shows, its map, and how to read the rest.",
     preloadOn: ["always"],
   },
+  "result-cards-send-message": {
+    useWhen:
+      "every turn that creates or changes something: the result card for each Task, schedule, post, image, Job or file.",
+    preloadOn: ["always"],
+  },
   "social-posting-account": {
     useWhen:
       "drafting, scheduling or publishing a Social post (asking which account first when several fit), or analysing a social account's performance.",

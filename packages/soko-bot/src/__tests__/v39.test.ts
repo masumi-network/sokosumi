@@ -5,6 +5,7 @@ import {
   composeSystemPrompt,
   getSokoBotSkill,
   getSokoBotVersion,
+  versionShowsResultCards,
 } from "../versions/index.js";
 import { SKILL_INDEX } from "../versions/skill-index.js";
 import { WRITING_SKILLS } from "../writing-skills/index.js";
@@ -25,6 +26,16 @@ describe("v39", () => {
     );
     expect(v39.skills).not.toContain("social-posting-instructions");
     expect(v39.skills).toHaveLength(v37.skills.length + 2);
+    // Its cards are shared with send_message, the messaging tool it holds.
+    expect(v39.skills).toContain("result-cards-send-message");
+    expect(v39.skills).not.toContain("result-cards");
+    expect(versionShowsResultCards(v39)).toBe(true);
+    const tools = applyVersionCapabilities(v39, SOKO_BOT_CAPABILITIES);
+    expect(tools).toContain("send_message");
+    expect(tools).not.toContain("post_chat");
+    expect(getSokoBotSkill("result-cards-send-message").content).not.toMatch(
+      /post_chat/,
+    );
     for (const id of v39.skills) expect(SKILL_INDEX[id]?.useWhen).toBeTruthy();
   });
 
