@@ -26,9 +26,11 @@ const TRAFFIC_FRESH_MS = 5 * 60_000;
 /** True when Core made the split of this report with exactly this term list. */
 function splitMadeWith(report: SeoSiteTrafficReport, terms: string[]) {
   // A Core from before the split named its terms sends none: that split is not proved.
-  const made: string[] | undefined = report.brand?.terms;
-  return Boolean(
-    made?.length === terms.length && made.every((term, i) => term === terms[i]),
+  const made: unknown = report.brand?.terms;
+  return (
+    Array.isArray(made) &&
+    made.length === terms.length &&
+    made.every((term, i) => term === terms[i])
   );
 }
 export function useSeoSiteTraffic(
