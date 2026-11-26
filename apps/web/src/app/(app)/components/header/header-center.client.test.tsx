@@ -63,7 +63,7 @@ describe("HeaderCenter", () => {
     expect(scopeClasses).not.toContain("sm:flex");
   });
 
-  it("keeps the phone's global actions off a room, where the room's title needs the row", () => {
+  it("hides the phone's global actions on a room, where the room's title needs the row", () => {
     const actions = () =>
       render(
         <HeaderMobileActions>
@@ -72,11 +72,17 @@ describe("HeaderCenter", () => {
       );
 
     const { unmount } = actions();
-    expect(screen.getByRole("button", { name: "Search" })).toBeVisible();
+    expect(screen.getByTestId("header-mobile-actions")).not.toHaveClass(
+      "hidden",
+    );
     unmount();
 
     mockPathname = "/chat/rooms/room-1";
     actions();
-    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+    expect(screen.getByTestId("header-mobile-actions")).toHaveClass("hidden");
+    // Still mounted: New task's Alt+N listener lives in its button.
+    expect(
+      screen.getByRole("button", { name: "Search", hidden: true }),
+    ).toBeInTheDocument();
   });
 });
