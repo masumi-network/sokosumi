@@ -300,6 +300,31 @@ const jobResult = (data: unknown) => ({
 const started = jobEvent("INITIATED", "2026-11-25T09:00:00.000Z");
 const running = jobEvent("RUNNING", "2026-11-25T09:01:00.000Z");
 
+const INPUT_QUESTION =
+  "Who reads the summary, and which tone fits them? <b>Markup stays text.</b>";
+/** Stored as text on the event, as the agent sent it. */
+const INPUT_SCHEMA = JSON.stringify({
+  input_data: [
+    {
+      id: "audience",
+      type: "string",
+      name: "Audience",
+      data: { placeholder: "Founders in Germany" },
+      validations: [{ validation: "min", value: 3 }],
+    },
+    {
+      id: "tone",
+      type: "radio",
+      name: "Tone",
+      data: { values: ["Formal", "Friendly"], default: "Formal" },
+    },
+  ],
+});
+const awaiting = jobEvent("AWAITING_INPUT", "2026-11-25T09:03:00.000Z", {
+  inputSchema: INPUT_SCHEMA,
+  result: INPUT_QUESTION,
+});
+
 /** `jobs_show` results: `jobs_get`'s, with Core's `_meta`. */
 export const JOB = {
   input: { id: JOB_ID, workspace: "acme" },
@@ -371,16 +396,44 @@ export const JOB = {
       started,
     ]),
   ),
-  inputRequired: jobResult(
+  inputRequired: jobResult(job("input_required", [awaiting, running, started])),
+  /** `jobs_input_request`'s answer for `inputRequired`: its event and fields. */
+  inputRequest: data({
+    eventId: awaiting.id,
+    message: INPUT_QUESTION,
+    inputSchema: INPUT_SCHEMA,
+  }),
+  /** `jobs_input`'s answer: Core's JobInput. */
+  inputSent: data({
+    id: "job_input_1",
+    input: '{"audience":"Founders in Germany","tone":[1]}',
+    inputHash: "input_hash",
+    signature: "signature",
+  }),
+  /** Still `input_required` while Core waits for the agent, the request answered. */
+  inputAnswered: jobResult(
     job("input_required", [
-      jobEvent("AWAITING_INPUT", "2026-11-25T09:03:00.000Z", {
-        inputSchema: '{"input_data":[{"id":"tone","type":"string"}]}',
-      }),
+      { ...awaiting, input: { id: "job_input_1" } },
       running,
       started,
     ]),
   ),
+  /** Core refuses the answer: the agent rejected it. */
+  inputRefused: data(null, {
+    structuredContent: {
+      status: 422,
+      message: "The agent could not accept this input",
+    },
+    isError: true,
+  }),
 };
+
+/** The job-status view's calls while it answers `inputRequired`. */
+const jobInputCalls = {
+  jobs_input_request: JOB.inputRequest,
+  jobs_input: JOB.inputSent,
+};
+const answerInput = [{ fill: "Audience", value: "Founders in Germany" }];
 
 const toolResult = (structuredContent: Record<string, unknown>) => ({
   content: [{ type: "text" as const, text: JSON.stringify(structuredContent) }],
@@ -612,6 +665,8 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
     inputRequired: {
       input: JOB.input,
       result: JOB.inputRequired,
+      calls: jobInputCalls,
+      step: "input",
       allWidths: true,
     },
     missingToolset: {
@@ -641,6 +696,29 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
         content: [{ type: "text", text: "Job not found" }],
         isError: true,
       },
+    },
+    inputInvalid: {
+      input: JOB.input,
+      result: JOB.inputRequired,
+      calls: jobInputCalls,
+      play: [{ click: "Send answer" }],
+      step: "input",
+      allWidths: true,
+    },
+    inputFailed: {
+      input: JOB.input,
+      result: JOB.inputRequired,
+      calls: { ...jobInputCalls, jobs_input: JOB.inputRefused },
+      play: [...answerInput, { click: "Send answer" }],
+      step: "input-failed",
+      allWidths: true,
+    },
+    inputSent: {
+      input: JOB.input,
+      result: JOB.inputRequired,
+      calls: { ...jobInputCalls, jobs_get: JOB.inputAnswered },
+      play: [...answerInput, { click: "Send answer" }],
+      step: "input-sent",
     },
   },
   "task-detail": {
