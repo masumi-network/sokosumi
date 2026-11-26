@@ -3,6 +3,7 @@ import { cmoV4Skills } from "./cmo-v4-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
 import { CONTEXT_ON_DEMAND } from "./context-on-demand-skills.js";
 import { MESSAGING_SOKO_BOT_SKILLS } from "./messaging-skills.js";
+import { SOCIAL_POSTING_ACCOUNT, SOKO_BOT_PLAYBOOKS } from "./v39-skills.js";
 import { X_DMS_SOKO_BOT_SKILLS } from "./x-dms-skills.js";
 
 /**
@@ -369,6 +370,8 @@ Prospects are people the owner finds interesting but nobody on the team has met 
   ...MESSAGING_SOKO_BOT_SKILLS,
   ...X_DMS_SOKO_BOT_SKILLS,
   CONTEXT_ON_DEMAND,
+  SOCIAL_POSTING_ACCOUNT,
+  SOKO_BOT_PLAYBOOKS,
   {
     id: "jev-triage",
     name: "Triage with Jev",

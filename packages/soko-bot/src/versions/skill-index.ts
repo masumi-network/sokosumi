@@ -218,6 +218,26 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "asking a person, Coworker or another assistant something with send_message, or handing work over to them.",
     preloadOn: ["DELEGATE_TASK", "MIXED"],
   },
+  // v39
+  "inbox-calendar-x": {
+    useWhen:
+      "reading, triaging, drafting or sending mail or X direct messages, the morning briefing, or anything on the calendar.",
+    preloadOn: ["mail", "schedule"],
+  },
+  "context-on-demand": {
+    useWhen:
+      "every turn: what your context packet shows, its map, and how to read the rest.",
+    preloadOn: ["always"],
+  },
+  "social-posting-account": {
+    useWhen:
+      "drafting, scheduling or publishing a Social post (asking which account first when several fit), or analysing a social account's performance.",
+  },
+  playbooks: {
+    useWhen:
+      "writing a page, an email sequence, cold outreach, a press pitch, a launch, an offer, a referral ask, or tightening copy.",
+    preloadOn: ["always"],
+  },
 };
 
 /**

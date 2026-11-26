@@ -6,8 +6,10 @@ import {
   getSokoBotVersion,
   isSokoBotSandboxCapability,
   type ScenarioCheck,
+  SOKO_BOT_PLAYBOOKS_SKILL,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
+  sokoBotReadsPlaybooks,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import { databaseNow } from "@/lib/db/database-now";
@@ -243,7 +245,8 @@ async function lacksPlaybooks(
     where: { id: sokoBotId },
     select: { versionId: true },
   });
-  return !cmoReadsPlaybooks(getSokoBotVersion(bot.versionId).skills);
+  const { skills } = getSokoBotVersion(bot.versionId);
+  return !cmoReadsPlaybooks(skills) && !sokoBotReadsPlaybooks(skills);
 }
 
 async function startScenario(
@@ -279,11 +282,13 @@ async function startScenario(
     }
   }
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
-  if (bot === "cuso" && (await lacksPlaybooks(scenario, sokoBotId)))
+  if (await lacksPlaybooks(scenario, sokoBotId))
     return {
       kind: "done",
       outcome: skipped(
-        `Needs a Cuso version with the playbooks (${CMO_PLAYBOOKS_SKILL})`,
+        bot === "cuso"
+          ? `Needs a Cuso version with the playbooks (${CMO_PLAYBOOKS_SKILL})`
+          : `Needs a Soko Bot version with the playbooks (${SOKO_BOT_PLAYBOOKS_SKILL})`,
       ),
     };
   let state: Record<string, unknown> = prepare

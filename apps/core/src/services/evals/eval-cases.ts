@@ -129,6 +129,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "recall-standing-rule": "Memory",
   "contacts-add-and-find": "Contacts",
   "contacts-search": "Contacts",
+  "soko-bot-landing-page-playbook": "Writing",
   "fundraising-pipeline-off": "Fundraising",
   "fundraising-find-investors-off": "Fundraising",
   "table-from-chat": "Drive",

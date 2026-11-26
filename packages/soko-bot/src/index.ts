@@ -404,6 +404,11 @@ export {
   type SkillOccasion,
   splitSkillsForTurn,
 } from "./versions/skill-index.js";
+export {
+  SOCIAL_POSTING_ACCOUNT_SKILL,
+  SOKO_BOT_PLAYBOOKS_SKILL,
+  sokoBotReadsPlaybooks,
+} from "./versions/v39-skills.js";
 export { sokoBotReadsXDms, X_DMS_SKILL_ID } from "./versions/x-dms-skills.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {

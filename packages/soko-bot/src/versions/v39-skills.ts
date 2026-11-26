@@ -1,0 +1,58 @@
+import { WRITING_SKILLS } from "../writing-skills/index.js";
+import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
+import type { SokoBotSkill } from "./skills.js";
+
+/**
+ * v39's two new skills: social posting that asks which account when the
+ * request leaves it open, and the marketing playbooks Cuso reads (#8258),
+ * listed for Soko Bots and read with read_skill.
+ */
+
+export const SOCIAL_POSTING_ACCOUNT_SKILL = "social-posting-account";
+export const SOKO_BOT_PLAYBOOKS_SKILL = "playbooks";
+
+/** Whether a Soko Bot version may read the playbook writing skills. */
+export function sokoBotReadsPlaybooks(skills: readonly string[]): boolean {
+  return skills.includes(SOKO_BOT_PLAYBOOKS_SKILL);
+}
+
+const socialPosting = COMPACT_SOKO_BOT_SKILLS.find(
+  (skill) => skill.id === "social-posting-instructions",
+);
+if (!socialPosting) throw new Error("social-posting-instructions is missing");
+
+/**
+ * Owner journeys (Codex round 15): with two X accounts connected, every run
+ * drafted on one of them before asking which. Text the owner quotes is the
+ * post, not where it goes.
+ */
+export const SOCIAL_POSTING_ACCOUNT: SokoBotSkill = {
+  id: SOCIAL_POSTING_ACCOUNT_SKILL,
+  name: socialPosting.name,
+  description: `${socialPosting.description} Asks which account first when the request leaves it open.`,
+  content: `${socialPosting.content.trimEnd()}
+
+## Which account
+
+Before the first draft, settle where the post goes.
+- Use the account or Project the owner names. Text the owner quotes or pastes is the post's words, not a destination.
+- When the owner names none and more than one connected account fits the network (two X accounts, a personal and a company LinkedIn), ask once which one, naming them, and draft nothing until they answer. With one fitting account, use it and say which.
+- After the answer, draft on that account only.
+`,
+};
+
+const PLAYBOOKS = WRITING_SKILLS.filter((skill) => skill.group === "playbooks");
+
+export const SOKO_BOT_PLAYBOOKS: SokoBotSkill = {
+  id: SOKO_BOT_PLAYBOOKS_SKILL,
+  name: "Playbooks",
+  description:
+    "Reads a playbook before writing a page, an email sequence, outreach, a launch, an offer or a referral ask.",
+  content: `# Playbooks
+
+For writing beyond a social post or a mail reply, read the playbook that fits with read_skill before you write, and follow it for the rest of the turn:
+${PLAYBOOKS.map((skill) => `- \`${skill.id}\`: ${skill.description}`).join("\n")}
+
+- One playbook, two at most. A social post keeps its own skill.
+- Facts, prices, offers and proof only from the owner, their files and pages, and what you read this turn. What is missing becomes one short question, never a bracket left in the text.`,
+};
