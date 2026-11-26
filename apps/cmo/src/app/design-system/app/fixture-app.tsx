@@ -123,6 +123,7 @@ interface FixtureAppProps {
    * Competitors: the page with nobody watched yet, or still loading.
    * blocked: the month could not start, and a message does not send.
    * stuck: the day's runs ended with the month half made.
+   * stopped: Core's writer used every try and does not try again.
    * busy: a full month, five or six posts a day.
    * quiet: no posts yet, nothing that needs the owner, a long business name.
    * upgraded: Cuso was just moved onto a newer version.
@@ -132,6 +133,7 @@ interface FixtureAppProps {
     | "loading"
     | "blocked"
     | "stuck"
+    | "stopped"
     | "busy"
     | "quiet"
     | "upgraded"
@@ -163,7 +165,7 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
             },
           },
         }
-      : state === "stuck"
+      : state === "stuck" || state === "stopped"
         ? {
             ...shown,
             overview: {
@@ -181,9 +183,13 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
               production: {
                 ...shown.overview.production,
                 state: "stuck" as const,
-                retryAt: new Date(
-                  Date.now() + 3 * 60 * 60 * 1_000,
-                ).toISOString(),
+                ...(state === "stopped"
+                  ? { writerFailed: true, retryAt: null }
+                  : {
+                      retryAt: new Date(
+                        Date.now() + 3 * 60 * 60 * 1_000,
+                      ).toISOString(),
+                    }),
               },
             },
           }

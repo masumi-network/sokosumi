@@ -288,7 +288,10 @@ export interface CmoProductionStatus {
    * drafts without one and no longer hold the month back.
    */
   withoutPicture: string[];
-  /** When a stopped month's next run starts; null unless stuck. */
+  /**
+   * When a stopped month's next run starts; null unless stuck, and null for
+   * a month Core stopped writing (stuck with writerFailed): no run follows.
+   */
   retryAt: string | null;
   /** Stuck because Core's month writer wrote nothing in the last run: ours. */
   writerFailed: boolean;
