@@ -47,7 +47,12 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: scheduleFindManyMock,
       create: scheduleCreateMock,
     },
+    // No organization: the stand-up has no raise block.
+    workspace: { findUnique: vi.fn().mockResolvedValue(null) },
   },
+}));
+vi.mock("@/services/chat-signal-views.service", () => ({
+  listChatOpenLoops: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));

@@ -114,6 +114,8 @@ vi.mock("@sentry/node", () => {
     init: vi.fn(),
     captureException: vi.fn(),
     captureMessage: vi.fn(),
+    captureCheckIn: vi.fn(() => "check-in-id"),
+    flush: vi.fn(async () => true),
     addBreadcrumb: vi.fn(),
     getCurrentScope: () => scope,
     getActiveSpan: () => undefined,

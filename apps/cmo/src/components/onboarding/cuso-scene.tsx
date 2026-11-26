@@ -13,7 +13,7 @@ const ART: Record<Scene, CusoArt> = {
   research: "researching",
   brand: "pointing",
   planning: "thinking",
-  subscribe: "done",
+  subscribe: "correct",
   launch: "walking",
   hero: "pointing",
 };

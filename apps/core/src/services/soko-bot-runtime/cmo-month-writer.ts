@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   type BrandBrain,
   CMO_PICKED_PIECE_WRITING_GUIDE,
@@ -29,6 +30,7 @@ import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
@@ -116,12 +118,18 @@ import { type RuntimeOperations } from "./operations";
  * time to answer; what it did not save stays pending for the next call.
  */
 /**
- * Sixty a call, six chunks at once under the same deadline: cmo-v14's top
- * month (504 pieces) takes nine calls instead of thirteen.
+ * Three pieces a chunk, ten chunks at once. A piece takes about 1,700 output
+ * tokens, and the gateway answered 3-piece chunks in 10 to 63 s. A 10-piece
+ * chunk (about 17,000 tokens) ran past its 75 s limit every time: on
+ * 2026-11-25 a 24-piece month wrote nothing, and NMKR's wrote 3 of 20 a call.
  */
-const PIECES_PER_CALL = 60;
-const PIECES_PER_CHUNK = 10;
+const PIECES_PER_CALL = 30;
+const PIECES_PER_CHUNK = 3;
 const MODEL_TIMEOUT_MS = 75_000;
+/** A chunk that failed fast is retried once after this pause... */
+const RETRY_BACKOFF_MS = 2_000;
+/** ...when the deadline still leaves its model call this long. */
+const RETRY_MIN_MS = 30_000;
 /** What the writer leaves of its tool timeout to answer and log. */
 const ANSWER_MARGIN_MS = 15_000;
 export function cmoMonthWriterBudgetMs(): number {
@@ -431,6 +439,26 @@ function chunkFailed(turnId: string) {
   };
 }
 
+/**
+ * An input the writer can do without (industry, site pages, the pieces'
+ * points) that failed to load; the month is written without it.
+ */
+function writerInputFailed<T>(
+  fallback: T,
+  turnId: string,
+  input: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_month_writer", turn: { id: turnId }, writerInput: input },
+    {
+      message: "The month writer went on without one of its inputs",
+      why: "Loading or saving the input threw",
+      fix: "The pieces are written without it; read writerInput and the failure fields. If it repeats, the month misses that input every day.",
+    },
+  );
+}
+
 async function writeChunk(
   input: ExecuteSokoBotToolInput,
   request: ReturnType<typeof sokoBotModelRequest>,
@@ -443,6 +471,13 @@ async function writeChunk(
   if (timeoutMs <= 0) return [];
   const result = await generateText({
     ...request,
+    // At the default effort a 3-piece chunk reasoned up to 10,500 tokens and
+    // most chunks ran past 75 s (cmo-month-timed, 2026-11-25). The words are
+    // checked after the call; the calendar writer runs low for the same reason.
+    providerOptions: {
+      ...request.providerOptions,
+      openai: { reasoningEffort: "low" },
+    },
     system,
     prompt,
     output: Output.object({ schema: cmoWrittenChunkSchema }),
@@ -452,6 +487,32 @@ async function writeChunk(
   }).catch(rethrowAiGatewayFailure);
   await chargeWriterCall(input, modelId, result);
   return cmoWrittenChunkSchema.parse(result.output).pieces;
+}
+
+function timedOut(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
+/**
+ * A chunk whose call failed fast (a gateway error, an answer that did not
+ * parse) is written once more. A call that ran out its time is not: no time
+ * is left, and its pieces stay pending for the next call.
+ */
+async function writeChunkWithRetry(
+  ...args: Parameters<typeof writeChunk>
+): Promise<WrittenPiece[]> {
+  try {
+    return await writeChunk(...args);
+  } catch (error) {
+    if (timedOut(error)) throw error;
+    await sleep(RETRY_BACKOFF_MS);
+    if (cmoWriterModelTimeoutMs(args[5], Date.now()) < RETRY_MIN_MS)
+      throw error;
+    return writeChunk(...args);
+  }
 }
 
 /** Charged to the turn like its own steps, with its tokens. */
@@ -564,7 +625,9 @@ export async function writeCmoMonthPieces(
   );
   // cmo-v21: the buyer's industry, which most helpful pieces rest on.
   const industry = cmoReadsIndustry(authorized.turn.versionId)
-    ? await readCmoIndustry(cuso.projectId).catch(() => null)
+    ? await readCmoIndustry(cuso.projectId).catch(
+        writerInputFailed(null, authorized.turn.id, "industry"),
+      )
     : null;
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
@@ -582,8 +645,11 @@ export async function writeCmoMonthPieces(
     ...(shorts ? { shorts: { website: Boolean(cuso.websiteUrl) } } : {}),
     sitePages: cmoReadsSitePages(authorized.turn.versionId)
       ? cmoWriterSitePages(
-          (await readCmoSitePages(cuso.projectId).catch(() => null))?.pages ??
-            [],
+          (
+            await readCmoSitePages(cuso.projectId).catch(
+              writerInputFailed(null, authorized.turn.id, "site_pages"),
+            )
+          )?.pages ?? [],
         )
       : undefined,
     industry: industry?.items.map(cmoIndustryLine),
@@ -669,7 +735,13 @@ export async function writeCmoMonthPieces(
               if (call) await chargeWriterCall(input, modelId, call);
               return claims;
             })
-            .catch(() => new Map<string, string>());
+            .catch(
+              writerInputFailed(
+                new Map<string, string>(),
+                authorized.turn.id,
+                "points",
+              ),
+            );
     const saved =
       assigned.size > 0 &&
       (await child("save_strategy", {
@@ -682,7 +754,7 @@ export async function writeCmoMonthPieces(
         },
       }).then(
         () => true,
-        () => false,
+        writerInputFailed(false, authorized.turn.id, "points_save"),
       ));
     if (saved)
       return {
@@ -872,7 +944,7 @@ export async function writeCmoMonthPieces(
     }));
   await Promise.all(
     chunks.map((chunk, index) =>
-      writeChunk(
+      writeChunkWithRetry(
         input,
         request,
         modelId,

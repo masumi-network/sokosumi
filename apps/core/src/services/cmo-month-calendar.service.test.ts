@@ -39,6 +39,7 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
 
 import {
   CMO_MONTH_CALENDAR_ATTEMPTS,
+  CMO_MONTH_CALENDAR_MAX_ATTEMPTS,
   CMO_MONTH_CALENDAR_MODEL,
   CMO_MONTH_CALENDAR_RETRY_MS,
   CMO_MONTH_CALENDAR_STALE_MS,
@@ -377,6 +378,21 @@ describe("cmoMonthCalendarDue", () => {
       cmoMonthCalendarDue(
         ended(CMO_MONTH_CALENDAR_ATTEMPTS, CMO_MONTH_CALENDAR_RETRY_MS),
         "steady",
+        now,
+      ),
+    ).toBe(true);
+    // A day of three-hourly tries later, Core stops for this level.
+    expect(
+      cmoMonthCalendarDue(
+        ended(CMO_MONTH_CALENDAR_MAX_ATTEMPTS, CMO_MONTH_CALENDAR_RETRY_MS),
+        "steady",
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      cmoMonthCalendarDue(
+        ended(CMO_MONTH_CALENDAR_MAX_ATTEMPTS, CMO_MONTH_CALENDAR_RETRY_MS),
+        "all_in",
         now,
       ),
     ).toBe(true);

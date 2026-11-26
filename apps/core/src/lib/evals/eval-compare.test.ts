@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { countOutcomes, evalOutcome, passRate } from "./eval-compare";
+import {
+  aboveUsual,
+  countOutcomes,
+  evalOutcome,
+  median,
+  passRate,
+  usualValue,
+} from "./eval-compare";
 
 describe("passRate", () => {
   it("leaves out skipped and unscored repeats", () => {
@@ -25,8 +32,15 @@ describe("evalOutcome", () => {
     expect(evalOutcome(["PASSED", "PASSED"], [0.67, 1])).toBe("passing");
   });
 
-  it("is regressed when a case that always passed fails one repeat", () => {
+  it("is flaky, not regressed, when a case that always passed fails a minority of repeats", () => {
     expect(evalOutcome(["PASSED", "FAILED", "PASSED"], [1, 1, 1])).toBe(
+      "flaky",
+    );
+    expect(evalOutcome(["PASSED", "FAILED"], [1, 1, 1])).toBe("flaky");
+  });
+
+  it("is regressed when most repeats of a case that always passed fail", () => {
+    expect(evalOutcome(["FAILED", "FAILED", "PASSED"], [1, 1, 1])).toBe(
       "regressed",
     );
   });
@@ -73,6 +87,27 @@ describe("evalOutcome", () => {
   it("waits while no repeat has finished", () => {
     expect(evalOutcome(["PENDING", "RUNNING"], [1])).toBe("pending");
     expect(evalOutcome(["PASSED", "PENDING"], [1])).toBe("passing");
+  });
+});
+
+describe("usual cost and duration", () => {
+  it("takes the median of the last five weekly runs", () => {
+    expect(median([3, 1, 2])).toBe(2);
+    expect(median([4, 1, 2, 3])).toBe(2.5);
+    expect(median([])).toBeNull();
+    expect(usualValue([1, 2, 3, 4, 5, 100])).toBe(3);
+  });
+
+  it("says nothing with fewer than three weekly runs", () => {
+    expect(usualValue([1, 2])).toBeNull();
+    expect(aboveUsual(10, usualValue([1, 2]))).toBe(false);
+  });
+
+  it("flags only values above 1.3 times the usual one", () => {
+    expect(aboveUsual(1.31, 1)).toBe(true);
+    expect(aboveUsual(1.3, 1)).toBe(false);
+    expect(aboveUsual(null, 1)).toBe(false);
+    expect(aboveUsual(5, 0)).toBe(false);
   });
 });
 

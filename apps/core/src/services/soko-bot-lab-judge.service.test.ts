@@ -291,6 +291,49 @@ describe("soko-bot judge on Claude Code", () => {
     expect(prisma.sokoBotTurn.update).not.toHaveBeenCalled();
   });
 
+  it("keeps the CLI judge when a run asks for another model", async () => {
+    useClaudeCode();
+    vi.mocked(runClaudeCodeJudge).mockResolvedValue(VALID_VERDICT);
+
+    const judged = await judgeEvalScenarioTurn(
+      "turn-1",
+      scenario,
+      "anthropic/claude-sonnet-5",
+    );
+
+    expect(judged.model).toBe("claude-code:claude-opus-5-5");
+  });
+
+  it("judges on the model a run asks for through the Gateway", async () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...realEnv,
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    const actual = await vi.importActual<typeof import("ai")>("ai");
+    vi.mocked(generateText).mockImplementationOnce((options) =>
+      actual.generateText({ ...options, model: budgetSensitiveJudgeModel() }),
+    );
+
+    const judged = await judgeEvalScenarioTurn(
+      "turn-1",
+      scenario,
+      "anthropic/claude-sonnet-5",
+    );
+
+    expect(judged.model).toBe("anthropic/claude-sonnet-5");
+    expect(generateText).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          modelId: "anthropic/claude-sonnet-5",
+        }),
+      }),
+    );
+    const update = vi.mocked(prisma.sokoBotTurn.update).mock.calls[0]?.[0];
+    expect(update?.data).toMatchObject({
+      qualityModel: "anthropic/claude-sonnet-5",
+    });
+  });
+
   it("refuses to run on Vercel", async () => {
     useClaudeCode({ VERCEL_ENV: "production" });
 

@@ -148,6 +148,7 @@ async function executeTool(
     case "save_strategy":
     case "report_update":
     case "write_month_pieces":
+    case "write_strategy":
     case "evaluate_with_jev":
     case "search_exa":
     case "check_competitors":

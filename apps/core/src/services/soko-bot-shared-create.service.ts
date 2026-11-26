@@ -9,6 +9,7 @@ import { conflict, forbidden } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
+import { CUSO_FACE_URL, isCusoVersion } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import { recordCoreError } from "@/lib/evlog";
 import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
@@ -169,6 +170,9 @@ export async function createSharedSokoBot(
           workspaceId: input.workspaceId,
           name,
           versionId,
+          ...(isCusoVersion(versionId)
+            ? { avatarImageUrl: CUSO_FACE_URL }
+            : {}),
           ...(input.avatarSeed !== undefined
             ? { avatarSeed: input.avatarSeed }
             : {}),
@@ -223,8 +227,10 @@ export async function createSharedSokoBot(
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
   );
   // Outside the transaction: it uploads to Blob.
-  const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
-  if (look) Object.assign(created, look);
+  if (!isCusoVersion(versionId)) {
+    const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+    if (look) Object.assign(created, look);
+  }
   // Shared bots get their built-in rhythms switched off; a member turns them on.
   const { ensureSystemSchedules } = await import(
     "@/services/soko-bot-proactive.service"

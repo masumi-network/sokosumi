@@ -58,6 +58,7 @@ vi.mock("../handler.js", () => ({
         msRemaining: () => 60_000,
         shouldContinue: () => true,
         log,
+        reportWork: () => undefined,
       });
       log.emit();
     };

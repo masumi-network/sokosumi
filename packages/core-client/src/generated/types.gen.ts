@@ -1761,6 +1761,8 @@ export type EvalRunReport = {
             pending?: number;
             skipped?: number;
         };
+        costlier: number;
+        slower: number;
         passed: number;
         scored: number;
         open: number;
@@ -1780,6 +1782,12 @@ export type EvalCaseReport = {
     passRate: number | null;
     baselinePassRate: number | null;
     history: Array<number | null>;
+    costUsd: number | null;
+    usualCostUsd: number | null;
+    costlier: boolean;
+    durationMs: number | null;
+    usualDurationMs: number | null;
+    slower: boolean;
     results: Array<EvalResult>;
 };
 

@@ -140,6 +140,12 @@ export default async function AdminEvalRunPage({
             {t("passedOf", { passed: summary.passed, scored: summary.scored })}
             {" · "}
             {formatCost(summary.costUsd)}
+            {summary.costlier + summary.slower > 0
+              ? ` · ${t("usageCounts", {
+                  costlier: summary.costlier,
+                  slower: summary.slower,
+                })}`
+              : ""}
           </span>
         </span>
         {OUTCOME_ORDER.filter(

@@ -103,11 +103,11 @@ export function Onboarding({
             <span className="ob-tilt ob-tilt-a">Reads your site</span>
             <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
             <span className="ob-tilt ob-tilt-c ob-tilt-ink">
-              Drafts your first month
+              Drafts your first posts
             </span>
           </div>
           <h1 className="ob-display">
-            Give me your website. I'll show you a month of posts.
+            Give me your website. I'll show you a plan and the first posts.
           </h1>
           <p className="muted">
             {AGENT_NAME} is your AI CMO. He reads your site, plans your month

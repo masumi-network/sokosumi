@@ -99,7 +99,7 @@ describe("DraftPost", () => {
       "Approved. It goes out on X in about two minutes.",
     );
     expect(done?.querySelector("img")?.getAttribute("src")).toBe(
-      "/cuso/done.svg",
+      "/cuso/correct.svg",
     );
     expect(host.textContent).not.toContain("Decline");
   });

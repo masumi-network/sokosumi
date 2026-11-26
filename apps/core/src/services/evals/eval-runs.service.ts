@@ -7,12 +7,15 @@ import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
+  aboveUsual,
   countOutcomes,
   type EvalOutcome,
   type EvalOutcomeCounts,
   type EvalResultState,
   evalOutcome,
+  median,
   passRate,
+  usualValue,
 } from "@/lib/evals/eval-compare";
 import {
   evalCommit,
@@ -44,6 +47,7 @@ import {
   type EvalCase,
   type EvalSuite,
   evalCase,
+  isJudgedEvalCase,
   selectEvalCases,
 } from "./eval-cases";
 import { stopPendingAfterBudgetError } from "./eval-infrastructure";
@@ -64,12 +68,26 @@ const HISTORY_RUNS = 10;
 const BASELINE_WINDOW = 5;
 /** How many at-once cases (skipped, refused) a lane may settle in one tick. */
 const INSTANT_CASES_PER_TICK = 20;
+/**
+ * A run still running after this long is stuck: the longest weekly run took
+ * 9.4 hours (2026-11-23), and a stuck run holds every later run in the queue.
+ */
+export const EVAL_RUN_TIMEOUT_MS = 24 * 60 * 60_000;
+/** Repeats the weekly run gives judged cases: one judge flip is not a regression. */
+const WEEKLY_JUDGED_REPEATS = 2;
+/**
+ * The judge of the weekly run. Opus judges runs someone starts; the routine
+ * run takes a cheaper model from the EU list in `model-policy.ts`.
+ */
+export const WEEKLY_JUDGE_MODEL = "anthropic/claude-sonnet-5";
 
 export interface CreateEvalRunInput {
   trigger: EvalRunTrigger;
   suites?: EvalSuite[];
   caseIds?: string[];
   repeats?: number;
+  /** Repeats for cases a judge grades, at least `repeats`; the rest run `repeats` times. */
+  judgedRepeats?: number;
   label?: string | null;
   startedByUserId?: string | null;
   /** A version to try before promoting it; the default version otherwise. */
@@ -97,6 +115,11 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   const repeats = input.repeats ?? 1;
   if (!Number.isInteger(repeats) || repeats < 1 || repeats > EVAL_LANE_COUNT)
     throw new EvalRunError(`Repeats must be 1 to ${EVAL_LANE_COUNT}`);
+  const lanes = input.judgedRepeats ?? repeats;
+  if (!Number.isInteger(lanes) || lanes < repeats || lanes > EVAL_LANE_COUNT)
+    throw new EvalRunError(
+      `Judged repeats must be ${repeats} to ${EVAL_LANE_COUNT}`,
+    );
   const cases = selectEvalCases({ suites, caseIds });
   if (cases.length === 0) throw new EvalRunError("No cases to run");
   const commit = evalCommit();
@@ -116,7 +139,7 @@ export async function createEvalRun(input: CreateEvalRunInput) {
       trigger: input.trigger,
       suites,
       caseIds,
-      repeats,
+      repeats: lanes,
       commitSha,
       commitMessage,
       prNumber: commit.prNumber ?? prNumberFromCommitMessage(commitMessage),
@@ -128,16 +151,20 @@ export async function createEvalRun(input: CreateEvalRunInput) {
         cusoVersionId: input.cusoVersionId ?? defaults.cuso,
       },
       results: {
-        create: Array.from(
-          { length: repeats },
-          (_, index) => index + 1,
-        ).flatMap((repeat) =>
-          cases.map((evalCase, position) => ({
-            caseId: evalCase.id,
-            suite: evalCase.suite,
-            repeat,
-            position,
-          })),
+        create: Array.from({ length: lanes }, (_, index) => index + 1).flatMap(
+          (repeat) =>
+            cases.flatMap((evalCase, position) =>
+              repeat <= repeats || isJudgedEvalCase(evalCase)
+                ? [
+                    {
+                      caseId: evalCase.id,
+                      suite: evalCase.suite,
+                      repeat,
+                      position,
+                    },
+                  ]
+                : [],
+            ),
         ),
       },
     },
@@ -153,10 +180,9 @@ export function evalWeekStart(now: Date): Date {
 }
 
 /**
- * The weekly run, once per UTC week (Monday to Sunday) and one repeat: a
- * second cron call the same week does nothing. More repeats are for runs
- * someone starts. Its trigger stays `DAILY`, the baseline every run is
- * compared with.
+ * The weekly run, once per UTC week (Monday to Sunday): a second cron call
+ * the same week does nothing. One repeat, two for the cases a judge grades.
+ * Its trigger stays `DAILY`, the baseline every run is compared with.
  */
 export async function createWeeklyEvalRun(now = new Date()) {
   const thisWeek = await prisma.evalRun.findFirst({
@@ -164,7 +190,12 @@ export async function createWeeklyEvalRun(now = new Date()) {
     select: { id: true },
   });
   if (thisWeek) return null;
-  return createEvalRun({ trigger: "DAILY", label: "Weekly", repeats: 1 });
+  return createEvalRun({
+    trigger: "DAILY",
+    label: "Weekly",
+    repeats: 1,
+    judgedRepeats: WEEKLY_JUDGED_REPEATS,
+  });
 }
 
 const runModelsSchema = (value: unknown) => {
@@ -182,13 +213,50 @@ const runModelsSchema = (value: unknown) => {
   };
 };
 
+/**
+ * Ends a run that has run past `EVAL_RUN_TIMEOUT_MS`: what had not finished
+ * becomes an error, and the run completes so the queue moves on.
+ */
+async function timeOutStuckRun(run: {
+  id: string;
+  repeats: number;
+  trigger: EvalRunTrigger;
+  startedAt: Date | null;
+}): Promise<boolean> {
+  const now = await databaseNow();
+  if (
+    !run.startedAt ||
+    now.getTime() - run.startedAt.getTime() < EVAL_RUN_TIMEOUT_MS
+  )
+    return false;
+  const open = await prisma.evalResult.updateMany({
+    where: { runId: run.id, status: { in: ["PENDING", "RUNNING"] } },
+    data: {
+      status: "ERROR",
+      error: `The run timed out after ${EVAL_RUN_TIMEOUT_MS / 3_600_000} hours`,
+      finishedAt: now,
+    },
+  });
+  recordCoreWarning(
+    { operation: "eval_tick" },
+    {
+      message: "Timed out an eval run that was stuck",
+      why: `It was still running ${EVAL_RUN_TIMEOUT_MS / 3_600_000} hours after it started`,
+      fix: "Its open cases are errors now. Check why they never settled: a turn that never ended, or a lane that kept failing.",
+    },
+    { evalRun: { id: run.id }, evalOpenCases: open.count },
+  );
+  await completeIfDone(run);
+  return true;
+}
+
 /** The queued run first in line starts once nothing else is running. */
 async function startNextRun() {
   const running = await prisma.evalRun.findFirst({
     where: { status: "RUNNING" },
     orderBy: { createdAt: "asc" },
   });
-  if (running) return running;
+  if (running && !(await timeOutStuckRun(running))) return running;
   const queued = await prisma.evalRun.findFirst({
     where: { status: "QUEUED" },
     orderBy: { createdAt: "asc" },
@@ -280,6 +348,7 @@ async function advanceLane(
   runId: string,
   repeat: number,
   shouldContinue: () => boolean,
+  judgeModel: string | undefined,
 ) {
   const lane = await getEvalLane(repeat);
   const current = await prisma.evalResult.findFirst({
@@ -291,6 +360,7 @@ async function advanceLane(
       resultId: current.id,
       firstOfSuite: false,
       startedAt: current.startedAt ?? current.createdAt,
+      judgeModel,
     };
     const polled = definition
       ? await pollEvalCase(
@@ -316,7 +386,8 @@ async function advanceLane(
   // not a reason to wait a minute for the next one.
   for (let step = 0; step < INSTANT_CASES_PER_TICK; step += 1) {
     if (!shouldContinue()) return;
-    if ((await startNextCase(runId, repeat, lane)) !== "settled") return;
+    if ((await startNextCase(runId, repeat, lane, judgeModel)) !== "settled")
+      return;
   }
 }
 
@@ -324,6 +395,7 @@ async function startNextCase(
   runId: string,
   repeat: number,
   lane: Awaited<ReturnType<typeof getEvalLane>>,
+  judgeModel: string | undefined,
 ): Promise<"none" | "busy" | "started" | "settled"> {
   if (await stopPendingAfterBudgetError(runId, repeat)) return "none";
   const next = await prisma.evalResult.findFirst({
@@ -349,6 +421,7 @@ async function startNextCase(
     resultId: next.id,
     firstOfSuite: earlier === 0,
     startedAt,
+    judgeModel,
   };
   const started = await startEvalCase(definition, lane, context).catch(
     (error: unknown) => ({
@@ -458,16 +531,19 @@ export async function tickEvalRuns(
   const run = await startNextRun();
   if (!run) return { runId: null, completed: false };
   const laneFailures: ({ lane: number } & SafeErrorFields)[] = [];
+  const judgeModel = run.trigger === "DAILY" ? WEEKLY_JUDGE_MODEL : undefined;
   await Promise.all(
     Array.from({ length: run.repeats }, (_, index) =>
-      advanceLane(run.id, index + 1, shouldContinue).catch((error: unknown) => {
-        // Only safe fields: a lane runs a Soko Bot turn, and its error can
-        // quote the prompt.
-        laneFailures.push({
-          lane: index + 1,
-          ...messageSafeErrorFields(error),
-        });
-      }),
+      advanceLane(run.id, index + 1, shouldContinue, judgeModel).catch(
+        (error: unknown) => {
+          // Only safe fields: a lane runs a Soko Bot turn, and its error can
+          // quote the prompt.
+          laneFailures.push({
+            lane: index + 1,
+            ...messageSafeErrorFields(error),
+          });
+        },
+      ),
     ),
   );
   let completion: Awaited<ReturnType<typeof completeIfDone>>;
@@ -563,7 +639,13 @@ async function dailyHistory(before: Date, excludeRunId?: string) {
   });
   const results = await prisma.evalResult.findMany({
     where: { runId: { in: runs.map((run) => run.id) } },
-    select: { runId: true, caseId: true, status: true },
+    select: {
+      runId: true,
+      caseId: true,
+      status: true,
+      costUsdMicros: true,
+      durationMs: true,
+    },
   });
   return { runs, results };
 }
@@ -580,7 +662,43 @@ export interface EvalCaseReport {
   baselinePassRate: number | null;
   /** Pass rate in earlier daily runs, newest first; null where it did not run. */
   history: (number | null)[];
+  /** Median of this run's repeats, and of the last weekly runs. */
+  costUsd: number | null;
+  usualCostUsd: number | null;
+  costlier: boolean;
+  durationMs: number | null;
+  usualDurationMs: number | null;
+  slower: boolean;
   results: ResultRow[];
+}
+
+const SCORED_STATES: readonly EvalResultState[] = ["PASSED", "FAILED"];
+
+/** The median cost and duration of the repeats that ran to a verdict. */
+function caseUsage(
+  results: readonly {
+    status: EvalResultState;
+    costUsdMicros: bigint | null;
+    durationMs: number | null;
+  }[],
+) {
+  const scored = results.filter((result) =>
+    SCORED_STATES.includes(result.status),
+  );
+  return {
+    costUsd: median(
+      scored.flatMap((result) =>
+        result.costUsdMicros === null
+          ? []
+          : [Number(result.costUsdMicros) / 1e6],
+      ),
+    ),
+    durationMs: median(
+      scored.flatMap((result) =>
+        result.durationMs === null ? [] : [result.durationMs],
+      ),
+    ),
+  };
 }
 
 function summarize(
@@ -591,6 +709,8 @@ function summarize(
   const states = results.map((result) => result.status);
   return {
     counts,
+    costlier: cases.filter((evalCase) => evalCase.costlier).length,
+    slower: cases.filter((evalCase) => evalCase.slower).length,
     passed: states.filter((state) => state === "PASSED").length,
     scored: states.filter((state) =>
       ["PASSED", "FAILED", "ERROR"].includes(state),
@@ -625,11 +745,30 @@ export async function getEvalRunReport(runId: string) {
           .map((result) => result.status),
       ),
     );
+  const usualHistory = (caseId: string) =>
+    history.runs.map((past) =>
+      caseUsage(
+        history.results.filter(
+          (result) => result.runId === past.id && result.caseId === caseId,
+        ),
+      ),
+    );
   const current = statesByCase(run.results);
   const cases: EvalCaseReport[] = [...current.entries()].map(
     ([caseId, states]) => {
       const definition: EvalCase | undefined = evalCase(caseId);
       const rates = historyRates(caseId);
+      const results = run.results.filter((result) => result.caseId === caseId);
+      const usage = caseUsage(results);
+      const past = usualHistory(caseId);
+      const usualCostUsd = usualValue(
+        past.flatMap((item) => (item.costUsd === null ? [] : [item.costUsd])),
+      );
+      const usualDurationMs = usualValue(
+        past.flatMap((item) =>
+          item.durationMs === null ? [] : [item.durationMs],
+        ),
+      );
       const scored = rates
         .slice(0, BASELINE_WINDOW)
         .filter((rate): rate is number => rate !== null);
@@ -644,7 +783,13 @@ export async function getEvalRunReport(runId: string) {
         passRate: passRate(states),
         baselinePassRate: rates[0] ?? null,
         history: rates,
-        results: run.results.filter((result) => result.caseId === caseId),
+        costUsd: usage.costUsd,
+        usualCostUsd,
+        costlier: aboveUsual(usage.costUsd, usualCostUsd),
+        durationMs: usage.durationMs,
+        usualDurationMs,
+        slower: aboveUsual(usage.durationMs, usualDurationMs),
+        results,
       };
     },
   );
