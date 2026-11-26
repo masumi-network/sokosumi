@@ -10,6 +10,7 @@ import {
   buildActionResponse,
   HELD_BACK_REPLY,
   parseActionNarrativeText,
+  REPLY_CHECK_NOTES,
 } from "./action-response";
 
 const db = vi.hoisted(() => ({
@@ -1146,6 +1147,32 @@ describe("authoritative action responses", () => {
     expect(cuso.answerText).toBe("The first week's posts are written.");
   });
 
+  it("shows Cuso's receipt lines when Core cut his words", async () => {
+    const updated = receipt({
+      capability: "update_social_post",
+      targetId: "post-one",
+    });
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "EVENT",
+      versionId: "cmo-v8",
+    });
+    db.sokoBotToolCall.count.mockResolvedValue(0);
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([updated]);
+    // His sentence about the edit was the one cut; the receipt says it.
+    const cuso = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "The second week waits for your pictures.",
+      question: null,
+      observationToolCallIds: [],
+      replyCheck: "cut",
+    });
+    expect(cuso.answerText).toContain("Updated social post");
+    expect(cuso.answerText).toContain(
+      "The second week waits for your pictures.",
+    );
+    expect(cuso.answerText).toContain(REPLY_CHECK_NOTES.cut);
+  });
+
   it("keeps Cuso's answer after he saved the Brand Brain", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
     db.sokoBotTurn.findUnique.mockResolvedValue({
@@ -2037,5 +2064,36 @@ describe("authoritative action responses", () => {
       },
     );
     expect(result.answerText).toBe(HELD_BACK_REPLY);
+  });
+
+  it("says beside the bot's words, not in them, that Core left a claim out", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const message = "x".repeat(8_000);
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      message,
+      true,
+      {
+        kind: "REPORT",
+        message,
+        question: null,
+        observationToolCallIds: [],
+        replyCheck: "cut",
+      },
+    );
+    expect(result.answerText).toBe(`${message}\n\n${REPLY_CHECK_NOTES.cut}`);
+    // No "list above": Cuso's owner never sees the receipt lines.
+    expect(REPLY_CHECK_NOTES.cut).not.toMatch(/list|above/);
+    expect(REPLY_CHECK_NOTES.unchecked).not.toMatch(/list|above/);
+  });
+
+  it("never takes the model's word that Core checked its reply", () => {
+    expect(
+      parseActionNarrativeText(
+        '{"kind":"REPORT","message":"Done.","question":null,"observationToolCallIds":[],"replyCheck":"unchecked"}',
+      ),
+    ).not.toHaveProperty("replyCheck");
   });
 });
