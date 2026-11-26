@@ -2496,19 +2496,27 @@ describe("TaskDetailActions", () => {
   });
 
   describe("Repeat and Duplicate of a focused SEO check", () => {
+    const focusedCheck = {
+      name: "Focused check",
+      description: 'Check titles.\n\nseo_job: {"version":1}',
+      projectId: null,
+      visibility: "PUBLIC" as const,
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    };
+
+    it("shows no menu when the check has no other action", () => {
+      renderActions({ taskBlueprint: focusedCheck, isReadOnly: true });
+
+      expect(
+        screen.queryByRole("button", { name: actionsMenuLabel }),
+      ).not.toBeInTheDocument();
+    });
+
     it("are not offered for a Task with a seo_job line", async () => {
       const user = userEvent.setup();
-      renderActions({
-        taskBlueprint: {
-          name: "Focused check",
-          description: 'Check titles.\n\nseo_job: {"version":1}',
-          projectId: null,
-          visibility: "PUBLIC" as const,
-          assigneeId: "coworker-1",
-          assigneeSokoBotId: null,
-          assigneeUserId: null,
-        },
-      });
+      renderActions({ taskBlueprint: focusedCheck });
 
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 

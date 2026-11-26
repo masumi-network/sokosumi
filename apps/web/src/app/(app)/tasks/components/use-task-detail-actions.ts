@@ -300,7 +300,8 @@ export function useTaskDetailActions({
   const canDuplicate =
     taskBlueprint !== undefined && newTaskWizard !== null && !focusedSeoCheck;
   const hasOverflowMenuActions =
-    taskBlueprint !== undefined ||
+    canRepeat ||
+    canDuplicate ||
     sendToChat !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
