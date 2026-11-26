@@ -70,6 +70,9 @@ function gap(raw: unknown, isField: boolean) {
     /not checked|was not collected|excluded|not enabled|not configured|no speed reads/.test(
       reason,
     ) ||
+    // The worker's words for a read it did not send: no read at all, or a template that has its lab test.
+    reason === "not read" ||
+    reason.startsWith("one lab page per template") ||
     !row
   )
     return { status: "not_checked" as const };
@@ -86,7 +89,11 @@ function gap(raw: unknown, isField: boolean) {
   if (
     isField &&
     row?.failed !== true &&
-    (row?.noData === true || /no (?:crux |field |real.user )?data/.test(reason))
+    (row?.noData === true ||
+      // The second form is a record that holds no measured value.
+      /no (?:crux |field |real.user )?data|holds no measured value/.test(
+        reason,
+      ))
   )
     return { status: "no_data" as const };
   return { status: "unavailable" as const };
@@ -163,10 +170,17 @@ function boundSource(
     row.sourceRefs.every((item) => {
       const ref = reportObject(item),
         request = reportObject(ref?.request);
+      // A reduced check reads the CrUX record of all devices first: that request names no device. Such a
+      // record tells why a device has no field data. It is no source of a measured value.
+      const allDevices =
+        port === "crux" &&
+        !measured &&
+        request?.device === undefined &&
+        reportObject(request?.params)?.formFactor === "all";
       if (
         ref?.port !== port ||
         request?.port !== port ||
-        request?.device !== device ||
+        (request?.device !== device && !allDevices) ||
         typeof request.url !== "string"
       )
         return false;
@@ -371,25 +385,26 @@ function storedHistory(history: unknown): SpeedHistory | undefined {
   const raw = reportObject(history);
   const status = SPEED_HISTORY_STATUSES.find((value) => value === raw?.status);
   if (!raw || !status) return undefined;
-  if (status !== "comparable" || raw.weeks == null) return { status };
-  const days = speedHistory.shape.weeks.safeParse(raw.weeks);
-  const weeks = days.data;
+  if (status !== "comparable") return { status };
+  // No weeks reads as an empty list: the metrics are checked in both forms.
+  const weeks = speedHistory.shape.weeks.safeParse(raw.weeks ?? []).data;
   if (!weeks || weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!))
     return undefined;
   const kept: SpeedHistory = { status, weeks };
-  let given = false;
+  let given = false,
+    any = false;
   for (const key of ["lcp", "inp", "cls"] as const) {
     // As a fresh import counts it: an empty list is no metric.
     const value = raw[key];
     given ||= Array.isArray(value) ? value.length > 0 : value != null;
-    const points = speedHistory.shape[key].safeParse(raw[key]);
-    if (points.data?.length === weeks.length) kept[key] = points.data;
+    const points = speedHistory.shape[key].safeParse(value);
+    if (!weeks.length || points.data?.length !== weeks.length) continue;
+    kept[key] = points.data;
+    any = true;
   }
-  // Metrics that all go leave no trend, as on a fresh import: the weeks alone would say "comparable".
-  if (given && !kept.lcp && !kept.inp && !kept.cls)
-    return { status: "unavailable" };
-  // A fresh import stores no empty series.
-  return weeks.length ? kept : { status };
+  // A fresh import stores weeks only with a metric. A given metric that goes leaves no trend, with or
+  // without weeks: the status alone would say "comparable".
+  return any ? kept : given ? { status: "unavailable" } : { status };
 }
 
 /**
@@ -437,6 +452,13 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
             !reportObject(series)
           ? { ...measured, history: { status: "unavailable" } }
           : { ...measured, history: kept };
+    // A measured field with another part Core cannot read (level, period, values) is no field data: the lab
+    // measurement stays, as on a fresh import.
+    if (
+      field.status === "measured" &&
+      !seoPageSpeedRow.shape.field.safeParse(read.field).success
+    )
+      read.field = { status: "unavailable" };
   }
   const lab = reportObject(row.lab);
   if (lab) {

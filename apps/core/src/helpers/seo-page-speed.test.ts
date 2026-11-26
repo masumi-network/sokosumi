@@ -109,6 +109,66 @@ describe("imported full-audit PageSpeed evidence", () => {
       ["quota", "not_checked"],
     ]);
   });
+  it("reads the worker's words for a read it did not send and for a record without data", () => {
+    const raw = legacyReport();
+    const ref = (request: object, outcome: object) => ({
+      port: "crux",
+      request: { port: "crux", url: SEO_TEST_PAGE, ...request },
+      outcome,
+    });
+    // A reduced check reads the record of all devices first. That request names no device.
+    const all = { params: { kind: "record", level: "url", formFactor: "all" } };
+    const own = { device: "mobile", params: { kind: "record", level: "url" } };
+    const status = (field: object, lab: object = { none: "not read" }) => {
+      const row = parsePublicSeoArtifact({
+        ...raw,
+        speed: { mobile: { field, lab } },
+      }).pageSpeed?.[0];
+      return [row?.field.status, row?.lab.status];
+    };
+    expect(
+      status(
+        {
+          none: "no CrUX data for this URL",
+          sourceRefs: [ref(all, { kind: "no-data", status: 404 })],
+        },
+        { none: "one lab page per template: /* is measured on p1" },
+      ),
+    ).toEqual(["no_data", "not_checked"]);
+    expect(
+      status({
+        none: "the CrUX record for this URL holds no measured value",
+        sourceRefs: [ref(own, { kind: "ok", status: 200 })],
+      }),
+    ).toEqual(["no_data", "not_checked"]);
+    expect(status({ none: "not read", failed: true })).toEqual([
+      "not_checked",
+      "not_checked",
+    ]);
+    // Words that only hold "not read" are no skipped read.
+    expect(status({ none: "not read" }, { none: "could not read" })[1]).toBe(
+      "unavailable",
+    );
+    // The record of all devices is no source of a device's measured value.
+    expect(
+      status({
+        level: "url",
+        url: SEO_TEST_PAGE,
+        period: null,
+        p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+        sourceRefs: [ref(all, { kind: "ok", status: 200 })],
+      })[0],
+    ).toBe("unavailable");
+    // A record of another device still tells nothing of this device.
+    expect(
+      status({
+        none: "no CrUX data for this URL",
+        sourceRefs: [
+          ref({ ...own, device: "desktop" }, { kind: "no-data", status: 404 }),
+        ],
+      })[0],
+    ).toBe("unavailable");
+  });
   it("does not assign a different page or device's lab sample to the audited page", () => {
     const raw = legacyReport();
     const speed = readings("https://other.test/");
@@ -526,6 +586,20 @@ describe("imported full-audit PageSpeed evidence", () => {
         lab: { status: "measured" },
       });
     }
+    // So is a measured field with another part Core cannot read.
+    for (const part of [{ level: "bogus" }, { period: "x" }, { p75: null }]) {
+      const copy = JSON.parse(JSON.stringify(stored));
+      copy.pageSpeed[0].field = {
+        ...copy.pageSpeed[0].field,
+        url: books,
+        ...part,
+      };
+      expect(publicSeoPayloadSchema.parse(copy).pageSpeed?.[0]).toMatchObject({
+        device: "mobile",
+        field: { status: "unavailable" },
+        lab: { status: "measured" },
+      });
+    }
   });
 });
 
@@ -741,7 +815,11 @@ describe("CrUX History on a measured field", () => {
       expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
       expect(field).not.toHaveProperty("history");
     }
-    stored.pageSpeed[0].field.history = { status: "comparable", weeks: three };
+    stored.pageSpeed[0].field.history = {
+      status: "comparable",
+      weeks: three,
+      lcp: [1, 2, 3],
+    };
     expect(
       publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
     ).toMatchObject({ history: { weeks: three } });
@@ -766,8 +844,9 @@ describe("CrUX History on a measured field", () => {
         inp: [1, 2],
       }),
     ).toEqual({ status: "comparable", weeks: three, lcp: [1, 2, 3] });
+    // A fresh import stores weeks with each metric: a metric without weeks leaves no trend.
     expect(historyOfStored({ status: "comparable", lcp: [1, 2, 3] })).toEqual({
-      status: "comparable",
+      status: "unavailable",
     });
     // Each metric is read alone, as on a fresh import: one bad metric does not cost the other ones.
     expect(
@@ -782,14 +861,20 @@ describe("CrUX History on a measured field", () => {
     expect(
       historyOfStored({ status: "comparable", weeks: three, lcp: [1, -1, 3] }),
     ).toEqual({ status: "unavailable" });
-    // An empty list is no metric, as on a fresh import: the weeks stay.
+    // An empty list is no metric, as on a fresh import, and a fresh import stores weeks only with a metric.
     expect(
       historyOfStored({ status: "comparable", weeks: three, lcp: [] }),
-    ).toEqual({ status: "comparable", weeks: three });
-    // A metric that is no list leaves no trend, also without weeks.
-    expect(
-      historyOfStored({ status: "comparable", weeks: [], lcp: "bad" }),
-    ).toEqual({ status: "unavailable" });
+    ).toEqual({ status: "comparable" });
+    // A metric that is no list leaves no trend: with empty weeks, without weeks, and next to an empty metric.
+    for (const history of [
+      { weeks: [], lcp: "bad" },
+      { lcp: "bad" },
+      { weeks: null, lcp: "bad" },
+      { weeks: [], lcp: "bad", inp: [] },
+    ])
+      expect(historyOfStored({ status: "comparable", ...history })).toEqual({
+        status: "unavailable",
+      });
     // A status that is not comparable stays, whatever the weeks hold.
     expect(
       historyOfStored({ status: "unavailable", weeks: ["not-a-day"] }),
