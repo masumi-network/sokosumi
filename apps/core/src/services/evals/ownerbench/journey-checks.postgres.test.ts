@@ -30,6 +30,7 @@ import {
   earlierCaseTasksCheck,
   foregroundTurnId,
   freshConversationCheck,
+  isolationFailed,
   journeyTokens,
   packetTaskIds,
   routingFailures,
@@ -1274,7 +1275,22 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect(down).toHaveBeenCalledTimes(3);
       expect(await visible(second.id)).toBe(false);
       expect(await pending()).toHaveLength(1);
-      // The next reset deletes that blob, and nothing waits any more.
+      // That case, and the next while the store stays down, are unscored.
+      const journey = OWNER_JOURNEYS[0]!;
+      for (const blobs of [
+        [second.sourceId],
+        (await clearEarlierCaseArtifacts(lane, down)).blobsPending,
+      ])
+        expect(isolationFailed(journey, blobs)).toMatchObject({
+          kind: "done",
+          outcome: {
+            status: "ERROR",
+            error: expect.stringContaining(
+              `The lane was not cleaned: 1 earlier upload blob(s) could not be deleted (${second.sourceId})`,
+            ),
+          },
+        });
+      // The next reset deletes that blob: nothing waits, the case scores.
       const back = vi.fn<DeleteBlobs>().mockResolvedValue(undefined);
       expect(await clearEarlierCaseArtifacts(lane, back)).toEqual({
         blobsPending: [],
@@ -1284,7 +1300,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       await prisma.fileResource.deleteMany({
         where: { id: { in: [first.id, second.id] } },
       });
-    }, 15_000);
+    }, 20_000);
 
     it("fails a case whose opening packet carries another case's Task", async () => {
       const leaked = await runCase("delegated");

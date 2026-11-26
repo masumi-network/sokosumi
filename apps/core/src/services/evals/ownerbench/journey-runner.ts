@@ -789,6 +789,27 @@ async function forgetEarlierJourneys(lane: EvalLaneRecord, botId: string) {
   });
 }
 
+/**
+ * A journey whose lane still holds an earlier case's work the reset could
+ * not remove ends before its first step as an infrastructure error, as a
+ * failed route pick does: unscored, never a pass, a failure or a regression.
+ */
+export function isolationFailed(
+  journey: OwnerJourney,
+  blobsPending: readonly string[],
+): CaseStart {
+  return {
+    kind: "done",
+    outcome: {
+      status: "ERROR",
+      checks: [],
+      output: { journey: journey.id, setup: { blobsPending } },
+      error: `The lane was not cleaned: ${blobsPending.length} earlier upload blob(s) could not be deleted (${blobsPending.slice(0, 3).join(", ")}), so an earlier case's file may still be found; unscored until a reset deletes them`,
+      turnIds: [],
+    },
+  };
+}
+
 export async function startJourney(
   journey: OwnerJourney,
   lane: EvalLaneRecord,
@@ -807,6 +828,10 @@ export async function startJourney(
     journey.bot === "soko-bot"
       ? await resetEvalLaneForSokoBot(lane)
       : await clearEarlierCaseArtifacts(lane);
+  // An earlier case's file the reset could not delete would be this case's
+  // too: the case is unscored, and so is every next one until a reset
+  // deletes it (each reset retries it).
+  if (blobsPending.length) return isolationFailed(journey, blobsPending);
   const isolatedAt = (await databaseNow()).toISOString();
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
@@ -828,8 +853,6 @@ export async function startJourney(
     )),
     cusoRoomId,
     isolatedAt,
-    // Hidden from the bot already; the next reset tries their blobs again.
-    ...(blobsPending.length ? { blobsPending } : {}),
   };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
   await setEvalCoworkerScript(world.coworkers.CodePat, []);
@@ -1217,7 +1240,6 @@ async function journeyOutcome(
       journey: journey.id,
       level: journey.level,
       runtime: journeyRuntime(),
-      setup: { blobsPending: state.world.blobsPending ?? [] },
       score,
       totals,
       answer: state.steps.at(-1)?.answer ?? null,
