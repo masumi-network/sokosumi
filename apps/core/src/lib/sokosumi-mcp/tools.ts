@@ -2427,7 +2427,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "contacts_list_duplicates",
     operation: "GET /contacts/duplicates",
     description:
-      "Groups of contacts that share a name: likely the same person. Pass `contactId` for one contact's group.",
+      "Groups of contacts that are likely the same person. `reason` says why: `same_name`, or `same_company` (same surname and first initial, emails at the same company domain). Pass `contactId` for one contact's group.",
   },
   {
     name: "contacts_dismiss_duplicates",
