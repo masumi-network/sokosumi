@@ -622,6 +622,36 @@ describe("the guards of speed data on each path", () => {
     }
   });
 
+  it("shows no device mix whose shares do not add up or whose level is not the basis, fresh and stored", () => {
+    const { record: _record, ...mix } = check.mix;
+    const bad = [
+      { ...check, mix: { ...mix, phone: 0.8, desktop: 0.8, tablet: 0.8 } },
+      { ...check, mix: { ...mix, level: "origin" } },
+      { ...check, basis: "crux-origin", mix },
+    ];
+    for (const one of bad) {
+      const fresh = read([extra(EXTRA, { tier: "reduced", check: one })])
+        ?.rows[0];
+      const stored = storedRows([
+        {
+          url: EXTRA,
+          audited: false,
+          tier: "reduced",
+          check: one,
+          devices: [device(EXTRA, "mobile")],
+        },
+      ])?.rows[0];
+      for (const row of [fresh, stored])
+        expect(row?.check).toEqual({ ...one, mix: null });
+    }
+    // CrUX rounds each share: a sum of 1.01 stays, also with its float error.
+    const rounded = { ...check, mix: { ...mix, tablet: 0.04 } };
+    expect(
+      read([extra(EXTRA, { tier: "reduced", check: rounded })])?.rows[0]?.check
+        ?.mix,
+    ).toEqual(rounded.mix);
+  });
+
   it("counts an unreadable row once and keeps a later, readable row of the same page", () => {
     const table = read([
       extra(EXTRA, { speed: { mobile: throws() } }),

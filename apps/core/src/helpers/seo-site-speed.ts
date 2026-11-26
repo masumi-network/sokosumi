@@ -37,6 +37,25 @@ function gapCode(reason: unknown) {
   return "other" as const;
 }
 
+type SiteSpeedCheck = NonNullable<StoredSiteSpeed["rows"][number]["check"]>;
+/** The slack of a share sum: CrUX rounds each share. The worker allows the same, plus float error. */
+const SITE_SPEED_MIX_SLACK = 0.01 + 1e-9;
+/**
+ * A device mix the check cannot show: shares that do not add up to all visits, or a level that is not the
+ * one its basis names. The check stays and shows no mix.
+ */
+function contradicts(
+  basis: SiteSpeedCheck["basis"],
+  mix: NonNullable<SiteSpeedCheck["mix"]>,
+) {
+  const level =
+    basis === "crux-url" ? "url" : basis === "crux-origin" ? "origin" : null;
+  if (level && mix.level !== level) return true;
+  return (
+    Math.abs(mix.phone + mix.desktop + mix.tablet - 1) > SITE_SPEED_MIX_SLACK
+  );
+}
+
 /**
  * How a reduced row was read. The worker gives `notChecked` as a sentence, a stored check holds the code.
  * A mix period that is no calendar period goes; the shares stay.
@@ -60,7 +79,11 @@ function readCheck(value: unknown, stored = false) {
         ? null
         : gapCode(raw.notChecked),
   });
-  return check.success ? check.data : undefined;
+  if (!check.success) return undefined;
+  const { data } = check;
+  return data.mix && contradicts(data.basis, data.mix)
+    ? { ...data, mix: null }
+    : data;
 }
 
 /**
