@@ -3,15 +3,15 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { bannedCopyProblems } from "@/lib/social-post-writing";
+import { evaluateWithJev } from "@/lib/soko-bot/jev";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
 import { type sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
-import { askSmallModel } from "@/lib/soko-bot/small-model";
 
 /**
  * cmo-v23-openings: after a chunk is written, one call writes four other
  * first lines for each Social post; code drops those it can check are wrong;
- * the small model judges whole posts two at a time, both ways round, and a
- * post keeps its own first line unless another wins both ways. Patrick's
+ * Jev judges whole posts two at a time, both ways round, and a
+ * post keeps its own first line unless another is clearly better. Patrick's
  * first blind round (2026-11-26) showed that asking the writer for openings
  * in its own call changed the posts themselves, for the worse on LinkedIn.
  */
@@ -199,46 +199,42 @@ export type CompareOpenings = (input: {
 }) => Promise<{ score: number; costUsd: number }>;
 
 const JUDGE_RULE =
-  "Which post would the brand's marketing lead rather publish? The two differ only in their first line. Judge the whole post: the first line makes the right reader stop with something concrete and true from the post, and the rest follows from it naturally, in the brand's voice. A plain, specific line beats a salesy one, and a line that sounds like an ad, leads on a price for no reason, or needs the next line to make sense loses.";
-
-const verdictSchema = z.object({ better: z.enum(["first", "second", "same"]) });
+  "The two posts differ only in their first line. Judge the whole post as the brand's marketing lead: the first line makes the right reader stop, and the rest follows from it naturally, in the brand's voice. Concrete beats vague: a first line that names a number, customer, result or real detail from the post beats one that says the same in general words. A customer's own words or the reader's own problem beat a feature list. A price or plan name that is not the post's point reads as an ad and loses, as does a line that needs the next line to make sense.";
 
 /**
- * The small model asked twice, once each way round, so the order cannot
- * decide: 1 when a wins both times, -1 when b does, 0 otherwise.
+ * Jev asked both ways round in one call, so the order cannot decide: how
+ * much more likely "a is the one to publish" is than "b is".
  */
-export const compareOpeningsWithSmallModel: CompareOpenings = async ({
+export const compareOpeningsWithJev: CompareOpenings = async ({
   a,
   b,
   channel,
   businessName,
 }) => {
   const ask = (first: string, second: string) =>
-    askSmallModel({
-      purpose: "cmo",
-      system: JUDGE_RULE,
-      prompt: JSON.stringify({
-        network: channel,
-        business: businessName,
-        first,
-        second,
-        answer: "better: first, second or same",
-      }),
-      schema: verdictSchema,
-    });
-  const [ab, ba] = await Promise.all([ask(a, b), ask(b, a)]);
-  const vote = (better: string, mine: string) =>
-    better === mine ? 1 : better === "same" ? 0 : -1;
-  const sum =
-    vote(ab.output.better, "first") + vote(ba.output.better, "second");
-  return { score: sum / 2, costUsd: ab.costUsd + ba.costUsd };
+    `Is ${first} the one to publish rather than ${second}? ${JUDGE_RULE}`;
+  const { answers, costUsd } = await evaluateWithJev({
+    state: { network: channel, business: businessName, postA: a, postB: b },
+    questions: {
+      a: { type: "boolean", instructions: ask("postA", "postB") },
+      b: { type: "boolean", instructions: ask("postB", "postA") },
+    },
+    timeoutMs: 15_000,
+  });
+  const yes = (key: string) => {
+    const answer = answers.get(key);
+    if (answer?.type !== "boolean") throw new Error("Jev gave no answer");
+    return answer.probability;
+  };
+  return { score: yes("a") - yes("b"), costUsd };
 };
 
 /**
- * How sure the judge must be before another first line replaces the post's
- * own: with the small model, a win both ways round.
+ * How much more likely another first line must be than the post's own
+ * before it replaces it. On 10 hand-labelled pairs the right line led by
+ * 0.16 to 0.89 and the one miss was a near tie.
  */
-const REPLACE_OWN = 1;
+const REPLACE_OWN = 0.2;
 
 /**
  * The post with its best first line: the other lines play each other two at
@@ -252,7 +248,7 @@ export async function cmoPickOpening(input: {
   businessName: string;
   compare?: CompareOpenings;
 }): Promise<{ draft: string; costUsd: number; failed: number }> {
-  const compare = input.compare ?? compareOpeningsWithSmallModel;
+  const compare = input.compare ?? compareOpeningsWithJev;
   let costUsd = 0;
   let failed = 0;
   const judge = async (a: string, b: string) => {

@@ -36,7 +36,6 @@ import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
-import { SMALL_MODEL } from "@/lib/soko-bot/small-model";
 import {
   RuntimeEventLog,
   runtimeEvent,
@@ -721,7 +720,7 @@ export async function writeCmoMonthPieces(
       picked.set(piece.id, pick.draft);
       takenOpenings.push(firstLineOf(pick.draft));
     }
-    await chargeCheck(input, SMALL_MODEL, costUsd);
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, costUsd);
     if (failed > 0)
       emitCoreWarning(
         {
@@ -731,8 +730,8 @@ export async function writeCmoMonthPieces(
         {
           message:
             "Opening comparisons failed; posts kept their own first line",
-          why: "The small model did not answer one or more comparisons",
-          fix: "Nothing is lost: the posts keep the writer's first line. If it repeats, check the small model on the AI Gateway.",
+          why: "Jev did not answer one or more comparisons",
+          fix: "Nothing is lost: the posts keep the writer's first line. If it repeats, check Jev (typesafe-ai/jev) on the AI Gateway.",
         },
         { failed },
       );

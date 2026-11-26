@@ -20,8 +20,8 @@ export function cmoPicksOpenings(skills: readonly string[]): boolean {
  * its LinkedIn posts led on prices and drifted into filler (Patrick's blind
  * round, 2026-11-26: old won 9 of 11 LinkedIn pairs).
  */
-export const CMO_OPENINGS_WRITING_GUIDE = `You write other first lines for finished social posts. For each post, give four first lines that open the same post a different way: lead with its most surprising true fact, its customer, its result, or the decision it is about, whichever the post really has. Each is one line that the rest of the post still follows naturally, in the post's own voice and language.
-Use only facts the post, its brief or the proof already state, said as they state them. Never add a number, name, price or claim. Never turn a post into an ad: no price or plan name first unless the post is about the price. No questions, no advice, no hashtags, no emoji.`;
+export const CMO_OPENINGS_WRITING_GUIDE = `You write other first lines for finished social posts. For each post, give four first lines that open the same post a different way: its most surprising true fact, a number or price it names, a customer and their result from the proof when one supports the post's point, or the decision it is about. Each is one line that the rest of the post still follows naturally, in the post's own voice and language.
+Keep every concrete fact the post's own first line has: a line that trades a number, price, name or result for general words is worse. Use only facts the post, its brief or the proof state, said as they state them; never add a number, name, price or claim. No questions, no advice, no hashtags, no emoji.`;
 
 export const CMO_PICKED_OPENINGS: SokoBotSkill = {
   id: CMO_PICKED_OPENINGS_SKILL,

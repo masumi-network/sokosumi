@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/soko-bot/small-model", () => ({ askSmallModel: vi.fn() }));
+vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev: vi.fn() }));
 
 import {
   type CompareOpenings,
@@ -131,7 +131,7 @@ describe("cmoPickOpening", () => {
       alternatives: ["alt"],
       channel: "x",
       businessName: "B",
-      compare: async () => ({ score: 0.5, costUsd: 0 }),
+      compare: async () => ({ score: 0.1, costUsd: 0 }),
     });
     expect(result.draft).toBe("own\nbody");
   });
