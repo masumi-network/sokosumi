@@ -242,6 +242,20 @@ describe("talkingVideoEditArgs", () => {
     expect(graph).toContain(
       "[over0]ass=captions.ass:fontsdir=/tmp/fonts[video]",
     );
+    // A card from before the video starts shows from its start; one with
+    // no real end is left out.
+    const early = talkingVideoEditArgs(plan, {
+      ...files,
+      cards: [
+        { png: "early.png", start: -0.5, end: 0.9 },
+        { png: "endless.png", start: 1, end: Number.NaN },
+      ],
+    });
+    const earlyGraph = early[early.indexOf("-filter_complex") + 1]!;
+    expect(earlyGraph).toContain("fade=t=in:st=0.000:");
+    expect(earlyGraph).toContain("enable='between(t,0.000,0.900)'");
+    expect(earlyGraph).not.toContain("-0.500");
+    expect(early).not.toContain("endless.png");
     // Without cards the edit is what it was.
     expect(talkingVideoEditArgs(plan, { ...files, cards: [] })).toEqual(plain);
   });

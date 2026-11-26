@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { VideoShape } from "@sokosumi/utils";
 
+import { emitCoreWarning } from "@/lib/evlog";
 import { CAPTION_FONT_FAMILY, captionFontsDir } from "@/lib/ffmpeg";
 import { withBrowser } from "@/lib/site-capture";
 
@@ -94,7 +95,10 @@ function body(card: VideoCard): string {
     case "title":
       return text;
     case "point":
-      return `<p class="number">${Math.max(0, Math.round(card.number))}</p>${text}`;
+      // A number that is no finite count shows no number, never "NaN".
+      return Number.isFinite(card.number)
+        ? `<p class="number">${Math.min(999, Math.max(0, Math.round(card.number)))}</p>${text}`
+        : text;
     case "label":
       return `<p class="label">${escapeHtml(clip(card.label))}</p>${text}`;
     case "offer":
@@ -128,17 +132,51 @@ export function videoCardHtml(
   const fontLink = font
     ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(font).replace(/%20/g, "+")}:wght@600;800&display=block">`
     : "";
+  // Every size is scaled by --s, which `fitCard` lowers until the card fits.
+  const px = (size: number) => `calc(var(--s) * ${Math.round(size)}px)`;
   return `<!doctype html><html><head><meta charset="utf-8">${fontLink}<style>
 ${fallbackFont}
 html,body{margin:0;width:${frame.width}px;height:${frame.height}px;background:transparent;overflow:hidden}
 .safe{position:absolute;left:${safe.left}px;top:${safe.top}px;width:${safe.right - safe.left}px;height:${safe.bottom - safe.top}px;display:flex;align-items:center;justify-content:center}
-.card{box-sizing:border-box;max-width:100%;padding:${Math.round(text.card * 0.9)}px ${Math.round(text.card)}px;border-radius:${Math.round(text.card * 0.5)}px;background:${fill};color:${ink};font-family:${family};text-align:center}
-p{margin:0}
-.text{font-size:${text.card}px;font-weight:800;line-height:1.15}
-.big{font-size:${Math.round(text.card * 1.6)}px;font-weight:800;line-height:1.05;margin-bottom:${Math.round(text.card * 0.3)}px}
-.number{font-size:${text.number}px;font-weight:800;line-height:1}
-.label{display:inline-block;font-size:${Math.round(text.label * 0.6)}px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.2em 0.6em;margin-bottom:${Math.round(text.card * 0.4)}px;border:0.12em solid currentColor;border-radius:0.4em}
+.card{--s:1;box-sizing:border-box;max-width:100%;padding:${px(text.card * 0.9)} ${px(text.card)};border-radius:${px(text.card * 0.5)};background:${fill};color:${ink};font-family:${family};text-align:center}
+p{margin:0;overflow-wrap:anywhere}
+.text{font-size:${px(text.card)};font-weight:800;line-height:1.15}
+.big{font-size:${px(text.card * 1.6)};font-weight:800;line-height:1.05;margin-bottom:${px(text.card * 0.3)}}
+.number{font-size:${px(text.number)};font-weight:800;line-height:1}
+.label{display:inline-block;font-size:${px(text.label * 0.6)};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.2em 0.6em;margin-bottom:${px(text.card * 0.4)};border:0.12em solid currentColor;border-radius:0.4em}
 </style></head><body><div class="safe"><div class="card">${body(card)}</div></div></body></html>`;
+}
+
+/** The smallest a card's words may get before it is refused instead. */
+const MIN_CARD_SCALE = 0.4;
+
+/**
+ * Runs in the card's page: shrinks the card until it lies inside the safe
+ * area and no line of its words is wider than the card. A line's glyphs may
+ * reach a pixel or two past its line height; the card's padding holds them.
+ * False when even the smallest size spills.
+ */
+function fitCard(minScale: number): boolean {
+  const safe = document.querySelector(".safe")!.getBoundingClientRect();
+  const card = document.querySelector<HTMLElement>(".card")!;
+  const fits = () => {
+    const box = card.getBoundingClientRect();
+    return (
+      box.top >= safe.top &&
+      box.bottom <= safe.bottom &&
+      box.left >= safe.left &&
+      box.right <= safe.right &&
+      [...card.querySelectorAll<HTMLElement>("p")].every(
+        (line) => line.scrollWidth <= line.clientWidth + 1,
+      )
+    );
+  };
+  // In whole percent: 0.45 - 0.05 is just under 0.4 in floating point.
+  for (let percent = 100; !fits(); percent -= 5) {
+    if (percent - 5 < minScale * 100) return false;
+    card.style.setProperty("--s", String((percent - 5) / 100));
+  }
+  return true;
 }
 
 /** The caption font as a stylesheet rule, so a card reads without the network. */
@@ -150,54 +188,117 @@ async function fallbackFontRule(): Promise<string> {
 }
 
 /**
- * Each card as a transparent PNG the size of the shape's frame, in order.
- * Null when Chromium cannot draw them in time: the video is then made
- * without its cards, as it is without a site it cannot load.
+ * Each card as a transparent PNG the size of the shape's frame, in order,
+ * its words whole inside the safe area. Null when a card's words do not fit
+ * even at `MIN_CARD_SCALE`, or Chromium cannot draw them all in time: the
+ * video is then made without its cards, as it is without a site it cannot
+ * load. At the deadline the browser is closed, so no card is drawn after.
  */
 export async function renderVideoCards(
   cards: readonly VideoCard[],
   brand: VideoCardBrand,
   shape: VideoShape,
+  timeoutMs = RENDER_TIMEOUT_MS,
 ): Promise<Uint8Array[] | null> {
   if (cards.length === 0) return [];
   const { frame } = VIDEO_LAYOUTS[shape];
-  const work = async () => {
+  let timedOut = false;
+  let closeBrowser: (() => Promise<void>) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const work = async (): Promise<Uint8Array[] | "too_long" | null> => {
     const fallback = await fallbackFontRule();
     return await withBrowser(async (browser) => {
+      closeBrowser = () => browser.close();
       const pngs: Uint8Array[] = [];
       // A page per card: a second setContent on one intercepted page hung.
       for (const card of cards) {
+        if (timedOut) return null;
         const page = await browser.newPage();
-        await page.setViewport({ ...frame, deviceScaleFactor: 1 });
-        await page.setRequestInterception(true);
-        page.on("request", (request) => {
-          const url = new URL(request.url());
-          if (url.protocol === "data:" || FONT_HOSTS.has(url.hostname))
-            void request.continue();
-          else void request.abort();
-        });
-        await page.setContent(videoCardHtml(card, brand, shape, fallback), {
-          // The font stylesheet loads by "load"; fonts.ready waits for its files.
-          waitUntil: "load",
-          timeout: RENDER_TIMEOUT_MS,
-        });
-        await page.evaluate(() => document.fonts.ready.then(() => undefined));
-        pngs.push(
-          await page.screenshot({
-            type: "png",
-            omitBackground: true,
-            clip: { x: 0, y: 0, ...frame },
-          }),
-        );
-        await page.close();
+        try {
+          await page.setViewport({ ...frame, deviceScaleFactor: 1 });
+          await page.setRequestInterception(true);
+          page.on("request", (request) => {
+            if (cardMayLoad(request.url())) void request.continue();
+            else void request.abort();
+          });
+          await page.setContent(videoCardHtml(card, brand, shape, fallback), {
+            // The font stylesheet loads by "load"; fonts.ready waits for its files.
+            waitUntil: "load",
+            timeout: timeoutMs,
+          });
+          await page.evaluate(() => document.fonts.ready.then(() => undefined));
+          if (!(await page.evaluate(fitCard, MIN_CARD_SCALE)))
+            return "too_long";
+          pngs.push(
+            await page.screenshot({
+              type: "png",
+              omitBackground: true,
+              clip: { x: 0, y: 0, ...frame },
+            }),
+          );
+        } finally {
+          await page.close().catch(() => undefined);
+        }
       }
       return pngs;
     });
   };
-  return await Promise.race([
-    work().catch(() => null),
-    new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), RENDER_TIMEOUT_MS),
-    ),
-  ]);
+  const failed = (message: string, why: string, cause?: unknown) => {
+    emitCoreWarning(
+      { operation: "video_cards", videoCards: { shape, count: cards.length } },
+      {
+        message,
+        why,
+        fix: "The video is made without its cards.",
+        ...(cause ? { cause } : {}),
+      },
+    );
+    return null;
+  };
+  try {
+    const result = await Promise.race([
+      work().catch((error: unknown) =>
+        timedOut
+          ? null
+          : failed(
+              "Could not draw a video's cards",
+              "Chromium failed while drawing a card",
+              error,
+            ),
+      ),
+      new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => {
+          timedOut = true;
+          void closeBrowser?.().catch(() => undefined);
+          resolve("timeout");
+        }, timeoutMs);
+      }),
+    ]);
+    if (result === "timeout")
+      return failed(
+        "Could not draw a video's cards in time",
+        `Drawing the cards took longer than ${timeoutMs} ms`,
+      );
+    if (result === "too_long")
+      return failed(
+        "A video card's words do not fit",
+        "Even at the smallest size a card's words spill out of the safe area",
+      );
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Only fonts over HTTPS from Google Fonts, and the card's own data. */
+export function cardMayLoad(address: string): boolean {
+  try {
+    const url = new URL(address);
+    return (
+      url.protocol === "data:" ||
+      (url.protocol === "https:" && FONT_HOSTS.has(url.hostname))
+    );
+  } catch {
+    return false;
+  }
 }

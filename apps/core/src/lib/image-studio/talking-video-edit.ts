@@ -838,16 +838,19 @@ export function talkingVideoEditArgs(
   // Each card fades in and out over the cut, under the captions.
   let picture = "cut";
   (files.cards ?? []).forEach((card, index) => {
+    // A card shows within the video: never before it starts or after it ends.
+    const start = Math.max(0, card.start);
     const end = Math.min(card.end, plan.durationSeconds);
-    if (end - card.start < 2 * CARD_FADE_SECONDS) return;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+    if (end - start < 2 * CARD_FADE_SECONDS) return;
     const still = addInput(
       ...["-loop", "1", "-framerate", "30", "-t", end.toFixed(3)],
       ...["-i", card.png],
     );
-    const fade = Math.min(CARD_FADE_SECONDS, (end - card.start) / 2).toFixed(3);
+    const fade = Math.min(CARD_FADE_SECONDS, (end - start) / 2).toFixed(3);
     graph.push(
-      `[${still}:v]format=rgba,fade=t=in:st=${card.start.toFixed(3)}:d=${fade}:alpha=1,fade=t=out:st=${(end - Number(fade)).toFixed(3)}:d=${fade}:alpha=1[k${index}]`,
-      `[${picture}][k${index}]overlay=0:0:enable='between(t,${card.start.toFixed(3)},${end.toFixed(3)})'[over${index}]`,
+      `[${still}:v]format=rgba,fade=t=in:st=${start.toFixed(3)}:d=${fade}:alpha=1,fade=t=out:st=${(end - Number(fade)).toFixed(3)}:d=${fade}:alpha=1[k${index}]`,
+      `[${picture}][k${index}]overlay=0:0:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[over${index}]`,
     );
     picture = `over${index}`;
   });
