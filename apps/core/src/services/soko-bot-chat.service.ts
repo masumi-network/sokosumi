@@ -60,6 +60,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   read_writing_skill: "Reading a writing skill",
   find_style_references: "Looking for a picture style",
   write_month_pieces: "Writing the month",
+  write_strategy: "Writing your strategy",
   read_calendar: "Reading the calendar",
   read_strategy: "Reading the strategy",
   read_brand_brain: "Reading the Brand Brain",

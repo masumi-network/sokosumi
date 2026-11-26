@@ -361,7 +361,7 @@ export function describeCmoStep(
       url: null,
     };
   }
-  if (capability === "save_strategy") {
+  if (capability === "save_strategy" || capability === "write_strategy") {
     return { kind: "strategy", label: "Writing your strategy", url: null };
   }
   if (capability === "list_project_social_accounts") {

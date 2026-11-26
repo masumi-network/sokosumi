@@ -165,6 +165,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_writing_skill",
   "find_style_references",
   "write_month_pieces",
+  "write_strategy",
   "read_calendar",
   "read_strategy",
   "read_brand_brain",
@@ -246,6 +247,8 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "find_style_references",
   // Core writes the month's pieces at once (cmo-v6's production run).
   "write_month_pieces",
+  // Core writes, checks and saves the strategy in one step (cmo-v25).
+  "write_strategy",
   // What an organized context leaves out, read when a turn needs it (cmo-v23).
   ...SOKO_BOT_CMO_READ_CAPABILITIES,
   // The daily reply round: comments on the Project's own posts.

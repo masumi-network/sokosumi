@@ -304,7 +304,12 @@ async function cmoSavedRecord(
     where: {
       turnId,
       capability: {
-        in: ["save_brand_brain", "save_strategy", "save_seo_suggestions"],
+        in: [
+          "save_brand_brain",
+          "save_strategy",
+          "write_strategy",
+          "save_seo_suggestions",
+        ],
       },
       status: "COMPLETED",
     },

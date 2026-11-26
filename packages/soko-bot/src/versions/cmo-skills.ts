@@ -43,6 +43,7 @@ import {
 import { CMO_INDUSTRY, cmoV21Strategy } from "./cmo-v21-skills.js";
 import { cmoV22Strategy } from "./cmo-v22-skills.js";
 import { CMO_CONTEXT_ON_DEMAND } from "./cmo-v23-skills.js";
+import { CMO_STRATEGY_STEP } from "./cmo-v25-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -762,4 +763,5 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   CMO_SITE_PAGES,
   CMO_INDUSTRY,
   CMO_CONTEXT_ON_DEMAND,
+  CMO_STRATEGY_STEP,
 ];
