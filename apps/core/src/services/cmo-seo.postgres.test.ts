@@ -25,7 +25,6 @@ import prisma from "@/lib/db/prisma";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
 import { type Cuso, findCusoForBot } from "./cmo-cuso.service";
 import {
-  markCmoLandingPageLive,
   readCmoSeo,
   requestCmoArticleIdeas,
   saveCmoSeoSuggestions,
@@ -37,6 +36,7 @@ import {
   pauseCmoSeoAuditsWithoutCuso,
   readCmoSeoAudit,
 } from "./cmo-seo-audit.service";
+import { markCmoLandingPageLive } from "./cmo-seo-landing-page-live.service";
 import {
   checkCmoSearchRankings,
   seoCheckOutcome,
