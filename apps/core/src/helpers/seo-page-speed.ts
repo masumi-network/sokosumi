@@ -379,16 +379,21 @@ function storedHistory(history: unknown): SpeedHistory | undefined {
   // A fresh import stores no empty series.
   if (!weeks.length) return { status };
   const kept: SpeedHistory = { status, weeks };
+  let given = false;
   for (const key of ["lcp", "inp", "cls"] as const) {
+    given ||= raw[key] != null;
     const points = speedHistory.shape[key].safeParse(raw[key]);
     if (points.data?.length === weeks.length) kept[key] = points.data;
   }
+  // Metrics that all go leave no trend, as on a fresh import: the weeks alone would say "comparable".
+  if (given && !kept.lcp && !kept.inp && !kept.cls)
+    return { status: "unavailable" };
   return kept;
 }
 
 /**
- * One stored measurement before the schema reads it, with the guards of a fresh import. None: a URL is not
- * public. The field URL gets the form a fresh import stores. A history Core cannot read and a lab insight
+ * One stored measurement before the schema reads it, with the guards of a fresh import. None: the page URL
+ * or the tested URL is not public. The field URL gets the form a fresh import stores. A history Core cannot read and a lab insight
  * with text that is not public go, a Lighthouse version that is not plain is null; the measurement stays.
  */
 export function readableStoredMeasurement(value: unknown): unknown[] {
@@ -410,12 +415,14 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
     let foreign = false;
     if (field.url != null) {
       const url = speedFieldUrl(field.url);
-      if (!url) return [];
-      measured.url = url;
-      // Field data is of the tested page's origin; origin data names the origin.
+      // A field URL that Core does not read, in a spelling or of a place, is no field data: the lab
+      // measurement stays, as on a fresh import. Field data is of the tested page's origin; origin data
+      // names the origin.
       foreign =
+        !url ||
         new URL(url).origin !== new URL(testedUrl).origin ||
         (field.level === "origin" && new URL(url).pathname !== "/");
+      if (url) measured.url = url;
     }
     // A comparable history with a series that is no object reads as a fresh import reads it: unavailable.
     const series = reportObject(history)?.series;

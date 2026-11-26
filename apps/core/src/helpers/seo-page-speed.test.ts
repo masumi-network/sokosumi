@@ -487,11 +487,33 @@ describe("imported full-audit PageSpeed evidence", () => {
     expect(publicSeoPayloadSchema.parse(stored).pageSpeed).toEqual(
       result.pageSpeed,
     );
-    // Another path is another URL: the measurement goes, as before.
-    stored.pageSpeed[0].field.url = "https://example.test/x/../books";
-    expect(
-      publicSeoPayloadSchema.parse(stored).pageSpeed?.map((row) => row.device),
-    ).toEqual(["desktop"]);
+    // A spelling Core does not read (a path with dots, the default port) is no field data. The lab result
+    // stays, as on a fresh import.
+    for (const url of [
+      "https://example.test/x/../books",
+      "https://example.test:443/books",
+    ]) {
+      stored.pageSpeed[0].field.url = url;
+      expect(publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]).toMatchObject(
+        {
+          device: "mobile",
+          field: { status: "unavailable" },
+          lab: { status: "measured" },
+        },
+      );
+      expect(
+        readPageSpeed(
+          {
+            ...speed,
+            mobile: { ...speed.mobile, field: { ...speed.mobile.field, url } },
+          },
+          books,
+        )[0],
+      ).toMatchObject({
+        field: { status: "unavailable" },
+        lab: { status: "measured" },
+      });
+    }
   });
 });
 
@@ -744,6 +766,10 @@ describe("CrUX History on a measured field", () => {
         inp: [1, -1, 3],
       }),
     ).toEqual({ status: "comparable", weeks: three, lcp: [1, 2, 3] });
+    // Metrics that all go leave no trend, as on a fresh import: weeks alone do not say "comparable".
+    expect(
+      historyOfStored({ status: "comparable", weeks: three, lcp: [1, -1, 3] }),
+    ).toEqual({ status: "unavailable" });
     // A status that is not comparable stays, whatever the weeks hold.
     expect(
       historyOfStored({ status: "unavailable", weeks: ["not-a-day"] }),
