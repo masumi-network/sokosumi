@@ -1864,7 +1864,7 @@ export const postContactsMerge = <ThrowOnError extends boolean = false>(options?
 });
 
 /**
- * Groups of live contacts that share a name (case and spacing ignored): likely the same person, worth a merge. At most `limit` groups (default 50, up to 200).
+ * Groups of live contacts that are likely the same person, worth a merge. Each group says why in `reason`: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain). At most `limit` groups (default 50, up to 200).
  */
 export const getContactsDuplicates = <ThrowOnError extends boolean = false>(options?: Options<GetContactsDuplicatesData, ThrowOnError>): RequestResult<GetContactsDuplicatesResponses, GetContactsDuplicatesErrors, ThrowOnError> => (options?.client ?? client).get<GetContactsDuplicatesResponses, GetContactsDuplicatesErrors, ThrowOnError>({
     responseTransformer: getContactsDuplicatesResponseTransformer,
@@ -3722,7 +3722,7 @@ export const getUsersById = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Save the user's first and last name (path `me` for the session user, or a user id the caller may access). The display name is derived from them only when the user has none; after that it is theirs to edit. Session users only.
+ * Save the user's display name (`name`) and/or first and last name (path `me` for the signed-in user, or a user id the caller may access). First and last name go together. Without `name`, the display name is derived from them only when the user has none.
  */
 export const patchUsersById = <ThrowOnError extends boolean = false>(options: Options<PatchUsersByIdData, ThrowOnError>): RequestResult<PatchUsersByIdResponses, PatchUsersByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchUsersByIdResponses, PatchUsersByIdErrors, ThrowOnError>({
     responseTransformer: patchUsersByIdResponseTransformer,
