@@ -2748,6 +2748,103 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(distinctRun?.capabilities).toContain("read_table");
       expect(distinctRun?.capabilities).not.toContain("write_table_rows");
 
+      // Creating a custom schedule always inserts a new row (never upserts or
+      // overwrites by name, including SQL LIKE wildcard names like "Margin 5%"
+      // alongside "Margin 50%" or exact same-name creates with new instructions).
+      const margin50Input = {
+        name: "Margin 50%",
+        cronExpression: "0 9 * * 1",
+        timezone: "UTC",
+        prompt: "Check 50% margin threshold.",
+        capabilities: ["read_table"],
+      };
+      const margin50 = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-50-create-${randomUUID()}`,
+        input: margin50Input,
+      })) as { id: string };
+      // Same-turn identical retry still replays the original receipt id.
+      const margin50Retry = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-50-retry-${randomUUID()}`,
+        input: margin50Input,
+      })) as { id: string };
+      expect(margin50Retry.id).toBe(margin50.id);
+      // "Margin 5%" inserts its own row and leaves "Margin 50%" untouched.
+      const margin5 = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-5-create-${randomUUID()}`,
+        input: {
+          name: "Margin 5%",
+          cronExpression: "0 10 * * 1",
+          timezone: "UTC",
+          prompt: "Check 5% margin threshold.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      expect(margin5.id).not.toBe(margin50.id);
+      // Even an exact same-name create with different instructions inserts a
+      // new row; updates go only through update_schedule.
+      const margin50Second = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-50-second-${randomUUID()}`,
+        input: {
+          name: "Margin 50%",
+          cronExpression: "0 11 * * 1",
+          timezone: "UTC",
+          prompt: "Check quarterly 50% margin threshold.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      expect(margin50Second.id).not.toBe(margin50.id);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50.id },
+          select: { name: true, prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        name: "Margin 50%",
+        prompt: "Check 50% margin threshold.",
+        cronExpression: "0 9 * * 1",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin5.id },
+          select: { name: true, prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        name: "Margin 5%",
+        prompt: "Check 5% margin threshold.",
+        cronExpression: "0 10 * * 1",
+      });
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `margin-50-update-${randomUUID()}`,
+        input: {
+          scheduleId: margin50.id,
+          cronExpression: "30 9 * * 1",
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check 50% margin threshold.",
+        cronExpression: "30 9 * * 1",
+      });
+
       // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
       // and its next run actually carries write_table_rows.
       await sokoBotRuntimeService.executeTool({

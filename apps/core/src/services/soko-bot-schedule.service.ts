@@ -361,136 +361,23 @@ export async function createSokoBotSchedule(
       : null;
   const link = { taskId: input.taskId ?? null, jobId: input.jobId ?? null };
   const mutate = async (tx: Prisma.TransactionClient) => {
-    // Same name = same follow-up: a model retrying or re-planning updates
-    // the existing custom schedule instead of stacking duplicates, while a
-    // collision with a built-in rhythm is refused so the rhythm stays intact.
     const scheduleName = name.slice(0, 120);
-    const existing = await tx.sokoBotSchedule.findFirst({
-      where: {
-        sokoBotId: bot.id,
-        name: { equals: scheduleName, mode: "insensitive" },
-      },
-      orderBy: { systemKey: "asc" },
-      select: {
-        id: true,
-        name: true,
-        requestedByUserId: true,
-        systemKey: true,
-        authority: true,
-        completedRuns: true,
-        sokoBot: { select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT },
-      },
+    // Built-in rhythms keep their reserved names. Check them with literal
+    // case-insensitive equality in JS (never Prisma `mode: "insensitive"`,
+    // which compiles to ILIKE and treats `%`/`_` as SQL wildcards).
+    // Custom schedules are never upserted by name — every create inserts a
+    // new row, and edits go through updateSokoBotSchedule.
+    const builtIns = await tx.sokoBotSchedule.findMany({
+      where: { sokoBotId: bot.id, systemKey: { not: null } },
+      select: { name: true },
     });
-    if (existing?.systemKey) {
+    const builtInMatch = builtIns.find(
+      (row) => row.name.toLowerCase() === scheduleName.toLowerCase(),
+    );
+    if (builtInMatch) {
       throw new SokoBotScheduleValidationError(
-        `"${existing.name ?? scheduleName}" is a built-in rhythm. Choose a different name for a custom schedule, or update the built-in rhythm's timing instead.`,
+        `"${builtInMatch.name}" is a built-in rhythm. Choose a different name for a custom schedule, or update the built-in rhythm's timing instead.`,
       );
-    }
-    if (existing) {
-      const now = new Date();
-      const nextAuthority = input.resolveAuthority
-        ? resolveScheduleAuthorityField(input.resolveAuthority, {
-            scheduleId: existing.id,
-            sokoBotId: bot.id,
-            workspaceId: input.workspaceId,
-            existingAuthority: parseOwnerAuthority(
-              "authority" in existing ? existing.authority : null,
-            ),
-            botProjectId: botDetails?.projectId ?? null,
-            botVersionId: botDetails?.versionId ?? null,
-            sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
-          })
-        : undefined;
-      const effectiveAuthority =
-        nextAuthority ??
-        parseOwnerAuthority(
-          "authority" in existing ? existing.authority : null,
-        );
-      if (
-        effectiveAuthority !== null &&
-        existing.systemKey === null &&
-        (input.capabilityNames?.length ?? 0) > 0
-      ) {
-        const botUserId =
-          botDetails?.userId ?? existing.sokoBot?.userId ?? null;
-        const capabilityCheck = checkScheduleFirstRunCapabilities({
-          scheduleId: existing.id,
-          sokoBotId: bot.id,
-          workspaceId: input.workspaceId,
-          authority: effectiveAuthority,
-          actingUserId: sokoBotScheduleActingUserId({
-            requestedByUserId: existing.requestedByUserId ?? null,
-            systemKey: existing.systemKey,
-            sokoBot: { userId: botUserId },
-          }),
-          botUserId,
-          botProjectId:
-            botDetails?.projectId ?? existing.sokoBot?.projectId ?? null,
-          botVersionId:
-            botDetails?.versionId ?? existing.sokoBot?.versionId ?? null,
-          requestedCapabilities: input.capabilityNames ?? [],
-          explicitCapabilities: input.explicitCapabilities,
-          now,
-        });
-        if (!capabilityCheck.ok) {
-          throw new SokoBotScheduleValidationError(capabilityCheck.detail);
-        }
-      }
-      const completedRuns =
-        "completedRuns" in existing &&
-        typeof existing.completedRuns === "number"
-          ? existing.completedRuns
-          : 0;
-      let countLimitAlreadyMet = false;
-      if (
-        effectiveAuthority?.stopRule.mode === "ends_after_runs" &&
-        completedRuns >= effectiveAuthority.stopRule.maxRuns
-      ) {
-        const existingBot =
-          "sokoBot" in existing && existing.sokoBot
-            ? existing.sokoBot
-            : await tx.sokoBot.findUnique({
-                where: { id: bot.id },
-                select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT,
-              });
-        countLimitAlreadyMet = await isCountStopRuleAuthorizedAndMet(
-          tx,
-          {
-            id: existing.id,
-            sokoBotId: bot.id,
-            workspaceId: input.workspaceId,
-            completedRuns,
-            authority: effectiveAuthority,
-            sokoBot: existingBot,
-          },
-          now,
-        );
-      }
-      // The Requester stays whoever asked first (ADR 0057).
-      const updated = await tx.sokoBotSchedule.update({
-        where: { id: existing.id },
-        data: {
-          enabled: !countLimitAlreadyMet,
-          consecutiveFailures: 0,
-          workspaceId: input.workspaceId,
-          timezone: input.timezone,
-          cronExpression,
-          runOnce,
-          prompt: prompt.slice(0, 20_000),
-          nextRunAt,
-          capabilityNames: [...(input.capabilityNames ?? [])],
-          ...link,
-          ...(nextAuthority !== undefined
-            ? { authority: nextAuthority as Prisma.InputJsonValue }
-            : {}),
-          // New timing: moved or skipped runs of the old one no longer apply.
-          runChanges: { deleteMany: {} },
-        },
-      });
-      if (countLimitAlreadyMet) {
-        await fenceUnstartedScheduleRuns(tx, existing.id, now);
-      }
-      return updated;
     }
     const activeCount = await tx.sokoBotSchedule.count({
       where: { sokoBotId: bot.id, enabled: true, systemKey: null },

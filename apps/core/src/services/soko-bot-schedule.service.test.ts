@@ -120,6 +120,7 @@ describe("schedules of a shared bot", () => {
     requestedByUserId?: string;
     workspaceId?: string;
     sokoBotId?: string;
+    systemKey?: string | null | { not: null };
     sokoBot?: { userId: string };
     OR?: { id?: string }[];
   }
@@ -129,6 +130,10 @@ describe("schedules of a shared bot", () => {
     (where.workspaceId === undefined ||
       row.workspaceId === where.workspaceId) &&
     (where.sokoBotId === undefined || row.sokoBotId === where.sokoBotId) &&
+    (where.systemKey === undefined ||
+      (typeof where.systemKey === "object" && where.systemKey !== null
+        ? row.systemKey !== where.systemKey.not
+        : row.systemKey === where.systemKey)) &&
     (where.sokoBot === undefined ||
       BOT_OWNERS[row.sokoBotId] === where.sokoBot.userId) &&
     (where.OR === undefined || where.OR.some((arm) => arm.id === row.id));
@@ -627,30 +632,34 @@ describe("schedules of a shared bot", () => {
   });
 
   it("refuses creating a custom schedule with the same name as a built-in rhythm", async () => {
-    scheduleFindFirst.mockResolvedValueOnce({
-      ...PERSONAL,
-      name: "Daily stand-up",
-      systemKey: "standup",
-    });
-
-    await expect(
-      createSokoBotSchedule(
+    for (const collidingName of ["Daily stand-up", "daily stand-up"]) {
+      scheduleFindMany.mockResolvedValueOnce([
         {
-          userId: "owner_1",
-          workspaceId: WORKSPACE_ID,
-          sokoBotId: PERSONAL_BOT_ID,
+          ...PERSONAL,
           name: "Daily stand-up",
-          timezone: "UTC",
-          cronExpression: "0 9 * * 1-5",
-          prompt: "Read the daily KPI table.",
-          capabilityNames: ["read_table"],
-          explicitCapabilities: true,
+          systemKey: "standup",
         },
-        tx,
-      ),
-    ).rejects.toThrow(
-      '"Daily stand-up" is a built-in rhythm. Choose a different name for a custom schedule',
-    );
+      ]);
+
+      await expect(
+        createSokoBotSchedule(
+          {
+            userId: "owner_1",
+            workspaceId: WORKSPACE_ID,
+            sokoBotId: PERSONAL_BOT_ID,
+            name: collidingName,
+            timezone: "UTC",
+            cronExpression: "0 9 * * 1-5",
+            prompt: "Read the daily KPI table.",
+            capabilityNames: ["read_table"],
+            explicitCapabilities: true,
+          },
+          tx,
+        ),
+      ).rejects.toThrow(
+        '"Daily stand-up" is a built-in rhythm. Choose a different name for a custom schedule',
+      );
+    }
     expect(scheduleUpdate).not.toHaveBeenCalled();
     expect(scheduleCreate).not.toHaveBeenCalled();
   });
@@ -792,14 +801,12 @@ describe("schedules of a shared bot", () => {
       workspaceId: WORKSPACE_ID,
       archivedAt: null,
     } as never);
-    scheduleFindFirst.mockResolvedValueOnce(null);
     await createSokoBotSchedule(createInput(null, SHARED_BOT_ID), tx);
     expect(scheduleCreate).toHaveBeenCalled();
     expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
   });
 
   it("creates on the turn's own bot, not the member's personal one", async () => {
-    scheduleFindFirst.mockResolvedValueOnce(null);
     await createSokoBotSchedule(
       {
         userId: "member_2",
@@ -825,57 +832,29 @@ describe("schedules of a shared bot", () => {
     });
   });
 
-  describe("upserting a schedule by name", () => {
-    const upsert = (
-      row: typeof SHARED,
-      userId: string,
-      edit: Partial<{
-        prompt: string;
-        cronExpression: string;
-        timezone: string;
-      }>,
-    ) =>
-      createSokoBotSchedule(
-        {
-          userId,
-          workspaceId: WORKSPACE_ID,
-          sokoBotId: row.sokoBotId,
-          name: row.name,
-          timezone: row.timezone,
-          cronExpression: row.cronExpression,
-          prompt: row.prompt,
-          ...edit,
-        },
-        tx,
-      );
-    /** The Requester the upsert wrote to `row`; `undefined` keeps it. */
-    const storedRequester = (row: typeof SHARED) => {
-      const call = scheduleUpdate.mock.lastCall?.[0];
-      expect(call?.where).toEqual({ id: row.id });
-      return call?.data.requestedByUserId;
-    };
-
-    it.each([
-      ["a new prompt", { prompt: "New" }],
-      ["a new cron", { cronExpression: "0 10 * * 1" }],
-      ["a new timezone", { timezone: "Europe/Berlin" }],
-      ["no change", {}],
-    ])(
-      "keeps a shared schedule's Requester when another member upserts %s",
-      async (_label, edit) => {
-        await upsert(SHARED, "member_2", edit);
-        expect(storedRequester(SHARED)).toBeUndefined();
-      },
-    );
-
-    it("leaves a personal schedule with its owner", async () => {
-      await upsert(PERSONAL, "owner_1", { prompt: "New" });
-      expect(storedRequester(PERSONAL)).toBeUndefined();
+  describe("creating schedules always inserts a new row", () => {
+    it("inserts a new schedule instead of overwriting an existing custom schedule by name or % wildcard", async () => {
+      for (const name of [SHARED.name, "Margin 50%", "Margin 5%"]) {
+        await createSokoBotSchedule(
+          {
+            userId: "owner_1",
+            workspaceId: WORKSPACE_ID,
+            sokoBotId: PERSONAL_BOT_ID,
+            name,
+            timezone: "UTC",
+            cronExpression: "0 9 * * 1",
+            prompt: `Run ${name}`,
+          },
+          tx,
+        );
+      }
+      expect(scheduleCreate).toHaveBeenCalledTimes(3);
+      expect(scheduleUpdate).not.toHaveBeenCalled();
     });
   });
 
   describe("persisted OwnerAuthority resolution", () => {
-    it("pre-allocates schedule id and persists resolved authority on create, upsert, and update", async () => {
+    it("pre-allocates schedule id and persists resolved authority on create and update", async () => {
       const resolveCreate = vi.fn(({ scheduleId }) => ({
         version: 1 as const,
         grantId: "grant-1",
@@ -890,7 +869,6 @@ describe("schedules of a shared bot", () => {
         socialMode: "draft_only" as const,
         stopRule: { mode: "ends_after_runs" as const, scheduleId, maxRuns: 2 },
       }));
-      scheduleFindFirst.mockResolvedValueOnce(null);
       await createSokoBotSchedule(
         {
           ...createInput("member_2", SHARED_BOT_ID),
@@ -1017,26 +995,7 @@ describe("schedules of a shared bot", () => {
       expect(raised.enabled).toBe(true);
       expect(runUpdateMany).not.toHaveBeenCalled();
 
-      // 4. Upserting by name via createSokoBotSchedule onto a schedule already
-      //    at completedRuns=2 with maxRuns=2 keeps enabled=false and fences runs.
-      scheduleFindFirst.mockResolvedValueOnce({
-        id: SHARED.id,
-        authority: makeRunsAuthority("member_2", 2),
-        completedRuns: 2,
-      } as never);
-      runUpdateMany.mockClear();
-
-      const upserted = await createSokoBotSchedule(
-        {
-          ...createInput("member_2", SHARED_BOT_ID),
-          name: SHARED.name,
-        },
-        tx,
-      );
-      expect(upserted.enabled).toBe(false);
-      expect(runUpdateMany).toHaveBeenCalledTimes(1);
-
-      // 5. Metadata-only chat rename (resolveAuthority returns undefined) with
+      // 4. Metadata-only chat rename (resolveAuthority returns undefined) with
       //    an expired grant or departed grantor must NOT disable the schedule
       //    or cancel queued occurrences.
       const expiredAuthority = {
@@ -1068,9 +1027,8 @@ describe("schedules of a shared bot", () => {
       );
       expect(runUpdateMany).not.toHaveBeenCalled();
 
-      // 6. Re-enabling or same-name upserting a schedule whose saved count
-      //    grant is expired or whose grantor departed must NOT apply that
-      //    stale stop rule or fence queued runs.
+      // 5. Re-enabling a schedule whose saved count grant is expired or whose
+      //    grantor departed must NOT apply that stale stop rule or fence queued runs.
       const expiredDisabled = {
         ...SHARED,
         enabled: false,
@@ -1113,28 +1071,10 @@ describe("schedules of a shared bot", () => {
       );
       expect(reenabledDeparted.enabled).toBe(true);
       expect(runUpdateMany).not.toHaveBeenCalled();
-
-      scheduleFindFirst.mockResolvedValueOnce({
-        id: SHARED.id,
-        authority: expiredAuthority,
-        completedRuns: 2,
-      } as never);
-      runUpdateMany.mockClear();
-
-      const upsertedExpired = await createSokoBotSchedule(
-        {
-          ...createInput("member_2", SHARED_BOT_ID),
-          name: SHARED.name,
-        },
-        tx,
-      );
-      expect(upsertedExpired.enabled).toBe(true);
-      expect(runUpdateMany).not.toHaveBeenCalled();
     });
 
     it("refuses creating or updating write schedules whose first run drops writes while allowing direct personal writes and read-only checks", async () => {
       // 1. Personal background task (system / read_only authority) requesting write_table_rows is refused.
-      scheduleFindFirst.mockResolvedValueOnce(null);
       await expect(
         createSokoBotSchedule(
           {
@@ -1165,7 +1105,6 @@ describe("schedules of a shared bot", () => {
       expect(scheduleCreate).not.toHaveBeenCalled();
 
       // Same personal background task creating a read-only check succeeds.
-      scheduleFindFirst.mockResolvedValueOnce(null);
       await createSokoBotSchedule(
         {
           ...createInput("owner_1", PERSONAL_BOT_ID),
@@ -1190,7 +1129,6 @@ describe("schedules of a shared bot", () => {
       expect(scheduleCreate).toHaveBeenCalledTimes(1);
 
       // 2. Direct top-level personal owner chat creating a write_table_rows schedule succeeds.
-      scheduleFindFirst.mockResolvedValueOnce(null);
       await createSokoBotSchedule(
         {
           ...createInput("owner_1", PERSONAL_BOT_ID),
@@ -1231,7 +1169,6 @@ describe("schedules of a shared bot", () => {
       };
       botFindUnique.mockResolvedValueOnce(sharedCmoBot);
       botFindUnique.mockResolvedValueOnce(sharedCmoBot);
-      scheduleFindFirst.mockResolvedValueOnce(null);
       await expect(
         createSokoBotSchedule(
           {
@@ -1264,7 +1201,6 @@ describe("schedules of a shared bot", () => {
       // Read-only custom shared-bot schedule succeeds.
       botFindUnique.mockResolvedValueOnce(sharedCmoBot);
       botFindUnique.mockResolvedValueOnce(sharedCmoBot);
-      scheduleFindFirst.mockResolvedValueOnce(null);
       await createSokoBotSchedule(
         {
           ...createInput("member_2", SHARED_BOT_ID),
