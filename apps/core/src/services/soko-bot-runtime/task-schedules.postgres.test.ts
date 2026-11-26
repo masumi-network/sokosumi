@@ -67,7 +67,10 @@ describe.skipIf(!enabled)("a Soko Bot's Task Schedules", () => {
   afterEach(async () => {
     // Deleting schedules and the workspace fires triggers that name a table
     // without its schema (ticket 19); the fixture scope resolves them on the
-    // split layout. The code under test runs without it.
+    // split layout. The code under test runs without it, and there creating a
+    // schedule fires the same kind of trigger (projectTaskScheduleRuns), so the
+    // file stays in split-layout-pending.txt until ticket 19 lands, like every
+    // other test that creates Task Schedules through the service.
     await withFixtureSchemas(async (tx) => {
       await tx.taskSchedule.deleteMany({ where: { workspaceId } });
       await tx.sokoBot.deleteMany({ where: { id: botId } });
