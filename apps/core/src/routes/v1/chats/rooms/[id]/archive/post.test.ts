@@ -186,7 +186,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
     expect(await response.text()).toMatch(/Archive the Soko Bot instead/);
     expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
       where: { sharedRoomId: ROOM_ID },
-      select: { id: true },
+      select: { id: true, deletedAt: true },
     });
     expect(roomUpdateManyMock).not.toHaveBeenCalled();
     expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
