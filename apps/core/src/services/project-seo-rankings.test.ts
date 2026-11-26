@@ -17,7 +17,12 @@ import { projectSeoProjection } from "./project-seo-projection";
 import { withSeoRankings } from "./project-seo-rankings";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
-type Read = { position: number | null; status?: string; device?: string };
+type Read = {
+  position: number | null;
+  status?: string;
+  device?: string;
+  checked?: number | null;
+};
 
 const at = (day: number) =>
   new Date(Date.UTC(2026, 9, 1 + day, 9)).toISOString();
@@ -32,6 +37,7 @@ function result(day: number, reads: Read[], extra: object = {}) {
     keywords: reads.map((read) => ({
       ...base.keywords[0],
       device: read.device ?? "desktop",
+      ...(read.checked === undefined ? {} : { checkedResults: read.checked }),
       position: read.position,
       positionStatus:
         read.status ?? (read.position === null ? "not_in_range" : "ranked"),
@@ -124,10 +130,11 @@ function workspaceOf(
 
 describe("keyword position history", () => {
   it("keeps every paid read oldest first, a read outside the checked results included", () => {
+    // Each read has its own depth: the chart says "not in the top N" from it.
     const workspace = workspaceOf([
-      result(3, [{ position: 3 }]),
-      result(2, [{ position: null }]),
-      result(1, [{ position: 5 }]),
+      result(3, [{ position: 3, checked: 20 }]),
+      result(2, [{ position: null, checked: 100 }]),
+      result(1, [{ position: 5, checked: null }]),
     ]);
     expect(workspace.keywords).toHaveLength(1);
     expect(
@@ -135,11 +142,12 @@ describe("keyword position history", () => {
         point.observedAt,
         point.position,
         point.positionStatus,
+        point.checkedResults,
       ]),
     ).toEqual([
-      [at(1), 5, "ranked"],
-      [at(2), null, "not_in_range"],
-      [at(3), 3, "ranked"],
+      [at(1), 5, "ranked", null],
+      [at(2), null, "not_in_range", 100],
+      [at(3), 3, "ranked", 20],
     ]);
   });
 
