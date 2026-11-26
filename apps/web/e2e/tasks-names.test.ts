@@ -57,7 +57,14 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       // Create a Task for yourself.
       await page.goto(`${BASE_URL}/tasks`);
-      await page.getByRole("button", { name: "New task" }).first().click();
+      // A tablet keeps New task in the closed sidebar.
+      const newTask = page
+        .getByRole("button", { name: "New task" })
+        .filter({ visible: true });
+      const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+      await newTask.or(showSidebar).first().waitFor();
+      if ((await newTask.count()) === 0) await showSidebar.click();
+      await newTask.first().click();
       const dialog = page.getByRole("dialog", { name: "New task" });
       await dialog.getByRole("textbox", { name: "Task name" }).fill(TASK);
       await dialog.getByRole("combobox", { name: /^Assignee:/ }).click();
