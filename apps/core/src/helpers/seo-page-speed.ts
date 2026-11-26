@@ -376,19 +376,20 @@ function storedHistory(history: unknown): SpeedHistory | undefined {
   const weeks = days.data;
   if (!weeks || weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!))
     return undefined;
-  // A fresh import stores no empty series.
-  if (!weeks.length) return { status };
   const kept: SpeedHistory = { status, weeks };
   let given = false;
   for (const key of ["lcp", "inp", "cls"] as const) {
-    given ||= raw[key] != null;
+    // As a fresh import counts it: an empty list is no metric.
+    const value = raw[key];
+    given ||= Array.isArray(value) ? value.length > 0 : value != null;
     const points = speedHistory.shape[key].safeParse(raw[key]);
     if (points.data?.length === weeks.length) kept[key] = points.data;
   }
   // Metrics that all go leave no trend, as on a fresh import: the weeks alone would say "comparable".
   if (given && !kept.lcp && !kept.inp && !kept.cls)
     return { status: "unavailable" };
-  return kept;
+  // A fresh import stores no empty series.
+  return weeks.length ? kept : { status };
 }
 
 /**
@@ -423,7 +424,7 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
         new URL(url).origin !== new URL(testedUrl).origin ||
         (field.level === "origin" && new URL(url).pathname !== "/");
       if (url) measured.url = url;
-    }
+    } else if (field.status === "measured") foreign = true;
     // A comparable history with a series that is no object reads as a fresh import reads it: unavailable.
     const series = reportObject(history)?.series;
     const kept = storedHistory(history);

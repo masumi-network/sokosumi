@@ -514,6 +514,18 @@ describe("imported full-audit PageSpeed evidence", () => {
         lab: { status: "measured" },
       });
     }
+    // A measured field without a URL is no field data either: the lab result stays.
+    for (const url of [null, undefined]) {
+      stored.pageSpeed[0].field.url = url;
+      expect(
+        publicSeoPayloadSchema.parse(JSON.parse(JSON.stringify(stored)))
+          .pageSpeed?.[0],
+      ).toMatchObject({
+        device: "mobile",
+        field: { status: "unavailable" },
+        lab: { status: "measured" },
+      });
+    }
   });
 });
 
@@ -769,6 +781,14 @@ describe("CrUX History on a measured field", () => {
     // Metrics that all go leave no trend, as on a fresh import: weeks alone do not say "comparable".
     expect(
       historyOfStored({ status: "comparable", weeks: three, lcp: [1, -1, 3] }),
+    ).toEqual({ status: "unavailable" });
+    // An empty list is no metric, as on a fresh import: the weeks stay.
+    expect(
+      historyOfStored({ status: "comparable", weeks: three, lcp: [] }),
+    ).toEqual({ status: "comparable", weeks: three });
+    // A metric that is no list leaves no trend, also without weeks.
+    expect(
+      historyOfStored({ status: "comparable", weeks: [], lcp: "bad" }),
     ).toEqual({ status: "unavailable" });
     // A status that is not comparable stays, whatever the weeks hold.
     expect(
