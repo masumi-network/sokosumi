@@ -486,6 +486,26 @@ describe("withSeoRunDiffs", () => {
 });
 
 describe("withSeoRunDiffs edge cases", () => {
+  it("compares the ranks of two checks of page rules that read rankings only", () => {
+    const ranked = (position: number) => ({
+      keyword: "x402",
+      pageUrl: PAGE,
+      device: "mobile" as const,
+      position,
+      positionStatus: "ranked" as const,
+      checkedResults: 20,
+      sourceRef: "ref",
+      observedAt: "2026-11-01T09:00:00.000Z",
+    });
+    const lite = (position: number) =>
+      payload({ kind: "audit_lite", keywords: [ranked(position)] });
+    const diff = diffOf([
+      source(8, lite(8), { kind: "audit_lite" }),
+      source(1, lite(2), { kind: "audit_lite" }),
+    ]);
+    expect(diff).toMatchObject({ comparable: true, numbers: { moveCount: 1 } });
+  });
+
   it("pairs past a page check that stored no rows", () => {
     const diff = diffOf([
       source(3, result([failed({ rowId: "B" })])),
