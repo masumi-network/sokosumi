@@ -13563,6 +13563,7 @@ export type ProjectSeoSerpPoint = {
         asyncLoaded: boolean;
         citedDomains: Array<string>;
         pageCited: boolean | null;
+        siteCited?: boolean | null;
     } | null;
     featured: {
         domain: string | null;

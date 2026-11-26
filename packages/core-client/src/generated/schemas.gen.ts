@@ -53782,6 +53782,12 @@ export const ProjectSeoSerpPointSchema = {
                                 'boolean',
                                 'null'
                             ]
+                        },
+                        siteCited: {
+                            type: [
+                                'boolean',
+                                'null'
+                            ]
                         }
                     },
                     required: [

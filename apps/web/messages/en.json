@@ -13674,6 +13674,7 @@
         "serp": {
           "title": "Search results in paid checks",
           "note": "What the results page showed on each check, newest first.",
+          "aiNote": "An AI Overview is the summary Google writes above the results. It cites a page when it links to that page as a source.",
           "check": "Check",
           "aiOverview": "AI Overview",
           "featured": "Featured snippet",
@@ -13687,8 +13688,13 @@
             "not_checked": "AI Overview not checked",
             "undetermined": "Citation not determined",
             "cited_checked": "Cites a checked page",
-            "other_page": "Checked for another page"
+            "other_page": "Checked for another page",
+            "site_cited": "Cites the page's site",
+            "site_cited_checked": "Cites a checked site"
           },
+          "aiSources": "Sources",
+          "ownSource": "{domain} (your site)",
+          "moreSources": "+{count} more",
           "snippet": {
             "owned": "The page's site",
             "checked_site": "A checked site",
@@ -15359,7 +15365,7 @@
           },
           "39": {
             "title": "AI Overview citation history",
-            "missing": "AI Overviews that Google loads after the page are not checked, because that read costs extra."
+            "missing": "You get no alert when an AI Overview stops citing your page."
           },
           "40": {
             "title": "AI assistant referral traffic",

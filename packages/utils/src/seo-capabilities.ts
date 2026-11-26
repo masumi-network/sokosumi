@@ -417,9 +417,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "ai",
     title: "AI Overview citation history",
     status: "partial",
-    missing:
-      "AI Overviews that Google loads after the page are not checked, because that read costs extra.",
-    unlocks: [PAID],
+    missing: "You get no alert when an AI Overview stops citing your page.",
+    unlocks: [DEV],
   },
   {
     id: 40,
