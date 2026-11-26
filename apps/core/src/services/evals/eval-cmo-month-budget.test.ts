@@ -26,6 +26,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $queryRaw: async () => [{ now: new Date() }],
     marketingStrategy: { findUniqueOrThrow: boundary.strategy },
     sokoBotTurn: { findMany: boundary.turns },
+    sokoBotToolCall: { findMany: vi.fn().mockResolvedValue([]) },
     socialPost: { updateMany: boundary.cancelPosts },
     evalLane: {
       findUniqueOrThrow: boundary.lane,

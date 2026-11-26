@@ -1,9 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Turn = { id: string; parentTurnId: string | null; packet: unknown };
+type Turn = {
+  id: string;
+  parentTurnId: string | null;
+  packet: unknown;
+  /** The watch this turn's wait_for set, and the turn it woke. */
+  wait?: { watchId: string; woke: string };
+};
 const turns: Turn[] = [];
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBotToolCall: {
+      findMany: async ({ where }: { where: { turnId: { in: string[] } } }) =>
+        turns.flatMap((turn) =>
+          turn.wait && where.turnId.in.includes(turn.id)
+            ? [{ result: { waiting: true, watchId: turn.wait.watchId } }]
+            : [],
+        ),
+    },
+    sokoBotWatch: {
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
+        turns.flatMap((turn) =>
+          turn.wait && where.id.in.includes(turn.wait.watchId)
+            ? [{ firedTurnId: turn.wait.woke }]
+            : [],
+        ),
+    },
     sokoBotTurn: {
       findMany: async ({
         where,
@@ -101,6 +123,49 @@ describe("a context organizer that lost its read", () => {
     expect(await guardOrganizer(scored, {})).toBe(scored);
     const skipped: CaseOutcome = { ...scored, status: "SKIPPED" };
     expect(await guardOrganizer(skipped, PLAN)).toBe(skipped);
+  });
+
+  it("counts the case's own wake (a sibling), never another case's", async () => {
+    // Production is a child of the chat turn; the watch it sets wakes as a
+    // second child of that chat turn, and the chat turn's own wait as a third.
+    turns.push(
+      { id: "chat", parentTurnId: null, packet: organized({ ms: 900 }) },
+      {
+        id: "make",
+        parentTurnId: "chat",
+        packet: organized({ ms: 900 }),
+        wait: { watchId: "w1", woke: "wake" },
+      },
+      { id: "wake", parentTurnId: "chat", packet: organized({ ms: 900 }) },
+      { id: "wake-run", parentTurnId: "wake", packet: TIMED_OUT },
+      { id: "other-wake", parentTurnId: "chat", packet: TIMED_OUT },
+    );
+    turns[0]!.wait = { watchId: "w2", woke: "other-wake" };
+    // The month's case is its production run: its wake's own run timed out.
+    expect(
+      await guardOrganizer(
+        {
+          status: "FAILED",
+          checks: [],
+          output: {},
+          turnIds: ["make"],
+        },
+        PLAN,
+      ),
+    ).toMatchObject({
+      status: "ERROR",
+      output: { infrastructure: { detail: expect.stringContaining("1 of 3") } },
+    });
+    // Without its wake's timeout, the other case's timed-out wake is not this
+    // case's: it stays scored.
+    turns[3]!.packet = organized({ ms: 900 });
+    const scored: CaseOutcome = {
+      status: "FAILED",
+      checks: [],
+      output: {},
+      turnIds: ["make"],
+    };
+    expect(await guardOrganizer(scored, PLAN)).toBe(scored);
   });
 
   it("never asks the judge (which stores a grade) about an excluded case", async () => {

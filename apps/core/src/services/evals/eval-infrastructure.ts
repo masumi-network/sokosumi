@@ -110,6 +110,58 @@ export function organizerFailure(
 }
 
 /**
+ * The turns woken by these turns' own waits: each wait_for receipt's watch,
+ * once fired. A wake runs beside the turn that waited (both under the chat
+ * turn that started them), so the parent chain alone never reaches it.
+ */
+export async function wokenTurnIds(
+  turnIds: readonly string[],
+): Promise<string[]> {
+  if (turnIds.length === 0) return [];
+  const waits = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: { in: [...turnIds] }, capability: "wait_for" },
+    select: { result: true },
+  });
+  const watchIds = waits.flatMap(({ result }) => {
+    const id = (result as { watchId?: unknown } | null)?.watchId;
+    return typeof id === "string" ? [id] : [];
+  });
+  if (watchIds.length === 0) return [];
+  const watches = await prisma.sokoBotWatch.findMany({
+    where: { id: { in: watchIds }, firedTurnId: { not: null } },
+    select: { firedTurnId: true },
+  });
+  return watches.flatMap(({ firedTurnId }) =>
+    firedTurnId ? [firedTurnId] : [],
+  );
+}
+
+/**
+ * A case's turns: these, every run under them and every wake they set, at any
+ * depth. A watch some other turn set (another case's) is never reached.
+ */
+export async function caseTurnIds(
+  turnIds: readonly string[],
+): Promise<string[]> {
+  const seen = new Set(turnIds);
+  let frontier = [...turnIds];
+  while (frontier.length) {
+    const [children, woken] = await Promise.all([
+      prisma.sokoBotTurn.findMany({
+        where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
+        select: { id: true },
+      }),
+      wokenTurnIds(frontier),
+    ]);
+    frontier = [
+      ...new Set([...children.map((child) => child.id), ...woken]),
+    ].filter((id) => !seen.has(id));
+    for (const id of frontier) seen.add(id);
+  }
+  return [...seen];
+}
+
+/**
  * On a plan run, a case whose turns (or their background runs) lost the
  * organizer's read is an infrastructure ERROR. On the gateway it stays scored:
  * there a timeout is the product's own.
@@ -120,18 +172,8 @@ export async function organizerCaseOutcome(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<CaseOutcome | null> {
   if (!localChatGptPlanEnabled(env)) return null;
-  const seen = new Set(turnIds);
-  let frontier = [...turnIds];
-  while (frontier.length) {
-    const children = await prisma.sokoBotTurn.findMany({
-      where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
-      select: { id: true },
-    });
-    frontier = children.map((child) => child.id);
-    for (const id of frontier) seen.add(id);
-  }
   const snapshots = await prisma.sokoBotContextSnapshot.findMany({
-    where: { turnId: { in: [...seen] } },
+    where: { turnId: { in: await caseTurnIds(turnIds) } },
     select: { packet: true },
   });
   const failure = organizerFailure(snapshots.map(({ packet }) => packet));

@@ -82,6 +82,7 @@ import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
+  wokenTurnIds,
 } from "./eval-infrastructure";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
@@ -863,8 +864,10 @@ async function cancelMonthPosts(strategyId: string) {
   });
 }
 
-// Scoped by the approval's id prefix and the parent chain, not by time: the
-// turns' createdAt is PostgreSQL time and the case start is the host's.
+// Scoped by the approval's id prefix, the parent chain and the runs' own
+// waits, not by time: the turns' createdAt is PostgreSQL time and the case
+// start is the host's. A run's wake is its sibling under the chat turn, so it
+// is found through the run's wait_for, and another case's watch never is.
 export async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
@@ -890,7 +893,16 @@ export async function monthProductionTurns(botId: string, prefix: string) {
       },
       select,
     });
-    frontier = children.filter((turn) => !turns.has(turn.id));
+    const woken = (await wokenTurnIds(frontier.map((turn) => turn.id))).filter(
+      (id) => !turns.has(id),
+    );
+    const wakes = woken.length
+      ? await prisma.sokoBotTurn.findMany({
+          where: { sokoBotId: botId, id: { in: woken } },
+          select,
+        })
+      : [];
+    frontier = [...children, ...wakes].filter((turn) => !turns.has(turn.id));
     for (const turn of frontier) turns.set(turn.id, turn);
   }
   return [...turns.values()];
