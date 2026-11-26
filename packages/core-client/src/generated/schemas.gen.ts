@@ -267,8 +267,7 @@ export const AdminSeoAlertsSchema = {
                     'attemptedCredits',
                     'dataBudgetUsd',
                     'chargedCredits',
-                    'cost',
-                    'costDetail'
+                    'cost'
                 ]
             }
         },
@@ -518,7 +517,8 @@ export const SeoFullAuditCostDetailSchema = {
                             'integer',
                             'null'
                         ],
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1000000000000
                     }
                 },
                 required: [
@@ -547,7 +547,8 @@ export const SeoFullAuditCostDetailSchema = {
                     },
                     microUsd: {
                         type: 'integer',
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1000000000000
                     }
                 },
                 required: [
@@ -571,15 +572,18 @@ export const SeoFullAuditCostDetailSchema = {
                     },
                     modelMicroUsd: {
                         type: 'integer',
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1000000000000
                     },
                     dataForSeoMicroUsd: {
                         type: 'integer',
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1000000000000
                     },
                     otherApiMicroUsd: {
                         type: 'integer',
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1000000000000
                     }
                 },
                 required: [

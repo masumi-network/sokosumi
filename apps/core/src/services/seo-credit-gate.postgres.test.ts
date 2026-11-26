@@ -1042,6 +1042,21 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
         ...detail,
         dataForSeo: Array.from({ length: 201 }, () => detail.dataForSeo[0]),
       },
+      // PostgreSQL jsonb rejects NUL and an unpaired surrogate, which would roll back the charge.
+      {
+        ...detail,
+        models: [
+          { ...detail.models[0], provider: `a${String.fromCharCode(0)}b` },
+        ],
+      },
+      {
+        ...detail,
+        steps: [{ ...detail.steps[0], step: String.fromCharCode(0xd800) }],
+      },
+      {
+        ...detail,
+        dataForSeo: [{ ...detail.dataForSeo[0], microUsd: 1_000_000_000_001 }],
+      },
     ];
     for (const fullAuditCostDetail of invalid) {
       const audit = await runningAudit();

@@ -69,7 +69,7 @@ export type AdminSeoAlerts = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         } | null;
-        costDetail: SeoFullAuditCostDetail | null;
+        costDetail?: SeoFullAuditCostDetail | null;
     }>;
     connectionTotal: number;
     reconnect: number;

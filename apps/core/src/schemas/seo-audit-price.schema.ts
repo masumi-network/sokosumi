@@ -42,8 +42,17 @@ export const seoFullAuditCostSchema = z.strictObject({
 
 const SEO_COST_DETAIL_MAX_ROWS = 200;
 const SEO_COST_DETAIL_MAX_TEXT = 200;
+/** USD 1M per row keeps 200-row sums exact in a JS number. */
+const SEO_COST_DETAIL_MAX_MICRO_USD = 1_000_000_000_000;
+/** PostgreSQL jsonb cannot store NUL or an unpaired surrogate; such text would fail the settlement write. */
+const UNSTORABLE_TEXT = /[\0\p{Cs}]/u;
 const count = z.number().int().nonnegative();
-const detailText = z.string().min(1).max(SEO_COST_DETAIL_MAX_TEXT);
+const detailMicroUsd = microUsd.max(SEO_COST_DETAIL_MAX_MICRO_USD);
+const detailText = z
+  .string()
+  .min(1)
+  .max(SEO_COST_DETAIL_MAX_TEXT)
+  .refine((text) => !UNSTORABLE_TEXT.test(text));
 const detailRows = <T extends z.ZodType>(row: T) =>
   z.array(row).max(SEO_COST_DETAIL_MAX_ROWS);
 
@@ -57,22 +66,22 @@ export const seoFullAuditCostDetailSchema = z
         provider: detailText.nullable(),
         calls: count,
         // null: a call with no known price (a direct, non-Gateway call).
-        microUsd: microUsd.nullable(),
+        microUsd: detailMicroUsd.nullable(),
       }),
     ),
     dataForSeo: detailRows(
       z.strictObject({
         endpoint: detailText,
         reads: count,
-        microUsd,
+        microUsd: detailMicroUsd,
       }),
     ),
     steps: detailRows(
       z.strictObject({
         step: detailText,
-        modelMicroUsd: microUsd,
-        dataForSeoMicroUsd: microUsd,
-        otherApiMicroUsd: microUsd,
+        modelMicroUsd: detailMicroUsd,
+        dataForSeoMicroUsd: detailMicroUsd,
+        otherApiMicroUsd: detailMicroUsd,
       }),
     ),
   })

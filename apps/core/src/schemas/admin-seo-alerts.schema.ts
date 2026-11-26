@@ -71,7 +71,7 @@ export const adminSeoBillingRow = z.object({
   dataBudgetUsd: z.number().nonnegative().nullable(),
   chargedCredits: z.number().nonnegative().nullable(),
   cost: seoFullAuditCostSchema.nullable(),
-  costDetail: z.union([seoFullAuditCostDetailSchema, z.null()]),
+  costDetail: z.union([seoFullAuditCostDetailSchema, z.null()]).optional(),
 });
 
 export const adminSeoAlerts = z
