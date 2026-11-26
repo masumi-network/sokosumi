@@ -23,6 +23,7 @@ import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { put } from "@vercel/blob";
 import { gateway, generateText, Output } from "ai";
 import pLimit from "p-limit";
@@ -357,7 +358,7 @@ async function load(root: string): Promise<void> {
     }
     if (ids.length > 0) {
       await prisma.$executeRaw`
-        UPDATE "reference_image" AS image SET "embedding" = given.embedding::vector
+        UPDATE ${sharedTable("reference_image")} AS image SET "embedding" = given.embedding::vector
         FROM unnest(${ids}::uuid[], ${vectors}::text[]) AS given(id, embedding)
         WHERE image."id" = given.id`;
     }

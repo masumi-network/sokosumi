@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
-import { upsertEnvLines } from "../apply-env.mjs";
+import {
+  applyUrlsToProcessEnv,
+  readUrlsFile,
+  upsertEnvLines,
+  writeEnvFile,
+} from "../apply-env.mjs";
 import { assertAgentFixtureSafety } from "../assert-agent-database.mjs";
 import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "../fixtures.mjs";
 import {
@@ -22,6 +30,8 @@ import {
 import {
   clearUnwantedOrganizationMemberships,
   resetUnwantedPersonalWorkspace,
+  seedDatabase,
+  sharedTableFor,
   throwIfZeroWorkspaceResetFailed,
 } from "../seed-auth-fixtures.mjs";
 import { parseArgs, sameRepoPullRequestBodies } from "../teardown.mjs";
@@ -203,55 +213,175 @@ describe("auth fixtures", () => {
   });
 });
 
+const SPLIT_LAYOUT = {
+  DATABASE_SCHEMA_SHARED: "shared",
+  DATABASE_SCHEMA_MAINNET: "mainnet",
+  DATABASE_SCHEMA_PREPROD: "preprod",
+};
+
+/** A client that records each statement with its values. */
+function recordingClient(queries, onQuery = () => {}) {
+  return {
+    async query(sql, values) {
+      queries.push(values ? [sql, values] : sql);
+      onQuery(sql);
+      return { rowCount: 0 };
+    },
+  };
+}
+
+describe("sharedTableFor", () => {
+  it("names public when the names are blank or missing, as Core does", async () => {
+    assert.equal((await sharedTableFor({}))("user"), '"public"."user"');
+    assert.equal(
+      (
+        await sharedTableFor({
+          DATABASE_SCHEMA_SHARED: "",
+          DATABASE_SCHEMA_MAINNET: "",
+          DATABASE_SCHEMA_PREPROD: "",
+        })
+      )("user"),
+      '"public"."user"',
+    );
+  });
+
+  it("names the shared schema of a split layout", async () => {
+    assert.equal(
+      (await sharedTableFor(SPLIT_LAYOUT))("user"),
+      '"shared"."user"',
+    );
+  });
+
+  it("refuses a layout Core refuses", async () => {
+    const refused = [
+      // Only some of the three names: the rest would be public.
+      { DATABASE_SCHEMA_SHARED: "shared" },
+      {
+        DATABASE_SCHEMA_MAINNET: "mainnet",
+        DATABASE_SCHEMA_PREPROD: "preprod",
+      },
+      { ...SPLIT_LAYOUT, DATABASE_SCHEMA_SHARED: "pg_catalog" },
+      { ...SPLIT_LAYOUT, DATABASE_SCHEMA_SHARED: "information_schema" },
+      { ...SPLIT_LAYOUT, DATABASE_SCHEMA_SHARED: 'shared"; DROP TABLE x; --' },
+      { NETWORK_PREPROD_ENABLED: "true" },
+    ];
+    for (const env of refused) {
+      await assert.rejects(
+        sharedTableFor(env),
+        /^Error: Auth fixtures blocked: /,
+        JSON.stringify(env),
+      );
+    }
+  });
+});
+
+describe("seedDatabase", () => {
+  const PROVISIONED = {
+    databaseUrl: "postgresql://agent@pooled.test/db",
+    databaseUrlUnpooled: "postgresql://agent@direct.test/db",
+  };
+  const OTHER = "postgresql://user@other.test/db";
+
+  it("takes the layout from the environment the URL comes from", () => {
+    const env = { DATABASE_URL: OTHER, ...SPLIT_LAYOUT };
+
+    assert.deepEqual(seedDatabase(undefined, env, PROVISIONED), {
+      databaseUrl: OTHER,
+      layoutEnv: env,
+    });
+    assert.deepEqual(seedDatabase("  ", env, null), {
+      databaseUrl: OTHER,
+      layoutEnv: env,
+    });
+  });
+
+  it("pairs a URL the caller passes with the public layout, whatever the shell exports", () => {
+    assert.deepEqual(seedDatabase(OTHER, { ...SPLIT_LAYOUT }, null), {
+      databaseUrl: OTHER,
+      layoutEnv: {},
+    });
+  });
+
+  it("pairs the provisioned URL with the public layout when with-db.mjs launches the seed", async (t) => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), "agent-db-seed-"));
+    t.after(() => rm(repoRoot, { recursive: true, force: true }));
+    await writeEnvFile(repoRoot, PROVISIONED);
+    // What with-db.mjs does before it starts the command: the provisioned
+    // URLs replace the shell's, the shell's schema names stay.
+    const env = { DATABASE_URL: OTHER, ...SPLIT_LAYOUT };
+    const provisioned = await readUrlsFile(repoRoot);
+    applyUrlsToProcessEnv(provisioned, env);
+
+    const { databaseUrl, layoutEnv } = seedDatabase(
+      undefined,
+      env,
+      provisioned,
+    );
+
+    assert.equal(databaseUrl, PROVISIONED.databaseUrlUnpooled);
+    assert.equal((await sharedTableFor(layoutEnv))("user"), '"public"."user"');
+  });
+
+  it("a partial layout in the environment stops the seed of another database", async () => {
+    const { layoutEnv } = seedDatabase(
+      undefined,
+      { DATABASE_URL: OTHER, DATABASE_SCHEMA_SHARED: "shared" },
+      PROVISIONED,
+    );
+
+    await assert.rejects(
+      sharedTableFor(layoutEnv),
+      /^Error: Auth fixtures blocked: .*must be all public, or all different and none public/,
+    );
+  });
+});
+
 describe("resetUnwantedPersonalWorkspace", () => {
+  const DELETE_WORKSPACE = [
+    'DELETE FROM "shared"."workspace" WHERE "userId" = $1',
+    ["user-zero"],
+  ];
+
   it("deletes the personal workspace inside a savepoint", async () => {
     const queries = [];
-    const client = {
-      async query(sql) {
-        queries.push(sql);
-        return { rowCount: 1 };
-      },
-    };
 
-    const result = await resetUnwantedPersonalWorkspace(client, {
-      userId: "user-zero",
-      email: "zero@sokosumi.test",
-    });
+    const result = await resetUnwantedPersonalWorkspace(
+      recordingClient(queries),
+      { userId: "user-zero", email: "zero@sokosumi.test" },
+      await sharedTableFor(SPLIT_LAYOUT),
+    );
 
     assert.equal(result.reset, true);
-    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
-    assert.match(queries[1], /DELETE FROM workspace/);
-    assert.equal(queries[2], "RELEASE SAVEPOINT zero_workspace_reset");
+    assert.deepEqual(queries, [
+      "SAVEPOINT zero_workspace_reset",
+      DELETE_WORKSPACE,
+      "RELEASE SAVEPOINT zero_workspace_reset",
+    ]);
   });
 
   it("rolls back only the savepoint when delete hits an FK", async () => {
     const queries = [];
-    const client = {
-      async query(sql) {
-        queries.push(sql);
-        if (String(sql).includes("DELETE FROM workspace")) {
-          throw new Error(
-            'update or delete on table "workspace" violates foreign key constraint',
-          );
-        }
-        return { rowCount: 0 };
-      },
-    };
-
-    const result = await resetUnwantedPersonalWorkspace(client, {
-      userId: "user-zero",
-      email: "zero@sokosumi.test",
+    const client = recordingClient(queries, (sql) => {
+      if (sql === DELETE_WORKSPACE[0]) {
+        throw new Error(
+          'update or delete on table "workspace" violates foreign key constraint',
+        );
+      }
     });
 
-    assert.equal(result.reset, false);
-    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
-    assert.match(queries[1], /DELETE FROM workspace/);
-    assert.equal(queries[2], "ROLLBACK TO SAVEPOINT zero_workspace_reset");
-    assert.equal(
-      queries.includes("ROLLBACK"),
-      false,
-      "must not roll back the outer fixture transaction",
+    const result = await resetUnwantedPersonalWorkspace(
+      client,
+      { userId: "user-zero", email: "zero@sokosumi.test" },
+      await sharedTableFor(SPLIT_LAYOUT),
     );
+
+    assert.equal(result.reset, false);
+    // No bare ROLLBACK: the outer fixture transaction stays open.
+    assert.deepEqual(queries, [
+      "SAVEPOINT zero_workspace_reset",
+      DELETE_WORKSPACE,
+      "ROLLBACK TO SAVEPOINT zero_workspace_reset",
+    ]);
   });
 });
 
@@ -271,18 +401,24 @@ describe("throwIfZeroWorkspaceResetFailed", () => {
 describe("clearUnwantedOrganizationMemberships", () => {
   it("deletes memberships and clears selected-organization state", async () => {
     const queries = [];
-    const client = {
-      async query(sql) {
-        queries.push(sql);
-        return { rowCount: 0 };
-      },
-    };
 
-    await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
+    await clearUnwantedOrganizationMemberships(
+      recordingClient(queries),
+      { userId: "user-zero" },
+      await sharedTableFor(SPLIT_LAYOUT),
+    );
 
-    assert.match(queries[0], /DELETE FROM member/);
-    assert.match(queries[1], /preferredOrganizationId/);
-    assert.match(queries[2], /activeOrganizationId/);
+    assert.deepEqual(queries, [
+      ['DELETE FROM "shared"."member" WHERE "userId" = $1', ["user-zero"]],
+      [
+        'UPDATE "shared"."user" SET "preferredOrganizationId" = NULL WHERE id = $1',
+        ["user-zero"],
+      ],
+      [
+        'UPDATE "shared"."session" SET "activeOrganizationId" = NULL WHERE "userId" = $1',
+        ["user-zero"],
+      ],
+    ]);
   });
 });
 
