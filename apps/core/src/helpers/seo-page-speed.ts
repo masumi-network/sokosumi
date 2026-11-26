@@ -437,6 +437,9 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
   // The URLs get the form a fresh import stores: the table and the page list then name one page one way.
   const read: Record<string, unknown> = { ...row, pageUrl, testedUrl };
   const field = reportObject(row.field);
+  // A device part that is missing or no object reads as a fresh import reads it: not checked.
+  if (!field) read.field = { status: "not_checked" };
+  if (!reportObject(row.lab)) read.lab = { status: "not_checked" };
   if (field) {
     const { history, ...measured } = field;
     let foreign = false;

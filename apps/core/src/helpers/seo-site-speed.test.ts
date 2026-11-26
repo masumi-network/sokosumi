@@ -628,6 +628,10 @@ describe("the guards of speed data on each path", () => {
       { ...check, mix: { ...mix, phone: 0.8, desktop: 0.8, tablet: 0.8 } },
       { ...check, mix: { ...mix, level: "origin" } },
       { ...check, basis: "crux-origin", mix },
+      // Review pass 15: a device the shares do not pick, and a mix on a basis without one.
+      { ...check, device: "desktop", mix },
+      { ...check, mix: { ...mix, phone: 0.35, desktop: 0.62 } },
+      { ...check, basis: "default", mix },
     ];
     for (const one of bad) {
       const fresh = read([extra(EXTRA, { tier: "reduced", check: one })])
@@ -650,6 +654,39 @@ describe("the guards of speed data on each path", () => {
       read([extra(EXTRA, { tier: "reduced", check: rounded })])?.rows[0]?.check
         ?.mix,
     ).toEqual(rounded.mix);
+  });
+
+  it("drops a device mix period that ends before it starts and keeps the shares, fresh and stored (review pass 15)", () => {
+    const period = { first: "2026-11-20", last: "2026-10-01" };
+    const { record: _record, ...mix } = check.mix;
+    const one = { ...check, mix: { ...mix, period } };
+    const fresh = read([extra(EXTRA, { tier: "reduced", check: one })])
+      ?.rows[0];
+    const stored = storedRows([
+      {
+        url: EXTRA,
+        audited: false,
+        tier: "reduced",
+        check: one,
+        devices: [device(EXTRA, "mobile")],
+      },
+    ])?.rows[0];
+    for (const row of [fresh, stored])
+      expect(row?.check?.mix).toEqual({ ...mix, period: null });
+  });
+
+  it("reads a stored measurement without a field or a lab as not checked there, as a fresh import (review pass 15)", () => {
+    const { field: _field, ...noField } = device(EXTRA, "mobile");
+    const { lab: _lab, ...noLab } = device(EXTRA, "desktop");
+    const stored = publicSeoPayloadSchema.parse(
+      storedAudit([], [noField, noLab]),
+    ).pageSpeed;
+    expect(
+      stored?.map((row) => [row.device, row.lab.status, row.field.status]),
+    ).toEqual([
+      ["mobile", "unavailable", "not_checked"],
+      ["desktop", "not_checked", "no_data"],
+    ]);
   });
 
   it("counts an unreadable row once and keeps a later, readable row of the same page", () => {

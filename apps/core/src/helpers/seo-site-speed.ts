@@ -41,24 +41,34 @@ type SiteSpeedCheck = NonNullable<StoredSiteSpeed["rows"][number]["check"]>;
 /** The slack of a share sum: CrUX rounds each share. The worker allows the same, plus float error. */
 const SITE_SPEED_MIX_SLACK = 0.01 + 1e-9;
 /**
- * A device mix the check cannot show: shares that do not add up to all visits, or a level that is not the
- * one its basis names. The check stays and shows no mix.
+ * A device mix the check cannot show: shares that do not add up to all visits, a level that is not the one
+ * its basis names (a basis without a level has no mix), or a device the shares do not pick. The worker picks
+ * desktop only when more visitors use it than a phone. The check stays and shows no mix.
  */
 function contradicts(
-  basis: SiteSpeedCheck["basis"],
+  { basis, device }: SiteSpeedCheck,
   mix: NonNullable<SiteSpeedCheck["mix"]>,
 ) {
   const level =
     basis === "crux-url" ? "url" : basis === "crux-origin" ? "origin" : null;
-  if (level && mix.level !== level) return true;
+  if (mix.level !== level) return true;
+  if (mix.desktop > mix.phone !== (device === "desktop")) return true;
   return (
     Math.abs(mix.phone + mix.desktop + mix.tablet - 1) > SITE_SPEED_MIX_SLACK
   );
 }
 
+/** A mix period of calendar days whose first day is not after its last; else null, and the shares stay. */
+function readPeriod(value: unknown) {
+  const period = siteSpeedMixPeriod.safeParse(value);
+  return period.success && period.data.first <= period.data.last
+    ? period.data
+    : null;
+}
+
 /**
  * How a reduced row was read. The worker gives `notChecked` as a sentence, a stored check holds the code.
- * A mix period that is no calendar period goes; the shares stay.
+ * A mix period that is no calendar period, or ends before it starts, goes; the shares stay.
  */
 function readCheck(value: unknown, stored = false) {
   const raw = reportObject(value);
@@ -68,9 +78,7 @@ function readCheck(value: unknown, stored = false) {
     ...(mix && {
       mix: {
         ...mix,
-        period: siteSpeedMixPeriod.safeParse(mix.period).success
-          ? mix.period
-          : null,
+        period: readPeriod(mix.period),
       },
     }),
     notChecked: stored
@@ -81,7 +89,7 @@ function readCheck(value: unknown, stored = false) {
   });
   if (!check.success) return undefined;
   const { data } = check;
-  return data.mix && contradicts(data.basis, data.mix)
+  return data.mix && contradicts(data, data.mix)
     ? { ...data, mix: null }
     : data;
 }
