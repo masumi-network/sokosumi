@@ -7876,6 +7876,27 @@
       },
       "SeoAlerts": {
         "type": "Alert type",
+        "impactTab": "Action impact",
+        "impactDescription": "Search Console totals for the page of each done SEO action, for the same number of days before and after it. Each entry is one audit and the person whose Search Console data it holds. The figures do not rule out the season, other changes on the page or a Google update.",
+        "impactWindow": "Days before and after",
+        "impactEmpty": "No audit has stored daily page data yet.",
+        "impactNoActions": "No done action on a page with stored daily data.",
+        "impactCompleted": "Task completed on {date}",
+        "impactVerified": "Fix verified on {date}",
+        "impactMetric": "Figure",
+        "impactBefore": "{days, number} days before",
+        "impactAfter": "{days, number} days after",
+        "impactClicks": "Clicks",
+        "impactImpressions": "Impressions",
+        "impactPosition": "Average position",
+        "impactNotMeasured": "Not measured",
+        "impactNoPosition": "No impressions",
+        "impactState": {
+          "measured": "Measured",
+          "too_early": "Too early",
+          "not_measured": "Not measured",
+          "low_counts": "Too few impressions"
+        },
         "pricingAttention": "Audit payments to check: {count}",
         "billingTab": "Audit billing ({count})",
         "billingDescription": "Metered full audits and their latest settlement status. Costs come from verified provider receipts. Charged credits come from the debit transaction.",
@@ -13837,7 +13858,7 @@
           "pending": "Not final yet",
           "noPosition": "No impressions",
           "tooEarly": "Search Console has final data for the {days, number} days after from {date}. The next audit after that day reads them.",
-          "notMeasuredNote": "No audit has read the daily Search Console data of this page for the whole period. A new audit reads the 90 days before it.",
+          "notMeasuredNote": "No audit has read the daily Search Console data of this page for the whole period. A new audit reads the 400 days before it.",
           "lowCounts": "One period has fewer than {min, number} impressions. That is too few for a percent.",
           "caveat": "These are Search Console figures for this page alone. They do not rule out the season, other changes on the page or a Google update."
         }

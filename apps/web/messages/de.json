@@ -7840,6 +7840,27 @@
       },
       "SeoAlerts": {
         "type": "Meldungstyp",
+        "impactTab": "Wirkung der Maßnahmen",
+        "impactDescription": "Search-Console-Summen für die Seite jeder erledigten SEO-Maßnahme, für gleich viele Tage davor und danach. Jeder Eintrag ist ein Audit und die Person, deren Search-Console-Daten er enthält. Die Zahlen schließen die Saison, andere Änderungen an der Seite und ein Google-Update nicht aus.",
+        "impactWindow": "Tage davor und danach",
+        "impactEmpty": "Noch kein Audit hat tägliche Seitendaten gespeichert.",
+        "impactNoActions": "Keine erledigte Maßnahme auf einer Seite mit gespeicherten Tagesdaten.",
+        "impactCompleted": "Task abgeschlossen am {date}",
+        "impactVerified": "Korrektur bestätigt am {date}",
+        "impactMetric": "Kennzahl",
+        "impactBefore": "{days, number} Tage davor",
+        "impactAfter": "{days, number} Tage danach",
+        "impactClicks": "Klicks",
+        "impactImpressions": "Impressionen",
+        "impactPosition": "Durchschnittliche Position",
+        "impactNotMeasured": "Nicht gemessen",
+        "impactNoPosition": "Keine Impressionen",
+        "impactState": {
+          "measured": "Gemessen",
+          "too_early": "Zu früh",
+          "not_measured": "Nicht gemessen",
+          "low_counts": "Zu wenige Impressionen"
+        },
         "pricingAttention": "Zu prüfende Audit-Zahlungen: {count}",
         "billingTab": "Audit-Abrechnung ({count})",
         "billingDescription": "Vollständige Audits mit verbrauchsabhängiger Abrechnung und ihrem aktuellen Zahlungsstatus. Die Kosten stammen aus geprüften Anbieterbelegen, die abgebuchten Credits aus der Transaktion.",
@@ -13837,7 +13858,7 @@
           "pending": "Noch nicht endgültig",
           "noPosition": "Keine Impressionen",
           "tooEarly": "Search Console hat ab {date} endgültige Daten für die {days, number} Tage danach. Das nächste Audit nach diesem Tag liest sie.",
-          "notMeasuredNote": "Kein Audit hat die täglichen Search-Console-Daten dieser Seite für den ganzen Zeitraum gelesen. Ein neues Audit liest die 90 Tage davor.",
+          "notMeasuredNote": "Kein Audit hat die täglichen Search-Console-Daten dieser Seite für den ganzen Zeitraum gelesen. Ein neues Audit liest die 400 Tage davor.",
           "lowCounts": "Ein Zeitraum hat weniger als {min, number} Impressionen. Das ist zu wenig für eine Prozentangabe.",
           "caveat": "Das sind Search-Console-Zahlen nur für diese Seite. Sie schließen die Saison, andere Änderungen an der Seite oder ein Google-Update nicht aus."
         }

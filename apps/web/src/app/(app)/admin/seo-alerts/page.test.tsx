@@ -5,9 +5,13 @@ import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 import AdminSeoAlertsPage from "./page";
 
-const { read } = vi.hoisted(() => ({ read: vi.fn() }));
+const { read, readImpact } = vi.hoisted(() => ({
+  read: vi.fn(),
+  readImpact: vi.fn(),
+}));
 vi.mock("@/lib/services/admin-seo-alerts.service", () => ({
   readAdminSeoAlerts: read,
+  readAdminSeoActionImpact: readImpact,
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () =>
@@ -283,4 +287,96 @@ it("shows a settled run's cost breakdown with unpriced models and the Unattribut
     "Unattributed$0.75",
   ]);
   expect(screen.getAllByText("Unattributed")).toHaveLength(1);
+});
+
+it("shows staff the before and after of a done action and keeps the window across pages", async () => {
+  read.mockResolvedValue({
+    total: 0,
+    connectionTotal: 0,
+    billingTotal: 0,
+    pageSize: 25,
+    items: [],
+  });
+  const window = { from: "2026-05-27", to: "2026-06-09" };
+  readImpact.mockResolvedValue({
+    total: 11,
+    pageSize: 10,
+    items: [
+      {
+        auditId: "audit-1",
+        projectId: null,
+        workspaceId: "workspace-1",
+        workspaceOrganizationSlug: null,
+        workspaceUserId: "ada",
+        userId: "ada/1",
+        actions: [
+          {
+            id: "a",
+            pageUrl: "https://example.test/a",
+            title: "Fix the title",
+            impact: {
+              anchor: "2026-06-10",
+              anchorKind: "completed",
+              days: 14,
+              state: "measured",
+              before: {
+                ...window,
+                clicks: 40,
+                impressions: 1000,
+                position: 8.25,
+              },
+              after: {
+                ...window,
+                clicks: 60,
+                impressions: 1000,
+                position: null,
+              },
+            },
+          },
+        ],
+      },
+      {
+        auditId: null,
+        projectId: "project-2",
+        workspaceId: "workspace-2",
+        workspaceOrganizationSlug: "acme",
+        workspaceUserId: null,
+        userId: "bob",
+        actions: [],
+      },
+    ],
+  });
+  render(
+    await AdminSeoAlertsPage({
+      searchParams: Promise.resolve({ view: "impact", days: "14" }),
+    }),
+  );
+  // The other tabs' counts load without a page of their rows.
+  expect(read).toHaveBeenLastCalledWith({
+    period: "30",
+    page: 1,
+    view: "counts",
+  });
+  expect(readImpact).toHaveBeenLastCalledWith({ days: 14, page: 1 });
+  expect(screen.getByText("Fix the title")).toBeVisible();
+  expect(screen.getByText(/Task completed on Jun 10, 2026/)).toBeVisible();
+  const cells = screen.getAllByRole("cell").map((cell) => cell.textContent);
+  expect(cells).toEqual([
+    "40",
+    "60 (+50%)",
+    "1,000",
+    "1,000 (0%)",
+    "8.3",
+    "No impressions",
+  ]);
+  expect(
+    screen.getByText("No done action on a page with stored daily data."),
+  ).toBeVisible();
+  expect(
+    screen.getAllByRole("link", { name: "Open account" })[0],
+  ).toHaveAttribute("href", "/admin/users/ada%2F1");
+  expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute(
+    "href",
+    "/admin/seo-alerts?period=30&view=impact&days=14&page=2",
+  );
 });
