@@ -143,6 +143,49 @@ describe("cron monitors", () => {
     ]);
   });
 
+  describe("an opted-in cron's idle monitor across ticks", () => {
+    const N = 3;
+    /** Sentry's view: a tick without a check-in is missed, errors in a row open an issue. */
+    const idleMonitor = () => {
+      const statuses = finished("lock-key-idle");
+      let streak = 0;
+      let longest = 0;
+      for (const status of statuses) {
+        streak = status === "error" ? streak + 1 : 0;
+        longest = Math.max(longest, streak);
+      }
+      return { checkIns: statuses.length, alerts: longest >= N };
+    };
+
+    it("checks in on ticks that threw, without counting them as idle", async () => {
+      expectCoreLog("error", "A scheduled sync failed", 2 * N);
+      for (let tick = 0; tick < 2 * N; tick++)
+        await run(
+          async () => {
+            throw new Error("boom");
+          },
+          { idleRunsAlert: N },
+        );
+      expect(idleMonitor()).toEqual({ checkIns: 2 * N, alerts: false });
+    });
+
+    it("checks in on ticks that overlapped the last run, without counting them as idle", async () => {
+      acquireLock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+      for (let tick = 0; tick < 2 * N; tick++)
+        await run(async () => undefined, { idleRunsAlert: N });
+      expect(idleMonitor()).toEqual({ checkIns: 2 * N, alerts: false });
+      expect(finished()).toEqual(Array(2 * N).fill("ok"));
+    });
+
+    it("still alerts after N observed runs with no work", async () => {
+      for (let tick = 0; tick < N; tick++)
+        await run(async ({ reportWork }) => reportWork({ done: 0 }), {
+          idleRunsAlert: N,
+        });
+      expect(idleMonitor()).toEqual({ checkIns: N, alerts: true });
+    });
+  });
+
   it("has no monitor for a path Vercel does not schedule", async () => {
     await run(async () => undefined, undefined, "/sync/not-scheduled");
     expect(captureCheckIn).not.toHaveBeenCalled();

@@ -62,9 +62,11 @@ export function startCronMonitor(input: {
 }
 
 /**
- * A run's idleness on its own monitor (`<lock key>-idle`), apart from its
- * failures: `idleRunsAlert` runs in a row with no work open an issue there,
- * while a run whose work failed counts on the run monitor.
+ * A tick on the cron's idle monitor (`<lock key>-idle`), apart from its
+ * failures: `idleRunsAlert` observed runs in a row with no work open an issue
+ * there. Every tick checks in, so the monitor never counts a miss; a tick
+ * that threw or overlapped the last run (`idle: false`) shows nothing about
+ * idleness and checks in ok.
  */
 export function reportCronIdleness(input: {
   path: string;
@@ -85,11 +87,17 @@ export function reportCronIdleness(input: {
 
 /**
  * A run skipped because the last one still holds the lock: the cron is
- * alive, so its monitor hears from it rather than counting a miss.
+ * alive, so its monitors hear from it rather than counting a miss.
  */
-export function cronStillRunning(path: string, lockKey: string): void {
+export function cronStillRunning(
+  path: string,
+  lockKey: string,
+  idleRunsAlert?: number,
+): void {
   if (!CRON_SCHEDULES.has(path)) return;
   Sentry.captureCheckIn({ monitorSlug: lockKey, status: "ok" });
+  if (idleRunsAlert !== undefined)
+    reportCronIdleness({ path, lockKey, idle: false, idleRunsAlert });
 }
 
 /** Sends the run's check-ins before the function may freeze. */

@@ -250,9 +250,15 @@ function runBackgroundSync(
       log.set({ sync: { work, ...(workFailed ? { workFailed } : {}) } });
       log.emit();
       monitor?.finish(failed || workFailed ? "error" : "ok");
-      // A run that threw says nothing about whether there was work.
-      if (idleRunsAlert !== undefined && !failed)
-        reportCronIdleness({ path, lockKey: lock.key, idle, idleRunsAlert });
+      // Only an observed run counts toward idleness: one that threw says
+      // nothing about whether there was work, yet still checks in.
+      if (idleRunsAlert !== undefined)
+        reportCronIdleness({
+          path,
+          lockKey: lock.key,
+          idle: !failed && idle,
+          idleRunsAlert,
+        });
       await flushCronMonitor();
     }
   })();
@@ -274,7 +280,7 @@ export async function handleSyncRequest(
     acquiredLock = await syncLockService.acquireLock(lockKey);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
-      cronStillRunning(c.req.path, lockKey);
+      cronStillRunning(c.req.path, lockKey, idleRunsAlert);
       return new Response(
         JSON.stringify({ message: "Syncing already in progress" }),
         {
