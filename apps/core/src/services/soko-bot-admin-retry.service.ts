@@ -1,10 +1,15 @@
 import type { Prisma, SokoBot, SokoBotTurn } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
-import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  sokoBotActingUserId,
+  sokoBotScheduleActingUserId,
+} from "@/lib/soko-bot/acting-user";
+import { resolveSocialWriteOrigin } from "@/lib/soko-bot/owner-authority";
 import {
   failedTurnRoute,
   isStoredMeetingPrep,
   SYSTEM_TURN_ROUTES,
+  scheduleAuthorityRoute,
   storedMeetingPrepKind,
   storedMeetingRetrySlot,
   systemScheduleRoute,
@@ -145,9 +150,28 @@ export function scheduleRetryInput(
       run.scheduledFor,
       boundTurnId ? run.turn : null,
     );
+  const presetRoute =
+    systemScheduleRoute(run.schedule.systemKey) ??
+    (run.schedule.authority !== null && run.schedule.authority !== undefined
+      ? scheduleAuthorityRoute({
+          id: run.schedule.id,
+          sokoBotId: run.schedule.sokoBotId,
+          workspaceId: run.schedule.workspaceId,
+          capabilityNames: run.schedule.capabilityNames ?? [],
+          authority: run.schedule.authority,
+          actingUserId: sokoBotScheduleActingUserId({
+            requestedByUserId: run.schedule.requestedByUserId,
+            systemKey: run.schedule.systemKey,
+            sokoBot: bot,
+          }),
+          botUserId: bot.userId,
+          botProjectId: bot.projectId ?? null,
+          botVersionId: bot.versionId ?? null,
+        })
+      : undefined);
   return {
     message: run.prompt ?? run.schedule.prompt,
-    presetRoute: systemScheduleRoute(run.schedule.systemKey),
+    presetRoute,
   };
 }
 
@@ -199,15 +223,46 @@ export async function failedRetryInput(
   const slot =
     (durable && storedMeetingRetrySlot(durable)) ??
     (await meetingSlotForFailedTurn(bot.id, failed));
+  const actingUserId = sokoBotActingUserId({
+    requestedByUserId: failed.requestedByUserId,
+    sokoBot: bot,
+  });
+  let presetRoute = slot ? undefined : failedTurnRoute(failed);
+  if (
+    !slot &&
+    (failed.source === "SCHEDULE" || failed.source === "ADMIN_RETRY")
+  ) {
+    const origin = await resolveSocialWriteOrigin(failed);
+    if (
+      origin.source === "SCHEDULE" &&
+      origin.scheduleAuthority.kind === "schedule"
+    ) {
+      const intersected = scheduleAuthorityRoute({
+        id: origin.scheduleAuthority.scheduleId,
+        sokoBotId: bot.id,
+        workspaceId: failed.workspaceId,
+        capabilityNames: failed.capabilityNames,
+        authority: origin.scheduleAuthority.authority,
+        actingUserId,
+        botUserId: bot.userId,
+        botProjectId: bot.projectId ?? null,
+        botVersionId: bot.versionId ?? null,
+      });
+      presetRoute = {
+        route: failed.route ?? intersected.route,
+        writeScope: presetRoute?.writeScope,
+        reason: intersected.reason,
+        capabilities: intersected.capabilities,
+        sandbox: intersected.sandbox,
+      };
+    }
+  }
   const input = slot
     ? await meetingRetryInput(bot, slot, durable)
-    : { message: failed.userMessage, presetRoute: failedTurnRoute(failed) };
+    : { message: failed.userMessage, presetRoute };
   return {
     // A replay acts only for the person the failed turn acted for.
-    userId: sokoBotActingUserId({
-      requestedByUserId: failed.requestedByUserId,
-      sokoBot: bot,
-    }),
+    userId: actingUserId,
     sokoBotId: bot.id,
     workspaceId: failed.workspaceId,
     source: "ADMIN_RETRY",

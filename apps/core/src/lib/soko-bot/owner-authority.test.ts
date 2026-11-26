@@ -16,14 +16,23 @@ import {
   evaluateSocialWriteAuthority,
   evaluateTurnWebTaint,
   intersectOwnerAuthority,
+  intersectScheduleRouteCapabilities,
   isCapabilityWebTaintSensitive,
   isReadOnlyToolCall,
   isToolCallAllowedByAuthority,
   mintTurnOwnerAuthority,
   mintUiOwnerAuthority,
   resolveDelegationWakeAuthority,
+  resolveSocialWriteOrigin,
   resolveSocialWriteOriginSource,
   resolveWatchWakeAuthority,
+  SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
+  SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+  SCHEDULE_AUTHORITY_MISMATCH_MESSAGE,
+  SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+  SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
+  SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
   TAINTED_SOCIAL_SCHEDULE_DETAIL,
 } from "./owner-authority";
 
@@ -1795,6 +1804,699 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
     expect(legacyCusoWatch.targetScope).toEqual({
       kind: "project",
       projectId: PROJECT_A,
+    });
+  });
+
+  it("intersects schedule route capabilities against persisted OwnerAuthority and fails closed on expiry, mismatch, and malformed payloads", () => {
+    const ownerChat = mintTurnOwnerAuthority({
+      turn: {
+        id: TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      actingUserId: OWNER_ID,
+      askedByKind: "OWNER",
+      targetScope: { kind: "project", projectId: PROJECT_A },
+    });
+    const offered: SokoBotCapability[] = [
+      "list_social_posts",
+      "get_image",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+      "schedule_social_post",
+      "publish_social_post",
+      "cancel_social_post",
+      "bash",
+    ];
+
+    const draftOnlyAuth = attenuateForChildWork(ownerChat, "schedule", {
+      versionId: "v36",
+      scheduleId: SCHED_ID,
+    });
+    const draftOnlyRoute = intersectScheduleRouteCapabilities({
+      scheduleId: SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: draftOnlyAuth,
+      actingUserId: OWNER_ID,
+      botUserId: OWNER_ID,
+      botProjectId: null,
+      botVersionId: "v36",
+      offeredCapabilities: offered,
+    });
+    expect(draftOnlyRoute.effective).toBe(true);
+    expect(draftOnlyRoute.capabilities).toEqual([
+      "list_social_posts",
+      "get_image",
+      "create_task",
+      "create_social_post",
+      "bash",
+    ]);
+
+    const schedulePostsAuth = attenuateForChildWork(ownerChat, "schedule", {
+      versionId: "v36",
+      scheduleId: SCHED_ID,
+      allowScheduledPosts: true,
+      scheduleEdit: DIRECT_CHAT_EDIT,
+    });
+    const schedulePostsRoute = intersectScheduleRouteCapabilities({
+      scheduleId: SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: schedulePostsAuth,
+      actingUserId: OWNER_ID,
+      botUserId: OWNER_ID,
+      botProjectId: null,
+      botVersionId: "v36",
+      offeredCapabilities: offered,
+    });
+    expect(schedulePostsRoute.effective).toBe(true);
+    expect(schedulePostsRoute.capabilities).toEqual([
+      "list_social_posts",
+      "get_image",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+      "schedule_social_post",
+      "bash",
+    ]);
+
+    // Expired schedule clamps strictly to read-only capabilities.
+    const expiredRoute = intersectScheduleRouteCapabilities({
+      scheduleId: SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: {
+        ...schedulePostsAuth,
+        expiresAt: "2020-01-01T00:00:00.000Z",
+      },
+      actingUserId: OWNER_ID,
+      botUserId: OWNER_ID,
+      botProjectId: null,
+      botVersionId: "v36",
+      offeredCapabilities: offered,
+      now: new Date("2026-11-26T12:00:00.000Z"),
+    });
+    expect(expiredRoute).toEqual({
+      capabilities: ["list_social_posts", "get_image"],
+      effective: false,
+      denialReason: "expired",
+    });
+
+    // Malformed non-null authority clamps strictly to read-only.
+    expect(
+      intersectScheduleRouteCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: { broken: true },
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        offeredCapabilities: offered,
+      }),
+    ).toEqual({
+      capabilities: ["list_social_posts", "get_image"],
+      effective: false,
+      denialReason: "invalid_authority",
+    });
+
+    // Wrong scheduleId or wrong pinned bot Project hard-denies with zero tools.
+    expect(
+      intersectScheduleRouteCapabilities({
+        scheduleId: OTHER_SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: schedulePostsAuth,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        offeredCapabilities: offered,
+      }),
+    ).toEqual({
+      capabilities: [],
+      effective: false,
+      denialReason: "schedule_mismatch",
+    });
+    expect(
+      intersectScheduleRouteCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: schedulePostsAuth,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: PROJECT_B,
+        botVersionId: "v36",
+        offeredCapabilities: offered,
+      }),
+    ).toEqual({
+      capabilities: [],
+      effective: false,
+      denialReason: "target_scope_mismatch",
+    });
+  });
+
+  it("enforces persisted schedule social authority across draft_only, schedule_posts, targetScope, expiry, and malformed grants", () => {
+    const ownerChat = mintTurnOwnerAuthority({
+      turn: {
+        id: TURN_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        versionId: "v36",
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: OWNER_ID,
+        requestedByUserId: OWNER_ID,
+        chainDepth: 0,
+      },
+      actingUserId: OWNER_ID,
+      askedByKind: "OWNER",
+      targetScope: { kind: "project", projectId: PROJECT_A },
+    });
+    const draftOnlyAuth = attenuateForChildWork(ownerChat, "schedule", {
+      versionId: "v36",
+      scheduleId: SCHED_ID,
+    });
+    const schedulePostsAuth = attenuateForChildWork(ownerChat, "schedule", {
+      versionId: "v36",
+      scheduleId: SCHED_ID,
+      allowScheduledPosts: true,
+      scheduleEdit: DIRECT_CHAT_EDIT,
+    });
+    const baseTurn = {
+      id: LATER_TURN_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "v36",
+      source: "SCHEDULE",
+      actingUserId: OWNER_ID,
+      askedByKind: "OWNER" as const,
+      sharedBot: false,
+    };
+
+    // Personal draft_only: unscheduled draft on Project A succeeds; scheduledAt and edits fail.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_A, text: "Draft copy" },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: draftOnlyAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: {
+          projectId: PROJECT_A,
+          text: "Scheduled copy",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: draftOnlyAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "schedule_social_post",
+        rawInput: { projectId: PROJECT_A, postId: CONTACT_ID, revision: 1 },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: draftOnlyAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
+    });
+
+    // Explicitly authorized schedule_posts on Project A: scheduled post succeeds on A, fails on B, publish/cancel fail.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: {
+          projectId: PROJECT_A,
+          text: "Scheduled post",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: schedulePostsAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "schedule_social_post",
+        rawInput: {
+          projectId: PROJECT_A,
+          postId: CONTACT_ID,
+          revision: 1,
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: schedulePostsAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "publish_social_post",
+        rawInput: { projectId: PROJECT_A, postId: CONTACT_ID, revision: 1 },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: schedulePostsAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: {
+          projectId: PROJECT_B,
+          text: "Wrong project post",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: schedulePostsAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+    });
+
+    // Expiry blocks even an unscheduled draft.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_A, text: "Expired draft" },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: {
+            ...schedulePostsAuth,
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+          botProjectId: null,
+        },
+        now: new Date("2026-11-26T12:00:00.000Z"),
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
+    });
+
+    // Wrong scheduleId, malformed non-null authority, and unresolved schedule fail closed.
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_A, text: "Wrong schedule" },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: OTHER_SCHED_ID,
+          authority: schedulePostsAuth,
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_AUTHORITY_MISMATCH_MESSAGE,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_A, text: "Malformed" },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "schedule",
+          scheduleId: SCHED_ID,
+          authority: { malformed: true },
+          botProjectId: null,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+    });
+    expect(
+      evaluateSocialWriteAuthority({
+        turn: baseTurn,
+        capability: "create_social_post",
+        rawInput: { projectId: PROJECT_A, text: "Deleted schedule" },
+        tainted: false,
+        scheduleAuthority: {
+          kind: "unresolved",
+          detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+        },
+      }),
+    ).toEqual({
+      allowed: false,
+      kind: "schedule_authority",
+      detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+    });
+  });
+
+  it("resolves persisted schedule authority for direct SCHEDULE runs, admin-schedule-retry, and chained admin-retry turns", async () => {
+    const RUN_ID = "01960000-0000-7000-8000-000000000201";
+    const OTHER_RUN_ID = "01960000-0000-7000-8000-000000000202";
+    const SCHED_TURN_ID = "01960000-0000-7000-8000-000000000203";
+    const REBOUND_SCHED_TURN_ID = "01960000-0000-7000-8000-000000000204";
+    const RETRY_SCHED_TURN_ID = "01960000-0000-7000-8000-000000000205";
+    const RETRY_RUN_TURN_ID = "01960000-0000-7000-8000-000000000206";
+    const RETRY_CROSS_BOT_RUN_TURN_ID = "01960000-0000-7000-8000-000000000207";
+    const RETRY_BAD_RUN_TURN_ID = "01960000-0000-7000-8000-000000000208";
+    const LEGACY_SCHED_TURN_ID = "01960000-0000-7000-8000-000000000209";
+    const LEGACY_SCHED_ID = "01960000-0000-7000-8000-000000000210";
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    const authority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: null,
+          askedByUserId: OWNER_ID,
+          requestedByUserId: OWNER_ID,
+          chainDepth: 0,
+        },
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+        targetScope: { kind: "project", projectId: PROJECT_A },
+      }),
+      "schedule",
+      {
+        versionId: "v36",
+        scheduleId: SCHED_ID,
+        allowScheduledPosts: true,
+        scheduleEdit: DIRECT_CHAT_EDIT,
+      },
+    );
+
+    const turns = new Map([
+      [
+        SCHED_TURN_ID,
+        {
+          id: SCHED_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "SCHEDULE",
+          clientTurnId: `schedule:${SCHED_ID}:2026-11-26T12:00:00.000Z`,
+        },
+      ],
+      [
+        REBOUND_SCHED_TURN_ID,
+        {
+          id: REBOUND_SCHED_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "SCHEDULE",
+          clientTurnId: `schedule:${SCHED_ID}:2026-11-26T11:00:00.000Z`,
+        },
+      ],
+      [
+        RETRY_SCHED_TURN_ID,
+        {
+          id: RETRY_SCHED_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${REBOUND_SCHED_TURN_ID}:op-1`,
+        },
+      ],
+      [
+        RETRY_RUN_TURN_ID,
+        {
+          id: RETRY_RUN_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-schedule-retry:${RUN_ID}:op-2`,
+        },
+      ],
+      [
+        RETRY_CROSS_BOT_RUN_TURN_ID,
+        {
+          id: RETRY_CROSS_BOT_RUN_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-schedule-retry:${OTHER_RUN_ID}:op-3`,
+        },
+      ],
+      [
+        RETRY_BAD_RUN_TURN_ID,
+        {
+          id: RETRY_BAD_RUN_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: "admin-schedule-retry:not-a-uuid:op-4",
+        },
+      ],
+      [
+        LEGACY_SCHED_TURN_ID,
+        {
+          id: LEGACY_SCHED_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "SCHEDULE",
+          clientTurnId: `schedule:${LEGACY_SCHED_ID}:2026-11-26T10:00:00.000Z`,
+        },
+      ],
+    ]);
+
+    const schedules = new Map([
+      [
+        SCHED_ID,
+        {
+          id: SCHED_ID,
+          sokoBotId: BOT_ID,
+          systemKey: null,
+          authority,
+          sokoBot: { projectId: null },
+        },
+      ],
+      [
+        LEGACY_SCHED_ID,
+        {
+          id: LEGACY_SCHED_ID,
+          sokoBotId: BOT_ID,
+          systemKey: null,
+          authority: null,
+          sokoBot: { projectId: null },
+        },
+      ],
+    ]);
+
+    const runs = [
+      { id: RUN_ID, turnId: SCHED_TURN_ID, schedule: schedules.get(SCHED_ID)! },
+      {
+        id: OTHER_RUN_ID,
+        turnId: null,
+        schedule: {
+          id: OTHER_SCHED_ID,
+          sokoBotId: OTHER_BOT_ID,
+          systemKey: null,
+          authority,
+          sokoBot: { projectId: null },
+        },
+      },
+    ];
+
+    const fakeClient = {
+      sokoBotTurn: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          if (!UUID_RE.test(where.id)) throw new Error("22P02 invalid uuid");
+          const row = turns.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+      },
+      sokoBotScheduleRun: {
+        findFirst: async ({
+          where,
+        }: {
+          where: {
+            id?: string;
+            turnId?: string;
+            schedule: { sokoBotId: string };
+          };
+        }) => {
+          if (where.id && !UUID_RE.test(where.id))
+            throw new Error("22P02 invalid uuid");
+          return (
+            runs.find(
+              (run) =>
+                run.schedule.sokoBotId === where.schedule.sokoBotId &&
+                (where.id ? run.id === where.id : run.turnId === where.turnId),
+            ) ?? null
+          );
+        },
+      },
+      sokoBotSchedule: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          if (!UUID_RE.test(where.id)) throw new Error("22P02 invalid uuid");
+          const row = schedules.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
+      },
+    } as never;
+
+    // Direct SCHEDULE turn (via run.turnId)
+    expect(
+      await resolveSocialWriteOrigin(
+        { id: SCHED_TURN_ID, sokoBotId: BOT_ID, source: "SCHEDULE" },
+        fakeClient,
+      ),
+    ).toEqual({
+      source: "SCHEDULE",
+      scheduleAuthority: {
+        kind: "schedule",
+        scheduleId: SCHED_ID,
+        authority,
+        botProjectId: null,
+      },
+    });
+
+    // admin-schedule-retry:<runId>:<op>
+    expect(
+      await resolveSocialWriteOrigin(
+        { id: RETRY_RUN_TURN_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toEqual({
+      source: "SCHEDULE",
+      scheduleAuthority: {
+        kind: "schedule",
+        scheduleId: SCHED_ID,
+        authority,
+        botProjectId: null,
+      },
+    });
+
+    // admin-retry:<scheduleTurnId>:<op> even when run.turnId was rebound elsewhere (fallback via schedule:<id>:<iso>)
+    expect(
+      await resolveSocialWriteOrigin(
+        { id: RETRY_SCHED_TURN_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toEqual({
+      source: "SCHEDULE",
+      scheduleAuthority: {
+        kind: "schedule",
+        scheduleId: SCHED_ID,
+        authority,
+        botProjectId: null,
+      },
+    });
+
+    // Legacy authority=null schedule resolves to { kind: "none" }
+    expect(
+      await resolveSocialWriteOrigin(
+        { id: LEGACY_SCHED_TURN_ID, sokoBotId: BOT_ID, source: "SCHEDULE" },
+        fakeClient,
+      ),
+    ).toEqual({
+      source: "SCHEDULE",
+      scheduleAuthority: { kind: "none" },
+    });
+
+    // Cross-bot and malformed admin-schedule-retry fail closed without throwing 22P02
+    expect(
+      await resolveSocialWriteOrigin(
+        {
+          id: RETRY_CROSS_BOT_RUN_TURN_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+        },
+        fakeClient,
+      ),
+    ).toEqual({
+      source: "SCHEDULE",
+      scheduleAuthority: {
+        kind: "unresolved",
+        detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+      },
+    });
+    expect(
+      await resolveSocialWriteOrigin(
+        { id: RETRY_BAD_RUN_TURN_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toEqual({
+      source: "SCHEDULE",
+      scheduleAuthority: {
+        kind: "unresolved",
+        detail: SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+      },
     });
   });
 });

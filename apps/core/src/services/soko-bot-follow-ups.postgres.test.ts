@@ -6,6 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { Channel } from "@sokosumi/database";
+import type { SokoBotCapability } from "@sokosumi/soko-bot";
 import {
   afterAll,
   afterEach,
@@ -21,9 +22,22 @@ import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
   evaluateSocialWriteAuthority,
   resolveSocialWriteOriginSource,
+  SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
+  SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+  SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+  SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
+  SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
 } from "@/lib/soko-bot/owner-authority";
 import { inheritedScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { expectCoreLog } from "@/test/core-log";
+
+vi.mock("@/services/x-subscription-tier.service", async (original) => ({
+  ...(await original<object>()),
+  resolveXSubscriptionType: async (connection: {
+    subscriptionType: string | null;
+  }) => connection.subscriptionType,
+}));
 
 // The flow publishes over Ably; the test env has no real key.
 vi.mock("@/lib/ably/client", async () =>
@@ -108,6 +122,8 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.socialPost.deleteMany({ where: { project: { workspaceId } } });
+    await prisma.project.deleteMany({ where: { workspaceId } });
     await prisma.task.deleteMany({ where: { workspaceId } });
     await prisma.chatRoom.deleteMany({ where: { createdByUserId: userId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });
@@ -1627,6 +1643,564 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(startedCaps.get(`watch:${expiredWatch.id}`)).toEqual([
         "get_image",
       ]);
+    });
+
+    it("enforces SokoBotSchedule.authority on scheduled runs and admin retries across draft_only, schedule_posts, Project scope, and expiry on PostgreSQL", async () => {
+      const { failedRetryInput, loadAdminScheduleRun, scheduleRetryInput } =
+        await import("@/services/soko-bot-admin-retry.service");
+      const { withFixtureSchemas } = await import("@/test/split-layout");
+
+      const [projectA, projectB] = await withFixtureSchemas(async (tx) => [
+        await tx.project.create({
+          data: { workspaceId, name: "Schedule Authority Project A" },
+        }),
+        await tx.project.create({
+          data: { workspaceId, name: "Schedule Authority Project B" },
+        }),
+      ]);
+      const connA = await prisma.projectSocialConnection.create({
+        data: {
+          projectId: projectA.id,
+          provider: "x",
+          externalAccountId: randomUUID(),
+          externalHandle: "project_a_handle",
+          composioConnectedAccountId: randomUUID(),
+          status: "active",
+          connectorUserId: userId,
+          connectedAt: new Date(),
+        },
+      });
+      const connB = await prisma.projectSocialConnection.create({
+        data: {
+          projectId: projectB.id,
+          provider: "x",
+          externalAccountId: randomUUID(),
+          externalHandle: "project_b_handle",
+          composioConnectedAccountId: randomUUID(),
+          status: "active",
+          connectorUserId: userId,
+          connectedAt: new Date(),
+        },
+      });
+      const bot = await prisma.sokoBot.findUniqueOrThrow({
+        where: { id: botId },
+      });
+
+      const storedCaps = [
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+        "publish_social_post",
+        "cancel_social_post",
+      ];
+      const scheduledAt = new Date(Date.now() + 24 * HOUR).toISOString();
+      const baseAuthority = (
+        scheduleId: string,
+        overrides: Record<string, unknown> = {},
+      ) => ({
+        version: 1,
+        grantId: randomUUID(),
+        origin: "owner_chat",
+        sokoBotId: botId,
+        workspaceId,
+        ownerUserId: userId,
+        rootTurnId: randomUUID(),
+        targetScope: { kind: "project", projectId: projectA.id },
+        scheduleId,
+        scope: "owner_writes",
+        socialMode: "draft_only",
+        stopRule: { mode: "never" },
+        ...overrides,
+      });
+
+      const createTurnForRun = async (input: {
+        source: "SCHEDULE" | "ADMIN_RETRY";
+        clientTurnId: string;
+        capabilityNames: string[];
+      }) => {
+        const sessionId = randomUUID();
+        await prisma.sokoBot.update({
+          where: { id: botId },
+          data: { eveSessionId: sessionId },
+        });
+        const turn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            requestedByUserId: userId,
+            workspaceId,
+            source: input.source,
+            status: "RUNNING",
+            clientTurnId: input.clientTurnId,
+            versionId: "v36",
+            userMessage: "Run scheduled social task.",
+            capabilityNames: input.capabilityNames,
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+            contextSnapshot: {
+              create: {
+                generatedAt: new Date(),
+                schemaVersion: 1,
+                hash: randomUUID(),
+                packet: { trigger: { askedBy: { kind: "OWNER" } } },
+                byteSize: 2,
+                tokenEstimate: 1,
+                counts: {},
+                omissions: {},
+              },
+            },
+          },
+        });
+        return { turn, sessionId };
+      };
+
+      const callSocial = async (
+        turnId: string,
+        sessionId: string,
+        capability:
+          | "create_social_post"
+          | "schedule_social_post"
+          | "publish_social_post",
+        payload: Record<string, unknown>,
+      ) =>
+        sokoBotRuntimeService.executeTool({
+          turnId,
+          sessionId,
+          toolCallId: `call-${randomUUID()}`,
+          capability,
+          input: payload,
+        });
+
+      const fireRouteForSchedule = async (scheduleId: string) => {
+        let capturedCapabilities: readonly SokoBotCapability[] = [];
+        const spy = vi
+          .spyOn(sokoBotControlPlane, "startTurn")
+          .mockImplementation(async (input) => {
+            capturedCapabilities = input.presetRoute?.capabilities ?? [];
+            const turn = await prisma.sokoBotTurn.create({
+              data: {
+                sokoBotId: botId,
+                requestedByUserId: userId,
+                workspaceId,
+                source: "SCHEDULE",
+                status: "COMPLETED",
+                clientTurnId: input.clientTurnId,
+                versionId: "v36",
+                userMessage: input.message,
+                capabilityNames: [...capturedCapabilities],
+                deadlineAt: new Date(Date.now() + HOUR),
+              },
+              select: { id: true },
+            });
+            return {
+              turnId: turn.id,
+              sokoBotId: botId,
+              sessionId: "fixture",
+              status: "COMPLETED",
+              route: "DELEGATE_TASK",
+              capabilities: [...capturedCapabilities],
+              duplicate: false,
+            };
+          });
+        try {
+          await new SokoBotSchedulesSyncService().syncDueSchedules({
+            shouldContinue: () => true,
+            scheduleId,
+          });
+        } finally {
+          spy.mockRestore();
+        }
+        return capturedCapabilities;
+      };
+
+      // 1. Positive + negative control: ordinary personal draft_only schedule
+      //    keeps create_social_post, creates a NEEDS_APPROVAL draft (scheduledAt=null),
+      //    and refuses scheduledAt / schedule_social_post.
+      const draftScheduleId = randomUUID();
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: draftScheduleId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Weekly draft post",
+          prompt: "Draft a weekly post for Project A.",
+          cronExpression: "0 9 * * 1",
+          timezone: "UTC",
+          enabled: true,
+          nextRunAt: new Date(Date.now() - 60_000),
+          capabilityNames: storedCaps,
+          authority: baseAuthority(draftScheduleId, {
+            socialMode: "draft_only",
+          }),
+        },
+      });
+      const draftRouteCaps = await fireRouteForSchedule(draftScheduleId);
+      expect(draftRouteCaps).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+      ]);
+
+      const draftRunTurn = await createTurnForRun({
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${draftScheduleId}:${new Date().toISOString()}`,
+        capabilityNames: storedCaps,
+      });
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: draftScheduleId,
+          scheduledFor: new Date(Date.now() - 30_000),
+          status: "RUNNING",
+          attempt: 1,
+          prompt: "Draft a weekly post for Project A.",
+          turnId: draftRunTurn.turn.id,
+        },
+      });
+      const createdDraft = (await callSocial(
+        draftRunTurn.turn.id,
+        draftRunTurn.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Weekly product note awaiting owner approval.",
+        },
+      )) as { id: string; revision: number };
+      const persistedDraft = await prisma.socialPost.findUniqueOrThrow({
+        where: { id: createdDraft.id },
+      });
+      expect(persistedDraft).toMatchObject({
+        projectId: projectA.id,
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+      });
+      await expect(
+        callSocial(
+          draftRunTurn.turn.id,
+          draftRunTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Should not schedule on draft_only.",
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE);
+      await expect(
+        callSocial(
+          draftRunTurn.turn.id,
+          draftRunTurn.sessionId,
+          "schedule_social_post",
+          {
+            projectId: projectA.id,
+            postId: createdDraft.id,
+            revision: createdDraft.revision,
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE);
+
+      // 2. Positive + negative control: explicitly authorized schedule_posts
+      //    scoped to Project A succeeds on Project A directly AND after BOTH
+      //    admin-schedule-retry and admin-retry, while refusing publish and Project B.
+      const schedPostsId = randomUUID();
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: schedPostsId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Authorized Project A scheduler",
+          prompt: "Create and schedule the Project A update.",
+          cronExpression: "0 10 * * 1",
+          timezone: "UTC",
+          enabled: true,
+          nextRunAt: new Date(Date.now() - 60_000),
+          capabilityNames: storedCaps,
+          authority: baseAuthority(schedPostsId, {
+            socialMode: "schedule_posts",
+          }),
+        },
+      });
+      const schedPostsRouteCaps = await fireRouteForSchedule(schedPostsId);
+      expect(schedPostsRouteCaps).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ]);
+
+      const directTurn = await createTurnForRun({
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${schedPostsId}:${new Date().toISOString()}`,
+        capabilityNames: storedCaps,
+      });
+      const directRun = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: schedPostsId,
+          scheduledFor: new Date(Date.now() - 25_000),
+          status: "FAILED",
+          attempt: 1,
+          prompt: "Create and schedule the Project A update.",
+          turnId: directTurn.turn.id,
+        },
+      });
+
+      const directScheduled = (await callSocial(
+        directTurn.turn.id,
+        directTurn.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Scheduled update on Project A from direct schedule run.",
+          scheduledAt,
+        },
+      )) as { id: string; revision: number };
+      expect(
+        await prisma.socialPost.findUniqueOrThrow({
+          where: { id: directScheduled.id },
+          select: { projectId: true, scheduledAt: true },
+        }),
+      ).toEqual({
+        projectId: projectA.id,
+        scheduledAt: new Date(scheduledAt),
+      });
+      await expect(
+        callSocial(
+          directTurn.turn.id,
+          directTurn.sessionId,
+          "publish_social_post",
+          {
+            projectId: projectA.id,
+            postId: directScheduled.id,
+            revision: directScheduled.revision,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE);
+      await expect(
+        callSocial(
+          directTurn.turn.id,
+          directTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectB.id,
+            socialConnectionId: connB.id,
+            text: "Cross-project post must be refused.",
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE);
+
+      // Admin schedule retry (RETRY_SCHEDULE_RUN -> admin-schedule-retry:<runId>:<op>)
+      const loadedRun = await loadAdminScheduleRun(botId, directRun.id);
+      expect(loadedRun).not.toBeNull();
+      const retryRoute = (await scheduleRetryInput(bot, loadedRun!, null))
+        .presetRoute;
+      expect(retryRoute?.capabilities).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ]);
+      const adminScheduleRetryTurn = await createTurnForRun({
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-schedule-retry:${directRun.id}:op-retry-1`,
+        capabilityNames: storedCaps,
+      });
+      const retriedRunPost = (await callSocial(
+        adminScheduleRetryTurn.turn.id,
+        adminScheduleRetryTurn.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Scheduled update on Project A after admin-schedule-retry.",
+          scheduledAt,
+        },
+      )) as { id: string };
+      expect(
+        await prisma.socialPost.findUniqueOrThrow({
+          where: { id: retriedRunPost.id },
+          select: { projectId: true, scheduledAt: true },
+        }),
+      ).toEqual({
+        projectId: projectA.id,
+        scheduledAt: new Date(scheduledAt),
+      });
+      await expect(
+        callSocial(
+          adminScheduleRetryTurn.turn.id,
+          adminScheduleRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectB.id,
+            socialConnectionId: connB.id,
+            text: "Cross-project post after admin-schedule-retry must fail.",
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE);
+
+      // Admin turn retry (RETRY_LAST_FAILED -> admin-retry:<scheduleTurnId>:<op>),
+      // even after directRun.turnId was rebound to the earlier admin retry turn.
+      await prisma.sokoBotScheduleRun.update({
+        where: { id: directRun.id },
+        data: { turnId: adminScheduleRetryTurn.turn.id },
+      });
+      const activeFailedTurn = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: directTurn.turn.id },
+      });
+      expect(
+        (
+          await failedRetryInput(
+            bot,
+            activeFailedTurn,
+            `admin-retry:${directTurn.turn.id}:op-retry-2`,
+          )
+        ).presetRoute?.capabilities,
+      ).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ]);
+      const adminTurnRetry = await createTurnForRun({
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-retry:${directTurn.turn.id}:op-retry-2`,
+        capabilityNames: storedCaps,
+      });
+      const retriedTurnPost = (await callSocial(
+        adminTurnRetry.turn.id,
+        adminTurnRetry.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Scheduled update on Project A after admin-retry.",
+          scheduledAt,
+        },
+      )) as { id: string };
+      expect(
+        await prisma.socialPost.findUniqueOrThrow({
+          where: { id: retriedTurnPost.id },
+          select: { projectId: true, scheduledAt: true },
+        }),
+      ).toEqual({
+        projectId: projectA.id,
+        scheduledAt: new Date(scheduledAt),
+      });
+
+      // Zero posts ever leaked into Project B.
+      expect(
+        await prisma.socialPost.count({ where: { projectId: projectB.id } }),
+      ).toBe(0);
+
+      // 3. Negative control: schedule expiry clamps both sync and admin retry
+      //    routes to read-only and blocks social writes even on prior retries.
+      await prisma.sokoBotSchedule.update({
+        where: { id: schedPostsId },
+        data: {
+          nextRunAt: new Date(Date.now() - 60_000),
+          authority: baseAuthority(schedPostsId, {
+            socialMode: "schedule_posts",
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          }),
+        },
+      });
+      expect(await fireRouteForSchedule(schedPostsId)).toEqual([
+        "list_social_posts",
+      ]);
+      const expiredRun = await loadAdminScheduleRun(botId, directRun.id);
+      expect(
+        (await scheduleRetryInput(bot, expiredRun!, null)).presetRoute
+          ?.capabilities,
+      ).toEqual(["list_social_posts"]);
+      const expiredFailedTurn = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: directTurn.turn.id },
+      });
+      expect(
+        (
+          await failedRetryInput(
+            bot,
+            expiredFailedTurn,
+            `admin-retry:${directTurn.turn.id}:op-expired-turn-retry`,
+          )
+        ).presetRoute?.capabilities,
+      ).toEqual(["list_social_posts"]);
+      await expect(
+        callSocial(
+          adminScheduleRetryTurn.turn.id,
+          adminScheduleRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Expired retry draft must fail.",
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_EXPIRED_MESSAGE);
+
+      // 4. Negative control: malformed non-null authority & missing run fail closed.
+      await prisma.sokoBotSchedule.update({
+        where: { id: schedPostsId },
+        data: { authority: { broken: true } },
+      });
+      await expect(
+        callSocial(
+          adminScheduleRetryTurn.turn.id,
+          adminScheduleRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Malformed schedule authority must fail.",
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_INVALID_MESSAGE);
+      const orphanRetryTurn = await createTurnForRun({
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-schedule-retry:${randomUUID()}:op-missing`,
+        capabilityNames: storedCaps,
+      });
+      await expect(
+        callSocial(
+          orphanRetryTurn.turn.id,
+          orphanRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Missing schedule run must fail closed.",
+          },
+        ),
+      ).rejects.toThrow(
+        "Cannot recover the original occurrence for this retry",
+      );
+
+      const deletedScheduleTurn = await createTurnForRun({
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${randomUUID()}:${new Date().toISOString()}`,
+        capabilityNames: storedCaps,
+      });
+      await expect(
+        callSocial(
+          deletedScheduleTurn.turn.id,
+          deletedScheduleTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Deleted schedule must fail closed.",
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE);
     });
   });
 });
