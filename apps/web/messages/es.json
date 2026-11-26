@@ -7985,7 +7985,7 @@
         "suggestion": "Sugerencia",
         "source": "Origen",
         "changedAt": "Cambiado",
-        "crawledAt": "Primer rastreo después",
+        "crawledAt": "Primer rastreo observado tras el cambio",
         "window": "Ventana",
         "state": "Estado",
         "reason": "Motivo",
@@ -8005,8 +8005,7 @@
         "reasons": {
           "no_cuso": "El proyecto no tiene un Cuso activo.",
           "not_connected": "Search Console no está conectado.",
-          "no_property": "Ninguna propiedad de Search Console coincide con el sitio web.",
-          "page_outside_property": "La página está fuera de la propiedad de Search Console.",
+          "no_property": "Ninguna propiedad de Search Console cubre la página.",
           "inspection_failed": "La inspección de URL falló o fue rechazada.",
           "not_crawled_yet": "Google no ha rastreado la página desde el cambio."
         }

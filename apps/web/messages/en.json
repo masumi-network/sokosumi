@@ -8021,7 +8021,7 @@
         "suggestion": "Suggestion",
         "source": "Source",
         "changedAt": "Changed",
-        "crawledAt": "First crawl after",
+        "crawledAt": "First observed crawl after change",
         "window": "Window",
         "state": "State",
         "reason": "Reason",
@@ -8041,8 +8041,7 @@
         "reasons": {
           "no_cuso": "The project has no live Cuso.",
           "not_connected": "Search Console is not connected.",
-          "no_property": "No Search Console property matches the website.",
-          "page_outside_property": "The page is outside the Search Console property.",
+          "no_property": "No Search Console property covers the page.",
           "inspection_failed": "URL Inspection failed or was refused.",
           "not_crawled_yet": "Google has not crawled the page since the change."
         }

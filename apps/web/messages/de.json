@@ -7985,7 +7985,7 @@
         "suggestion": "Vorschlag",
         "source": "Quelle",
         "changedAt": "Geändert",
-        "crawledAt": "Erster Crawl danach",
+        "crawledAt": "Erster beobachteter Crawl nach der Änderung",
         "window": "Zeitfenster",
         "state": "Status",
         "reason": "Grund",
@@ -8005,8 +8005,7 @@
         "reasons": {
           "no_cuso": "Das Projekt hat keinen aktiven Cuso.",
           "not_connected": "Search Console ist nicht verbunden.",
-          "no_property": "Keine Search-Console-Property passt zur Website.",
-          "page_outside_property": "Die Seite liegt außerhalb der Search-Console-Property.",
+          "no_property": "Keine Search-Console-Property deckt die Seite ab.",
           "inspection_failed": "Die URL-Prüfung ist fehlgeschlagen oder wurde abgelehnt.",
           "not_crawled_yet": "Google hat die Seite seit der Änderung nicht gecrawlt."
         }
