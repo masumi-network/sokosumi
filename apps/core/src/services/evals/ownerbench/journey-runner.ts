@@ -629,6 +629,13 @@ export async function startJourney(
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
   await forgetEarlierJourneys(lane, botId);
+  // A journey's schedule runs and Coworker wakes are turns nobody started:
+  // the owner's daily cap (20) would defer them once earlier journeys used
+  // it up, as prepareEvalLane already avoids for Cuso.
+  await prisma.sokoBot.update({
+    where: { id: botId },
+    data: { proactiveDailyLimit: 1_000 },
+  });
   const world = {
     ...(await prepareJourneyWorld(lane, journey.prepare ?? [])),
     cusoRoomId,
