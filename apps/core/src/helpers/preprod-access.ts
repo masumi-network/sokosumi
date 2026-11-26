@@ -1,5 +1,4 @@
 import { forbidden, notFound } from "@/helpers/error";
-import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
@@ -103,12 +102,11 @@ export function setPreprodAccess(input: {
     }
     const changed = { type: target.type, id: current.id };
     if (count > 0) {
+      // Prisma stamps `createdAt` here, after the update and under its row
+      // lock, so the newest record is the last switch; the column's own
+      // default would be the transaction's start.
       await tx.preprodAccessChange.create({
         data: {
-          // Taken after the update, while this transaction holds the row
-          // lock, so a later switch of the row sorts later; the column's
-          // default is the transaction's start.
-          createdAt: await databaseNow(tx),
           targetType: changed.type,
           targetId: changed.id,
           enabled,
