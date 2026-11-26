@@ -130,7 +130,7 @@ it("says the trend in words, why a short check used one device and how many page
     ),
   ).toBeVisible();
   const pricing = within(screen.getByRole("row", { name: /pricing/ }));
-  expect(pricing.getByText("Getting faster")).toBeVisible();
+  expect(pricing.getByText("Getting better")).toBeVisible();
   fireEvent.click(pricing.getByRole("button"));
   expect(
     screen.getByText(

@@ -15252,8 +15252,8 @@
         },
         "showMore": "Show {count} more pages",
         "trend": {
-          "better": "Getting faster",
-          "worse": "Getting slower",
+          "better": "Getting better",
+          "worse": "Getting worse",
           "steady": "Steady",
           "none": "No trend yet"
         },
@@ -15269,7 +15269,7 @@
           "too_few": "Too few weeks with data to show a trend."
         },
         "deviceReason": {
-          "crux-url": "Short check on {device}: {share} of this page’s visitors use it.",
+          "crux-url": "Short check on {device}: {share} of the visitors Google measured for this address or similar addresses use it.",
           "crux-origin": "Short check on {device}: {share} of the site’s visitors use it.",
           "page-type": "Short check on {device}, the usual device for this kind of page.",
           "default": "Short check on {device}, the default device.",
