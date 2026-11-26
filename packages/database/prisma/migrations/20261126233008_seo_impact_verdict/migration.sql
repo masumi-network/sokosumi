@@ -39,8 +39,12 @@ CREATE INDEX "project_seo_impact_verdict_state_idx" ON "project_seo_impact_verdi
 -- CreateIndex
 CREATE UNIQUE INDEX "project_seo_impact_verdict_suggestionId_changedAt_key" ON "project_seo_impact_verdict"("suggestionId", "changedAt");
 
+SET lock_timeout = '5s';
+
 -- AddForeignKey
 ALTER TABLE "project_seo_impact_verdict" ADD CONSTRAINT "project_seo_impact_verdict_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "project_seo_impact_verdict" ADD CONSTRAINT "project_seo_impact_verdict_suggestionId_fkey" FOREIGN KEY ("suggestionId") REFERENCES "project_seo_suggestion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+RESET lock_timeout;
