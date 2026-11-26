@@ -1,9 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getTeamMock = vi.fn();
-const loadSharedMock = vi.fn();
-const sectionMock = vi.fn();
+const { loadMock, sectionsMock, notSetUpMock, createMock, refreshMock } =
+  vi.hoisted(() => ({
+    loadMock: vi.fn(),
+    sectionsMock: vi.fn(),
+    notSetUpMock: vi.fn(),
+    createMock: vi.fn(),
+    refreshMock: vi.fn(),
+  }));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
@@ -11,140 +16,153 @@ vi.mock("next-intl/server", () => ({
 vi.mock("@/lib/auth/auth.server", () => ({
   getSessionOrRedirect: vi.fn(),
 }));
-vi.mock("@/lib/clients/core.client", () => ({
-  CoreApiRequestError: class extends Error {},
-}));
 // The real Try again button; refresh renders the page again, as Next does.
-const refreshMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }));
-vi.mock("@/lib/services/soko-bot.service", () => ({
-  sokoBotService: {
-    getTeam: () => getTeamMock(),
-    getStats: vi.fn().mockResolvedValue(null),
+vi.mock("./managed-bots", () => ({
+  loadSokoBotsManagement: () => loadMock(),
+}));
+vi.mock("./components/managed-bot-sections", () => ({
+  ManagedBotSections: (props: { action: React.ReactNode }) => {
+    sectionsMock(props);
+    return <section data-testid="manage">{props.action}</section>;
   },
 }));
-vi.mock("./shared-bots", () => ({ loadSharedBots: () => loadSharedMock() }));
-const heroMock = vi.fn();
-const assistantMock = vi.fn();
-vi.mock("./components/roster", () => ({
-  SokoBotsHero: (props: unknown) => {
-    heroMock(props);
-    return null;
+vi.mock("./components/not-set-up-section", () => ({
+  NotSetUpSection: (props: object) => {
+    notSetUpMock(props);
+    return <section data-testid="not-set-up" />;
   },
-  YourAssistantSection: (props: unknown) => {
-    assistantMock(props);
-    return null;
-  },
-  TeamSection: () => <section data-testid="team-section" />,
 }));
-vi.mock("./components/shared-bots-section", () => ({
-  SharedBotsSection: (props: { canCreatePersonal: boolean }) => {
-    sectionMock(props);
-    return <section data-testid="shared-bots-section" />;
+vi.mock("./components/create-soko-bot-dialog.client", () => ({
+  CreateSokoBotDialog: (props: object) => {
+    createMock(props);
+    return <button type="button">create</button>;
   },
 }));
 
-import { CoreApiRequestError } from "@/lib/clients/core.client";
 import SokoBotsPage from "./page";
 
-function team(kind: "organization" | "personal", hasBot: boolean) {
+type Kind = "organization" | "personal";
+
+function team(kind: Kind, role = "member") {
   return {
-    workspace: { id: "ws", kind, name: "NMKR", logo: null },
-    members: [{ userId: "u", isYou: true, bot: hasBot ? { id: "b" } : null }],
+    workspace: { id: "ws", kind, name: "Acme", logo: null },
+    members: [
+      { userId: "me", name: "Me", image: null, role, isYou: true, bot: null },
+      {
+        userId: "zo",
+        name: "Zara",
+        image: null,
+        role: "member",
+        isYou: false,
+        bot: null,
+      },
+    ],
   };
 }
 
-async function renderPage(): Promise<void> {
-  render(await SokoBotsPage());
-}
+const ownBot = { id: "own", owner: { kind: "you" }, archivedAt: null };
+const teamBot = { id: "atlas", owner: { kind: "team" }, archivedAt: null };
 
-describe("SokoBotsPage shared bots", () => {
+describe("SokoBotsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("hides the section when Core sends no sharedBots", async () => {
-    getTeamMock.mockResolvedValue(team("organization", true));
-    loadSharedMock.mockResolvedValue(null);
-    await renderPage();
-    expect(screen.queryByTestId("shared-bots-section")).not.toBeInTheDocument();
+  it("lists your bot and the shared ones, and offers a personal bot only when you have none", async () => {
+    loadMock.mockResolvedValue({
+      team: team("organization"),
+      bots: [ownBot, teamBot],
+      projects: [],
+    });
+    render(await SokoBotsPage());
+
+    expect(sectionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bots: [ownBot, teamBot] }),
+    );
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ canCreatePersonal: false }),
+    );
+    expect(screen.getByRole("link", { name: /allAgents/ })).toHaveAttribute(
+      "href",
+      "/agents",
+    );
   });
 
-  it("hides the section in a personal workspace", async () => {
-    getTeamMock.mockResolvedValue(team("personal", true));
-    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
-    await renderPage();
-    expect(screen.queryByTestId("shared-bots-section")).not.toBeInTheDocument();
-  });
-
-  it("shows the section in an organization and offers a personal bot only to members without one", async () => {
-    getTeamMock.mockResolvedValue(team("organization", false));
-    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
-    await renderPage();
-    expect(screen.getByTestId("shared-bots-section")).toBeInTheDocument();
-    expect(sectionMock).toHaveBeenCalledWith(
+  it("offers a personal bot in the create dialog when you have none", async () => {
+    loadMock.mockResolvedValue({
+      team: team("organization"),
+      bots: [teamBot],
+      projects: [],
+    });
+    render(await SokoBotsPage());
+    expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({ canCreatePersonal: true }),
     );
   });
-});
 
-describe("SokoBotsPage when the team read fails", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("shows teammates without a bot, with the invite link for owners and admins", async () => {
+    loadMock.mockResolvedValue({
+      team: team("organization", "owner"),
+      bots: [],
+      projects: [],
+    });
+    render(await SokoBotsPage());
+    expect(notSetUpMock).toHaveBeenCalledWith({
+      others: [expect.objectContaining({ userId: "zo" })],
+      canInvite: true,
+    });
   });
 
-  it("says so at the top with Try again and hides create and empty states", async () => {
-    getTeamMock.mockRejectedValue(new CoreApiRequestError("down"));
-    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
-    await renderPage();
-    expect(screen.getByText("Unavailable.title")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Unavailable.retry" }),
-    ).toBeInTheDocument();
-    expect(heroMock).toHaveBeenCalledWith(
-      expect.objectContaining({ team: null }),
+  it("keeps the invite link from members", async () => {
+    loadMock.mockResolvedValue({
+      team: team("organization"),
+      bots: [],
+      projects: [],
+    });
+    render(await SokoBotsPage());
+    expect(notSetUpMock).toHaveBeenCalledWith(
+      expect.objectContaining({ canInvite: false }),
     );
-    expect(assistantMock).toHaveBeenCalledWith(
-      expect.objectContaining({ me: null, unavailable: true }),
-    );
-    expect(screen.queryByTestId("shared-bots-section")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("team-section")).not.toBeInTheDocument();
   });
 
-  it("recovers when Try again reads the team successfully", async () => {
-    getTeamMock
-      .mockRejectedValueOnce(new CoreApiRequestError("down"))
-      .mockResolvedValueOnce(team("organization", true));
-    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
+  it("links to the assistant setup in a personal workspace without a bot", async () => {
+    loadMock.mockResolvedValue({
+      team: team("personal"),
+      bots: [],
+      projects: null,
+    });
+    render(await SokoBotsPage());
+    expect(screen.getByRole("link", { name: "setUpOwn" })).toHaveAttribute(
+      "href",
+      "/personal-assistant",
+    );
+    expect(createMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("not-set-up")).not.toBeInTheDocument();
+  });
+
+  it("says so with Try again when the team can't be read, and recovers", async () => {
+    loadMock
+      .mockResolvedValueOnce({ team: null, bots: [], projects: null })
+      .mockResolvedValueOnce({
+        team: team("organization"),
+        bots: [ownBot],
+        projects: [],
+      });
     const { rerender } = render(await SokoBotsPage());
+    expect(screen.getByText("Unavailable.title")).toBeInTheDocument();
+    expect(screen.queryByTestId("manage")).not.toBeInTheDocument();
+
     refreshMock.mockImplementation(async () => {
       rerender(await SokoBotsPage());
     });
-
     fireEvent.click(screen.getByRole("button", { name: "Unavailable.retry" }));
 
     await waitFor(() =>
-      expect(screen.getByTestId("team-section")).toBeInTheDocument(),
+      expect(screen.getByTestId("manage")).toBeInTheDocument(),
     );
-    expect(refreshMock).toHaveBeenCalledTimes(1);
-    expect(getTeamMock).toHaveBeenCalledTimes(2);
     expect(screen.queryByText("Unavailable.title")).not.toBeInTheDocument();
-    expect(screen.getByTestId("shared-bots-section")).toBeInTheDocument();
-    expect(assistantMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ unavailable: false }),
-    );
-  });
-
-  it("keeps the normal empty states after a successful empty read", async () => {
-    getTeamMock.mockResolvedValue(team("organization", false));
-    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
-    await renderPage();
-    expect(screen.queryByText("Unavailable.title")).not.toBeInTheDocument();
-    expect(assistantMock).toHaveBeenCalledWith(
-      expect.objectContaining({ unavailable: false }),
-    );
-    expect(screen.getByTestId("team-section")).toBeInTheDocument();
   });
 });

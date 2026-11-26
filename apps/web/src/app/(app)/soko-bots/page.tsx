@@ -1,20 +1,19 @@
 import { SokoBotScope } from "@sokosumi/core-client";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
+import { AgentsSectionLink } from "@/components/agents/directory/agents-page";
+import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { Button } from "@/components/ui/button";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { CoreApiRequestError } from "@/lib/clients/core.client";
-import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
-import {
-  SokoBotsHero,
-  TeamSection,
-  YourAssistantSection,
-} from "./components/roster";
-import { SharedBotsSection } from "./components/shared-bots-section";
-import { loadSharedBots } from "./shared-bots";
+import { CreateSokoBotDialog } from "./components/create-soko-bot-dialog.client";
+import { ManagedBotSections } from "./components/managed-bot-sections";
+import { NotSetUpSection } from "./components/not-set-up-section";
+import { loadSokoBotsManagement } from "./managed-bots";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -25,52 +24,67 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+const INVITERS = new Set(["owner", "admin"]);
+
 /**
- * Laid out like the Agents page: a hero that says what a Soko Bot is, then
- * your own assistant, then everyone else's.
+ * Where Soko Bots are made and kept: create one, pause, archive and restore
+ * them, and see who has none yet. Agents shows them all and opens their chats.
  */
 export default async function SokoBotsPage() {
   await getSessionOrRedirect();
-  const [t, team, shared] = await Promise.all([
+  const [t, { team, bots, projects }] = await Promise.all([
     getTranslations("App.SokoBots"),
-    sokoBotService.getTeam().catch((error) => {
-      if (error instanceof CoreApiRequestError) return null;
-      throw error;
-    }),
-    loadSharedBots(),
+    loadSokoBotsManagement(),
   ]);
+  const organization = team?.workspace.kind === "organization";
   const me = team?.members.find((member) => member.isYou) ?? null;
-  const stats = me?.bot
-    ? await sokoBotService.getStats().catch(() => null)
-    : null;
+  const hasOwnBot = bots.some((bot) => bot.owner.kind === "you");
+
+  const create = projects ? (
+    <CreateSokoBotDialog
+      canCreatePersonal={!hasOwnBot}
+      projects={projects}
+      defaultScope={SokoBotScope.WORKSPACE}
+    />
+  ) : !hasOwnBot ? (
+    <Button asChild size="sm">
+      <Link href={SOKO_BOT_ROUTE}>{t("setUpOwn")}</Link>
+    </Button>
+  ) : null;
 
   return (
-    <div className="w-full">
-      <div className={GALLERY_PAGE_SECTIONS_CLASS}>
-        {/* One tier, spaced the way the Agents hero and its gallery are. */}
-        <div className="space-y-12 md:space-y-16">
-          {team ? null : (
-            <CoreAuthReadRetry
-              title={t("Unavailable.title")}
-              description={t("Unavailable.description")}
-              retryLabel={t("Unavailable.retry")}
-            />
-          )}
-          <SokoBotsHero team={team} />
-          <YourAssistantSection me={me} stats={stats} unavailable={!team} />
-          {/* Shared bots exist only in organization workspaces. */}
-          {shared && team?.workspace.kind === "organization" ? (
-            <SharedBotsSection
-              bots={shared.bots}
-              projects={shared.projects}
-              canCreatePersonal={!me?.bot}
-              defaultScope={SokoBotScope.WORKSPACE}
-              title={t("Shared.title")}
+    <div className={AGENTS_PAGE_CLASS}>
+      <h1 className="sr-only">{t("title")}</h1>
+      {team ? (
+        <>
+          <ManagedBotSections
+            title={t("manageTitle")}
+            note={t(organization ? "manageNote" : "manageNotePersonal")}
+            action={
+              <div className="flex flex-wrap items-center gap-4">
+                <AgentsSectionLink href="/agents">
+                  {t("allAgents")}
+                </AgentsSectionLink>
+                {create}
+              </div>
+            }
+            bots={bots}
+            emptyText={t("manageEmpty")}
+          />
+          {organization ? (
+            <NotSetUpSection
+              others={team.members.filter((member) => !member.isYou)}
+              canInvite={INVITERS.has(me?.role ?? "")}
             />
           ) : null}
-          {team ? <TeamSection team={team} /> : null}
-        </div>
-      </div>
+        </>
+      ) : (
+        <CoreAuthReadRetry
+          title={t("Unavailable.title")}
+          description={t("Unavailable.description")}
+          retryLabel={t("Unavailable.retry")}
+        />
+      )}
     </div>
   );
 }

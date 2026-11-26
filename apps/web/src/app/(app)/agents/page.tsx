@@ -1,5 +1,4 @@
 import type { Coworker } from "@sokosumi/core-client";
-import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -15,7 +14,10 @@ import {
   AGENT_TILE_GRID_CLASS,
   AgentTile,
 } from "@/components/agents/directory/agent-tile";
-import { AgentsSection } from "@/components/agents/directory/agents-page";
+import {
+  AgentsSection,
+  AgentsSectionLink,
+} from "@/components/agents/directory/agents-page";
 import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
@@ -50,24 +52,6 @@ import type { DirectoryBot } from "./soko-bot-directory";
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
   return { title: t("title"), description: t("description") };
-}
-
-function SectionLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm font-medium outline-none focus-visible:ring-2"
-    >
-      {children}
-      <ArrowRight aria-hidden className="size-3.5" />
-    </Link>
-  );
 }
 
 function TilesSkeleton() {
@@ -170,7 +154,9 @@ async function SokoBotsSection() {
       title={t("sokoBotsTitle")}
       note={t("sokoBotsNote")}
       action={
-        <SectionLink href={SOKO_BOTS_ROUTE}>{t("manageSokoBots")}</SectionLink>
+        <AgentsSectionLink href={SOKO_BOTS_ROUTE}>
+          {t("manageSokoBots")}
+        </AgentsSectionLink>
       }
     >
       {!directory ? (
@@ -281,9 +267,9 @@ async function MarketplaceSection() {
       tag={t("external")}
       note={t("marketplaceNote")}
       action={
-        <SectionLink href="/developer/coworkers">
+        <AgentsSectionLink href="/developer/coworkers">
           {t("bringYourOwn")}
-        </SectionLink>
+        </AgentsSectionLink>
       }
     >
       <Marketplace

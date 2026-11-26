@@ -101,9 +101,12 @@ function mapTurnError(error: unknown): ActionError {
 
 function revalidate(botId?: string) {
   revalidatePath(sokoBotConsoleRoute(botId));
-  // The roster lists shared bots, so a change to one shows there too.
-  if (botId) revalidatePath(SOKO_BOTS_ROUTE);
+  // Soko Bots lists your bot and the shared ones, a Project's Bots tab its own.
+  revalidatePath(SOKO_BOTS_ROUTE);
+  if (botId) revalidatePath(PROJECT_BOTS_PAGE, "page");
 }
+
+const PROJECT_BOTS_PAGE = "/projects/[projectId]/bots";
 
 interface CreateSokoBotParams extends AuthenticatedRequest {
   input: unknown;

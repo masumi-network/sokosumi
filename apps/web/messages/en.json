@@ -3801,7 +3801,8 @@
           }
         },
         "bots": {
-          "title": "Bots for this project"
+          "title": "Bots for this project",
+          "empty": "No bots for this project yet. A project bot sees the project's public Tasks, and everyone talks to it in one room."
         }
       },
       "Newsletter": {
@@ -11271,13 +11272,6 @@
         "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
-        "archive": "Archive",
-        "archiveConfirmTitle": "Archive your Soko Bot?",
-        "archiveConfirmDescription": "Running turns are cancelled and schedules stop. You can reactivate it any time from this page.",
-        "archiveCancel": "Keep",
-        "archiveConfirm": "Archive",
-        "archived": "Soko Bot archived.",
-        "archiveError": "Could not archive the Soko Bot.",
         "delete": "Delete",
         "deleteConfirm": "Delete forever",
         "deleteCancel": "Cancel",
@@ -11287,8 +11281,6 @@
         "deleteError": "Could not delete your Soko Bot.",
         "deleted": "Soko Bot deleted.",
         "sharedArchiveDescription": "Stops all turns and schedules for everyone. An owner or admin can reactivate it; history is kept.",
-        "sharedArchiveConfirmTitle": "Archive this shared bot?",
-        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
         "sharedDeleteConfirmTitle": "Delete this shared bot?",
         "sharedDeleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased for everyone. Tasks it created stay where they are."
       },
@@ -11445,7 +11437,6 @@
         }
       },
       "Console": {
-        "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
         "lastTurnFailed": "{name} couldn't finish its last reply.",
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
@@ -11519,7 +11510,8 @@
           "Usage": "Usage didn't load.",
           "help": "Schedules and chat still work.",
           "retry": "Try again"
-        }
+        },
+        "back": "Soko Bots"
       },
       "Avatar": {
         "edit": "Change look",
@@ -11723,49 +11715,43 @@
       "Unavailable": {
         "title": "Couldn't load your team's assistants",
         "description": "Nothing was lost. Try again in a moment.",
-        "retry": "Try again",
-        "placeholder": "Your assistant shows here once the team loads."
+        "retry": "Try again"
       },
-      "createAssistant": "Create your assistant",
-      "createAssistantHint": "Get an assistant that takes on Tasks, follows up and keeps you posted. Setup takes a minute.",
-      "assistantFallback": "Personal assistant",
-      "chatError": "Could not open the chat.",
-      "manage": "Settings",
-      "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here.",
-      "teamEmpty": "Nobody else is in this workspace yet. Invite your team, and their assistants show up here.",
-      "inviteTeam": "Invite your team",
-      "disabled": "Soko Bot is temporarily unavailable",
-      "noAssistantYou": "You don't have an assistant yet",
-      "chat": "Chat",
-      "teamSummary": "{bots, plural, one {# assistant} other {# assistants}} · {people, plural, one {# person} other {# people}}",
-      "notSetUp": "Not set up yet",
-      "messageBot": "Message {name}",
-      "lastActive": "Last active {date}",
-      "notActiveYet": "Not active yet",
-      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
-      "statsMessages": "{count, plural, one {# message} other {# messages}} in {days} days",
-      "assistantOf": "Assistant of",
-      "message": "Message",
-      "roleLine": "Delegates work, follows up and keeps you posted.",
-      "heroCaption": "Soko Bots for everyone on your team",
-      "heroTitle": "Your team's personal assistants",
-      "chatWith": "Chat with {name}",
-      "yourAssistantTitle": "Your assistant",
-      "teamTitle": "Your team's assistants",
-      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat.",
+      "manageTitle": "Manage Soko Bots",
+      "manageNote": "Your own bot and the bots your team shares. A paused bot stops the work it starts on its own but still answers when messaged.",
+      "manageNotePersonal": "A paused bot stops the work it starts on its own but still answers when messaged.",
+      "manageEmpty": "No Soko Bots yet. Create one for yourself, a project or the whole team.",
+      "allAgents": "All agents",
+      "setUpOwn": "Set up your Soko Bot",
+      "settings": "Settings",
+      "settingsName": "Settings for {name}",
+      "pause": "Pause",
+      "resume": "Resume",
+      "pauseName": "Pause {name}",
+      "resumeName": "Resume {name}",
+      "paused": "Paused",
+      "pausedToast": "{name} is paused. It still answers when messaged.",
+      "resumed": "{name} is back at work.",
+      "pauseError": "Could not pause the Soko Bot.",
+      "resumeError": "Could not resume the Soko Bot.",
+      "archivedTitle": "Archived",
+      "archivedOn": "Archived {date}",
+      "notSetUpTitle": "Not set up yet",
+      "notSetUpNote": "Teammates without a Soko Bot. They can set one up from Agents.",
+      "invitePeople": "Invite people",
+      "teamEmpty": "Nobody else is in this workspace yet. Invite your team, and they can set up their own Soko Bots.",
+      "Archive": {
+        "archive": "Archive",
+        "sharedArchiveConfirmTitle": "Archive this shared bot?",
+        "archiveConfirmTitle": "Archive your Soko Bot?",
+        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
+        "archiveConfirmDescription": "Running turns are cancelled and schedules stop. Set it up again any time to bring it back.",
+        "archiveCancel": "Keep",
+        "archiveError": "Could not archive the Soko Bot.",
+        "archived": "Soko Bot archived.",
+        "archiveConfirm": "Archive"
+      },
       "Shared": {
-        "title": "Shared bots",
-        "count": "{count, plural, one {# bot} other {# bots}}",
-        "countSplit": "{active, number} active · {archived, number} archived",
-        "empty": "No shared bots yet. A shared bot works for one project or the whole workspace, and everyone talks to it in one room.",
-        "noneActive": "No shared bot is active right now.",
-        "scopeWorkspace": "Works for the whole workspace",
-        "scopeProject": "Works for a project",
-        "scopeProjectNamed": "Works for {project}",
-        "archived": "Archived",
-        "archivedGroup": "Archived",
-        "fallbackName": "Shared assistant",
-        "openBot": "Settings for {name}",
         "Create": {
           "trigger": "New Soko Bot",
           "title": "Create a Soko Bot",
@@ -11796,10 +11782,11 @@
         "Archived": {
           "title": "{name} is archived",
           "description": "An archived bot no longer reads, runs its schedules or answers in its room. Its history stays.",
-          "back": "Back to Soko Bots",
-          "reactivate": "Reactivate",
-          "reactivated": "Soko Bot reactivated.",
-          "reactivateError": "Could not reactivate the Soko Bot."
+          "back": "Soko Bots",
+          "reactivate": "Restore",
+          "reactivateName": "Restore {name}",
+          "reactivated": "Soko Bot restored.",
+          "reactivateError": "Could not restore the Soko Bot."
         }
       }
     },
