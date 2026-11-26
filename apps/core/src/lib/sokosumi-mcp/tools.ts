@@ -2171,7 +2171,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "drive_select",
     operation: "POST /drive/resources/selection-token",
     description:
-      "Turn the result window behind a drive_search cursor (`body.windowCursor`) into a short-lived selection token for drive_update_metadata_batch. It never selects more than that window.",
+      "Turn a drive_search result window into a short-lived selection token for drive_update_metadata_batch: send its `search.windowCursor` as `body.windowCursor`. It never selects more than that window.",
   },
   {
     name: "drive_update_metadata_batch",
