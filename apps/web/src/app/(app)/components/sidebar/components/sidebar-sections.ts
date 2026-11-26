@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { isPathActive } from "@/lib/utils/is-path-active";
 
 interface MenuItemConfig {
@@ -53,10 +53,12 @@ interface NavDestination extends MenuItemConfig {
   requiresNewsletter?: true;
 }
 
+export const AGENTS_ROUTE = "/agents";
+
 export const NAV_DESTINATIONS = [
   {
     key: "explore-agents",
-    href: "/agents",
+    href: AGENTS_ROUTE,
     labelKey: "exploreAgents",
     Icon: Bot,
     feature: AnnouncedFeature.AGENTS,
@@ -180,9 +182,7 @@ export type SidebarSection = NavGroup | "chats";
 export function sidebarSection(pathname: string): SidebarSection | null {
   if (pathname === "/") return "chats";
   if (
-    ["/chat", SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE].some((route) =>
-      isPathActive(pathname, route),
-    )
+    ["/chat", SOKO_BOT_ROUTE].some((route) => isPathActive(pathname, route))
   ) {
     return "chats";
   }
