@@ -467,3 +467,5 @@ Before relying on migrate-on-deploy (and after changing the Neon integration):
 ## Contributing
 
 See the root [AGENTS.md](../../AGENTS.md) for monorepo-wide guidelines.
+
+<!-- e2e validation preview host (PR #8330, never merged) -->
