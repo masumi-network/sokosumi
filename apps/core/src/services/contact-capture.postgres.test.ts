@@ -1992,8 +1992,8 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       ]);
 
       // A cursor from before both walks goes on where its followers walk
-      // stood, at the page it had not read yet; after its end it owes one
-      // complete pass from the newest (day 5 below), full pages, no probe.
+      // stood, at the page it had not read yet, and then probes like any
+      // finished walk: no second paid pass.
       const state = await prisma.contactCaptureState.findFirstOrThrow({
         where: { integration: { sokoBot: { workspaceId: pagedWorkspaceId } } },
       });
@@ -2033,9 +2033,9 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       const followingBefore = followingCalls.length;
       clock = new Date(start + 5 * day);
       await capture(4);
-      // The followers walk's owed pass: its two pages, from the newest.
-      expect(followerCalls.slice(6)).toEqual([null, "p2"]);
-      expect(followerSizes.slice(6)).toEqual([100, 100]);
+      // The followers walk finished with p3: a probe that ends at once.
+      expect(followerCalls.slice(6)).toEqual([null]);
+      expect(followerSizes.slice(6)).toEqual([20]);
       expect(followingCalls.slice(followingBefore)).toEqual([null, "f2"]);
       const followed = await prisma.contactXFollow.findMany({
         where: {
@@ -2076,11 +2076,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(followingCalls.slice(followingBeforeStale)).toEqual([null]);
       clock = new Date(start + 7 * day);
       await capture(4);
-      expect(followerCalls.slice(followersBefore + 1)).toEqual([null, "p2"]);
-      expect(followerSizes.slice(followersBefore + 1)).toEqual([100, 100]);
+      // It read everyone once before, so it starts again with its probe.
+      expect(followerCalls.slice(followersBefore + 1)).toEqual([null]);
+      expect(followerSizes.slice(followersBefore + 1)).toEqual([20]);
 
-      // A finished walk from before both walks owes the same complete pass:
-      // full pages from the newest, not a probe that a backfilled page ends.
+      // A finished walk from before both walks stays finished: a probe, not
+      // a second paid pass (the accepted gap).
       await legacy({
         followsAt: new Date(start + 7 * day).toISOString(),
         followersWalked: true,
@@ -2088,11 +2089,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       const legacyBefore = followerCalls.length;
       clock = new Date(start + 8 * day);
       await capture(4);
-      expect(followerCalls.slice(legacyBefore)).toEqual([null, "p2"]);
-      expect(followerSizes.slice(legacyBefore)).toEqual([100, 100]);
+      expect(followerCalls.slice(legacyBefore)).toEqual([null]);
+      expect(followerSizes.slice(legacyBefore)).toEqual([20]);
 
-      // An unfinished old walk whose token X refuses: the fresh walk is the
-      // complete pass it owed, so after it the walk probes again, once.
+      // An unfinished old walk whose token X refuses starts over at the
+      // newest, reads to the end once, and then probes.
       await legacy({
         followsAt: new Date(start + 8 * day).toISOString(),
         followersToken: "stale",
