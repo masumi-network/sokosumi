@@ -117,3 +117,27 @@ it("reads only the asked page and does not hide a failure that is not an access 
     "database is down",
   );
 });
+
+it("builds at most 5 workspaces at the same time and keeps the newest-first order", async () => {
+  boundary.groupBy.mockResolvedValue(
+    Array.from({ length: 7 }, (_, index) => ({
+      auditId: AUDIT,
+      projectId: null,
+      ownerId: `user-${index}`,
+    })),
+  );
+  let running = 0;
+  let most = 0;
+  boundary.workspace.mockImplementation(async ({ userId }) => {
+    most = Math.max(most, ++running);
+    // The first read of a group ends last, so a result placed by finish time would be out of order.
+    await new Promise((done) => setTimeout(done, userId === "user-0" ? 20 : 1));
+    running--;
+    return { actions: [] };
+  });
+  const { items } = await listAdminSeoActionImpact({ page: 1 });
+  expect(most).toBe(5);
+  expect(items.map((item) => item.userId)).toEqual(
+    Array.from({ length: 7 }, (_, index) => `user-${index}`),
+  );
+});
