@@ -12,6 +12,7 @@ import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
 import { seedCmoReports } from "../eval-cmo-runner";
 import type { EvalLaneRecord } from "../eval-lanes.service";
+import { upcomingByNetwork } from "./journey-checks";
 import type {
   JourneyCoworker,
   JourneyPrepare,
@@ -35,6 +36,10 @@ export interface JourneyWorld {
   seededPostId?: string;
   /** Schedules seeded on other members' bots, as they were. */
   seededSchedules?: SeededSchedule[];
+  /** Upcoming Cuso posts seeded on a weekday the owner then rules out. */
+  seededWeekdayPostIds?: string[];
+  /** Upcoming Cuso posts per network when the journey started. */
+  upcomingByNetwork?: Record<string, number>;
 }
 
 export interface SeededSchedule {
@@ -359,27 +364,34 @@ async function seedPdf(
   return written.id;
 }
 
-/** An upcoming Cuso post that still quotes last year's price. */
-async function seedOutdatedPricePost(lane: EvalLaneRecord): Promise<string> {
-  const now = await databaseNow();
+/**
+ * An upcoming Cuso post like the month's own (same strategy and planning),
+ * with this text, network and time.
+ */
+async function seedUpcomingPost(
+  lane: EvalLaneRecord,
+  post: { text: string; scheduledAt: Date; provider?: string },
+): Promise<string> {
   const template = await prisma.socialPost.findFirst({
     where: {
       projectId: lane.cusoProjectId,
       status: { in: ["SCHEDULED", "DRAFT"] },
-      scheduledAt: { gt: now },
+      scheduledAt: { gt: await databaseNow() },
     },
     orderBy: { scheduledAt: "asc" },
   });
   if (!template) throw new Error("The Cuso setup has no upcoming post to copy");
-  const post = await prisma.socialPost.create({
+  const provider = post.provider ?? template.provider;
+  const created = await prisma.socialPost.create({
     data: {
       projectId: template.projectId,
       workspaceId: template.workspaceId,
-      socialConnectionId: template.socialConnectionId,
-      provider: template.provider,
-      text: "Cal.com Teams is just $9 per user a month: round-robin, routing forms and collective events for the whole team. Try it free.",
+      socialConnectionId:
+        provider === template.provider ? template.socialConnectionId : null,
+      provider,
+      text: post.text,
       status: template.status,
-      scheduledAt: new Date(now.getTime() + 3 * 86_400_000),
+      scheduledAt: post.scheduledAt,
       timezone: template.timezone,
       creatorSokoBotId: lane.cusoBotId,
       marketingStrategyId: template.marketingStrategyId,
@@ -387,7 +399,66 @@ async function seedOutdatedPricePost(lane: EvalLaneRecord): Promise<string> {
     },
     select: { id: true },
   });
-  return post.id;
+  return created.id;
+}
+
+/** An upcoming Cuso post that still quotes last year's price. */
+async function seedOutdatedPricePost(lane: EvalLaneRecord): Promise<string> {
+  return seedUpcomingPost(lane, {
+    text: "Cal.com Teams is just $9 per user a month: round-robin, routing forms and collective events for the whole team. Try it free.",
+    scheduledAt: new Date((await databaseNow()).getTime() + 3 * DAY_MS),
+  });
+}
+
+/** 10:00 Berlin (09:00 UTC in winter) on the `count` next days with this weekday. */
+function nextWeekdays(from: Date, weekday: number, count: number): Date[] {
+  const days: Date[] = [];
+  for (let offset = 1; days.length < count; offset += 1) {
+    const day = new Date(from.getTime() + offset * DAY_MS);
+    if (day.getUTCDay() === weekday)
+      days.push(
+        new Date(
+          Date.UTC(
+            day.getUTCFullYear(),
+            day.getUTCMonth(),
+            day.getUTCDate(),
+            9,
+          ),
+        ),
+      );
+  }
+  return days;
+}
+
+/** Two upcoming posts on Fridays and three on LinkedIn: the plan the owner then changes. */
+async function seedFridayAndLinkedInPosts(
+  lane: EvalLaneRecord,
+): Promise<string[]> {
+  const now = await databaseNow();
+  const fridays = [];
+  for (const [index, scheduledAt] of nextWeekdays(now, 5, 2).entries())
+    fridays.push(
+      await seedUpcomingPost(lane, {
+        scheduledAt,
+        text: [
+          "Friday tip: share one booking link and let Cal.com find the time that works for everyone.",
+          "Friday tip: round-robin spreads new meetings fairly across your sales team.",
+        ][index] as string,
+      }),
+    );
+  for (const [index, scheduledAt] of [1, 2, 3]
+    .flatMap((weekday) => nextWeekdays(now, weekday, 1))
+    .entries())
+    await seedUpcomingPost(lane, {
+      scheduledAt,
+      provider: "linkedin",
+      text: [
+        "How our customers cut scheduling back-and-forth to zero.",
+        "Routing forms send every lead to the right person on your team.",
+        "Three calendar habits of fast-moving sales teams.",
+      ][index] as string,
+    });
+  return fridays;
 }
 
 /** The journey's world, made fresh before its first step. */
@@ -415,6 +486,12 @@ export async function prepareJourneyWorld(
   if (prepare.includes("outdated-price-post"))
     world.seededPostId = await seedOutdatedPricePost(lane);
   if (prepare.includes("weekly-reports")) await seedCmoReports(lane);
+  if (prepare.includes("friday-and-linkedin-posts"))
+    world.seededWeekdayPostIds = await seedFridayAndLinkedInPosts(lane);
+  world.upcomingByNetwork = await upcomingByNetwork(
+    lane.cusoProjectId,
+    await databaseNow(),
+  );
   await clearWorkspaceSchedules(lane);
   if (prepare.includes("workspace-schedules"))
     world.seededSchedules = await seedWorkspaceSchedules(lane, a2a.junoId);

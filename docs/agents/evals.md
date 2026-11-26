@@ -122,6 +122,17 @@ pnpm evals:local --plan --cases owner-codepat-daily-post
 
 A new Soko Bot or Cuso default must pass the owner benchmark at least as well as the current default, with cost per turn no worse.
 
+**Runtime parity.** `evals:local` always runs the in-process runtime: its own loop, no sandbox tools (shell, files, helper agents) and no final report call when time runs out. Deployments run the sandbox runtime. Each journey's output records where it ran (`runtime.adapter`, and `runtime.models`: `chatgpt-plan` or `gateway`). Before a local delta decides anything, run the same journeys once on a deployment and compare:
+
+```bash
+pnpm evals:local --plan --ownerbench --json-out local.json
+sokosumi --preprod evals run --cases owner-codepat-daily-post,owner-cuso-launch --wait   # or a PR preview
+sokosumi --preprod evals show RUN_ID --json > deployed.json
+pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-parity.mts local.json deployed.json
+```
+
+The comparison flags each journey that passes on one runtime only or gets a different number of steps right. Trust a version's delta only on journeys that agree; a flagged journey is measuring the runtime. `evals:local --report RUN_ID --json-out FILE` writes the report of a run already finished.
+
 ## Cuso versions
 
 Cuso changes ship on a version, as Soko Bot's do. To release one, add `cmo-vN` to `SOKO_BOT_PRODUCT_VERSIONS` and run the CMO suite with `--cuso-version cmo-vN`. When nothing regresses, point `CMO_SOKO_BOT_VERSION_ID` at it so new hires get it. Lookups accept every Cuso version (`CMO_SOKO_BOT_VERSION_IDS`). Existing Cusos stay on their version until an administrator moves them: `POST /v1/admin/soko-bots/versions/migrate` with `fromVersionId` and `toVersionId` both Cuso versions (always give `fromVersionId`: without it every bot moves). The admin page only offers personal versions as targets.

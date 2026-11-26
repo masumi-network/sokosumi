@@ -23,8 +23,32 @@ const { values } = parseArgs({
     repeats: { type: "string", default: "1" },
     "soko-bot-version": { type: "string" },
     "cuso-version": { type: "string" },
+    /** Write the run's report as JSON here, for ownerbench-parity. */
+    "json-out": { type: "string" },
+    /** Only write the report of this finished run (with --json-out). */
+    report: { type: "string" },
   },
 });
+
+async function writeReport(runId: string, path: string) {
+  const { getEvalRunReport } = await import(
+    "@/services/evals/eval-runs.service"
+  );
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(
+    path,
+    JSON.stringify(await getEvalRunReport(runId), (_key, value) =>
+      typeof value === "bigint" ? Number(value) : value,
+    ),
+  );
+  console.log(`Report written to ${path}`);
+}
+
+if (values.report) {
+  if (!values["json-out"]) throw new Error("--report needs --json-out");
+  await writeReport(values.report, values["json-out"]);
+  process.exit(0);
+}
 
 if (values.plan) process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
 // `--plan` or the env flag alone: either way this is a plan run.
@@ -126,5 +150,6 @@ for (const result of results)
 console.log(
   `\nDetails: sokosumi evals show ${run.id} --markdown --api-url <this Core>`,
 );
+if (values["json-out"]) await writeReport(run.id, values["json-out"]);
 await prisma.$disconnect();
 process.exit(0);

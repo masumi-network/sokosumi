@@ -80,7 +80,10 @@ export type JourneyOutcome =
       textMatches?: string[];
       /** Only posts whose text matches this pattern are counted. */
       about?: string;
+      /** Every counted post carries media, all of it images this journey made. */
       withMedia?: boolean;
+      /** The step's answer links every counted post (its id), so the owner can approve it. */
+      linkedInAnswer?: boolean;
       /** At most this many characters, each. */
       maxLength?: number;
       /** Posts made or changed in this step only. */
@@ -103,6 +106,20 @@ export type JourneyOutcome =
       about: string;
       /** 0 = Sunday; the next such day after the journey started. */
       weekday: number;
+      /**
+       * The launch moved: it was on the next `movedFrom` weekday after the
+       * journey started, and is now on the first `weekday` from that day on.
+       * The pieces must be the ones the first launch check saw, moved, with
+       * none added twice.
+       */
+      movedFrom?: number;
+    }
+  | {
+      /** Effort moved from one network to another: fewer upcoming posts on `from` or more on `to` than at the start. */
+      kind: "networkShift";
+      label: string;
+      from: string;
+      to: string;
     }
   | {
       /** No upcoming Cuso post lands on this weekday (Europe/Berlin). */
@@ -172,7 +189,9 @@ export type JourneyPrepare =
    */
   | "workspace-schedules"
   /** Cuso's last weekly review and three daily reports, as cmo-report has them. */
-  | "weekly-reports";
+  | "weekly-reports"
+  /** Upcoming Cuso posts on the next two Fridays and on LinkedIn, so doing nothing fails. */
+  | "friday-and-linkedin-posts";
 
 export interface OwnerJourney {
   id: string;
@@ -296,6 +315,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             max: 1,
             draftsOnly: true,
             withMedia: true,
+            linkedInAnswer: true,
             textMatches: ["memory|remember"],
           },
           {
@@ -584,6 +604,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             min: 1,
             max: 1,
             draftsOnly: true,
+            linkedInAnswer: true,
             textMatches: ["12", "4\\.5|49", "AgentHub|Botmarkt"],
           },
           NEVER_SENT,
@@ -802,9 +823,10 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         outcomes: [
           {
             kind: "launchSequence",
-            label: "The sequence now centres on Thursday",
+            label: "The same pieces, moved to centre on that Thursday",
             about: "routing",
             weekday: 4,
+            movedFrom: 2,
           },
         ],
       },
@@ -882,6 +904,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     intent:
       "Change the plan mid-month: the calendar moves Friday pieces and shifts effort from LinkedIn to X, and the owner is told what moved.",
     cusoSetup: "cmo-weekly-review",
+    prepare: ["friday-and-linkedin-posts"],
     stepMinutes: 30,
     steps: [
       {
@@ -891,8 +914,14 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         outcomes: [
           {
             kind: "noPostsOnWeekday",
-            label: "No upcoming post on a Friday",
+            label: "The Friday posts moved to other days",
             weekday: 5,
+          },
+          {
+            kind: "networkShift",
+            label: "Less LinkedIn or more X than before",
+            from: "linkedin",
+            to: "x",
           },
           CUSO_NEVER_SENT,
         ],

@@ -90,6 +90,11 @@ function readSawChange(
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
+  /**
+   * Scan only this bot's delegations, from the first, and leave the shared
+   * cursor where it is. The owner benchmark wakes its fixture bot this way.
+   */
+  sokoBotId?: string;
 }
 
 export interface SokoBotEventsSyncResult {
@@ -331,6 +336,7 @@ export class SokoBotEventsSyncService {
           // Unattended work the bot starts itself honours the owner's pause,
           // not just the administrator's.
           turn: {
+            ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
             sokoBot: {
               archivedAt: null,
               adminPausedAt: null,
@@ -399,7 +405,7 @@ export class SokoBotEventsSyncService {
           },
         },
       });
-    const delegations = await readPage(scan.cursorId);
+    const delegations = await readPage(input.sokoBotId ? null : scan.cursorId);
     result.scanned = delegations.length;
 
     const byBot = new Map<string, BotWork>();
@@ -814,7 +820,11 @@ export class SokoBotEventsSyncService {
         log.emit();
       }
     }
-    if (input.shouldContinue() && !input.abortSignal.aborted) {
+    if (
+      !input.sokoBotId &&
+      input.shouldContinue() &&
+      !input.abortSignal.aborted
+    ) {
       await prisma.syncMetadata.update({
         where: { key: scan.key },
         data: {

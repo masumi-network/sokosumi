@@ -204,6 +204,27 @@ describe("SokoBotEventsSyncService", () => {
     );
   });
 
+  it("scans one bot's delegations from the start without moving the shared cursor", async () => {
+    metadataUpsertMock.mockResolvedValue({
+      key: "soko-events-v2",
+      createdAt: new Date(0),
+      cursorId: "d499",
+    });
+    delegationFindManyMock.mockResolvedValue([]);
+    await new SokoBotEventsSyncService().syncDelegatedWork({
+      ...input,
+      sokoBotId: "bot_fixture",
+    });
+    const [query] = delegationFindManyMock.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+    expect(query.where.id).toBeUndefined();
+    expect(query.where.turn).toEqual(
+      expect.objectContaining({ sokoBotId: "bot_fixture" }),
+    );
+    expect(metadataUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("baselines historical actionable events before the persisted cutover", async () => {
     metadataUpsertMock.mockResolvedValue({
       key: "soko-events-v2",

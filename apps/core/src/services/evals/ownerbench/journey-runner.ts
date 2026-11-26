@@ -5,14 +5,16 @@ import {
   type SokoBotJudgeVerdict,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { getEnv } from "@/config/env";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
-import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
+import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
 import { judgeEvalChain } from "@/services/soko-bot-lab-judge.service";
 import { startLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
@@ -71,6 +73,8 @@ const stateSchema = z.object({
   world: z.custom<JourneyWorld>(),
   journeyStartedAt: z.string(),
   steps: z.array(z.custom<StepRecord>()),
+  /** What one step's checks recorded for a later step's (the launch pieces). */
+  memo: z.record(z.string(), z.array(z.string())).default({}),
 });
 type JourneyState = z.infer<typeof stateSchema>;
 
@@ -100,7 +104,11 @@ async function reconcile(started: {
   return started.turnId;
 }
 
-/** Starts one step; a string is why it could not start. */
+/**
+ * Starts one step: the turn it started, null when the product starts it later
+ * (a Coworker's answer wakes the bot through the events sync), or why it
+ * could not start.
+ */
 async function startStep(
   journey: OwnerJourney,
   index: number,
@@ -108,7 +116,7 @@ async function startStep(
   world: JourneyWorld,
   context: CaseContext,
   journeyStartedAt: Date,
-): Promise<string | { error: string }> {
+): Promise<string | null | { error: string }> {
   const step = journey.steps[index]!;
   const botId = botOf(journey, lane);
   const clientTurnId = `lab:eval:${context.resultId}:${index}`;
@@ -138,17 +146,8 @@ async function startStep(
       world.coworkers[step.coworker],
     );
     if (!task) return { error: `No Task for ${step.coworker} to answer on` };
-    const simulated = await simulateSokoBotTaskEvent({
-      userId: lane.userId,
-      workspaceId: lane.workspaceId,
-      taskId: task.id,
-      status: step.status,
-      comment: step.comment,
-    }).catch((error: unknown) => ({
-      error: error instanceof Error ? error.message : String(error),
-    }));
-    if ("error" in simulated) return { error: simulated.error };
-    return simulated.turnId ?? { error: "The Task event woke no turn" };
+    await deliverCoworkerAnswer(task.id, world.coworkers[step.coworker], step);
+    return null;
   }
   const schedule = await prisma.sokoBotSchedule.findFirst({
     where: { sokoBotId: botId, systemKey: null, enabled: true },
@@ -158,9 +157,33 @@ async function startStep(
   return fireSchedule(schedule.id, botId);
 }
 
+/** Runs a production sync with the lane's bot unpaused, as a live bot is. */
+async function whileUnpaused<T>(
+  botId: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const { proactivePaused: paused } = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: botId },
+    select: { proactivePaused: true },
+  });
+  await prisma.sokoBot.update({
+    where: { id: botId },
+    data: { proactivePaused: false },
+  });
+  try {
+    return await work();
+  } finally {
+    await prisma.sokoBot.update({
+      where: { id: botId },
+      data: { proactivePaused: paused },
+    });
+  }
+}
+
 /**
- * Runs the schedule through the cron's own path: due first of all (the sync
- * claims the most overdue), the lane's bot unpaused for that one claim.
+ * Runs the schedule through the cron's own path, its claim scoped to this
+ * schedule so no other schedule's due or recoverable run is touched, and
+ * returns the turn of the run it claimed.
  */
 async function fireSchedule(
   scheduleId: string,
@@ -170,41 +193,69 @@ async function fireSchedule(
     where: { id: scheduleId },
     data: { nextRunAt: new Date(0) },
   });
-  const { proactivePaused: paused } = await prisma.sokoBot.findUniqueOrThrow({
-    where: { id: botId },
-    select: { proactivePaused: true },
-  });
-  await prisma.sokoBot.update({
-    where: { id: botId },
-    data: { proactivePaused: false },
-  });
   let claims = 0;
   const leases: { turnId: string; leaseToken: string }[] = [];
-  try {
-    await sokoBotSchedulesSyncService.syncDueSchedules({
+  const synced = await whileUnpaused(botId, () =>
+    sokoBotSchedulesSyncService.syncDueSchedules({
+      scheduleId,
       shouldContinue: () => claims++ === 0,
       enqueueReconciliation: (lease) => leases.push(lease),
+    }),
+  );
+  for (const lease of leases)
+    await reconcile({
+      turnId: lease.turnId,
+      reconciliationLeaseToken: lease.leaseToken,
     });
-    for (const lease of leases)
-      await reconcile({
-        turnId: lease.turnId,
-        reconciliationLeaseToken: lease.leaseToken,
-      });
-  } finally {
-    await prisma.sokoBot.update({
-      where: { id: botId },
-      data: { proactivePaused: paused },
-    });
-  }
-  const run = await prisma.sokoBotScheduleRun.findFirst({
-    where: { scheduleId },
-    orderBy: { createdAt: "desc" },
-    select: { turnId: true, status: true },
-  });
+  const [runId] = synced.runIds;
+  const run = runId
+    ? await prisma.sokoBotScheduleRun.findUnique({
+        where: { id: runId },
+        select: { turnId: true, status: true },
+      })
+    : null;
   return (
     run?.turnId ?? {
-      error: `The schedule did not start a turn (${run?.status ?? "no run"})`,
+      error: `The schedule did not start a turn (${run?.status ?? "nothing claimed"})`,
     }
+  );
+}
+
+/**
+ * The Coworker answers on its Task the way a Coworker does: an event in its
+ * name and the Task's new status. Nothing starts a turn here; the production
+ * events sync wakes the bot (`wakeOnDelegatedWork`), so a missing wake is the
+ * product's, not the benchmark's.
+ */
+async function deliverCoworkerAnswer(
+  taskId: string,
+  coworkerId: string,
+  step: Extract<JourneyStep, { kind: "coworker" }>,
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.taskEvent.create({
+      data: {
+        taskId,
+        status: step.status,
+        comment: step.comment,
+        coworkerId,
+      },
+    }),
+    prisma.task.update({
+      where: { id: taskId },
+      data: { status: step.status },
+    }),
+  ]);
+}
+
+/** The events cron's scan, for this bot only; a busy bot is woken on a later poll. */
+async function wakeOnDelegatedWork(botId: string): Promise<void> {
+  await whileUnpaused(botId, () =>
+    sokoBotEventsSyncService.syncDelegatedWork({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+      sokoBotId: botId,
+    }),
   );
 }
 
@@ -217,12 +268,24 @@ async function stepTurnIds(botId: string, since: Date): Promise<string[]> {
   return turns.map((turn) => turn.id);
 }
 
-/** Whether the step's turns, waits and follow-ups have all settled. */
+/**
+ * Whether the step's turns, waits and follow-ups have all settled. A step
+ * that waits on a wake runs the events scan each poll and settles only after
+ * the bot was woken (or the step times out).
+ */
 async function stepSettled(
   botId: string,
   since: Date,
   now: Date,
+  awaitsWake: boolean,
 ): Promise<boolean> {
+  if (awaitsWake) {
+    await wakeOnDelegatedWork(botId);
+    const woken = await prisma.sokoBotTurn.count({
+      where: { sokoBotId: botId, source: "EVENT", createdAt: { gte: since } },
+    });
+    if (woken === 0) return false;
+  }
   const active = await prisma.sokoBotTurn.count({
     where: {
       sokoBotId: botId,
@@ -324,6 +387,22 @@ async function finishStep(
       ...result.checks.filter((check) => !check.label.startsWith("Route ")),
     );
   } else checks.push({ label: "Completed", pass: false, actual: "no turn" });
+  if (step.kind === "coworker") {
+    // The answer was delivered once and the scan ran twice: one wake is
+    // right, none is a missing wake, more is a duplicate.
+    const wakes = await prisma.sokoBotTurn.count({
+      where: {
+        sokoBotId: botOf(journey, lane),
+        source: "EVENT",
+        createdAt: { gte: new Date(record.startedAt) },
+      },
+    });
+    checks.push({
+      label: `Woken once by ${step.coworker}'s answer`,
+      pass: wakes === 1,
+      actual: `${wakes} wake(s)`,
+    });
+  }
   const toolCalls = await journeyToolCalls(state, turnIds);
   for (const outcome of step.outcomes ?? [])
     checks.push(
@@ -335,6 +414,8 @@ async function finishStep(
         stepStartedAt: new Date(record.startedAt),
         toolCalls,
         botId: botOf(journey, lane),
+        answer: merged?.finalAnswer ?? null,
+        memo: state.memo,
       }),
     );
   const calls = merged?.toolCalls ?? [];
@@ -396,6 +477,7 @@ async function beginStep(
   ).catch((error: unknown) => ({
     error: error instanceof Error ? error.message : String(error),
   }));
+  if (started === null) return record;
   if (typeof started === "string") return { ...record, turnIds: [started] };
   return {
     ...record,
@@ -450,10 +532,43 @@ export async function startJourney(
     world,
     journeyStartedAt: journeyStartedAt.toISOString(),
     steps: [],
+    memo: {},
   };
   const first = await beginStep(journey, 0, lane, state, context);
   state.steps.push(first);
   return { kind: "started", turnId: first.turnIds[0] ?? null, state };
+}
+
+/**
+ * A Coworker answers when its Task exists, as a real one does, not when the
+ * bot has gone quiet: a background run may be waiting on exactly that answer.
+ * So when the next step is the Coworker's and the owner's own turn is done,
+ * the current step ends and the answer goes out.
+ */
+async function coworkerCanAnswer(
+  journey: OwnerJourney,
+  current: StepRecord,
+  lane: EvalLaneRecord,
+  state: JourneyState,
+): Promise<boolean> {
+  const next = journey.steps[current.index + 1];
+  const [foreground] = current.turnIds;
+  if (next?.kind !== "coworker" || !foreground) return false;
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: foreground },
+    select: { status: true },
+  });
+  if (!turn || ACTIVE.includes(turn.status)) return false;
+  const tasks = await coworkerTasks(
+    {
+      lane,
+      world: state.world,
+      journeyStartedAt: new Date(state.journeyStartedAt),
+      botId: botOf(journey, lane),
+    },
+    state.world.coworkers[next.coworker],
+  );
+  return tasks.length > 0;
 }
 
 export async function pollJourney(
@@ -470,7 +585,12 @@ export async function pollJourney(
     const since = new Date(current.startedAt);
     const timedOut =
       now.getTime() - since.getTime() > (journey.stepMinutes ?? 20) * 60_000;
-    if (!timedOut && !(await stepSettled(botId, since, now)))
+    const awaitsWake = journey.steps[current.index]?.kind === "coworker";
+    if (
+      !timedOut &&
+      !(await stepSettled(botId, since, now, awaitsWake)) &&
+      !(await coworkerCanAnswer(journey, current, lane, state))
+    )
       return { kind: "waiting" };
     if (timedOut) {
       const open = await prisma.sokoBotTurn.findMany({
@@ -522,6 +642,18 @@ export async function pollJourney(
   return {
     kind: "done",
     outcome: await journeyOutcome(journey, lane, state, context),
+  };
+}
+
+/**
+ * Where the journey ran. `evals:local` runs the in-process runtime (its own
+ * loop, no sandbox tools); deployments run the sandbox runtime. A delta only
+ * counts where both agree (`ownerbench-parity`).
+ */
+export function journeyRuntime(): { adapter: string; models: string } {
+  return {
+    adapter: getEnv().SOKO_BOT_RUNTIME_ADAPTER,
+    models: localChatGptPlanEnabled() ? "chatgpt-plan" : "gateway",
   };
 }
 
@@ -626,6 +758,7 @@ async function journeyOutcome(
     output: {
       journey: journey.id,
       level: journey.level,
+      runtime: journeyRuntime(),
       score,
       totals,
       answer: state.steps.at(-1)?.answer ?? null,

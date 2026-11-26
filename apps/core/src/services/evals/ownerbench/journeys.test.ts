@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { selectEvalCases } from "../eval-cases";
-import { cronDays, nextWeekdayKey } from "./journey-checks";
+import {
+  cronDays,
+  launchDay,
+  mediaFromJobs,
+  nextWeekdayKey,
+} from "./journey-checks";
 import { countRetries, journeyScore, type StepRecord } from "./journey-runner";
 import { OWNER_JOURNEYS } from "./journeys";
 
@@ -50,6 +55,40 @@ it("finds the next weekday after a date in Berlin", () => {
   expect(nextWeekdayKey(new Date("2026-11-25T10:00:00Z"), 2)).toBe(
     "2026-12-01",
   );
+});
+
+describe("launchDay", () => {
+  // Wednesday 2026-11-25: next Tuesday is Dec 1.
+  const start = new Date("2026-11-25T10:00:00Z");
+
+  it("is the next such weekday", () => {
+    expect(launchDay(start, { weekday: 2 })).toBe("2026-12-01");
+  });
+
+  it("keeps the launch week when the launch moves", () => {
+    // Not Thursday Nov 26, the day after the journey started.
+    expect(launchDay(start, { weekday: 4, movedFrom: 2 })).toBe("2026-12-03");
+  });
+});
+
+describe("mediaFromJobs", () => {
+  const job = "01a21579-b51b-757c-b2b9-3d6d5edd6ed2";
+
+  it("counts media whose Files name carries a made job's id", () => {
+    expect(
+      mediaFromJobs(
+        [
+          { name: "white-background-memory-5edd6ed2.png" },
+          { name: "logo.png" },
+        ],
+        [job],
+      ),
+    ).toEqual({ total: 2, fromJobs: 1 });
+  });
+
+  it("reads no media as none", () => {
+    expect(mediaFromJobs(null, [job])).toEqual({ total: 0, fromJobs: 0 });
+  });
 });
 
 it("counts calls that come after a failed call of the same tool", () => {

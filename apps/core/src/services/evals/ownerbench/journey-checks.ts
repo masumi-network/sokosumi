@@ -74,6 +74,10 @@ export interface CheckContext {
   /** Every tool call of the journey so far, oldest first. */
   toolCalls: { capability: string; status: string; input: unknown }[];
   botId: string;
+  /** What the owner read at the end of this step. */
+  answer: string | null;
+  /** Kept across the journey's steps: what one step's check saw for the next. */
+  memo: Record<string, string[]>;
 }
 
 async function scheduleCheck(
@@ -193,33 +197,57 @@ async function imagesCheck(
   outcome: Extract<JourneyOutcome, { kind: "images" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
-  const jobs = await prisma.projectImageJob.findMany({
-    where: {
-      workspaceId: context.lane.workspaceId,
-      createdAt: {
-        gte: outcome.thisStep
-          ? context.stepStartedAt
-          : context.journeyStartedAt,
-      },
-    },
-    select: { prompt: true, status: true },
-  });
-  const usable = jobs.filter((job) => job.status !== "FAILED");
-  const off = usable.filter(
+  const jobs = await imageJobs(
+    context,
+    outcome.thisStep ? context.stepStartedAt : context.journeyStartedAt,
+  );
+  const made = jobs.filter(isMade);
+  const off = made.filter(
     (job) => !matchesAll(job.prompt, outcome.promptMatches).pass,
   );
   const countOk =
-    usable.length >= outcome.min &&
-    (outcome.max === undefined || usable.length <= outcome.max);
+    made.length >= outcome.min &&
+    (outcome.max === undefined || made.length <= outcome.max);
+  const unfinished = jobs.length - made.length;
   return {
     label: outcome.label,
     pass: countOk && off.length === 0,
-    actual: `${usable.length} image(s)${jobs.length > usable.length ? `, ${jobs.length - usable.length} failed` : ""}${
+    actual: `${made.length} image(s) made${unfinished ? `, ${unfinished} failed or unfinished` : ""}${
       off.length
         ? `; ${off.length} off-brief: "${off[0]?.prompt.slice(0, 80)}"`
         : ""
     }`,
   };
+}
+
+function imageJobs(context: CheckContext, since: Date) {
+  return prisma.projectImageJob.findMany({
+    where: { workspaceId: context.lane.workspaceId, createdAt: { gte: since } },
+    select: { id: true, prompt: true, status: true, assetId: true },
+  });
+}
+
+/** An image the owner can see: the job succeeded and kept its picture. */
+function isMade(job: { status: string; assetId: string | null }): boolean {
+  return job.status === "SUCCEEDED" && job.assetId !== null;
+}
+
+/**
+ * A studio image's Files copy ends in its job id's last eight hex digits
+ * (`studioAssetFileName`), so a post's media names say which job made them.
+ */
+export function mediaFromJobs(
+  media: unknown,
+  jobIds: readonly string[],
+): { total: number; fromJobs: number } {
+  const refs = Array.isArray(media) ? media : [];
+  const suffixes = jobIds.map((id) => `-${id.replace(/-/g, "").slice(-8)}.`);
+  const fromJobs = refs.filter((ref) => {
+    const name =
+      ref && typeof ref === "object" && "name" in ref ? String(ref.name) : "";
+    return suffixes.some((suffix) => name.includes(suffix));
+  }).length;
+  return { total: refs.length, fromJobs };
 }
 
 async function journeyPosts(
@@ -272,10 +300,26 @@ async function postsCheck(
       problems.push(`${out.length} not DRAFT (${out[0]?.status})`);
   }
   if (outcome.withMedia) {
-    const bare = posts.filter(
-      (post) => !Array.isArray(post.media) || post.media.length === 0,
+    // The journey's own made images, nothing else: an unrelated attachment
+    // or a picture that never finished is not something to approve.
+    const made = (await imageJobs(context, context.journeyStartedAt))
+      .filter(isMade)
+      .map((job) => job.id);
+    for (const post of posts) {
+      const { total, fromJobs } = mediaFromJobs(post.media, made);
+      if (total === 0) problems.push("a post without media");
+      else if (fromJobs < total)
+        problems.push(
+          `${total - fromJobs} of ${total} media not the made images`,
+        );
+    }
+  }
+  if (outcome.linkedInAnswer) {
+    const unlinked = posts.filter(
+      (post) => !(context.answer ?? "").includes(post.id),
     );
-    if (bare.length) problems.push(`${bare.length} without media`);
+    if (unlinked.length)
+      problems.push("the answer does not link the draft to approve");
   }
   if (outcome.maxLength !== undefined) {
     const long = posts.filter(
@@ -374,7 +418,7 @@ async function launchSequenceCheck(
   outcome: Extract<JourneyOutcome, { kind: "launchSequence" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
-  const launch = nextWeekdayKey(context.journeyStartedAt, outcome.weekday);
+  const launch = launchDay(context.journeyStartedAt, outcome);
   const posts = (
     await journeyPosts(
       context,
@@ -391,11 +435,79 @@ async function launchSequenceCheck(
   const before = days.filter((day) => day < launch).length;
   const on = days.filter((day) => day === launch).length;
   const after = days.filter((day) => day > launch).length;
+  const problems: string[] = [];
+  if (!(before > 0 && on > 0 && after > 0)) problems.push("not around the day");
+  const ids = posts.map((post) => post.id);
+  if (outcome.movedFrom === undefined) context.memo.launchPieces = ids;
+  else {
+    const earlier = new Set(context.memo.launchPieces ?? []);
+    const kept = ids.filter((id) => earlier.has(id)).length;
+    if (earlier.size === 0) problems.push("no earlier launch pieces to move");
+    else if (kept < earlier.size)
+      problems.push(
+        `${earlier.size - kept} of ${earlier.size} earlier pieces gone`,
+      );
+    if (ids.length > earlier.size)
+      problems.push(`${ids.length - earlier.size} added instead of moved`);
+  }
   return {
     label: outcome.label,
-    pass: before > 0 && on > 0 && after > 0,
-    actual: `launch ${launch}: ${before} before, ${on} on the day, ${after} after`,
+    pass: problems.length === 0,
+    actual: `launch ${launch}: ${before} before, ${on} on the day, ${after} after${problems.length ? ` (${problems.join("; ")})` : ""}`,
   };
+}
+
+/**
+ * The launch day as a Berlin day key: the next `weekday` after the journey
+ * started, or, for a moved launch, the first `weekday` from the original day
+ * on ("push it to Thursday" keeps the launch week).
+ */
+export function launchDay(
+  journeyStartedAt: Date,
+  outcome: { weekday: number; movedFrom?: number },
+): string {
+  if (outcome.movedFrom === undefined)
+    return nextWeekdayKey(journeyStartedAt, outcome.weekday);
+  const original = nextWeekdayKey(journeyStartedAt, outcome.movedFrom);
+  const start = new Date(`${original}T12:00:00Z`);
+  return outcome.weekday === outcome.movedFrom
+    ? original
+    : nextWeekdayKey(start, outcome.weekday);
+}
+
+async function networkShiftCheck(
+  outcome: Extract<JourneyOutcome, { kind: "networkShift" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const counts = await upcomingByNetwork(
+    context.world.projects.Cuso,
+    context.stepStartedAt,
+  );
+  const before = context.world.upcomingByNetwork ?? {};
+  const fewer = (counts[outcome.from] ?? 0) < (before[outcome.from] ?? 0);
+  const more = (counts[outcome.to] ?? 0) > (before[outcome.to] ?? 0);
+  return {
+    label: outcome.label,
+    pass: fewer || more,
+    actual: `${outcome.from} ${before[outcome.from] ?? 0} → ${counts[outcome.from] ?? 0}, ${outcome.to} ${before[outcome.to] ?? 0} → ${counts[outcome.to] ?? 0}`,
+  };
+}
+
+/** Upcoming posts per network on a Project, from `after` on. */
+export async function upcomingByNetwork(
+  projectId: string,
+  after: Date,
+): Promise<Record<string, number>> {
+  const rows = await prisma.socialPost.groupBy({
+    by: ["provider"],
+    where: {
+      projectId,
+      status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
+      scheduledAt: { gt: after },
+    },
+    _count: { _all: true },
+  });
+  return Object.fromEntries(rows.map((row) => [row.provider, row._count._all]));
 }
 
 async function noPostsOnWeekdayCheck(
@@ -408,17 +520,21 @@ async function noPostsOnWeekdayCheck(
       status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       scheduledAt: { gt: context.stepStartedAt },
     },
-    select: { scheduledAt: true, timezone: true },
+    select: { id: true, scheduledAt: true, timezone: true },
   });
   const hits = upcoming.filter(
     (post) =>
       post.scheduledAt &&
       weekdayIn(post.scheduledAt, post.timezone ?? ZONE) === outcome.weekday,
   );
+  // The seeded posts on that day must be moved, not silently dropped.
+  const seeded = context.world.seededWeekdayPostIds ?? [];
+  const live = new Set(upcoming.map((post) => post.id));
+  const dropped = seeded.filter((id) => !live.has(id)).length;
   return {
     label: outcome.label,
-    pass: upcoming.length > 0 && hits.length === 0,
-    actual: `${hits.length} of ${upcoming.length} upcoming post(s) on that day`,
+    pass: seeded.length > 0 && hits.length === 0 && dropped === 0,
+    actual: `${hits.length} of ${upcoming.length} upcoming post(s) on that day; ${dropped} of ${seeded.length} seeded ones dropped`,
   };
 }
 
@@ -565,5 +681,7 @@ export async function outcomeCheck(
       return readSeededFileCheck(outcome, context);
     case "seededSchedulesUntouched":
       return seededSchedulesCheck(outcome, context);
+    case "networkShift":
+      return networkShiftCheck(outcome, context);
   }
 }
