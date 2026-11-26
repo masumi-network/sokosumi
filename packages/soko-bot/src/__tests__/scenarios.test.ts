@@ -613,6 +613,59 @@ describe("scoring what the bot did, not how", () => {
       ).toBe(false);
     });
 
+    it("compares whole cells, so an amount off by ten fails", () => {
+      expect(saves(write(rows.replace("Acme,12000", "Acme,120000")))).toBe(
+        false,
+      );
+      expect(
+        saves(write(rows.replace("Acme,12000,won", '"Acme", "$12000", Won'))),
+      ).toBe(true);
+    });
+
+    it("follows appends, moves and partial reads", () => {
+      const partial = rows.replace("Epsilon,15000,open\n", "");
+      expect(
+        saves(
+          write(partial),
+          withInput("bash", {
+            command: 'echo "Epsilon,15000,open" >> pipeline.csv',
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        saves(
+          write(partial),
+          withInput("workspace_write", {
+            path: "pipeline.csv",
+            content: "Epsilon,15000,open\n",
+            append: true,
+          }),
+        ),
+      ).toBe(true);
+      // Moved away: the file is no longer there as written.
+      expect(
+        saves(
+          write(rows),
+          withInput("bash", { command: "mv pipeline.csv old-pipeline.csv" }),
+        ),
+      ).toBe(false);
+      // A preview of the first lines is not the file.
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv", limit: 30 },
+            {
+              path: "pipeline.csv",
+              content: rows.slice(0, 30),
+              totalChars: rows.length,
+            },
+          ),
+        ),
+      ).toBe(true);
+    });
+
     it("takes the last write, so an overwrite counts", () => {
       expect(saves(write(rows), write("Acme,12000,won\n"))).toBe(false);
       expect(saves(write("Acme,12000,won\n"), write(rows))).toBe(true);

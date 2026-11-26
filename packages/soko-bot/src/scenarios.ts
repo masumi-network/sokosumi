@@ -234,54 +234,87 @@ const basename = (path: string) => path.split("/").at(-1) ?? "";
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Every row has a line holding all of its fields. */
+/** A cell as written: unquoted, and a number as its value. */
+function cellValue(cell: string): string {
+  const text = cell
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .trim()
+    .toLowerCase();
+  const number = text.replace(/[$€£\s]/g, "");
+  return /^-?\d+(\.\d+)?$/.test(number) ? String(Number(number)) : text;
+}
+
+/** Every row is one line whose cells include each of its fields, exactly. */
 function hasRows(content: string, rows: string[][]): boolean {
-  const lines = content.toLowerCase().split("\n");
+  const lines = content
+    .split("\n")
+    .map((line) => new Set(line.split(/[,;\t|]/).map(cellValue)));
   return rows.every((row) =>
-    lines.some((line) =>
-      row.every((field) => line.includes(field.toLowerCase())),
-    ),
+    lines.some((cells) => row.every((field) => cells.has(cellValue(field)))),
   );
 }
 
 /**
- * What one completed call shows about the file: its content (written,
- * uploaded or read back), `null` when the call rewrote it out of sight (a
- * shell redirect or script writing it), or `undefined` when it says nothing.
+ * The file after one completed call, from what it was before (`previous`,
+ * null when unknown): new content when the call wrote, appended to or read
+ * all of it, `null` when the call changed it out of sight (a shell redirect,
+ * a script writing it, a move or delete), or `undefined` when it says nothing.
  */
-function seenContent(
+function nextContent(
   call: SokoBotLabTurn["toolCalls"][number],
   name: string,
   rows: string[][],
+  previous: string | null,
 ): string | null | undefined {
   if (call.status !== "COMPLETED") return undefined;
   const input = (call.input ?? {}) as Record<string, unknown>;
   const result = (call.result ?? {}) as Record<string, unknown>;
+  const appended = (text: string) =>
+    previous === null ? null : `${previous}\n${text}`;
   switch (call.capability) {
-    case "workspace_write":
-      return basename(asText(input.path)) === name
-        ? asText(input.content)
-        : undefined;
+    case "workspace_write": {
+      if (basename(asText(input.path)) !== name) return undefined;
+      const content = asText(input.content);
+      return input.append === true ? appended(content) : content;
+    }
     case "upload_file":
       return asText(input.content) &&
         basename(asText(result.filename) || asText(input.filename)) === name
         ? asText(input.content)
         : undefined;
-    case "workspace_read":
-      return basename(asText(input.path)) === name && !input.offset
-        ? asText(result.content)
-        : undefined;
+    case "workspace_read": {
+      if (basename(asText(input.path)) !== name) return undefined;
+      const content = asText(result.content);
+      // A preview or a later slice is not the whole file.
+      const whole =
+        !input.offset &&
+        (typeof result.totalChars !== "number" ||
+          result.totalChars <= content.length);
+      return whole ? content : undefined;
+    }
     case "bash": {
       const command = asText(input.command);
       if (!command.includes(name)) return undefined;
       const stdout = asText(result.stdout);
-      // Printing the rows reads the file back, whatever wrote it.
+      // Printing every row reads the file back, whatever wrote it.
       if (hasRows(stdout, rows)) return stdout;
       const file = escapeRegExp(name);
-      const writes = new RegExp(
-        `(>>?|\\btee\\b[^|;&]*)\\s*["']?[^\\s"';|&]*${file}|${file}["']?\\s*,\\s*["'][wa]|writeFile\\w*\\(\\s*["'][^"']*${file}`,
+      const target = `["']?[^\\s"';|&]*${file}["']?`;
+      // An echo or printf appended to it: its text follows what was there.
+      const echoed = new RegExp(
+        `^\\s*(?:echo|printf)\\s+(?:-\\w+\\s+)*(["']?)(.*)\\1\\s*>>\\s*${target}\\s*$`,
+      ).exec(command);
+      if (echoed) return appended((echoed[2] ?? "").replaceAll("\\n", "\n"));
+      const changes = new RegExp(
+        [
+          `(>>?|\\btee\\b[^|;&]*)\\s*${target}`,
+          `${file}["']?\\s*,\\s*["'][wa]`,
+          `writeFile\\w*\\(\\s*["'][^"']*${file}`,
+          `\\b(mv|rm|cp)\\b[^;&|]*${file}`,
+        ].join("|"),
       );
-      return writes.test(command) ? null : undefined;
+      return changes.test(command) ? null : undefined;
     }
     default:
       return undefined;
@@ -295,7 +328,12 @@ function savedFile(
 ): { by: string; content: string | null } | null {
   let last: { by: string; content: string | null } | null = null;
   for (const call of calls) {
-    const content = seenContent(call, file.name, file.rows);
+    const content = nextContent(
+      call,
+      file.name,
+      file.rows,
+      last?.content ?? null,
+    );
     if (content !== undefined) last = { by: call.capability, content };
   }
   return last;
