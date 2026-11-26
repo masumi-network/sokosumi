@@ -255,17 +255,19 @@ async function timeOutStuckRun(run: {
       finishedAt: now,
     },
   });
-  recordCoreWarning(
-    { operation: "eval_tick" },
-    {
-      message: "Timed out an eval run that was stuck",
-      why: `It was still running ${EVAL_RUN_TIMEOUT_MS / 3_600_000} hours after it started`,
-      fix: "Its open cases are errors now. Check why they never settled: a turn that never ended, or a lane that kept failing.",
-    },
-    { evalRun: { id: run.id }, evalOpenCases: open.count },
-  );
-  await completeIfDone(run);
-  return true;
+  // Once: later ticks only wait on a case's late cost.
+  if (open.count > 0)
+    recordCoreWarning(
+      { operation: "eval_tick" },
+      {
+        message: "Timed out an eval run that was stuck",
+        why: `It was still running ${EVAL_RUN_TIMEOUT_MS / 3_600_000} hours after it started`,
+        fix: "Its open cases are errors now. Check why they never settled: a turn that never ended, or a lane that kept failing.",
+      },
+      { evalRun: { id: run.id }, evalOpenCases: open.count },
+    );
+  // Still waiting on a case's late cost: the next run stays queued.
+  return (await completeIfDone(run)).completed;
 }
 
 /** The queued run first in line starts once nothing else is running. */

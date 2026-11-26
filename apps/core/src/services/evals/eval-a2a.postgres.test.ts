@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { A2A_SCENARIOS } from "@sokosumi/soko-bot";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
 import {
@@ -171,6 +180,25 @@ const enabled =
   process.env.DATABASE_URL?.startsWith("postgres");
 
 describe.skipIf(!enabled)("agent-to-agent eval world", () => {
+  // The lanes' seeded world stays as other files expect it: each test's
+  // messages in their rooms, the code's own included, go when it ends.
+  let seededUntil = new Date(0);
+  const laneOrganizations = async () =>
+    (await prisma.evalLane.findMany({ select: { organizationId: true } })).map(
+      (lane) => lane.organizationId,
+    );
+  beforeAll(async () => {
+    await ensureEvalLanes(2);
+    seededUntil = await databaseNow();
+  });
+  afterEach(async () => {
+    await prisma.chatRoomMessage.deleteMany({
+      where: {
+        createdAt: { gt: seededUntil },
+        room: { organizationId: { in: await laneOrganizations() } },
+      },
+    });
+  });
   afterAll(async () => {
     await prisma.$disconnect();
   });
