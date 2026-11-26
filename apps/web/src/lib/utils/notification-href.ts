@@ -3,6 +3,7 @@ import {
   BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+  SEO_ADMIN_CRITICAL_MESSAGE_KEY,
   taskNotificationHref,
 } from "@sokosumi/utils";
 import {
@@ -118,6 +119,9 @@ export function getNotificationHref(
     }
 
     case "SYSTEM": {
+      if (notification.messageKey === SEO_ADMIN_CRITICAL_MESSAGE_KEY) {
+        return "/admin/seo-alerts";
+      }
       if (notification.messageKey) {
         const vendorTarget = resolveWorkspaceApprovalNotificationTarget(
           {

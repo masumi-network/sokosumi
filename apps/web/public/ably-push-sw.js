@@ -263,6 +263,19 @@ const CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY =
 const CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY =
   "Notifications.Chat.roomMessageGroupTitle";
 
+/** Mirrors SEO_MONITOR_WORSE_MESSAGE_KEY in `lib/utils/notification-message.ts`. */
+const SEO_MONITOR_WORSE_MESSAGE_KEY = "Notifications.Task.seoMonitorWorse";
+
+/**
+ * Mirrors `notificationMessageParams` in the app: an alert stored before it
+ * named the site and the lost citations reads with the task name and 0.
+ */
+function messageParamsFor(messageKey, params) {
+  return messageKey === SEO_MONITOR_WORSE_MESSAGE_KEY
+    ? { site: params.taskName, lostCitations: 0, ...params }
+    : params;
+}
+
 /** The rendered string for a key, or undefined when the catalog lacks it. */
 function render(messages, messageKey, params) {
   // `hasOwn`, so a payload naming "constructor" cannot reach a prototype
@@ -271,7 +284,10 @@ function render(messages, messageKey, params) {
     return undefined;
   }
 
-  return interpolate(messages[messageKey], params);
+  return interpolate(
+    messages[messageKey],
+    messageParamsFor(messageKey, params),
+  );
 }
 
 /** Mirrors CHAT_MENTION_ALL_LABEL_MESSAGE_KEY in `@sokosumi/utils`. */

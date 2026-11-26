@@ -83,7 +83,7 @@ it("shows counts on the admin hub and distinguishes a failed read from zero aler
   });
   render(await SeoAlertSummary());
   expect(
-    screen.getByText("Last 30 days: 2 critical, 3 warnings"),
+    screen.getByText("Open or from the last 30 days: 2 critical, 3 warnings"),
   ).toBeInTheDocument();
   expect(screen.getByText("Connections to reconnect: 1")).toBeInTheDocument();
   expect(read).toHaveBeenLastCalledWith({

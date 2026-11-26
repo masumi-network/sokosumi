@@ -12567,6 +12567,7 @@ export type ProjectSeoWorkspace = {
     searchBreakdown?: ProjectSeoWorkspaceSearchBreakdown | null;
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
+    aiAssistantPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     siteEvidence?: ProjectSeoSiteEvidence | null;
@@ -13110,6 +13111,8 @@ export type ProjectSeoKeyword = {
     intent: string | null;
     conversion: 'high' | 'medium' | 'low' | null;
     feature: string | null;
+    intentClass?: 'product' | 'comparison' | 'problem' | 'learn' | null;
+    fit?: 'direct' | 'partial' | null;
     device: 'mobile' | 'desktop' | null;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
@@ -13330,6 +13333,7 @@ export type ProjectSeoLandingPages = {
     }>;
     truncated?: boolean;
     skippedUrls?: Array<string>;
+    pageUrls: Array<string>;
     observationId: string;
     propertyId: string;
     from: string;
@@ -13559,6 +13563,7 @@ export type ProjectSeoSerpPoint = {
         asyncLoaded: boolean;
         citedDomains: Array<string>;
         pageCited: boolean | null;
+        siteCited?: boolean | null;
     } | null;
     featured: {
         domain: string | null;
@@ -13739,9 +13744,22 @@ export type ProjectSeoMonitorChange = {
         device: 'mobile' | 'desktop' | null;
         from: number;
         to: number;
+    } | {
+        keyword: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        from: number;
+        to: null;
+        checkedResults: number;
     }>;
     moveCount: number;
     dropCount: number;
+    lostCitations: Array<{
+        keyword: string;
+        device: 'mobile' | 'desktop';
+        shown: boolean;
+    }>;
+    lostCitationCount: number;
 };
 
 export type AddProjectSeoPageRequest = {

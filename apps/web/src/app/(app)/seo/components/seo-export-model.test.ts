@@ -37,14 +37,22 @@ describe("seoTopPagesExport", () => {
       from: "2026-01-01",
       to: "2026-01-02",
       observedAt: new Date("2026-01-03T00:00:00Z"),
+      // One page under two spellings: the rows add up.
       rows: [
-        { pageUrl: "https://example.com/shop", keyEvents: 3, sessions: 9 },
+        { pageUrl: "https://example.com/shop", keyEvents: 2, sessions: 6 },
+        { pageUrl: "https://www.example.com/shop/", keyEvents: 1, sessions: 3 },
       ],
       skippedUrls: ["https://example.com/"],
+      pageUrls: [
+        "https://example.com/shop",
+        "https://example.com/",
+        "https://example.com/pricing",
+      ],
     });
     const rows = [
       page("https://example.com/shop"),
       page("https://example.com/"),
+      page("https://example.com/pricing"),
       page("https://example.com/blog"),
     ];
     const table = seoTopPagesExport(rows, t, keyEvents);
@@ -54,7 +62,9 @@ describe("seoTopPagesExport", () => {
     expect(table.rows.map((row) => row.at(-2))).toEqual([
       3,
       "Not read: shares a landing path with another selected page",
-      null,
+      // In the read, no row: a measured zero. Not in the read: no number.
+      0,
+      "Not in this read",
     ]);
     expect(seoTopPagesExport(rows, t).header).not.toContain(
       "Key events (organic)",

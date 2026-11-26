@@ -7914,7 +7914,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Conexiones que requieren reconexión: {count}",
-        "summary": "Últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
+        "summary": "Abiertas o de los últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
         "unavailable": "Los recuentos de alertas no están disponibles.",
         "title": "Alertas de auditorías SEO",
         "description": "Última ejecución finalizada o atrasada de cada auditoría. La alerta se activa cuando falla al menos el {percent}% de las páginas que se intentaron analizar.",
@@ -13548,7 +13548,19 @@
             "medium": "Probabilidad de conversión media",
             "high": "Probabilidad de conversión alta"
           },
-          "note": "El ajuste al objetivo se estima según lo que la gente busca y lo que ofrece la página.",
+          "note": "La probabilidad de conversión es una valoración propia de la comprobación SEO, basada en lo que la gente busca y lo que ofrece tu página. No es una tasa de conversión medida.",
+          "checkedOn": "De la comprobación del <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Busca un producto",
+            "comparison": "Compara opciones",
+            "problem": "Quiere resolver un problema",
+            "learn": "Quiere aprender"
+          },
+          "fit": {
+            "direct": "coincide con tu oferta",
+            "partial": "coincide en parte con tu oferta"
+          },
           "high": "Alta",
           "medium": "Media",
           "low": "Baja"
@@ -13662,6 +13674,7 @@
         "serp": {
           "title": "Resultados de búsqueda en comprobaciones de pago",
           "note": "Lo que mostró la página de resultados en cada comprobación, la más reciente primero.",
+          "aiNote": "Un AI Overview es el resumen que Google escribe encima de los resultados. Cita una página cuando la enlaza como fuente.",
           "check": "Comprobación",
           "aiOverview": "AI Overview",
           "featured": "Fragmento destacado",
@@ -13675,8 +13688,13 @@
             "not_checked": "AI Overview no comprobado",
             "undetermined": "Cita no determinada",
             "cited_checked": "Cita una página comprobada",
-            "other_page": "Comprobado para otra página"
+            "other_page": "Comprobado para otra página",
+            "site_cited": "Cita el sitio de la página",
+            "site_cited_checked": "Cita un sitio comprobado"
           },
+          "aiSources": "Fuentes",
+          "ownSource": "{domain} (tu sitio)",
+          "moreSources": "+{count} más",
           "snippet": {
             "owned": "El sitio de la página",
             "checked_site": "Un sitio comprobado",
@@ -13716,15 +13734,15 @@
         "shortlist": {
           "label": "Recomendada",
           "chartKey": "Recomendada · clics adicionales estimados en la posición 10",
-          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su relevancia, baja competencia y posibles clics adicionales.",
-          "none": "Ninguna idea cumple los tres criterios: relevancia, baja competencia y posibles clics adicionales.",
+          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su alta probabilidad de conversión, baja competencia y posibles clics adicionales.",
+          "none": "Ninguna idea cumple los tres criterios: alta probabilidad de conversión, baja competencia y posibles clics adicionales.",
           "gain": "Aumento estimado en puesto 10",
           "clicks": "{count, plural, =0 {0 clics/mes} one {+# clic/mes} other {+# clics/mes}}",
           "lift": "Un {percent} más de clics al mes que la estimación actual.",
-          "priority": "Buen ajuste al objetivo y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
-          "fitUnknown": "Falta valorar el ajuste al objetivo.",
-          "medium": "El ajuste estimado al objetivo de la página es medio.",
-          "low": "El ajuste estimado al objetivo de la página es bajo.",
+          "priority": "Alta probabilidad de conversión y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
+          "fitUnknown": "Falta valorar la probabilidad de conversión.",
+          "medium": "La probabilidad de conversión es media.",
+          "low": "La probabilidad de conversión es baja.",
           "difficultyUnknown": "Falta medir la dificultad.",
           "competition": "La competencia es demasiado alta para recomendar esta idea.",
           "gainUnknown": "No hay una estimación de clics para el puesto 10.",
@@ -14327,10 +14345,16 @@
           "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
           "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
           "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "lostCitations": "{count, plural, one {# cita perdida en AI Overview} other {# citas perdidas en AI Overview}}",
           "newFailuresTitle": "Ahora fallan",
           "fixedTitle": "Corregidos",
           "movesTitle": "Cambios de posición",
           "move": "{keyword}: posición {from} → {to}",
+          "lost": "{keyword}: estaba en la posición {from}, ahora fuera de los primeros {checked}",
+          "lostCitationsTitle": "Citas perdidas en AI Overview",
+          "lostCitation": "{keyword}: AI Overview ya no cita tu página",
+          "lostCitationGone": "{keyword}: el AI Overview que citaba tu página ya no aparece",
+          "lostCitationsShowing": "Mostrando {shown} de {total}",
           "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
         },
         "plan": {
@@ -15103,8 +15127,7 @@
           "googleNews": "Google Noticias"
         },
         "keyEvents": "Eventos clave (orgánico)",
-        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí.",
-        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)",
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para verlos aquí.",
         "aiAssistants": "Asistentes de IA",
         "aiAssistantsHelp": "Visitas del canal «AI Assistant» de Google Analytics (ChatGPT, Perplexity, Gemini, Copilot y otros) según la página de entrada",
         "aiAssistantsTruncated": "Solo se guardaron las primeras filas, así que los totales pueden ser mayores",
@@ -15130,7 +15153,8 @@
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",
         "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
-        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada",
+        "keyEventsNotSelected": "No está en esta lectura"
       },
       "export": {
         "menu": "Exportar: {table}",
@@ -15375,7 +15399,7 @@
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
-            "missing": "No se comprueban los resúmenes de IA que Google carga después de la página, porque esa lectura cuesta más."
+            "missing": "No recibes ningún aviso cuando un resumen de IA deja de citar tu página."
           },
           "40": {
             "title": "Tráfico desde asistentes de IA",
@@ -15874,7 +15898,11 @@
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
         "followUp": "{taskName} sigue esperándote",
-        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}."
+        "seoMonitorWorse": "{site}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}. Citas perdidas en AI Overview: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: los clics de Search Console bajaron de {clicksFrom} a {clicksTo} frente al periodo anterior."
+      },
+      "System": {
+        "seoAdminCritical": "Una auditoría SEO tiene una alerta crítica. Abre las alertas SEO de administración para revisarla."
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",

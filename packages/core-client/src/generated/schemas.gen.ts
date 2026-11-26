@@ -48145,6 +48145,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        aiAssistantPages: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoLandingPages'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         indexStatus: {
             anyOf: [
                 {
@@ -51216,6 +51226,30 @@ export const ProjectSeoKeywordSchema = {
                 'null'
             ]
         },
+        intentClass: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'product',
+                'comparison',
+                'problem',
+                'learn',
+                null
+            ]
+        },
+        fit: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'direct',
+                'partial',
+                null
+            ]
+        },
         device: {
             anyOf: [
                 {
@@ -52428,6 +52462,14 @@ export const ProjectSeoLandingPagesSchema = {
             },
             maxItems: 10
         },
+        pageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            }
+        },
         observationId: {
             type: 'string',
             format: 'uuid'
@@ -52450,6 +52492,7 @@ export const ProjectSeoLandingPagesSchema = {
     required: [
         'channel',
         'rows',
+        'pageUrls',
         'observationId',
         'propertyId',
         'from',
@@ -53739,6 +53782,12 @@ export const ProjectSeoSerpPointSchema = {
                                 'boolean',
                                 'null'
                             ]
+                        },
+                        siteCited: {
+                            type: [
+                                'boolean',
+                                'null'
+                            ]
                         }
                     },
                     required: [
@@ -54676,41 +54725,88 @@ export const ProjectSeoMonitorChangeSchema = {
         moves: {
             type: 'array',
             items: {
-                type: 'object',
-                properties: {
-                    keyword: {
-                        type: 'string'
-                    },
-                    pageUrl: {
-                        type: 'string'
-                    },
-                    device: {
-                        anyOf: [
-                            {
-                                type: 'string',
-                                enum: [
-                                    'mobile',
-                                    'desktop'
+                anyOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
                                 ]
                             },
-                            {
-                                type: 'null'
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'number'
                             }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to'
                         ]
                     },
-                    from: {
-                        type: 'number'
-                    },
-                    to: {
-                        type: 'number'
+                    {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'null'
+                            },
+                            checkedResults: {
+                                type: 'integer',
+                                exclusiveMinimum: 0
+                            }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to',
+                            'checkedResults'
+                        ]
                     }
-                },
-                required: [
-                    'keyword',
-                    'pageUrl',
-                    'device',
-                    'from',
-                    'to'
                 ]
             },
             maxItems: 10
@@ -54720,6 +54816,37 @@ export const ProjectSeoMonitorChangeSchema = {
             minimum: 0
         },
         dropCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        lostCitations: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    keyword: {
+                        type: 'string'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    shown: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'keyword',
+                    'device',
+                    'shown'
+                ]
+            },
+            maxItems: 10
+        },
+        lostCitationCount: {
             type: 'integer',
             minimum: 0
         }
@@ -54734,7 +54861,9 @@ export const ProjectSeoMonitorChangeSchema = {
         'fixed',
         'moves',
         'moveCount',
-        'dropCount'
+        'dropCount',
+        'lostCitations',
+        'lostCitationCount'
     ]
 } as const;
 

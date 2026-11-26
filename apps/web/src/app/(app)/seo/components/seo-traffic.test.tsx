@@ -20,6 +20,7 @@ import {
   seoTestMetric,
   seoTestWorkspace,
 } from "./seo-test-fixture";
+import { seoKeyEvents } from "./seo-traffic-model";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -743,9 +744,14 @@ function twoPageWorkspace() {
   };
   return workspace;
 }
-function landingPages(rows: Array<{ pageUrl: string; keyEvents: number }>) {
+function landingPages(
+  rows: Array<{ pageUrl: string; keyEvents: number }>,
+  // The pages the read asked for: both pages of the workspace.
+  pageUrls = ["https://example.com/", "https://example.com/shop"],
+) {
   return {
     channel: "organic" as const,
+    pageUrls,
     observationId: "0b6f6a3e-1c55-4b1a-9a43-1f3d2c4b5a69",
     propertyId: "properties/123",
     from: "2026-01-01",
@@ -775,9 +781,30 @@ describe("SEO Traffic key events", () => {
     ).toBeVisible();
     const shop = table.getByRole("row", { name: /example\.com\/shop/ });
     expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+    // The read asked for the home page and Google Analytics has no row for it: no organic session, so 0.
+    const home = table.getByRole("row", { name: /example\.com\/(?!shop)/ });
+    expect(within(home).getAllByRole("cell").at(-2)).toHaveTextContent(/^0$/);
     expect(topPagesTable()).not.toHaveTextContent("recorded no key events");
     // The key events read names its own period beside the Search Console one.
     expect(topPagesTable()).toHaveTextContent(/Key events \(organic\) Jan 1/);
+  });
+
+  it("gives no number to a page the read did not ask for, and joins a page written with www and a slash", () => {
+    const workspace = twoPageWorkspace();
+    workspace.landingPages = landingPages(
+      // Google Analytics names the page with "www." and a trailing slash; Search Console does not.
+      [{ pageUrl: "https://www.example.com/shop/", keyEvents: 3 }],
+      ["https://www.example.com/shop/"],
+    );
+    renderTraffic(workspace);
+    const table = within(topPagesTable());
+    const shop = table.getByRole("row", { name: /example\.com\/shop/ });
+    expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+    // The home page was not in the read: 0 would claim a measurement nobody made.
+    const home = table.getByRole("row", { name: /example\.com\/(?!shop)/ });
+    expect(within(home).getAllByRole("cell").at(-2)).toHaveTextContent(
+      "Not in this read",
+    );
   });
 
   it("says a page left out of the landing read was not read", () => {
@@ -794,6 +821,47 @@ describe("SEO Traffic key events", () => {
     );
     const shop = table.getByRole("row", { name: /example\.com\/shop/ });
     expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+  });
+
+  it("reads a page by its URL as written before another spelling, and takes a value that is no URL", () => {
+    const read = seoKeyEvents({
+      ...landingPages(
+        [{ pageUrl: "https://example.com/shop", keyEvents: 3 }],
+        ["https://example.com/shop", "https://example.com/blog/"],
+      ),
+      skippedUrls: ["https://example.com/shop/"],
+    });
+    // The row's own spelling keeps its number; the spelling the read left out says so.
+    expect(read?.cell("https://example.com/shop")).toBe(3);
+    expect(read?.cell("https://example.com/shop/")).toBe(
+      "traffic.keyEventsNotRead",
+    );
+    // Another spelling of a selected page with no row is the same page: a measured 0.
+    expect(read?.cell("https://www.example.com/blog")).toBe(0);
+    // A selected page whose row has another spelling keeps the row's number.
+    expect(read?.cell("https://www.example.com/shop")).toBe(3);
+    expect(read?.cell("/shop")).toBe("traffic.keyEventsNotSelected");
+    // A page the read left out, under another spelling and with no row, is not read: 0 would be a claim.
+    const left = seoKeyEvents({
+      ...landingPages([], ["https://example.com/shop/"]),
+      skippedUrls: ["https://example.com/shop/"],
+    });
+    expect(left?.cell("https://www.example.com/shop")).toBe(
+      "traffic.keyEventsNotRead",
+    );
+    // An AI assistant read from an older Core version is no organic count.
+    expect(
+      seoKeyEvents({ ...landingPages([]), channel: "ai_assistant" as never }),
+    ).toBeNull();
+    // A response of an older Core version has no pageUrls: the row keeps its number, no page gets a 0.
+    const { pageUrls: _, ...older } = landingPages([
+      { pageUrl: "https://example.com/shop", keyEvents: 3 },
+    ]);
+    const old = seoKeyEvents(older as ReturnType<typeof landingPages>);
+    expect(old?.cell("https://example.com/shop/")).toBe(3);
+    expect(old?.cell("https://example.com/")).toBe(
+      "traffic.keyEventsNotSelected",
+    );
   });
 
   it("says when Google Analytics recorded no key events and shows no column without a read", () => {
@@ -816,20 +884,21 @@ describe("SEO Traffic key events", () => {
 });
 
 describe("SEO Traffic AI assistant channel", () => {
-  it("reads AI assistant traffic when that channel is chosen and names its key events", async () => {
+  it("reads AI assistant traffic when that channel is chosen, and keeps its key events out of the organic column", async () => {
     const user = userEvent.setup();
     const workspace = twoPageWorkspace();
     workspace.metrics.push({ ...seoTestMetric(), source: "ga4" });
-    workspace.landingPages = {
+    workspace.aiAssistantPages = {
       ...landingPages([{ pageUrl: "https://example.com/", keyEvents: 1 }]),
       channel: "ai_assistant",
     };
     renderTraffic(workspace);
+    // The Top pages rows are organic search: an AI assistant read gives them no key events column.
     expect(
-      within(topPagesTable()).getByRole("columnheader", {
-        name: "Key events (AI assistants)",
+      within(topPagesTable()).queryByRole("columnheader", {
+        name: /Key events/,
       }),
-    ).toBeVisible();
+    ).toBeNull();
     await user.click(screen.getByRole("combobox", { name: "Traffic" }));
     await user.click(
       screen.getByRole("option", {
@@ -851,9 +920,9 @@ describe("SEO Traffic AI assistants", () => {
     workspace.metrics = [
       { ...seoTestMetric(), source: "ga4", channel: "ai_assistant" },
     ];
-    workspace.landingPages = {
+    const assistants = {
       ...landingPages([{ pageUrl: "https://example.com/", keyEvents: 1 }]),
-      channel: "ai_assistant",
+      channel: "ai_assistant" as const,
       sources: [
         {
           pageUrl: "https://example.com/",
@@ -870,6 +939,7 @@ describe("SEO Traffic AI assistants", () => {
       ],
       truncated: false,
     };
+    workspace.aiAssistantPages = assistants;
     renderTraffic(workspace, "&channel=ai_assistant");
     const section = screen
       .getByRole("heading", { name: "AI assistants" })
@@ -881,11 +951,7 @@ describe("SEO Traffic AI assistants", () => {
       within(section).getByRole("row", { name: /perplexity\.ai/ }),
     ).toBeVisible();
     cleanup();
-    workspace.landingPages = {
-      ...workspace.landingPages,
-      rows: [],
-      sources: [],
-    };
+    workspace.aiAssistantPages = { ...assistants, rows: [], sources: [] };
     renderTraffic(workspace, "&channel=ai_assistant");
     expect(screen.getByText("No AI Assistant channel data")).toBeVisible();
     // An empty read is no key events claim either.

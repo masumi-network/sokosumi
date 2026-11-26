@@ -12,7 +12,10 @@ import {
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
-import { seoMonitorChangeSummary } from "./seo-monitor-model";
+import {
+  seoMonitorChangeOf,
+  seoMonitorChangeSummary,
+} from "./seo-monitor-model";
 
 export const pathOf = (url: string) => {
   try {
@@ -25,11 +28,13 @@ export const pathOf = (url: string) => {
 
 /** What the newest monitor result changed against the one before, with the named items one press away. */
 export function SeoMonitorChange({
-  change,
+  change: stored,
 }: {
   change: ProjectSeoMonitorChange | null;
 }) {
+  const change = seoMonitorChangeOf(stored);
   const t = useSeoResultTranslations("App.Seo.monitor.change");
+  const devices = useSeoResultTranslations("App.Seo.breakdown.devices");
   const format = useSeoResultFormatter();
   const summary = seoMonitorChangeSummary(change);
   if (summary.kind === "none")
@@ -57,8 +62,12 @@ export function SeoMonitorChange({
     summary.fixed ? t("fixed", { count: summary.fixed }) : null,
     summary.drops ? t("drops", { count: summary.drops }) : null,
     summary.rises ? t("rises", { count: summary.rises }) : null,
+    summary.lostCitations
+      ? t("lostCitations", { count: summary.lostCitations })
+      : null,
   ].filter((part): part is string => part !== null);
-  const worse = summary.newFailures > 0 || summary.drops > 0;
+  const worse =
+    summary.newFailures > 0 || summary.drops > 0 || summary.lostCitations > 0;
   return (
     <Collapsible lang="en" className="text-xs">
       <CollapsibleTrigger className="group flex items-center gap-1 py-1 text-left">
@@ -102,15 +111,49 @@ export function SeoMonitorChange({
             {change.moves.map((move) => (
               <li
                 key={`${move.pageUrl}|${move.keyword}|${move.device ?? ""}`}
-                className={cn(move.to > move.from && "text-status-destructive")}
+                className={cn(
+                  (move.to === null || move.to > move.from) &&
+                    "text-status-destructive",
+                )}
               >
-                {t("move", {
-                  keyword: move.keyword,
-                  from: move.from,
-                  to: move.to,
-                })}
+                {move.to === null
+                  ? t("lost", {
+                      keyword: move.keyword,
+                      from: move.from,
+                      checked: move.checkedResults,
+                    })
+                  : t("move", {
+                      keyword: move.keyword,
+                      from: move.from,
+                      to: move.to,
+                    })}
               </li>
             ))}
+          </ChangeList>
+        ) : null}
+        {change.lostCitations.length ? (
+          <ChangeList title={t("lostCitationsTitle")}>
+            {change.lostCitations.map((item) => (
+              <li
+                key={`${item.keyword}|${item.device}`}
+                className="text-status-destructive"
+              >
+                {t(item.shown ? "lostCitation" : "lostCitationGone", {
+                  keyword: item.keyword,
+                })}{" "}
+                <span className="text-muted-foreground">
+                  {devices(item.device)}
+                </span>
+              </li>
+            ))}
+            {change.lostCitations.length < change.lostCitationCount ? (
+              <li className="text-muted-foreground">
+                {t("lostCitationsShowing", {
+                  shown: change.lostCitations.length,
+                  total: change.lostCitationCount,
+                })}
+              </li>
+            ) : null}
           </ChangeList>
         ) : null}
         <p className="text-muted-foreground">{t("band")}</p>

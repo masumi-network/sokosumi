@@ -301,6 +301,54 @@ describe("buildNotificationEmail", () => {
     expect(textIn(email?.html ?? "")).toContain("Launch");
   });
 
+  it("names the site and the counts in an SEO monitor email, and opens the result", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: "Notifications.Task.seoMonitorWorse",
+        messageParams: {
+          taskName: "Weekly SEO check",
+          site: "shop.example",
+          newFailures: 3,
+          drops: 2,
+          lostCitations: 4,
+        },
+        metadata: null,
+      }),
+    );
+
+    expect(email?.subject).toBe(
+      "Sokosumi - SEO results for shop.example got worse",
+    );
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task-1/result`);
+    expect(textIn(email?.html ?? "")).toContain(
+      "New failing checks: 3. Ranking drops: 2. Lost AI Overview citations: 4.",
+    );
+  });
+
+  it("gives both click counts in a Search Console clicks email", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: "Notifications.Task.seoMonitorClicksDrop",
+        messageParams: {
+          taskName: "Weekly SEO check",
+          site: "shop.example",
+          clicksFrom: 120,
+          clicksTo: 60,
+        },
+        metadata: null,
+      }),
+    );
+
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task-1/result`);
+    expect(textIn(email?.html ?? "")).toContain(
+      "Search Console clicks for shop.example fell from 120 to 60",
+    );
+  });
+
   /**
    * A key added later, or one Core no longer writes but a stored row still
    * carries (the per-Task schedule keys retired in SOK-1173), reads as an

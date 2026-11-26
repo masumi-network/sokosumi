@@ -5,6 +5,8 @@ import {
   parsePublicSeoArtifact,
 } from "@/helpers/project-seo-report";
 import { normalizeGscStatistics } from "@/lib/seo/native-statistics";
+import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
+import { seoWorkspaceLandingPagesSchema } from "@/schemas/project-seo-traffic.schema";
 import {
   focusedReport,
   legacyReport,
@@ -1196,6 +1198,8 @@ describe("stored SEO workspace projections", () => {
             intent: null,
             conversion: "high",
             feature: "Low battery alerts",
+            intentClass: "comparison",
+            fit: "direct",
           },
         ],
       },
@@ -1205,13 +1209,21 @@ describe("stored SEO workspace projections", () => {
       original,
     ];
     const { keywords } = projectSeoProjection(input);
+    // The reason of the estimate goes with it: the reader sees why the level is high.
     expect(
       keywords.find((row) => row.keyword === "estimated idea"),
-    ).toMatchObject({ conversion: "high", feature: "Low battery alerts" });
+    ).toMatchObject({
+      conversion: "high",
+      feature: "Low battery alerts",
+      intentClass: "comparison",
+      fit: "direct",
+    });
     // A row without an estimate says null, not "low".
     expect(keywords.find((row) => row.keyword === "gap term")).toMatchObject({
       conversion: null,
       feature: null,
+      intentClass: null,
+      fit: null,
     });
   });
   it("keeps keyword Markets and device rows distinct while preserving saved priorities", () => {
@@ -2332,6 +2344,62 @@ it("distinguishes changing organic landing rates from a changing session mix onl
   input.privateMetricsAllowed = false;
   expect(change()).toBeUndefined();
   expect(projectSeoProjection(input).landingPages).toBeNull();
+});
+
+it("keeps the newest landing read of each channel, so a newer AI assistant read does not replace organic key events", () => {
+  const input = fixture();
+  input.privateMetricsAllowed = true;
+  const pageUrl = input.pages[0].url;
+  const read = (channel: "organic" | "ai_assistant", at: string) => ({
+    ...observation(input, parsePublicSeoArtifact(legacyReport()), at),
+    kind: "metrics",
+    ownerId: randomUUID(),
+    payload: {
+      provider: "ga4",
+      propertyId: "properties/42",
+      pageUrls: [pageUrl],
+      channel,
+      from: "2026-10-08",
+      to: "2026-10-14",
+      timeZone: "UTC",
+      observedAt: at,
+      coverage: "complete",
+      notes: [],
+      metrics: [],
+      landingPages: {
+        channel,
+        verifiedHost: new URL(pageUrl).hostname,
+        rows: [
+          {
+            pageUrl,
+            sessions: 9,
+            keyEvents: channel === "organic" ? 3 : 1,
+          },
+        ],
+      },
+    },
+  });
+  // Newest first: the AI assistant read is the newer one.
+  input.observations = [
+    read("ai_assistant", "2026-10-16T12:00:00.000Z"),
+    read("organic", "2026-10-15T12:00:00.000Z"),
+  ];
+  const { landingPages, aiAssistantPages } = projectSeoProjection(input);
+  expect(landingPages).toMatchObject({
+    channel: "organic",
+    rows: [{ keyEvents: 3 }],
+    // The pages the read asked for: the reader tells a measured zero from a page outside the read.
+    pageUrls: [pageUrl],
+  });
+  expect(aiAssistantPages).toMatchObject({
+    channel: "ai_assistant",
+    rows: [{ keyEvents: 1 }],
+  });
+  // A page URL the stored read accepts is one the workspace accepts.
+  const long = `${pageUrl}${"a".repeat(2100)}`;
+  expect(nativeSeoMetricsSchema.shape.pageUrls.safeParse([long]).success).toBe(
+    seoWorkspaceLandingPagesSchema.shape.pageUrls.safeParse([long]).success,
+  );
 });
 
 it("imports only bound public strategy decisions and links stable work to its Task across audits", () => {

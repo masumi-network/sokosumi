@@ -26,6 +26,10 @@ export {
 
 import { seoActionSchema } from "./project-seo-action.schema";
 import {
+  seoConversionSchema,
+  seoKeywordEstimateFields,
+} from "./project-seo-keyword-estimate.schema";
+import {
   seoMonitorChangeSchema,
   seoMonitorLastRunSchema,
   seoMonitorRuleSchema,
@@ -44,8 +48,8 @@ import {
   seoSearchQueryRowSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
-  seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
+  workspaceLandingFields,
 } from "./project-seo-traffic.schema";
 import {
   auditSearchConsoleInputFields,
@@ -371,9 +375,7 @@ export const seoFindingSchema = z
     observedAt: dateTimeSchema,
   })
   .openapi("ProjectSeoFinding");
-/** The SEO bot's estimate of how likely a searcher takes the page's action. It is not a measured rate. */
-export const seoConversionSchema = z.enum(["high", "medium", "low"]);
-export { seoEditorialKeywordSchema };
+export { seoConversionSchema, seoEditorialKeywordSchema };
 export const SEO_AUDIT_IDEA_LIMIT = 50;
 export const seoIdeaRankSchema = z
   .number()
@@ -410,9 +412,7 @@ export const seoKeywordSchema = z
       })
       .nullable(),
     intent: z.string().nullable(),
-    conversion: seoConversionSchema.nullable(),
-    /** The product feature the keyword is about, in the words of the check. */
-    feature: z.string().nullable(),
+    ...seoKeywordEstimateFields,
     device: z.union([seoDeviceSchema, z.null()]),
     position: z.number().nullable(),
     positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),
@@ -695,10 +695,7 @@ export const projectSeoWorkspaceSchema = z
       .optional(),
     /** Owner-chosen brand terms that split Search Console queries. Absent before any was saved. */
     brandTerms: z.array(z.string()).optional(),
-    /** Organic key events per landing page from the newest Google Analytics sync in view. */
-    landingPages: z
-      .union([seoWorkspaceLandingPagesSchema, z.null()])
-      .optional(),
+    ...workspaceLandingFields,
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */

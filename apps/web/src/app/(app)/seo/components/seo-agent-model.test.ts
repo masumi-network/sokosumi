@@ -229,6 +229,7 @@ it("uses a measured organic outcome to choose between comparable actions only fo
     from: "2026-10-01",
     to: "2026-10-31",
     rows: [{ pageUrl: b.pageUrl, sessions: 10, keyEvents: 2 }],
+    pageUrls: [b.pageUrl],
   };
   expect(seoAgentBrief(workspace, synced).steps[0]).toEqual({
     kind: "action",

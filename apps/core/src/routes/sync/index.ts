@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import mountGetAdminSeoAlertsSync from "./admin-seo-alerts/get.js";
 import mountGetAgentsSync from "./agents/get.js";
 import mountGetAgentsSummarySync from "./agents-summary/get.js";
 import mountGetCalendarInvalidationsSync from "./calendar-invalidations/get.js";
@@ -39,6 +40,7 @@ import mountGetTaskX402PaymentHeadersPurgeSync from "./task-x402-payment-headers
 
 const app = new Hono();
 
+mountGetAdminSeoAlertsSync(app);
 mountGetAgentsSync(app);
 mountGetAgentsSummarySync(app);
 mountGetCalendarInvalidationsSync(app);

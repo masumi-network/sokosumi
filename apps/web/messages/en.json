@@ -7950,7 +7950,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Connections to reconnect: {count}",
-        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "summary": "Open or from the last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
         "unavailable": "Alert counts are unavailable.",
         "title": "SEO audit alerts",
         "description": "The latest finished or overdue run for each audit. Page failure warnings start at {percent}% of attempted pages.",
@@ -13548,7 +13548,19 @@
             "medium": "Medium chance to convert",
             "high": "High chance to convert"
           },
-          "note": "Goal fit is an estimate based on what people search for and what your page offers.",
+          "note": "Chance to convert is the SEO check's own judgement, made from what people search for and what your page offers. It is not a measured conversion rate.",
+          "checkedOn": "From the check on <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Searches for a product",
+            "comparison": "Compares options",
+            "problem": "Has a problem to solve",
+            "learn": "Wants to learn"
+          },
+          "fit": {
+            "direct": "matches your offer",
+            "partial": "partly matches your offer"
+          },
           "high": "High",
           "medium": "Medium",
           "low": "Low"
@@ -13662,6 +13674,7 @@
         "serp": {
           "title": "Search results in paid checks",
           "note": "What the results page showed on each check, newest first.",
+          "aiNote": "An AI Overview is the summary Google writes above the results. It cites a page when it links to that page as a source.",
           "check": "Check",
           "aiOverview": "AI Overview",
           "featured": "Featured snippet",
@@ -13675,8 +13688,13 @@
             "not_checked": "AI Overview not checked",
             "undetermined": "Citation not determined",
             "cited_checked": "Cites a checked page",
-            "other_page": "Checked for another page"
+            "other_page": "Checked for another page",
+            "site_cited": "Cites the page's site",
+            "site_cited_checked": "Cites a checked site"
           },
+          "aiSources": "Sources",
+          "ownSource": "{domain} (your site)",
+          "moreSources": "+{count} more",
           "snippet": {
             "owned": "The page's site",
             "checked_site": "A checked site",
@@ -13716,15 +13734,15 @@
         "shortlist": {
           "label": "Recommended",
           "chartKey": "Recommended · estimated extra clicks at position 10",
-          "summary": "{count, plural, one {# idea is recommended} other {# ideas are recommended}} for goal fit, low competition and potential extra clicks.",
-          "none": "No ideas meet all three criteria: goal fit, low competition and potential extra clicks.",
+          "summary": "{count, plural, one {# idea is recommended} other {# ideas are recommended}} for a high chance to convert, low competition and potential extra clicks.",
+          "none": "No ideas meet all three criteria: a high chance to convert, low competition and potential extra clicks.",
           "gain": "Est. gain at #10",
           "clicks": "{count, plural, =0 {0 clicks/mo} one {+# click/mo} other {+# clicks/mo}}",
           "lift": "{percent} more monthly clicks than the current estimate.",
-          "priority": "Strong goal fit and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
-          "fitUnknown": "Goal fit has not been assessed.",
-          "medium": "The estimated fit with your page goal is medium.",
-          "low": "The estimated fit with your page goal is low.",
+          "priority": "High chance to convert and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
+          "fitUnknown": "Chance to convert has not been assessed.",
+          "medium": "The chance to convert is medium.",
+          "low": "The chance to convert is low.",
           "difficultyUnknown": "Difficulty has not been measured.",
           "competition": "Competition is too high for a recommendation.",
           "gainUnknown": "There is no click estimate for position 10.",
@@ -14327,10 +14345,16 @@
           "fixed": "{count} fixed",
           "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
           "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "lostCitations": "{count, plural, one {# lost AI Overview citation} other {# lost AI Overview citations}}",
           "newFailuresTitle": "Now failing",
           "fixedTitle": "Fixed",
           "movesTitle": "Ranking moves",
           "move": "{keyword}: position {from} → {to}",
+          "lost": "{keyword}: was position {from}, now not in the top {checked}",
+          "lostCitationsTitle": "AI Overview citations lost",
+          "lostCitation": "{keyword}: the AI Overview no longer cites your page",
+          "lostCitationGone": "{keyword}: the AI Overview that cited your page no longer shows",
+          "lostCitationsShowing": "Showing {shown} of {total}",
           "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
         },
         "plan": {
@@ -15103,8 +15127,7 @@
           "googleNews": "Google News"
         },
         "keyEvents": "Key events (organic)",
-        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here.",
-        "keyEventsAiAssistant": "Key events (AI assistants)",
+        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see them here.",
         "aiAssistants": "AI assistants",
         "aiAssistantsHelp": "Visits in Google Analytics' AI Assistant channel (ChatGPT, Perplexity, Gemini, Copilot and others) by the page they landed on",
         "aiAssistantsTruncated": "Only the first rows were kept, so the totals can be higher",
@@ -15130,7 +15153,8 @@
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
         "noQueryData": "This search type has no query data",
-        "keyEventsNotRead": "Not read: shares a landing path with another selected page"
+        "keyEventsNotRead": "Not read: shares a landing path with another selected page",
+        "keyEventsNotSelected": "Not in this read"
       },
       "export": {
         "menu": "Export: {table}",
@@ -15375,7 +15399,7 @@
           },
           "39": {
             "title": "AI Overview citation history",
-            "missing": "AI Overviews that Google loads after the page are not checked, because that read costs extra."
+            "missing": "You get no alert when an AI Overview stops citing your page."
           },
           "40": {
             "title": "AI assistant referral traffic",
@@ -15874,7 +15898,11 @@
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
         "followUp": "{taskName} is still waiting for you",
-        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}."
+        "seoMonitorWorse": "{site}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before."
+      },
+      "System": {
+        "seoAdminCritical": "An SEO audit has a critical alert. Open the admin SEO alerts to check it."
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",
