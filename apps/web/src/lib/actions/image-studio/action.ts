@@ -306,6 +306,7 @@ interface StartShortVideoParameters
       | "format"
       | "script"
       | "hookLine"
+      | "launchDate"
       | "languageCode"
       | "pictureAssetIds"
       | "shapes"
@@ -324,6 +325,7 @@ export const startShortVideo = withSession<
       format: input.format,
       script: input.script,
       ...(input.hookLine ? { hookLine: input.hookLine } : {}),
+      ...(input.launchDate ? { launchDate: input.launchDate } : {}),
       // Core checks the voice against its own list.
       voice: input.voice as CreateProjectShortVideoJobRequest["voice"],
       languageCode: input.languageCode,

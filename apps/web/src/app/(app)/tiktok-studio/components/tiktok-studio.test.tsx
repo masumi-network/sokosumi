@@ -1130,6 +1130,37 @@ describe("making a short", () => {
     ]);
   });
 
+  it("asks a launch for its date before it can start, and sends it", async () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.launch/ }));
+    fireEvent.change(screen.getByLabelText("script"), {
+      target: { value: SCRIPT },
+    });
+
+    expect(screen.getByText("launchDateMissing")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "create" }).hasAttribute("disabled"),
+    ).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("launchDate"), {
+      target: { value: " 3 December " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(startShortVideoMock).toHaveBeenCalledTimes(1));
+    expect(startShortVideoMock.mock.calls[0]![0]).toMatchObject({
+      format: "launch",
+      launchDate: "3 December",
+    });
+  });
+
+  it("asks no date for any other short", async () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.voiceover/ }));
+
+    expect(screen.queryByLabelText("launchDate")).toBeNull();
+  });
+
   it("asks no voice and no hook line for a slideshow", () => {
     renderShortStudio();
     fireEvent.click(screen.getByRole("radio", { name: /kinds\.slideshow/ }));
