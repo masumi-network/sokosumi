@@ -155,6 +155,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "out",
   "query",
   "file",
+  "cursor",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -338,6 +339,18 @@ export async function runCli(
   ) {
     const error = new Error(
       "--personal supports coworkers register/connect, tasks create, workspaces list, and runtime start/complete/run",
+    );
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
+  }
+
+  if (
+    positionals[0] === "coworkers" &&
+    ["me", "events", "report-usage"].includes(positionals[1])
+  ) {
+    // Core answers these only for a Coworker's own key, which only runtime uses.
+    const error = new Error(
+      `coworkers ${positionals[1]} needs a Coworker's own key. Use sokosumi --preprod runtime ${positionals[1]} --coworker-id COWORKER_ID, with the key from runtime key-import or --api-key-stdin.`,
     );
     if (options.json) writeJsonError(stdout, error);
     throw error;

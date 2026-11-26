@@ -892,19 +892,6 @@ test("coworkers update requires an id and rejects a vendor id", async () => {
   );
 });
 
-test("coworkers me returns the current coworker", async () => {
-  const output: string[] = [];
-  await runCoworkersCommand({
-    client: clientWith({ data: { id: "cw-1", name: "Me" } }),
-    stdout: { write: (value) => output.push(value) },
-    json: true,
-    subcommand: "me",
-  });
-  const parsed = JSON.parse(output.join(""));
-  assert.equal(parsed.coworker.id, "cw-1");
-  assert.equal(parsed.coworker.name, "Me");
-});
-
 test("coworkers api-key mints a key and returns the full token", async () => {
   let path = "";
   let body: { name?: unknown } | undefined;

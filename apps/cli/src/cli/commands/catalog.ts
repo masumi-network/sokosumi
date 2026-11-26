@@ -80,20 +80,9 @@ export const CLI_COMMAND_CATALOG = [
     usage: "COWORKER_ID KEY_ID",
     operation: "DELETE /coworkers/{id}/api-keys/{keyId}",
   },
-  { command: "coworkers me", usage: "" },
   { command: "vendors me", usage: "" },
   { command: "vendors create", usage: "--name NAME --slug SLUG" },
   // SOKD-372: coworkers, vendors and developer.
-  {
-    command: "coworkers events",
-    usage: "",
-    operation: "GET /coworkers/me/events",
-  },
-  {
-    command: "coworkers report-usage",
-    usage: "--input-json JSON",
-    operation: "POST /coworkers/me/usage",
-  },
   {
     command: "coworkers archive",
     usage: "COWORKER_ID",
@@ -227,6 +216,12 @@ export const CLI_COMMAND_CATALOG = [
   { command: "runtime complete", usage: "TASK_ID [options]" },
   { command: "runtime run", usage: "TASK_ID [options]" },
   { command: "runtime receipt", usage: "TASK_ID [options]" },
+  { command: "runtime me", usage: "--coworker-id ID" },
+  { command: "runtime events", usage: "--coworker-id ID" },
+  {
+    command: "runtime report-usage",
+    usage: "--coworker-id ID --input-json JSON",
+  },
   { command: "tasks list", usage: "[options]" },
   {
     command: "tasks create",

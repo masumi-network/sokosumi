@@ -236,7 +236,10 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "GET /users/{id}": { argv: [...API, "auth", "whoami", "--json"] },
   "GET /coworkers": { argv: [...API, "coworkers", "list", "--json"] },
-  "GET /coworkers/me": { argv: [...API, "coworkers", "me", "--json"] },
+  "GET /coworkers/me": {
+    argv: ["runtime", "me", "--coworker-id", "cw-1", "--api-key-stdin"],
+    stdin: "coworker_fixture_key",
+  },
   "POST /coworkers": {
     argv: [
       "--preprod",
@@ -342,15 +345,21 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
     ],
   },
   // SOKD-372: coworkers, vendors and developer.
-  "GET /coworkers/me/events": { argv: [...API, "coworkers", "events"] },
+  "GET /coworkers/me/events": {
+    argv: ["runtime", "events", "--coworker-id", "cw-1", "--api-key-stdin"],
+    stdin: "coworker_fixture_key",
+  },
   "POST /coworkers/me/usage": {
     argv: [
-      ...API,
-      "coworkers",
+      "runtime",
       "report-usage",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
       "--input-json",
-      '{"userId":"user-1","organizationId":null,"idempotencyKey":"u-1"}',
+      '{"userId":"user-1","organizationId":null,"idempotencyKey":"u-1","credits":1}',
     ],
+    stdin: "coworker_fixture_key",
   },
   "DELETE /coworkers/{id}": { argv: [...API, "coworkers", "archive", "cw-1"] },
   "POST /coworkers/{id}/unarchive": {

@@ -9,17 +9,17 @@
       "mcp": "coworkers_register"
     },
     "GET /coworkers/me": {
-      "cli": "coworkers me",
+      "cli": "runtime me",
       "mcp": false,
       "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
     },
     "GET /coworkers/me/events": {
-      "cli": "coworkers events",
+      "cli": "runtime events",
       "mcp": false,
       "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
     },
     "POST /coworkers/me/usage": {
-      "cli": "coworkers report-usage",
+      "cli": "runtime report-usage",
       "mcp": false,
       "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
     },
