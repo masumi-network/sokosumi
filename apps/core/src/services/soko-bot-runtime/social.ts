@@ -135,6 +135,40 @@ const savedPostSchema = z.object({
 /** Inside the tool's 115 seconds (`sokoBotToolCallTimeoutMs`), with room to answer. */
 const BATCH_BUDGET_MS = 100_000;
 
+/**
+ * Only unapproved drafts may change on a turn that read the web or ran a
+ * command; approved/scheduled posts stay locked until the owner asks in a
+ * clean turn.
+ */
+const TAINTED_EDITABLE_POST_STATUSES: ReadonlySet<string> = new Set([
+  "DRAFT",
+  "NEEDS_APPROVAL",
+]);
+
+const TAINTED_SOCIAL_UPDATE_DETAIL =
+  "update_social_post can only edit unapproved drafts (DRAFT or NEEDS_APPROVAL) after this turn read the web or ran a command; scheduled or already-approved posts stay locked. Say what you would change and ask the owner in chat; their reply starts a new turn that can update them.";
+
+async function requireTaintedDraftEditable(
+  authorized: AuthorizedSokoBotRuntime,
+  post: { projectId: string; postId: string },
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
+  const { isOwnerDirected, isTainted, SokoBotTaintedActionError } =
+    await import("@/lib/soko-bot/turn-loop");
+  if (!(await isTainted(authorized.turn.id))) return;
+  if (!(await isOwnerDirected(authorized.turn.id)))
+    throw new SokoBotTaintedActionError("update_social_post");
+  const existing = await getSocialPost(
+    { ...post, workspaceId: authorized.turn.workspaceId },
+    tx,
+  );
+  if (!TAINTED_EDITABLE_POST_STATUSES.has(existing.status))
+    throw new SokoBotTaintedActionError(
+      "update_social_post",
+      TAINTED_SOCIAL_UPDATE_DETAIL,
+    );
+}
+
 /** An edit starts only with this long left, and may run at most until the batch's deadline. */
 const EDIT_MIN_MS = 15_000;
 
@@ -183,6 +217,18 @@ async function updateSocialPosts(
       "Each post can be in one update_social_posts call once.",
     );
   await beforeDeadline(runtime.requireSocialAccess(authorized), deadline);
+  await beforeDeadline(
+    (async () => {
+      const { isOwnerDirected, isTainted, SokoBotTaintedActionError } =
+        await import("@/lib/soko-bot/turn-loop");
+      if (
+        (await isTainted(authorized.turn.id)) &&
+        !(await isOwnerDirected(authorized.turn.id))
+      )
+        throw new SokoBotTaintedActionError("update_social_posts");
+    })(),
+    deadline,
+  );
   const unsaved = new Set(
     posts.flatMap((post) => (post.text === undefined ? [] : [post.postId])),
   );
@@ -470,6 +516,15 @@ export async function executeSocialTool(
     case "update_social_post":
     case "schedule_social_post":
     case "cancel_social_post": {
+      if (input.capability === "update_social_post") {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
+          input.input,
+        );
+        await requireTaintedDraftEditable(authorized, {
+          projectId: params.projectId,
+          postId: params.postId,
+        });
+      }
       // Resolved before the transaction: it reads the blob store, and a
       // serializable transaction should not wait on the network.
       let { media, threadParts } =
@@ -575,6 +630,11 @@ export async function executeSocialTool(
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
+                await requireTaintedDraftEditable(
+                  authorized,
+                  { projectId: params.projectId, postId: params.postId },
+                  tx,
+                );
                 // Serializable: an edit that committed after this one's check
                 // is seen here, or this transaction fails and is retried.
                 if (

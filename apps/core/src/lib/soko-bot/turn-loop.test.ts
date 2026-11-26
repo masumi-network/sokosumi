@@ -6,6 +6,7 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
+  runtimeEventFind,
   eventTransaction,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
+  runtimeEventFind: vi.fn(),
   eventTransaction: vi.fn(),
 }));
 
@@ -20,6 +22,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFind },
     $transaction: eventTransaction,
   },
 }));
@@ -34,14 +37,18 @@ import { expectCoreLogWhys } from "@/test/core-log";
 import { withPromptCache } from "./stream-model-call";
 import {
   finishTurn,
+  isOwnerDirected,
+  isTaintBlocked,
   offeredCapabilities,
   promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
+  SANDBOX_GUIDANCE,
   sokoBotMaxSteps,
   sokoBotToolCallTimeoutMs,
   stableCapabilities,
   turnRequiresActionProof,
+  WEB_GUIDANCE,
 } from "./turn-loop";
 
 describe("a version with one fixed tool set", () => {
@@ -329,5 +336,157 @@ describe("sokoBotMaxSteps", () => {
     expect(sokoBotMaxSteps(15 * 60 * 1_000)).toBe(40);
     expect(sokoBotMaxSteps(60 * 60 * 1_000)).toBe(160);
     expect(sokoBotMaxSteps(60_000)).toBe(40);
+  });
+});
+
+describe("isOwnerDirected and isTaintBlocked", () => {
+  const ownerChat = {
+    source: "CHAT",
+    parentTurnId: null as string | null,
+    askedByUserId: null as string | null,
+    requestedByUserId: "owner-1",
+    chainDepth: 0,
+    parentTurn: null as Record<string, unknown> | null,
+  };
+
+  it("treats direct owner CHAT turns (including chatMentionId: null) as owner-directed", async () => {
+    turnFind.mockResolvedValue(ownerChat);
+    expect(await isOwnerDirected("turn-direct")).toBe(true);
+
+    turnFind.mockResolvedValue({ ...ownerChat, askedByUserId: "owner-1" });
+    expect(await isOwnerDirected("turn-shared-member")).toBe(true);
+
+    turnFind.mockResolvedValue({ ...ownerChat, askedByUserId: "teammate-2" });
+    expect(await isOwnerDirected("turn-teammate")).toBe(false);
+
+    turnFind.mockResolvedValue({ ...ownerChat, chainDepth: 1 });
+    expect(await isOwnerDirected("turn-chained")).toBe(false);
+  });
+
+  it("requires an owner CHAT root for background children and rejects INGEST or EVENT children", async () => {
+    // Background run started from owner CHAT
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat },
+    });
+    expect(await isOwnerDirected("child-of-chat")).toBe(true);
+
+    // Grandchild whose root is owner CHAT
+    turnFind
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        parentTurnId: "child-1",
+        parentTurn: { ...ownerChat, parentTurnId: "root-chat" },
+      })
+      .mockResolvedValueOnce({ ...ownerChat, parentTurnId: null });
+    expect(await isOwnerDirected("grandchild-of-chat")).toBe(true);
+
+    // Background run started from non-owner INGEST (must stay blocked)
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      source: "INGEST",
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, source: "INGEST" },
+    });
+    expect(await isOwnerDirected("child-of-ingest")).toBe(false);
+
+    // Even if a child claims source CHAT, an INGEST parent fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, source: "INGEST" },
+    });
+    expect(await isOwnerDirected("chat-child-of-ingest")).toBe(false);
+
+    // Grandchild whose root is INGEST fails closed
+    turnFind
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        parentTurnId: "child-1",
+        parentTurn: { ...ownerChat, parentTurnId: "root-ingest" },
+      })
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        source: "INGEST",
+        parentTurnId: null,
+      });
+    expect(await isOwnerDirected("grandchild-of-ingest")).toBe(false);
+
+    // Autonomous EVENT child hung under an owner CHAT (e.g. CMO production)
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      source: "EVENT",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat },
+    });
+    expect(await isOwnerDirected("event-child-of-chat")).toBe(false);
+
+    // Cycle or missing parent fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "self-cycle",
+      parentTurn: { ...ownerChat, parentTurnId: "self-cycle" },
+    });
+    expect(await isOwnerDirected("self-cycle")).toBe(false);
+  });
+
+  it("allows owner-directed tainted drafts and newsletters while keeping outward social actions and INGEST children blocked", async () => {
+    runtimeEventFind.mockResolvedValue({ id: "taint-1" });
+    turnFind.mockResolvedValue(ownerChat);
+
+    for (const allowed of [
+      "create_newsletter_issue",
+      "newsletter_draft_issue",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+      "upload_file",
+      "hire_agent",
+    ] as const) {
+      expect(await isTaintBlocked("turn-direct", allowed)).toBe(false);
+    }
+
+    for (const blocked of [
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+      "post_chat",
+      "run_integration_tool",
+      "add_newsletter_subscriber",
+    ] as const) {
+      expect(await isTaintBlocked("turn-direct", blocked)).toBe(true);
+    }
+
+    // Background child of an INGEST turn must remain blocked on every tainted write
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, source: "INGEST" },
+    });
+    for (const blocked of [
+      "send_email_draft",
+      "hire_agent",
+      "install_skill",
+      "create_newsletter_issue",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(await isTaintBlocked("child-of-ingest", blocked)).toBe(true);
+    }
+  });
+
+  it("keeps WEB_GUIDANCE aligned with SANDBOX_GUIDANCE on the owner-directed exception", () => {
+    for (const guidance of [SANDBOX_GUIDANCE, WEB_GUIDANCE]) {
+      expect(guidance).toContain(
+        "On work your owner asked for in their chat (and background runs they started)",
+      );
+      expect(guidance).toContain("drafting newsletters");
+      expect(guidance).toContain(
+        "creating or editing unapproved social post drafts still work",
+      );
+      expect(guidance).toContain("editing scheduled social posts are refused");
+    }
   });
 });

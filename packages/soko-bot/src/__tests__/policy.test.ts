@@ -9,6 +9,7 @@ import {
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
+  SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "../policy.js";
@@ -269,6 +270,31 @@ describe("Soko Bot route capability ceilings", () => {
       expect(
         SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
       ).toContain(write);
+  });
+
+  it("allows owner-directed tainted social draft creation and edits while keeping schedule/cancel/publish outward-blocked", () => {
+    for (const draftWrite of [
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(draftWrite);
+      expect(SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES).toContain(draftWrite);
+      expect(
+        SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+      ).not.toContain(draftWrite);
+    }
+    for (const outwardWrite of [
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+    ] as const) {
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(outwardWrite);
+      expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(outwardWrite);
+      expect(
+        SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly string[],
+      ).not.toContain(outwardWrite);
+    }
   });
 
   it("has no newsletter tool that approves, schedules or sends", () => {

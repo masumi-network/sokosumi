@@ -10806,6 +10806,223 @@ describe("Soko Bot project social tools", () => {
     ).rejects.toThrow("reconciliation");
     expect(social.publish).not.toHaveBeenCalled();
   });
+
+  it("allows tainted owner-directed update_social_post on DRAFT and NEEDS_APPROVAL posts, and refuses SCHEDULED, FAILED, and PUBLISHED posts", async () => {
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    const service = new SokoBotRuntimeService();
+
+    for (const allowedStatus of ["DRAFT", "NEEDS_APPROVAL"] as const) {
+      social.update.mockClear();
+      social.get.mockResolvedValue({ ...post, status: allowedStatus });
+      social.update.mockResolvedValue({ ...post, status: allowedStatus });
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "update_social_post",
+          toolCallId: `tainted-update-${allowedStatus}`,
+          input: { projectId, postId, revision: 2, text: "Updated pricing" },
+        }),
+      ).resolves.toMatchObject({ id: postId, status: allowedStatus });
+      expect(social.update).toHaveBeenCalledTimes(1);
+    }
+
+    for (const lockedStatus of ["SCHEDULED", "FAILED", "PUBLISHED"] as const) {
+      social.update.mockClear();
+      social.get.mockResolvedValue({ ...post, status: lockedStatus });
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "update_social_post",
+          toolCallId: `tainted-update-${lockedStatus}`,
+          input: { projectId, postId, revision: 2, text: "Updated pricing" },
+        }),
+      ).rejects.toThrow(SokoBotTaintedActionError);
+      expect(social.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rechecks post status inside the transaction when a draft is scheduled mid-flight on a tainted turn", async () => {
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    // Pre-check sees DRAFT; by the time the transaction runs, the post was scheduled.
+    social.get
+      .mockResolvedValueOnce({ ...post, status: "DRAFT" })
+      .mockResolvedValueOnce({ ...post, status: "SCHEDULED" });
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "tainted-toctou",
+        input: { projectId, postId, revision: 2, text: "Updated pricing" },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("saves DRAFT posts and refuses SCHEDULED posts in a tainted owner-directed update_social_posts batch", async () => {
+    const scheduledPostId = "01960001-0001-7001-8001-000000000099";
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    social.get.mockImplementation(async ({ postId: id }: { postId: string }) =>
+      id === scheduledPostId
+        ? { ...post, id: scheduledPostId, status: "SCHEDULED" }
+        : { ...post, id: postId, status: "DRAFT" },
+    );
+    social.update.mockResolvedValue({ ...post, id: postId, revision: 3 });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_posts",
+      toolCallId: "tainted-batch",
+      input: {
+        projectId,
+        posts: [
+          { postId, revision: 2, text: "New draft pricing copy" },
+          { postId: scheduledPostId, revision: 2, text: "New scheduled copy" },
+        ],
+      },
+    });
+    expect(result).toMatchObject({
+      saved: [{ postId, revision: 3, status: "DRAFT" }],
+      refused: [
+        {
+          postId: scheduledPostId,
+          problem: expect.stringContaining(
+            "only edit unapproved drafts (DRAFT or NEEDS_APPROVAL)",
+          ),
+        },
+      ],
+    });
+    expect(social.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses tainted update_social_post and update_social_posts on a non-owner INGEST background child even for a DRAFT post", async () => {
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: "ingest-root",
+      parentTurn: {
+        source: "INGEST",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: SCOPE.userId,
+        chainDepth: 0,
+      },
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    social.get.mockResolvedValue({ ...post, status: "DRAFT" });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "tainted-ingest-single",
+        input: { projectId, postId, revision: 2, text: "Injected edit" },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "tainted-ingest-batch",
+        input: {
+          projectId,
+          posts: [{ postId, revision: 2, text: "Injected edit" }],
+        },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("Drive file tools", () => {
