@@ -570,6 +570,7 @@ export {
   readSokoBotAttemptAt,
 } from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
+export { strictBody } from "./strict-body.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
   studioAdBrief,

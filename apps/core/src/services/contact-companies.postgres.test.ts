@@ -473,64 +473,70 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     expect((await run()).looked).toBe(0);
   });
 
-  it("requeues only pre-cutover companies with empty lookup facts", async () => {
-    const { workspaceId: id } = await createLookupWorkspace();
-    const old = new Date(1);
-    const cutoff = new Date(2);
-    const recent = new Date(3);
-    const rows = [
-      { key: "empty", enrichedAt: old },
-      {
-        key: "linkedin",
-        enrichedAt: old,
-        linkedinUrl: "https://linkedin.com/company/quiet",
-      },
-      { key: "description", enrichedAt: old, description: "Known" },
-      { key: "industry", enrichedAt: old, industry: "Known" },
-      { key: "size", enrichedAt: old, size: "Known" },
-      { key: "headquarters", enrichedAt: old, headquarters: "Known" },
-      { key: "pending", enrichedAt: null },
-      { key: "recent", enrichedAt: recent },
-    ];
-    await prisma.contactCompany.createMany({
-      data: rows.map((row) => ({
-        ...row,
-        name: row.key,
-        workspaceId: id,
-        lookupFailures: 2,
-      })),
-    });
-    const read = () =>
-      prisma.contactCompany.findMany({
-        where: { workspaceId: id },
-        orderBy: { key: "asc" },
+  it.each(["UTC", "Europe/Berlin", "America/New_York"])(
+    "requeues only pre-cutover companies with empty lookup facts in %s",
+    async (zone) => {
+      const { workspaceId: id } = await createLookupWorkspace();
+      const old = new Date(1);
+      const cutoff = new Date(2);
+      const recent = new Date(3);
+      const rows = [
+        { key: "empty", enrichedAt: old },
+        {
+          key: "linkedin",
+          enrichedAt: old,
+          linkedinUrl: "https://linkedin.com/company/quiet",
+        },
+        { key: "description", enrichedAt: old, description: "Known" },
+        { key: "industry", enrichedAt: old, industry: "Known" },
+        { key: "size", enrichedAt: old, size: "Known" },
+        { key: "headquarters", enrichedAt: old, headquarters: "Known" },
+        { key: "pending", enrichedAt: null },
+        { key: "recent", enrichedAt: recent },
+      ];
+      await prisma.contactCompany.createMany({
+        data: rows.map((row) => ({
+          ...row,
+          name: row.key,
+          workspaceId: id,
+          lookupFailures: 2,
+        })),
       });
-    const original = await read();
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT set_config('TimeZone', ${zone}, true)`;
+        const read = () =>
+          tx.contactCompany.findMany({
+            where: { workspaceId: id },
+            orderBy: { key: "asc" },
+          });
+        const original = await read();
 
-    expect(await requeueEmptyCompanyLookups(prisma, { before: cutoff })).toBe(
-      2,
-    );
-    expect(await read()).toEqual(original);
-    expect(
-      await requeueEmptyCompanyLookups(prisma, { before: cutoff, apply: true }),
-    ).toBe(2);
-    expect(await read()).toEqual(
-      original.map((row) =>
-        row.key === "empty" || row.key === "linkedin"
-          ? { ...row, enrichedAt: null, lookupFailures: 0 }
-          : row,
-      ),
-    );
-    await prisma.contactCompany.updateMany({
-      where: { workspaceId: id, key: "empty" },
-      data: { enrichedAt: recent },
-    });
-    const afterLookup = await read();
-    expect(
-      await requeueEmptyCompanyLookups(prisma, { before: cutoff, apply: true }),
-    ).toBe(0);
-    expect(await read()).toEqual(afterLookup);
-  });
+        expect(await requeueEmptyCompanyLookups(tx, { before: cutoff })).toBe(
+          2,
+        );
+        expect(await read()).toEqual(original);
+        expect(
+          await requeueEmptyCompanyLookups(tx, { before: cutoff, apply: true }),
+        ).toBe(2);
+        expect(await read()).toEqual(
+          original.map((row) =>
+            row.key === "empty" || row.key === "linkedin"
+              ? { ...row, enrichedAt: null, lookupFailures: 0 }
+              : row,
+          ),
+        );
+        await tx.contactCompany.updateMany({
+          where: { workspaceId: id, key: "empty" },
+          data: { enrichedAt: recent },
+        });
+        const afterLookup = await read();
+        expect(
+          await requeueEmptyCompanyLookups(tx, { before: cutoff, apply: true }),
+        ).toBe(0);
+        expect(await read()).toEqual(afterLookup);
+      });
+    },
+  );
 
   it("lets a Soko Bot find a company and read its people compactly", async () => {
     const hooks = {

@@ -51063,6 +51063,9 @@ export const ProjectSeoKeywordSchema = {
                 $ref: '#/components/schemas/ProjectSeoPositionPoint'
             },
             maxItems: 90
+        },
+        positionHistoryCut: {
+            type: 'boolean'
         }
     },
     required: [
@@ -51114,6 +51117,12 @@ export const ProjectSeoPositionPointSchema = {
                 'ranked',
                 'not_in_range',
                 'unavailable'
+            ]
+        },
+        checkedResults: {
+            type: [
+                'integer',
+                'null'
             ]
         },
         device: {

@@ -1020,13 +1020,20 @@ async function refreshDerivedFields(tx: Tx, contactId: string) {
     },
     _min: { occurredAt: true },
   });
+  // With no interaction left, first contact is the time it was added again,
+  // not the deleted interaction's (SOKD-492).
+  const firstContactAt =
+    aggregate._min.occurredAt ??
+    (
+      await tx.contact.findUniqueOrThrow({
+        where: { id: contactId },
+        select: { createdAt: true },
+      })
+    ).createdAt;
   await tx.contact.update({
     where: { id: contactId },
     data: {
-      // With no interaction left, the contact keeps the time it was added.
-      ...(aggregate._min.occurredAt
-        ? { firstContactAt: aggregate._min.occurredAt }
-        : {}),
+      firstContactAt,
       lastContactAt: aggregate._max.occurredAt,
       interactionCount: aggregate._count._all,
       lastInboundAt,
@@ -1436,10 +1443,15 @@ export async function markNotDuplicates(
  * ("Tom Berger" tom@acme.com and "Thomas Berger" t.berger@acme.com).
  * Pairs marked as different people (`markNotDuplicates`) are left apart.
  */
+/** Why contacts were grouped: the same name, or surname + first initial + email domain. */
+export type ContactDuplicateReason = "same_name" | "same_company";
+
 export async function findDuplicateContacts(
   actor: ContactActor,
   options: { contactId?: string; limit?: number } = {},
-): Promise<{ name: string; contacts: ContactDto[] }[]> {
+): Promise<
+  { name: string; reason: ContactDuplicateReason; contacts: ContactDto[] }[]
+> {
   const only = options.contactId
     ? PrismaRaw.sql`AND bool_or(c."id" = ${options.contactId}::uuid)`
     : PrismaRaw.empty;
@@ -1482,7 +1494,13 @@ export async function findDuplicateContacts(
     [...sameName, ...sameCompany].flatMap((group) => group.ids),
   );
   const seen = new Set<string>();
-  const groups = [...sameName, ...sameCompany]
+  const groups = [
+    ...sameName.map((group) => ({ ...group, reason: "same_name" as const })),
+    ...sameCompany.map((group) => ({
+      ...group,
+      reason: "same_company" as const,
+    })),
+  ]
     .flatMap((group) => {
       const ids = group.ids.filter((id) =>
         group.ids.some(
@@ -1514,7 +1532,11 @@ export async function findDuplicateContacts(
         const contact = dtos.get(id);
         return contact ? [contact] : [];
       });
-    return { name: contacts[0]?.name ?? group.key, contacts };
+    return {
+      name: contacts[0]?.name ?? group.key,
+      reason: group.reason,
+      contacts,
+    };
   });
 }
 

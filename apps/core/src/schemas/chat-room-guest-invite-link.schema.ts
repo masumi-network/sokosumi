@@ -1,20 +1,19 @@
 import { z } from "@hono/zod-openapi";
+import { strictBody } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
-export const createChatRoomGuestInviteLinkRequestSchema = z
-  .object({
-    /**
-     * Days until the link expires (1–90). Defaults to 7 when omitted.
-     * Pass `null` for no hard expiry (revocation / maxUses still apply).
-     */
-    expiresInDays: z
-      .union([z.number().int().min(1).max(90), z.null()])
-      .optional(),
-    /** Cap on total guest joins. Null/omitted = unlimited until expiry/revoke. */
-    maxUses: z.number().int().min(1).max(10_000).nullable().optional(),
-  })
-  .openapi("CreateChatRoomGuestInviteLinkRequest");
+export const createChatRoomGuestInviteLinkRequestSchema = strictBody({
+  /**
+   * Days until the link expires (1–90). Defaults to 7 when omitted.
+   * Pass `null` for no hard expiry (revocation / maxUses still apply).
+   */
+  expiresInDays: z
+    .union([z.number().int().min(1).max(90), z.null()])
+    .optional(),
+  /** Cap on total guest joins. Null/omitted = unlimited until expiry/revoke. */
+  maxUses: z.number().int().min(1).max(10_000).nullable().optional(),
+}).openapi("CreateChatRoomGuestInviteLinkRequest");
 
 export const chatRoomGuestInviteLinkSchema = z
   .object({

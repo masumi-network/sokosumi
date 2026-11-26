@@ -94,6 +94,7 @@ function emptyResult() {
       catalogIncomplete: false,
       hasMore: false,
       nextCursor: null,
+      windowCursor: "window-cursor",
       restarted: false,
       indexCoverage: { indexed: 0, processing: 0, filenameOnly: 0 },
     },

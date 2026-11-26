@@ -4,6 +4,8 @@
  * agent-surface.test.ts runs `argv` against a mocked Core and fails unless the
  * run sends that operation. See docs/agents/agent-surface.md.
  */
+import { fileURLToPath } from "node:url";
+
 export interface CliSurfaceFixture {
   readonly argv: readonly string[];
   /** Core's JSON body by request (`"GET /tasks/task-1"`: no `/v1`, no query). Defaults to `CORE`. */
@@ -42,6 +44,12 @@ const CORE: Record<string, unknown> = {
     data: [{ id: "org-1", name: "Org", role: "member" }],
   },
   "GET /users/me/workspaces": { data: { workspaces: [] } },
+  "POST /users/me/files": {
+    data: {
+      uploadUrl: "https://blob.fixture.invalid/users/user-1/package.json",
+      headers: { "Content-Type": "application/json" },
+    },
+  },
   "POST /users/me/workspaces": { data: { id: PERSONAL } },
   "GET /vendors/me": { data: [{ id: "vendor-1", role: "admin" }] },
   "POST /vendors": {
@@ -228,7 +236,10 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "GET /users/{id}": { argv: [...API, "auth", "whoami", "--json"] },
   "GET /coworkers": { argv: [...API, "coworkers", "list", "--json"] },
-  "GET /coworkers/me": { argv: [...API, "coworkers", "me", "--json"] },
+  "GET /coworkers/me": {
+    argv: ["runtime", "me", "--coworker-id", "cw-1", "--api-key-stdin"],
+    stdin: "coworker_fixture_key",
+  },
   "POST /coworkers": {
     argv: [
       "--preprod",
@@ -243,7 +254,9 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "--json",
     ],
   },
-  "GET /coworkers/{id}": COWORKER_CONNECT,
+  "GET /coworkers/{id}": {
+    argv: [...API, "coworkers", "get", "cw-1", "--json"],
+  },
   "POST /coworkers/{id}/workspace-access": COWORKER_CONNECT,
   "PATCH /coworkers/{id}": {
     argv: [...API, "coworkers", "update", "cw-1", "--name", "Ada", "--json"],
@@ -289,16 +302,13 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "DELETE /jobs/{id}/share": { argv: [...API, "jobs", "unshare", "job-1"] },
   "GET /tasks/{id}/receipt": {
     argv: [
-      "runtime",
+      ...API,
+      "tasks",
       "receipt",
-      "task-1",
-      "--coworker-id",
-      "cw-1",
-      "--api-key-stdin",
+      "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
       "--json",
     ],
     response: () => ({ data: { settled: false, txHash: null } }),
-    stdin: "coworker_fixture_key",
   },
   "GET /tasks": { argv: [...API, "tasks", "list", "--json"] },
   "POST /tasks": {
@@ -334,15 +344,21 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
     ],
   },
   // SOKD-372: coworkers, vendors and developer.
-  "GET /coworkers/me/events": { argv: [...API, "coworkers", "events"] },
+  "GET /coworkers/me/events": {
+    argv: ["runtime", "events", "--coworker-id", "cw-1", "--api-key-stdin"],
+    stdin: "coworker_fixture_key",
+  },
   "POST /coworkers/me/usage": {
     argv: [
-      ...API,
-      "coworkers",
+      "runtime",
       "report-usage",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
       "--input-json",
-      '{"userId":"user-1","organizationId":null,"idempotencyKey":"u-1"}',
+      '{"userId":"user-1","organizationId":null,"idempotencyKey":"u-1","credits":1}',
     ],
+    stdin: "coworker_fixture_key",
   },
   "DELETE /coworkers/{id}": { argv: [...API, "coworkers", "archive", "cw-1"] },
   "POST /coworkers/{id}/unarchive": {
@@ -677,8 +693,8 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "users",
       "file-upload",
       "me",
-      "--input-json",
-      '{"filename":"a.png","contentType":"image/png","size":10}',
+      "--file",
+      fileURLToPath(new URL("../../package.json", import.meta.url)),
     ],
   },
   "GET /users/{id}/coworker-access": {

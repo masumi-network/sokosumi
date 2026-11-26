@@ -97,7 +97,15 @@ export const studioBrandKitSchema = z
 
 export const saveStudioBrandCopySchema = z
   .object({
-    copy: studioBrandCopySchema,
+    copy: studioBrandCopySchema.extend({
+      // What GET returns goes back as is: an empty tone keeps the stored one.
+      tone: z.string().trim().max(400).optional().openapi({
+        description:
+          "The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.",
+      }),
+    }),
     version: studioBrandKitSchema.shape.version,
   })
   .openapi("SaveStudioBrandCopy");
+
+export type SaveStudioBrandCopy = z.infer<typeof saveStudioBrandCopySchema>;

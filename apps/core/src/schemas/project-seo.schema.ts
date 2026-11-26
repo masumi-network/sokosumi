@@ -428,6 +428,8 @@ export const seoKeywordSchema = z
       .array(seoPositionPointSchema)
       .max(SEO_RANK_HISTORY_POINTS)
       .optional(),
+    /** True: older reads of the period can exist that `positionHistory` does not hold (a load or point limit). */
+    positionHistoryCut: z.boolean().optional(),
   })
   .openapi("ProjectSeoKeyword");
 export const seoCompetitorSchema = z

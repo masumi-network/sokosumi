@@ -42,6 +42,94 @@ describe("seoTrendModel", () => {
     expect(seoTrendModel(reads, "position").dots).toEqual([0, 1, 3]);
   });
 
+  it("puts a read outside the results in a band under every position, off the line", () => {
+    const reads = [
+      { date: "2026-10-01", value: 4 },
+      { date: "2026-10-08", value: null, outside: { top: 20 } },
+      { date: "2026-10-15", value: 20 },
+      { date: "2026-10-22", value: null },
+    ];
+    const model = seoTrendModel(reads, "position", [], true);
+    expect(model.points.map((point) => point.y)).toEqual([
+      expect.any(Number),
+      100,
+      85,
+      null,
+    ]);
+    // The worst position ends where the band starts: a mark in the band is under all of them.
+    expect(model.outsideFrom).toBe(85);
+    expect(model.ticks.at(-1)).toEqual({ value: 20, y: 85 });
+    expect(model.lines).toEqual([]);
+    expect(model.dots).toEqual([0, 2]);
+    expect(model.points[1].outside).toEqual({ top: 20 });
+    // Without such a read the positions keep the full height.
+    expect(seoTrendModel(reads.slice(0, 1), "position").outsideFrom).toBeNull();
+    // Only a position chart has the band.
+    expect(seoTrendModel(reads, "count").points[1].y).toBeNull();
+    // Reads outside the results alone, the count unknown too: the band stays and the axis names no position.
+    const none = seoTrendModel(
+      [
+        { date: "2026-10-01", value: null, outside: { top: null } },
+        { date: "2026-10-08", value: null, outside: { top: 20 } },
+      ],
+      "position",
+      [],
+      true,
+    );
+    expect(none.points.map((point) => point.y)).toEqual([100, 100]);
+    expect(none.outsideFrom).toBe(85);
+    expect(none.ticks).toEqual([]);
+  });
+
+  it("places days on a shared date axis that starts before and ends after its own days", () => {
+    const model = seoTrendModel(
+      [
+        { date: "2026-10-03", value: 4 },
+        { date: "2026-10-05", value: 5 },
+      ],
+      "position",
+      [],
+      true,
+      [],
+      { from: "2026-10-01", to: "2026-10-11" },
+    );
+    expect(model.points.map((point) => point.x)).toEqual([20, 40]);
+    // The date labels are the axis days, not this chart's own: both charts show the same three.
+    expect(model.axis).toEqual([
+      { date: "2026-10-01", x: 0 },
+      { date: "2026-10-06", x: 50 },
+      { date: "2026-10-11", x: 100 },
+    ]);
+    expect(model.end).toBe("2026-10-11");
+    // A change after the chart's own days, inside the axis, has its place on the plot.
+    const later = seoTrendModel(
+      [
+        { date: "2026-10-03", value: 4 },
+        { date: "2026-10-05", value: 5 },
+      ],
+      "position",
+      [{ date: "2026-10-09", kind: "change", label: "Title" }],
+      true,
+      [],
+      { from: "2026-10-01", to: "2026-10-11" },
+    );
+    expect(later.changes[0].x).toBe(80);
+    // A domain inside the days never cuts them.
+    const narrow = seoTrendModel(
+      [
+        { date: "2026-10-01", value: 4 },
+        { date: "2026-10-11", value: 5 },
+      ],
+      "position",
+      [],
+      true,
+      [],
+      { from: "2026-10-03", to: "2026-10-05" },
+    );
+    expect(narrow.points.map((point) => point.x)).toEqual([0, 100]);
+    expect(narrow.end).toBe("2026-10-11");
+  });
+
   it("draws an all-zero count on the baseline without dividing by zero", () => {
     const model = seoTrendModel(days([0, 0, 0]), "count");
     expect(model.points.map((point) => point.y)).toEqual([100, 100, 100]);

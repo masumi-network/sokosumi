@@ -863,7 +863,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "users_update",
     operation: "PATCH /users/{id}",
     description:
-      "Change the signed-in user's first and last name. Pass id `me` and `body.firstName`, `body.lastName`.",
+      "Change the signed-in user's display name (`body.name`, the name members see) and/or first and last name (`body.firstName` with `body.lastName`). Pass id `me`.",
     destructive: true,
   },
   {
@@ -2171,7 +2171,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "drive_select",
     operation: "POST /drive/resources/selection-token",
     description:
-      "Turn the result window behind a drive_search cursor (`body.windowCursor`) into a short-lived selection token for drive_update_metadata_batch. It never selects more than that window.",
+      "Turn a drive_search result window into a short-lived selection token for drive_update_metadata_batch: send its `search.windowCursor` as `body.windowCursor`. It never selects more than that window.",
   },
   {
     name: "drive_update_metadata_batch",
@@ -2427,7 +2427,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "contacts_list_duplicates",
     operation: "GET /contacts/duplicates",
     description:
-      "Groups of contacts that share a name: likely the same person. Pass `contactId` for one contact's group.",
+      "Groups of contacts that are likely the same person. `reason` says why: `same_name`, or `same_company` (same surname and first initial, emails at the same company domain). Pass `contactId` for one contact's group.",
   },
   {
     name: "contacts_dismiss_duplicates",
@@ -2882,8 +2882,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "chats_send",
     operation: "POST /chats/rooms/{id}/messages",
     description:
-      "Spends workspace credits. A Coworker or Soko Bot the message mentions, or the Soko Bot of a Soko Bot Direct, replies into the room as a paid turn. In a Direct with one Coworker and you alone, the Coworker replies only in Sokosumi Web. Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. Confirm the text with the person first.",
-    spendsCredits: true,
+      "Post a message as you: `body.content` (Markdown), `body.parentMessageId` to reply in a Thread, and the mentioned ids in `body.mentionedUserIds`, `mentionedCoworkerIds` and `mentionedSokoBotIds`. A mentioned Coworker or Soko Bot, or the Soko Bot of a Soko Bot Direct, replies into the room. In a Direct with one Coworker and you alone, the Coworker replies only in Sokosumi Web.",
   },
   {
     name: "chats_get_message",
@@ -2953,8 +2952,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation:
       "POST /chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry",
     description:
-      "Spends workspace credits. Ask a Coworker again after its mention on your message failed: it runs a paid turn and replies into the room. Confirm with the person first.",
-    spendsCredits: true,
+      "Ask a Coworker again after its mention on your message failed: it replies into the room.",
   },
   {
     name: "chats_saved",

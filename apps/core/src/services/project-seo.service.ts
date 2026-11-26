@@ -35,11 +35,8 @@ import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.s
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
-import {
-  SEO_RANK_HISTORY_KINDS,
-  SEO_RANK_HISTORY_OBSERVATIONS,
-  withSeoRankings,
-} from "./project-seo-rankings";
+import { loadSeoRankSources } from "./project-seo-rank-sources";
+import { withSeoRankings } from "./project-seo-rankings";
 import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
   canConfirmSeoCompetitor,
@@ -552,17 +549,7 @@ export async function getProjectSeoWorkspace(
     }),
     listProjectSeoMonitors(actor),
     // Rank history has its own bound: metric syncs share the load above.
-    prisma.projectSeoObservation.findMany({
-      where: {
-        ...seoOwnerWhere(actor),
-        pageIds: { hasSome: scope.pageIds },
-        ownerId: null,
-        kind: { in: SEO_RANK_HISTORY_KINDS },
-      },
-      select: { id: true, observedAt: true, payload: true },
-      orderBy: { observedAt: "desc" },
-      take: SEO_RANK_HISTORY_OBSERVATIONS,
-    }),
+    loadSeoRankSources(actor, scope.pageIds, query),
     loadSeoBrandTerms(actor),
   ]);
   const taskIds = [
@@ -734,6 +721,10 @@ export async function getProjectSeoWorkspace(
         monitorOfTask.get(sourceTask.get(run.observationId) ?? "") ?? null,
     })),
   };
-  const ranked = withSeoRankings(monitored, rankSources);
+  const ranked = withSeoRankings(
+    monitored,
+    rankSources.rows,
+    rankSources.limited,
+  );
   return brandTerms ? { ...ranked, brandTerms } : ranked;
 }

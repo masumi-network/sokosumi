@@ -775,6 +775,12 @@ export async function saveCmoRecord(
             saved: "strategy",
             versionId: saved.id,
             approved,
+            ...(approved
+              ? {}
+              : {
+                  upcomingPosts:
+                    "unchanged: they follow this version once the owner approves it",
+                }),
             updatedAt: saved.updatedAt.toISOString(),
             entries: calendar.length,
             drafted: calendar.filter(written).length,

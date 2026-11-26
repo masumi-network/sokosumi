@@ -234,7 +234,7 @@ async function clearEarlierTraffic(lane: EvalLaneRecord): Promise<void> {
     UPDATE ${sharedTable("chat_room_message")} m SET "createdAt" = m."createdAt" - interval '1 hour'
     FROM ${sharedTable("chat_room")} r
     WHERE r.id = m."roomId" AND r."organizationId" = ${lane.organizationId}
-      AND m."createdAt" > now() - interval '1 hour'
+      AND m."createdAt" > (now() AT TIME ZONE 'UTC') - interval '1 hour'
       AND (m."senderSokoBotId" IS NOT NULL OR m."senderCoworkerId" IS NOT NULL)`;
 }
 

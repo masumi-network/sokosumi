@@ -22,7 +22,7 @@ import {
 } from "@sokosumi/database/sql-tables";
 import { describe, expect, it } from "vitest";
 
-import { withFixtureSchemas } from "@/test/split-layout";
+import { rolledBack } from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -43,17 +43,6 @@ const migrationSql = readFileSync(
 const TABLES = ["history", "notification", "taskEvent"] as const;
 type Table = (typeof TABLES)[number];
 type Tx = Prisma.TransactionClient;
-
-class Rollback extends Error {}
-
-async function rolledBack(run: (tx: Tx) => Promise<void>): Promise<void> {
-  await withFixtureSchemas(async (tx) => {
-    await run(tx);
-    throw new Rollback();
-  }).catch((error) => {
-    if (!(error instanceof Rollback)) throw error;
-  });
-}
 
 /** A user, their workspace and a Task in it: the parents the rows need. */
 async function seedParents(tx: Tx) {

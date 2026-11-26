@@ -3,6 +3,7 @@ import {
   isFirstAndLastNameWithinLimit,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
+  USER_NAME_MAX_LENGTH,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -335,12 +336,48 @@ export const creditsResponseSchema = z.object({
 
 export const updateUserNameSchema = z
   .object({
-    firstName: z.string().trim().min(1).openapi({ example: "Ada" }),
-    lastName: z.string().trim().min(1).openapi({ example: "Lovelace" }),
+    firstName: z.string().trim().min(1).optional().openapi({ example: "Ada" }),
+    lastName: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .openapi({ example: "Lovelace" }),
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(USER_NAME_MAX_LENGTH)
+      .optional()
+      .openapi({
+        example: "Ada Lovelace",
+        description:
+          "The display name other members see. Omitted, it stays as it is.",
+      }),
   })
-  .refine(
-    ({ firstName, lastName }) =>
-      isFirstAndLastNameWithinLimit(firstName, lastName),
-    { path: ["lastName"], error: "First and last name are too long" },
-  )
+  .superRefine(({ firstName, lastName, name }, ctx) => {
+    if ((firstName === undefined) !== (lastName === undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [firstName === undefined ? "firstName" : "lastName"],
+        message: "Send firstName and lastName together.",
+      });
+    } else if (firstName === undefined && name === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["name"],
+        message: "Send name (the display name), or firstName and lastName.",
+      });
+    } else if (
+      firstName !== undefined &&
+      lastName !== undefined &&
+      !isFirstAndLastNameWithinLimit(firstName, lastName)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lastName"],
+        message: "First and last name are too long",
+      });
+    }
+  })
   .openapi("UpdateUserName");

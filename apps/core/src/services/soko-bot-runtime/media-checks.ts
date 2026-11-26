@@ -46,7 +46,9 @@ import {
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
   intersectOwnerAuthority,
+  isAuthorityRevokedInSources,
   isWatchClientTurnId,
+  loadRevokedAuthoritySources,
   type OwnerAuthorityAskedByKind,
   resolveDelegationWakeAuthority,
   resolveSocialWriteOrigin,
@@ -246,6 +248,7 @@ export async function mayMakeMediaForOwner(
         askedByKind,
         sharedBot,
         source: origin.source,
+        ...(persisted.scheduleId ? { scheduleId: persisted.scheduleId } : {}),
         ...(liveProjectId
           ? {
               targetScope: {
@@ -256,6 +259,7 @@ export async function mayMakeMediaForOwner(
           : {}),
         hasWorkspaceAccess: true,
         botAlive: true,
+        ...(origin.watchAuthority.revoked ? { revoked: true } : {}),
         carriedUntrustedContent:
           origin.watchAuthority.watchKind === "chat_reply",
         offeredCapabilities: [capability],
@@ -265,6 +269,11 @@ export async function mayMakeMediaForOwner(
         if (effective.denialReason === "target_scope_mismatch") {
           throw new SokoBotRuntimeValidationError(
             "The owner's media authorization for this follow-up is scoped to a different Project.",
+          );
+        }
+        if (effective.denialReason === "revoked") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "The owner's media authorization for this follow-up was revoked. Ask the owner in chat to start it again.",
           );
         }
         if (effective.denialReason === "expired") {
@@ -337,6 +346,7 @@ export async function mayMakeMediaForOwner(
           : {}),
         hasWorkspaceAccess: true,
         botAlive: true,
+        ...(origin.scheduleAuthority.revoked ? { revoked: true } : {}),
         offeredCapabilities: [capability],
         now,
       });
@@ -344,6 +354,11 @@ export async function mayMakeMediaForOwner(
         if (effective.denialReason === "target_scope_mismatch") {
           throw new SokoBotRuntimeValidationError(
             "The owner's media authorization for this schedule is scoped to a different Project.",
+          );
+        }
+        if (effective.denialReason === "revoked") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "The owner's media authorization for this schedule was revoked. Ask the owner in chat to re-enable or recreate it.",
           );
         }
         if (effective.denialReason === "expired") {
@@ -423,12 +438,13 @@ export async function mayMakeMediaForOwner(
   const versionId = authorized.turn.versionId ?? null;
   const allLiveEffective: { authority: OwnerAuthority }[] = [];
   const matchedEffective: { authority: OwnerAuthority }[] = [];
+  let sawRevoked = false;
   let sawExpired = false;
   let sawScopeMismatch = false;
 
-  for (let index = 0; index < carried.length; index += 1) {
-    const delegation = carried[index]!;
-    const authority = resolveDelegationWakeAuthority(
+  const resolvedDelegations = carried.map((delegation, index) => ({
+    delegation,
+    authority: resolveDelegationWakeAuthority(
       {
         id: delegation.id ?? `legacy-${index}`,
         authority: delegation.authority,
@@ -440,7 +456,14 @@ export async function mayMakeMediaForOwner(
         workspaceId: fallbackWorkspaceId,
         versionId,
       },
-    );
+    ),
+  }));
+  const revokedSources = await loadRevokedAuthoritySources(
+    resolvedDelegations.map((item) => item.authority),
+    prisma,
+  );
+
+  for (const { delegation, authority } of resolvedDelegations) {
     if (authority.origin === "system") continue;
     const sokoBotId = authorized.turn.sokoBotId ?? authority.sokoBotId;
     const workspaceId = authorized.turn.workspaceId ?? authority.workspaceId;
@@ -453,6 +476,7 @@ export async function mayMakeMediaForOwner(
       authorized.turn.botProjectId ??
       delegation.turn.sokoBot?.projectId ??
       null;
+    const revoked = isAuthorityRevokedInSources(authority, revokedSources);
     const baseContext = {
       sokoBotId,
       workspaceId,
@@ -461,8 +485,10 @@ export async function mayMakeMediaForOwner(
       askedByKind,
       sharedBot,
       source: "EVENT",
+      ...(authority.scheduleId ? { scheduleId: authority.scheduleId } : {}),
       hasWorkspaceAccess: true,
       botAlive: true,
+      ...(revoked ? { revoked: true } : {}),
       offeredCapabilities: ["generate_image", "generate_video"] as const,
       now,
     };
@@ -476,6 +502,7 @@ export async function mayMakeMediaForOwner(
         : authority.targetScope,
     });
     if (!liveBotScoped.effective) {
+      if (liveBotScoped.denialReason === "revoked") sawRevoked = true;
       if (liveBotScoped.denialReason === "expired") sawExpired = true;
       if (liveBotScoped.denialReason === "target_scope_mismatch") {
         sawScopeMismatch = true;
@@ -515,6 +542,11 @@ export async function mayMakeMediaForOwner(
     if (sawScopeMismatch) {
       throw new SokoBotRuntimeValidationError(
         "The owner's media authorization for this follow-up is scoped to a different Project.",
+      );
+    }
+    if (sawRevoked) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "The owner's media authorization for this follow-up was revoked. Ask the owner in chat to start it again.",
       );
     }
     if (sawExpired) {

@@ -267,7 +267,7 @@ export async function admitJevRequest(input: {
          * and reintroduce the bug it is here to remove.
          */
         const [clock] = await tx.$queryRaw<{ committedAt: Date }[]>(
-          PrismaRaw.sql`SELECT clock_timestamp() AS "committedAt"`,
+          PrismaRaw.sql`SELECT clock_timestamp() AT TIME ZONE 'UTC' AS "committedAt"`,
         );
         const committedAt = clock?.committedAt ?? new Date();
         // Only the counting windows. They are 60 s and 24 h, compared

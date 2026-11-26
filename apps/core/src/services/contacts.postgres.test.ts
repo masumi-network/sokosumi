@@ -295,6 +295,29 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(middle.created).toBe(true);
   });
 
+  // SOKD-492: deleting the only interaction left the deleted interaction's time.
+  it("puts first contact back to when the contact was added after its last interaction goes", async () => {
+    const { contact } = await create(asAlice, { name: "Only Interaction" });
+    const added = await prisma.contact.findUniqueOrThrow({
+      where: { id: contact.id },
+      select: { createdAt: true },
+    });
+    const only = await log(asAlice, contact.id, "2099-01-01T10:00:00Z");
+    expect(
+      (await getContactDetail(asAlice, contact.id)).firstContactAt,
+    ).toEqual(new Date("2099-01-01T10:00:00.000Z"));
+
+    await inContactTransaction((tx) =>
+      removeContactInteraction(tx, asAlice, contact.id, only.interaction.id),
+    );
+
+    expect(await getContactDetail(asAlice, contact.id)).toMatchObject({
+      firstContactAt: added.createdAt,
+      lastContactAt: null,
+      interactionCount: 0,
+    });
+  });
+
   it("refuses a stale version and records who changed what", async () => {
     const { contact } = await create(
       { ...asAlice, sokoBotId: randomUUID() },
@@ -924,6 +947,9 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(
       groups.find((group) => group.name === "Jon Duplicate")?.contacts,
     ).toHaveLength(2);
+    expect(groups.find((group) => group.name === "Jon Duplicate")?.reason).toBe(
+      "same_name",
+    );
     expect(groups.some((group) => group.name === "Steven")).toBe(false);
     expect(groups.find((group) => group.name === "Gus")?.contacts).toHaveLength(
       2,
@@ -953,6 +979,22 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       knownBy: [{ id: bob }],
       channels: [{ source: "CALENDAR" }],
     });
+  });
+
+  // SOKD-493: these groups were labelled "same name" though the names differ.
+  it("says a group matched by surname, initial and email domain is same_company", async () => {
+    await create(asAlice, {
+      name: "Ada Domainmatch",
+      channels: [{ type: "EMAIL", value: "ada@domainmatch.test" }],
+    });
+    await create(asAlice, {
+      name: "A. Domainmatch",
+      channels: [{ type: "EMAIL", value: "a.d@domainmatch.test" }],
+    });
+    const group = (await findDuplicateContacts(asAlice)).find((found) =>
+      found.contacts.some((contact) => contact.name === "Ada Domainmatch"),
+    );
+    expect(group?.reason).toBe("same_company");
   });
 
   it("leaves contacts marked as different people out of duplicates", async () => {

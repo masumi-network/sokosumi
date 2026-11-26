@@ -62,11 +62,13 @@ function rankSources(workspace: ProjectSeoWorkspace, rows: SeoRankSource[]) {
 export function withSeoRankings(
   workspace: ProjectSeoWorkspace,
   rows: SeoRankSource[],
+  /** The load left out older results of the period: every history can miss older reads. */
+  limited = false,
 ): ProjectSeoWorkspace {
   const sources = rankSources(workspace, rows);
   return {
     ...workspace,
-    keywords: withPositionHistory(workspace.keywords, sources),
+    keywords: withPositionHistory(workspace.keywords, sources, limited),
     serpHistory: serpHistory(sources),
     shareOfVoice: shareOfVoice(workspace, sources),
   };
@@ -100,6 +102,7 @@ function shareOfVoice(
 function withPositionHistory(
   keywords: ProjectSeoWorkspace["keywords"],
   sources: Source[],
+  limited: boolean,
 ): ProjectSeoWorkspace["keywords"] {
   const history = new Map<string, PositionPoint[]>();
   for (const { row, data } of sources) {
@@ -121,6 +124,7 @@ function withPositionHistory(
           observationId: row.id,
           position: item.position,
           positionStatus: item.positionStatus,
+          checkedResults: item.checkedResults,
           device: item.device,
         },
       ]);
@@ -136,7 +140,12 @@ function withPositionHistory(
       ),
     );
     return points
-      ? { ...row, positionHistory: points.slice(-SEO_RANK_HISTORY_POINTS) }
+      ? {
+          ...row,
+          positionHistory: points.slice(-SEO_RANK_HISTORY_POINTS),
+          positionHistoryCut:
+            limited || points.length > SEO_RANK_HISTORY_POINTS,
+        }
       : row;
   });
 }

@@ -426,6 +426,8 @@ model History {
   network        String?
 
   @@unique([kind, entityId])
+  @@unique([network, kind, entityId], map: "history_network_kind_entityId_key")
+  @@unique([kind, entityId], map: "history_untagged_kind_entityId_key", where: { network: null })
   @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([sokoBotId])

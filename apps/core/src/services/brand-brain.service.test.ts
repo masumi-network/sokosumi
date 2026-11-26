@@ -82,6 +82,55 @@ describe("saveStudioBrandCopy", () => {
     );
   });
 
+  // SOKD-480: GET shows tone "" and a PUT of the same copy was refused.
+  it.each([
+    ["empty", ""],
+    ["omitted", undefined],
+  ])("keeps the stored tone when the tone is %s", async (_label, tone) => {
+    const updatedAt = new Date("2026-11-08T12:00:00.000Z");
+    brainFindUnique.mockResolvedValueOnce({
+      updatedAt,
+      body: {
+        summary: "Old description",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: [],
+        products: [],
+        competitors: [],
+        channels: [],
+      },
+    });
+
+    await saveStudioBrandCopy(
+      PROJECT_ID,
+      { ...copy, tone },
+      updatedAt.toISOString(),
+    );
+
+    expect(brainUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          body: expect.objectContaining({
+            voice: expect.objectContaining({ tone: "Direct" }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("asks for a tone when the Project has none yet", async () => {
+    brainFindUnique.mockResolvedValueOnce(null);
+
+    const error = await saveStudioBrandCopy(
+      PROJECT_ID,
+      { ...copy, tone: "" },
+      null,
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ status: 422 });
+    expect((error as Error).message).toContain("copy.tone");
+    expect(brainUpsert).not.toHaveBeenCalled();
+  });
+
   it("rejects a stale version before writing", async () => {
     brainFindUnique.mockResolvedValueOnce({ updatedAt: new Date(), body: {} });
     await expect(

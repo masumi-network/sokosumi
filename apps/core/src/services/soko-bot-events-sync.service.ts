@@ -20,6 +20,9 @@ import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
   capabilitiesForDelegationFollowUp,
   intersectOwnerAuthority,
+  isAuthorityRevokedInSources,
+  loadRevokedAuthoritySources,
+  type RevokedAuthoritySources,
   resolveDelegationWakeAuthority,
 } from "@/lib/soko-bot/owner-authority";
 import { type OwnerRequestTurn } from "@/lib/soko-bot/owner-request";
@@ -336,26 +339,34 @@ function pendingFollowUp(delegation: {
  * Authoritative media limits for a delegation's wake prompt: prefers persisted
  * `OwnerAuthority.limits`, falling back to legacy `followUpAllows`.
  */
-function delegationWakeAllows(delegation: {
-  id: string;
-  authority?: unknown;
-  followUpAllows?: unknown;
-  turn: OwnerRequestTurn & {
-    id?: string;
-    sokoBotId: string;
-    workspaceId: string;
-    versionId?: string | null;
-    parentTurnId: string | null;
-    parentTurn: OwnerRequestTurn | null;
-    sokoBot?: { userId?: string | null } | null;
-  };
-}): SokoBotFollowUpAllows | null {
+function delegationWakeAllows(
+  delegation: {
+    id: string;
+    authority?: unknown;
+    followUpAllows?: unknown;
+    turn: OwnerRequestTurn & {
+      id?: string;
+      sokoBotId: string;
+      workspaceId: string;
+      versionId?: string | null;
+      parentTurnId: string | null;
+      parentTurn: OwnerRequestTurn | null;
+      sokoBot?: { userId?: string | null } | null;
+    };
+  },
+  revokedSources?: RevokedAuthoritySources,
+): SokoBotFollowUpAllows | null {
   const authority = resolveDelegationWakeAuthority(delegation, {
     sokoBotId: delegation.turn.sokoBotId,
     workspaceId: delegation.turn.workspaceId,
     versionId: delegation.turn.versionId ?? null,
   });
-  if (authority.origin === "system") return null;
+  if (
+    authority.origin === "system" ||
+    (revokedSources && isAuthorityRevokedInSources(authority, revokedSources))
+  ) {
+    return null;
+  }
   if (authority.limits) {
     const mapped: SokoBotFollowUpAllows = {
       ...(authority.limits.images !== undefined
@@ -378,25 +389,28 @@ function delegationWakeAllows(delegation: {
  * rows where `authority === null`). Empty for expired, system, or non-owner
  * delegations.
  */
-function ownerRequestGrant(delegation: {
-  id: string;
-  authority?: unknown;
-  followUp: string | null;
-  followUpAllows?: unknown;
-  followUpTurnId: string | null;
-  task?: { projectId?: string | null } | null;
-  job?: { task?: { projectId?: string | null } | null } | null;
-  turn: OwnerRequestTurn & {
-    id?: string;
-    sokoBotId: string;
-    workspaceId: string;
-    versionId?: string | null;
-    parentTurnId: string | null;
-    parentTurn: OwnerRequestTurn | null;
-    capabilityNames: string[];
-    sokoBot?: { userId?: string | null; projectId?: string | null } | null;
-  };
-}): readonly string[] {
+function ownerRequestGrant(
+  delegation: {
+    id: string;
+    authority?: unknown;
+    followUp: string | null;
+    followUpAllows?: unknown;
+    followUpTurnId: string | null;
+    task?: { projectId?: string | null } | null;
+    job?: { task?: { projectId?: string | null } | null } | null;
+    turn: OwnerRequestTurn & {
+      id?: string;
+      sokoBotId: string;
+      workspaceId: string;
+      versionId?: string | null;
+      parentTurnId: string | null;
+      parentTurn: OwnerRequestTurn | null;
+      capabilityNames: string[];
+      sokoBot?: { userId?: string | null; projectId?: string | null } | null;
+    };
+  },
+  revokedSources?: RevokedAuthoritySources,
+): readonly string[] {
   if (!pendingFollowUp(delegation)) return [];
   const authority = resolveDelegationWakeAuthority(delegation, {
     sokoBotId: delegation.turn.sokoBotId,
@@ -404,6 +418,9 @@ function ownerRequestGrant(delegation: {
     versionId: delegation.turn.versionId ?? null,
   });
   if (authority.origin === "system") return [];
+  const revoked = revokedSources
+    ? isAuthorityRevokedInSources(authority, revokedSources)
+    : false;
   const actingUserId = sokoBotActingUserId({
     requestedByUserId: delegation.turn.requestedByUserId,
     sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
@@ -431,6 +448,7 @@ function ownerRequestGrant(delegation: {
     askedByKind,
     sharedBot,
     source: "EVENT" as const,
+    ...(authority.scheduleId ? { scheduleId: authority.scheduleId } : {}),
     ...(liveProjectId
       ? {
           targetScope: {
@@ -441,6 +459,7 @@ function ownerRequestGrant(delegation: {
       : {}),
     hasWorkspaceAccess: true,
     botAlive: true,
+    ...(revoked ? { revoked: true } : {}),
   };
   const effective = intersectOwnerAuthority(authority, {
     ...liveBase,
@@ -640,6 +659,20 @@ export class SokoBotEventsSyncService {
           : [],
       ),
     );
+    const revokedSources = await loadRevokedAuthoritySources(
+      delegations.flatMap((delegation) =>
+        delegation.followUp
+          ? [
+              resolveDelegationWakeAuthority(delegation, {
+                sokoBotId: delegation.turn.sokoBotId,
+                workspaceId: delegation.turn.workspaceId,
+                versionId: delegation.turn.versionId ?? null,
+              }),
+            ]
+          : [],
+      ),
+      prisma,
+    );
 
     const byBot = new Map<string, BotWork>();
     for (const delegation of delegations) {
@@ -720,12 +753,15 @@ export class SokoBotEventsSyncService {
           to: current.status,
           note: current.note,
           followUp: delegation.followUp,
-          followUpAllows: delegationWakeAllows(delegation),
+          followUpAllows: delegationWakeAllows(delegation, revokedSources),
           retryOfTurnId: delegation.followUpTurnId,
-          ownerGranted: ownerRequestGrant({
-            ...delegation,
-            followUpTurnId: null,
-          }),
+          ownerGranted: ownerRequestGrant(
+            {
+              ...delegation,
+              followUpTurnId: null,
+            },
+            revokedSources,
+          ),
         });
         continue;
       }
@@ -863,8 +899,8 @@ export class SokoBotEventsSyncService {
             to: event.status ?? current.status,
             note: event.comment,
             followUp: pendingFollowUp(delegation),
-            followUpAllows: delegationWakeAllows(delegation),
-            ownerGranted: ownerRequestGrant(delegation),
+            followUpAllows: delegationWakeAllows(delegation, revokedSources),
+            ownerGranted: ownerRequestGrant(delegation, revokedSources),
           });
         }
         if (!actionable.length && events.length) {
@@ -917,8 +953,8 @@ export class SokoBotEventsSyncService {
         to: current.status,
         note: current.note ?? null,
         followUp: pendingFollowUp(delegation),
-        followUpAllows: delegationWakeAllows(delegation),
-        ownerGranted: ownerRequestGrant(delegation),
+        followUpAllows: delegationWakeAllows(delegation, revokedSources),
+        ownerGranted: ownerRequestGrant(delegation, revokedSources),
       });
     }
 

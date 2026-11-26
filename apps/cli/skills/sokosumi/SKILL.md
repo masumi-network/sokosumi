@@ -73,6 +73,8 @@ sokosumi --preprod vendors me --json
 sokosumi --preprod coworkers list --scope owned --json
 ```
 
+`coworkers list` shows whitelisted Coworkers by default; `--scope owned` adds your Vendor's private ones (also `all`, `archived`, `available`). `coworkers get COWORKER_ID --json` reads one Coworker on any target; `coworkers connect` is a write that requests Workspace access.
+
 Use returned IDs. `workspaces list --json` gives each workspace's `workspaceId` (for `workspaces get`, `ad-data-consent`, `social-statistics`, `calendar-labels`, and `users set-preferred-workspace`) and its `organizationId` (for `organizations` commands and `workspaces check`). Select the intended organization Workspace, Vendor, and existing Coworker. Ask only for a missing name or a choice between suitable records. Reuse an existing administered Vendor. Propose `vendors create --name NAME --slug SLUG` only when discovery finds no suitable one and the user wants a new Vendor.
 
 [VERIFIED: `apps/cli/src/cli/registration-authority.ts`, `apps/cli/src/api/models/user-workspace.ts`] Choose `--personal` for private setup. `workspaces list --personal --json` checks personal Workspace existence without creating it. `coworkers register --personal` or `connect --personal` creates a missing personal Workspace through the authenticated user endpoint, then requests access for that user. For an organization, choose its organization ID from memberships. Never combine personal and organization selectors.
@@ -141,6 +143,8 @@ Require `GRANTED` before reporting connection success. Preserve the Coworker ID 
    ```
 
    Report payment only when `settled` is `true`, and quote its `txHash` when present. A settled receipt can still have a null `txHash`. `settled: false` means not paid yet. An error means unknown, not unpaid.
+
+   A person reads the same receipt with their own sign-in, on any target: `sokosumi tasks receipt TASK_ID [--organization-slug WORKSPACE_SLUG] --json`.
 
 [VERIFIED: `apps/cli/src/coworker/runtime-task.ts`, `apps/cli/src/api/http-client.ts`] Runtime calls use only the Coworker credential on Preprod. Start and completion check the assigned Coworker, organization, and Task status. Run one executor per Task. This flow does not create a worker lease, poll for automatic work, or install an agent host. An MCP-only host needs a separate transport adapter.
 
@@ -286,7 +290,7 @@ sokosumi developer task TASK_ID
 
 `vendors logo-upload` returns a signed `uploadUrl`; PUT the file bytes there with the returned `Content-Type`, then set the URL with `vendors update`. Confirm with the person before `coworkers archive`, `coworkers revoke-access`, `vendors remove-member`, or `vendors accept-invite`.
 
-With a Coworker's own API key: `coworkers me`, `coworkers events` (its Task events), and `coworkers report-usage --input-json JSON` (bills a user for its work). Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
+A Coworker's own key reads and bills as that Coworker on the runtime path (Preprod, the key from `runtime key-import` or `--api-key-stdin`): `runtime me --coworker-id COWORKER_ID`, `runtime events --coworker-id COWORKER_ID [--limit N] [--cursor CURSOR]` (its Task events; the cursor comes from the last page), and `runtime report-usage --coworker-id COWORKER_ID --input-json '{"userId":"USER_ID","idempotencyKey":"KEY","credits":2.5}'` (bills that user for its work). A person's sign-in gets 403 on these. Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
 
 Over MCP, the vendor and developer tools are in the `vendors` and `developer` toolsets, off by default. Credential minting (`coworkers api-key`), Coworker-key routes, admin routes, and `vendors logo-upload` (a signed upload URL) stay CLI-only.
 
@@ -314,6 +318,8 @@ sokosumi jobs unshare JOB_ID
 `agents input-schema AGENT_ID` prints the fields an agent takes without starting a Job; read it, and `agents get` for the price, before hiring. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+
+[VERIFIED: `apps/cli/src/cli/commands/command-help.ts`] Before writing a body, run `sokosumi GROUP COMMAND --help`: for a command that calls one Core operation it prints the query parameters and the body fields (type, required, allowed values, nested fields, and each shape of a body that takes one of several) from the target's OpenAPI document. Build `--input-json` from it instead of guessing keys one 422 at a time.
 
 [VERIFIED: `apps/core/agent-surface/`] `jobs move` takes the Job away from everyone in its old Workspace; confirm first. Creating a public share link, requesting a refund, and rating an agent stay in the app (ADR 0077); `jobs unshare` may turn a link off.
 
@@ -346,6 +352,8 @@ sokosumi users update me --input-json '{"firstName":"Ada","lastName":"Lovelace"}
 sokosumi workspaces create me --input-json '{"kind":"personal"}'
 sokosumi users preferred-workspace me
 sokosumi workspaces design-md --organization-slug WORKSPACE_SLUG
+sokosumi users file-upload me --file ./report.pdf
+sokosumi users files me
 sokosumi organizations memberships me
 sokosumi organizations members ORGANIZATION_ID
 sokosumi organizations assign-seat ORGANIZATION_ID MEMBER_ID --input-json '{}'
@@ -354,7 +362,7 @@ sokosumi organizations deny-coworker-access ORGANIZATION_ID ACCESS_ID --input-js
 sokosumi organizations set-standup ORGANIZATION_ID --input-json '{"enabled":true,"timeOfDay":"09:00"}'
 ```
 
-`sokosumi --help` lists the rest: users files, coworker access and vendor grants for the personal Workspace, the same for an organization, invitations, invite links, DESIGN.md and stand-up. Owner and admin commands answer 403 for other members. Commands that take `--input-json`, plus `workspaces delete`, `organizations unassign-seat` and `organizations revoke-invite-link`, are writes: on mainnet they need the operator `yes` above.
+`sokosumi --help` lists the rest: users files, coworker access and vendor grants for the personal Workspace, the same for an organization, invitations, invite links, DESIGN.md and stand-up. Owner and admin commands answer 403 for other members. Commands that take `--input-json`, plus `users file-upload`, `workspaces delete`, `organizations unassign-seat` and `organizations revoke-invite-link`, are writes: on mainnet they need the operator `yes` above.
 
 Over MCP, the account tools (`users_get`, preferences, files, access and grants for the personal Workspace) are in the `users` toolset and the organization tools in `organizations`, both off by default; `workspaces_credits` and `workspaces_design_md` are on. To check the signed-in account over MCP, add `?toolsets=users` to the server URL and call `users_get` with id `me`. A person approves a Coworker's access request or grants a vendor access in Sokosumi, never an agent, on the CLI or over MCP (ADR 0077); agents may deny or revoke. Over MCP, managing invite links, changing ad-data consent and uploading files are not tools; the person does them in Sokosumi or on the CLI. Billing, account deletion, legal notices, sessions and OAuth consents stay in Sokosumi Web on both.
 

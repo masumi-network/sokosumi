@@ -13076,6 +13076,7 @@ export type ProjectSeoKeyword = {
     priority: 'low' | 'medium' | 'high';
     version: number;
     positionHistory?: Array<ProjectSeoPositionPoint>;
+    positionHistoryCut?: boolean;
 };
 
 export type ProjectSeoPositionPoint = {
@@ -13083,6 +13084,7 @@ export type ProjectSeoPositionPoint = {
     observationId: string;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    checkedResults?: number | null;
     device: 'mobile' | 'desktop' | null;
 };
 
@@ -106752,6 +106754,10 @@ export type GetTasksData = {
          * true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.
          */
         includeSubtasks?: 'true' | 'false';
+        /**
+         * false sends each Task's `description` as null, for a list of many Tasks such as a board. A description can be long; read one with GET /tasks/{id}. Defaults to true.
+         */
+        includeDescription?: 'true' | 'false';
         /**
          * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
          */

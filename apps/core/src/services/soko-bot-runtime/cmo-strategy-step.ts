@@ -720,6 +720,8 @@ async function awaitStep(
 export function cmoStrategyStepAnswer(
   end: StepEnd,
   strategyTurn: boolean,
+  /** The saved version still waits for the owner's approval. */
+  pending = false,
 ): Record<string, unknown> {
   if (end.state === "failed")
     return {
@@ -737,11 +739,19 @@ export function cmoStrategyStepAnswer(
   };
   return strategyTurn
     ? { ...saved, endTurn: end.toOwner }
-    : {
-        ...saved,
-        toOwner: end.toOwner,
-        next: "The strategy is saved. Do the rest of what the owner asked in this turn, then tell them what changed (toOwner says it) and what else you did.",
-      };
+    : pending
+      ? {
+          ...saved,
+          toOwner: end.toOwner,
+          upcomingPosts:
+            "unchanged: they follow this version once the owner approves it",
+          next: "The change is saved as a new strategy version that waits for the owner's approval; no upcoming post has changed yet. Do the rest of what the owner asked in this turn, then tell them what the change does (toOwner says it), that it takes effect once they approve it, and what else you did.",
+        }
+      : {
+          ...saved,
+          toOwner: end.toOwner,
+          next: "The strategy is saved. Do the rest of what the owner asked in this turn, then tell them what changed (toOwner says it) and what else you did.",
+        };
 }
 
 /**
@@ -898,5 +908,14 @@ export async function writeCmoStrategy(
       writing: true,
       next: "Core is still writing the strategy. Call write_strategy again with the same input to wait for it; do nothing else.",
     };
-  return cmoStrategyStepAnswer(end, cmoStrategyStepTurn(turn.clientTurnId));
+  const pending =
+    end.state === "saved" &&
+    (await prisma.marketingStrategy.count({
+      where: { id: end.versionId, approvedAt: null },
+    })) > 0;
+  return cmoStrategyStepAnswer(
+    end,
+    cmoStrategyStepTurn(turn.clientTurnId),
+    pending,
+  );
 }
