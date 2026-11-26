@@ -116,6 +116,9 @@ describe("the change-then-drafts case reads what was saved", () => {
       "daily",
       "posts on LinkedIn",
       "regularly",
+      "0 posts weekly",
+      "several posts weekly",
+      "a few posts every week",
     ])
       expect([cadence, failed(three, cadence)]).toEqual([cadence, [WEEKLY]]);
     expect(failed(three, null)).toEqual([WEEKLY]);
@@ -137,5 +140,8 @@ describe("cadencePerWeek", () => {
     expect(cadencePerWeek("when there is news")).toBeNull();
     expect(cadencePerWeek("some posts a week")).toBeNull();
     expect(cadencePerWeek("regularly")).toBeNull();
+    expect(cadencePerWeek("several posts weekly")).toBeNull();
+    expect(cadencePerWeek("0 posts weekly")).toBe(0);
+    expect(cadencePerWeek("weekly on LinkedIn")).toBe(1);
   });
 });

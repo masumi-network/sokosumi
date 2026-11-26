@@ -14,6 +14,7 @@ import {
 } from "@/services/marketing-strategy.service";
 import {
   cmoFitStrategy,
+  cmoStepDecision,
   cmoStrategyChangeBrief,
   cmoStrategyRepairPrompt,
   cmoStrategyStepAnswer,
@@ -80,6 +81,62 @@ describe("Core's strategy step", () => {
     const brief = cmoStrategyChangeBrief("NMKR", "LinkedIn once a week");
     expect(brief).toContain("The owner asked: LinkedIn once a week");
     expect(brief).toContain("Leave out every field and entry you keep");
+  });
+});
+
+describe("steps in one turn", () => {
+  const now = 1_000_000;
+  const start = (step: number, change: string | null, at = now - 1_000) => ({
+    step,
+    change,
+    at,
+  });
+
+  it("starts the first step", () => {
+    expect(cmoStepDecision([], new Set(), "LinkedIn weekly", now)).toEqual({
+      kind: "start",
+      step: 1,
+    });
+  });
+
+  it("starts a second change once the first ended (Neon round 1)", () => {
+    expect(
+      cmoStepDecision(
+        [start(1, "LinkedIn weekly")],
+        new Set([1]),
+        "Add TikTok",
+        now,
+      ),
+    ).toEqual({ kind: "start", step: 2 });
+  });
+
+  it("waits for the same request while it writes, and refuses another", () => {
+    const starts = [start(1, "LinkedIn weekly")];
+    expect(cmoStepDecision(starts, new Set(), "LinkedIn weekly", now)).toEqual({
+      kind: "wait",
+      step: 1,
+    });
+    expect(cmoStepDecision(starts, new Set(), "Add TikTok", now)).toEqual({
+      kind: "busy",
+    });
+  });
+
+  it("reads a finished step's answer when the same request comes again", () => {
+    expect(cmoStepDecision([start(1, null)], new Set([1]), null, now)).toEqual({
+      kind: "done",
+      step: 1,
+    });
+  });
+
+  it("lets a step that died without an end give way", () => {
+    expect(
+      cmoStepDecision(
+        [start(1, "LinkedIn weekly", now - 7 * 60_000)],
+        new Set(),
+        "Add TikTok",
+        now,
+      ),
+    ).toEqual({ kind: "start", step: 2 });
   });
 });
 

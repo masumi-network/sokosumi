@@ -468,26 +468,74 @@ async function runStep(context: StepContext): Promise<StepEnd> {
   };
 }
 
-/** The step's end, once its event is in the turn's log. */
-async function stepEnd(turnId: string): Promise<StepEnd | null> {
-  const ended = await prisma.sokoBotRuntimeEvent.findFirst({
+/** A step's number in its event; events from before numbering are step 1. */
+const stepOf = (data: unknown): number =>
+  Number((data as { step?: unknown } | null)?.step) || 1;
+
+/** A step the turn's log started, with what it was asked. */
+export interface CmoStepStart {
+  step: number;
+  change: string | null;
+  at: number;
+}
+
+export type CmoStepDecision =
+  | { kind: "start"; step: number }
+  | { kind: "wait"; step: number }
+  | { kind: "done"; step: number }
+  | { kind: "busy" };
+
+/**
+ * What a `write_strategy` call does with the turn's steps (Neon round 1: a
+ * second change in one chat was refused for good). A step still writing is
+ * waited for when it is the same request and refuses another one; once it
+ * ended, the same request again reads its answer (a "call again to wait"
+ * after the end), and another request starts the next step. A step with no
+ * end past its stale limit counts as ended.
+ */
+export function cmoStepDecision(
+  starts: readonly CmoStepStart[],
+  ended: ReadonlySet<number>,
+  change: string | null,
+  now: number,
+): CmoStepDecision {
+  const running = starts.find(
+    (start) => !ended.has(start.step) && now - start.at <= STALE_MS,
+  );
+  if (running)
+    return running.change === change
+      ? { kind: "wait", step: running.step }
+      : { kind: "busy" };
+  const last = starts.at(-1);
+  if (last && last.change === change) return { kind: "done", step: last.step };
+  return {
+    kind: "start",
+    step: Math.max(0, ...starts.map((start) => start.step)) + 1,
+  };
+}
+
+/** A step's end, once its event is in the turn's log. */
+async function stepEnd(turnId: string, step: number): Promise<StepEnd | null> {
+  const ended = await prisma.sokoBotRuntimeEvent.findMany({
     where: { turnId, type: ENDED },
     orderBy: { startIndex: "desc" },
     select: { data: true },
   });
-  return ended ? (ended.data as unknown as StepEnd) : null;
+  const mine = ended.find((event) => stepOf(event.data) === step);
+  return mine ? (mine.data as unknown as StepEnd) : null;
 }
 
-/** Waits for the turn's step to end, up to `until`; null while it writes. */
+/** Waits for a step to end, up to `until`; null while it writes. */
 async function awaitStep(
   turnId: string,
-  startedAt: Date,
+  step: number,
+  startedAt: number,
   until: number,
 ): Promise<StepEnd | null> {
   for (;;) {
-    const end = await stepEnd(turnId);
+    const end = await stepEnd(turnId, step);
     if (end) return end;
-    if (Date.now() - startedAt.getTime() > STALE_MS)
+    if (Date.now() - startedAt > STALE_MS)
       return { state: "failed", reason: "the step stopped without an answer" };
     if (Date.now() + POLL_MS > until) return null;
     await sleep(POLL_MS);
@@ -558,17 +606,51 @@ export async function writeCmoStrategy(
       ? (turn.userMessage.match(/The owner asked: (.+)/)?.[1] ?? null)
       : null);
   const log = new RuntimeEventLog(input.turnId, input.sessionId);
-  const startedAt = new Date();
-  const first = await log.appendUnless(runtimeEvent(STARTED, { change }), [
-    STARTED,
-  ]);
-  if (first) {
+  const startedAt = Date.now();
+  const event = runtimeEvent(STARTED, { change, step: 0 });
+  // Decided under the log's lock, so two calls never start one step twice.
+  const held: { decision: CmoStepDecision; starts: CmoStepStart[] } = {
+    decision: { kind: "busy" },
+    starts: [],
+  };
+  await log.appendUnless(event, [], async (tx) => {
+    const rows = await tx.sokoBotRuntimeEvent.findMany({
+      where: { turnId: input.turnId, type: { in: [STARTED, ENDED] } },
+      orderBy: { startIndex: "asc" },
+      select: { type: true, data: true, createdAt: true },
+    });
+    held.starts = rows
+      .filter((row) => row.type === STARTED)
+      .map((row) => ({
+        step: stepOf(row.data),
+        change: (row.data as { change?: string | null } | null)?.change ?? null,
+        at: row.createdAt.getTime(),
+      }));
+    held.decision = cmoStepDecision(
+      held.starts,
+      new Set(
+        rows.filter((row) => row.type === ENDED).map((row) => stepOf(row.data)),
+      ),
+      change,
+      Date.now(),
+    );
+    if (held.decision.kind !== "start") return false;
+    (event.data as { step: number }).step = held.decision.step;
+    return true;
+  });
+  const decision = held.decision;
+  if (decision.kind === "busy")
+    throw new SokoBotRuntimeValidationError(
+      "Core is still writing another change in this turn: call write_strategy with that same input to wait for it, and send the next change after it.",
+    );
+  if (decision.kind === "start") {
+    const step = decision.step;
     const context: StepContext = {
       runtime,
       input,
       authorized,
       change,
-      startedAt: startedAt.getTime(),
+      startedAt,
     };
     waitUntil(
       runAsBackgroundWork(async () => {
@@ -615,29 +697,13 @@ export async function writeCmoStrategy(
               : {}),
           },
         });
-        await log.append(runtimeEvent(ENDED, end as never));
+        await log.append(runtimeEvent(ENDED, { ...end, step } as never));
       }),
     );
-  } else {
-    const started = await prisma.sokoBotRuntimeEvent.findFirst({
-      where: { turnId: input.turnId, type: STARTED },
-      select: { data: true },
-    });
-    const was = (started?.data as { change?: string | null } | null)?.change;
-    if ((was ?? null) !== change)
-      throw new SokoBotRuntimeValidationError(
-        "Core is already writing another change in this turn: call write_strategy with that same input to wait for it, and send the next change after it.",
-      );
   }
-  const began = await prisma.sokoBotRuntimeEvent.findFirst({
-    where: { turnId: input.turnId, type: STARTED },
-    select: { createdAt: true },
-  });
-  const end = await awaitStep(
-    input.turnId,
-    began?.createdAt ?? startedAt,
-    until,
-  );
+  const began =
+    held.starts.find((start) => start.step === decision.step)?.at ?? startedAt;
+  const end = await awaitStep(input.turnId, decision.step, began, until);
   if (!end)
     return {
       writing: true,

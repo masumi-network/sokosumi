@@ -28,13 +28,15 @@ const COUNTS: Record<string, number> = {
   six: 6,
   seven: 7,
 };
+// "a" counts only as "a post": "a few posts" is no quantity this can read.
 const NUMBER =
-  "(\\d+|once|one|a|an|twice|two|thrice|three|four|five|six|seven)";
+  "(\\d+|once|one|twice|two|thrice|three|four|five|six|seven|an?(?=\\s+(?:post|piece|update)\\b))";
 const DAYS: Record<string, number> = { day: 1, week: 7, month: 365 / 12 };
 
 function count(word: string | undefined): number | null {
   if (word === undefined) return null;
-  return Number(word) || COUNTS[word] || null;
+  if (/^\d+$/.test(word)) return Number(word);
+  return COUNTS[word] ?? null;
 }
 
 /**
@@ -86,10 +88,18 @@ export function cadencePerWeek(cadence: string): number | null {
   ]
     .map((match) => count(match[1]))
     .filter((value): value is number => value !== null);
+  // "weekly" alone is once a week; "several posts weekly" names a quantity
+  // this cannot read, so it is no guess at one.
+  const unread = before
+    .replace(
+      /\b(?:posts?|pieces?|updates?|times?|on|linkedin|x)\b|[^a-z0-9]/g,
+      " ",
+    )
+    .trim();
   const quantity =
     quantities.length > 0
       ? Math.max(...quantities)
-      : implied || every
+      : (implied || every) && unread === ""
         ? 1
         : null;
   return quantity === null ? null : (quantity * 7) / days;
