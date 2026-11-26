@@ -357,17 +357,17 @@ describe("InProcessSokoBotRuntime", () => {
       turn: { id: TURN_ID, versionId: "cmo-v2" },
       grant: { capabilities: ["create_task"] },
     });
-    cmoTurnPartsMock.mockResolvedValue([
-      {
-        key: "website",
-        title: "Website",
-        message: "Read the site",
+    cmoTurnPartsMock.mockResolvedValue(
+      ["site", "reviews", "pricing"].map((key) => ({
+        key,
+        title: key,
+        message: `Read the ${key}`,
         tools: ["web_fetch"],
-      },
-    ]);
+      })),
+    );
     streamModelCallMock.mockImplementation(async (options) => {
       const message = options.messages[0].content as string;
-      if (message.startsWith("Read the"))
+      if (message.includes("Read the"))
         await options.onStepFinish?.({
           usage: { inputTokens: 9_000_000, outputTokens: 5 },
           providerMetadata: {},
@@ -386,7 +386,10 @@ describe("InProcessSokoBotRuntime", () => {
     });
     await Promise.all(pendingTurns);
 
-    const main = streamModelCallMock.mock.calls.at(-1)?.[0];
+    const calls = streamModelCallMock.mock.calls.map((call) => call[0]);
+    // Exactly one wrap-up, the turn's; the parts made none of their own.
+    expect(calls.filter((call) => call.toolChoice === "none")).toHaveLength(1);
+    const main = calls.at(-1);
     expect(main.toolChoice).toBe("none");
     expect(main.messages.at(-1).content).toContain("you cannot call tools");
     // One wrap-up step, not a loop.

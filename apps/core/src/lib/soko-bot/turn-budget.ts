@@ -24,6 +24,13 @@ export function turnTokenBudget(
   };
 }
 
+/**
+ * What a turn part hands back when the turn's allowance runs out: the one
+ * wrap-up call belongs to the turn itself, so a part makes none.
+ */
+export const PART_OUT_OF_BUDGET_NOTE =
+  "(This part stopped: the turn's token budget ran out before it finished. Work from what the other parts found.)";
+
 /** A prompt's input tokens before a step has measured them: about 4 chars each. */
 export function estimateInputTokens(...texts: string[]): number {
   return Math.ceil(texts.reduce((sum, text) => sum + text.length, 0) / 4);

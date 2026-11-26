@@ -18,6 +18,7 @@ import {
   withPromptCache,
 } from "../lib/soko-bot/stream-model-call";
 import {
+  PART_OUT_OF_BUDGET_NOTE,
   StepAdmission,
   type TurnTokenBudget,
 } from "../lib/soko-bot/turn-budget";
@@ -52,6 +53,11 @@ export interface TurnLoopInput {
    * loop; none from an older Core.
    */
   budget?: TurnTokenBudget;
+  /**
+   * A turn part: when the allowance runs out it hands back what it has, or
+   * a note, and makes no wrap-up call; the turn's own loop makes the one.
+   */
+  part?: boolean;
   background: boolean;
   /** Epoch ms by which the turn must have answered. */
   deadline: number;
@@ -196,6 +202,14 @@ export async function runTurnLoop(
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
   const cutOff = stepsLeft <= 0 || timeUp() || refused;
+  if (refused && input.part)
+    return {
+      text:
+        finishReason === "tool-calls" || !text.trim()
+          ? PART_OUT_OF_BUDGET_NOTE
+          : text,
+      finishReason: finishReason || "budget",
+    };
   const needsReport = input.background
     ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
     : cutOff && (finishReason === "tool-calls" || !text.trim());

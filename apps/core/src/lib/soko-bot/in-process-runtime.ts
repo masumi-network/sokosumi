@@ -66,6 +66,7 @@ import {
 } from "./short-forms";
 import {
   estimateInputTokens,
+  PART_OUT_OF_BUDGET_NOTE,
   StepAdmission,
   turnTokenBudget,
 } from "./turn-budget";
@@ -208,6 +209,7 @@ async function runTurn(
       const short = shortFormsIn(offered, turn.shortForms);
       // A turn part's tools are a subset: another prefix, so no shared key.
       const whole = offered === tools;
+      const part = !whole;
       const first = await runRound(
         [{ role: "user", content: message }],
         maxSteps,
@@ -215,27 +217,48 @@ async function runTurn(
         short.length ? withShortForms(offered, short) : offered,
         short,
         whole ? (short.length ? turn.cacheKey : turn.fullCacheKey) : null,
+        part,
       );
       // The full tool's round needs steps, time and tokens left.
       const left = maxSteps - first.steps.length;
       const tokensLeft = budget.limit - budget.used - budget.reserved;
+      const last = !fullToolRoundAllowed({
+        steps: first.steps,
+        shortForms: short,
+        stepsLeft: left,
+        tokensLeft,
+        timeUp: signal.aborted,
+      })
+        ? first
+        : await runRound(
+            [{ role: "user", content: message }, ...first.responseMessages],
+            left,
+            signal,
+            offered,
+            [],
+            whole ? turn.fullCacheKey : null,
+            part,
+          );
+      // The allowance ran out mid-work: the turn itself gets its one
+      // wrap-up; a part hands back what it has, or the note, at no cost.
       if (
-        !fullToolRoundAllowed({
-          steps: first.steps,
-          shortForms: short,
-          stepsLeft: left,
-          tokensLeft,
-          timeUp: signal.aborted,
-        })
+        !last.refused ||
+        (last.finishReason !== "tool-calls" && last.text.trim())
       )
-        return first;
+        return last;
+      if (part) return { ...last, text: last.text || PART_OUT_OF_BUDGET_NOTE };
       return runRound(
-        [{ role: "user", content: message }, ...first.responseMessages],
-        left,
+        [
+          { role: "user", content: message },
+          ...first.responseMessages,
+          ...(last === first ? [] : last.responseMessages),
+        ],
+        1,
         signal,
         offered,
         [],
-        whole ? turn.fullCacheKey : null,
+        null,
+        false,
       );
     };
     const runRound = async (
@@ -245,12 +268,23 @@ async function runTurn(
       offered: ToolSet,
       short: readonly CmoShortFormTool[],
       cacheKey: string | null,
+      part: boolean,
     ) => {
-      await log.append(runtimeEvent("step.started", { modelId: turn.model }));
       // Once the turn's allowance is spent (a part may have spent it), the
       // call is the turn's one wrap-up: a single step with no tool to pick.
+      // A part makes none.
       const admission = new StepAdmission(budget);
       const wrapUp = !admission.admit();
+      if (wrapUp && part)
+        return {
+          text: PART_OUT_OF_BUDGET_NOTE,
+          finishReason: "budget",
+          steps: [],
+          responseMessages: [],
+          refused: true,
+        };
+      await log.append(runtimeEvent("step.started", { modelId: turn.model }));
+      let refused = wrapUp;
       const request = sokoBotModelRequest({
         role: "agent",
         model: turn.model,
@@ -300,7 +334,10 @@ async function runTurn(
                 endedByTool,
                 endedByShortForm(short),
                 // Last, so it reserves room only for a step that will run.
-                () => !admission.admit(),
+                () => {
+                  if (!admission.admit()) refused = true;
+                  return refused;
+                },
               ],
           abortSignal: signal,
           async onStepFinish(step) {
@@ -365,6 +402,9 @@ async function runTurn(
         finishReason: result.finishReason,
         steps: result.steps,
         responseMessages: result.responseMessages,
+        // A wrap-up is the answer already; only a refused working round
+        // still needs one.
+        refused: refused && !wrapUp,
       };
     };
 

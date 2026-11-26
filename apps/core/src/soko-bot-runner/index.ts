@@ -511,6 +511,7 @@ async function main(): Promise<void> {
             tools: partTools(tools, part),
             maxSteps: TURN_PART_MAX_STEPS,
             budget,
+            part: true,
             background: false,
             deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
             stopped: stopped.signal,

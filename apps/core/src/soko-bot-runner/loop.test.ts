@@ -430,39 +430,55 @@ describe("runTurnLoop", () => {
     expect(result.text).toContain("filled 12 of 30 rows");
   });
 
-  it("admits two parts running at once against one allowance", async () => {
-    // Codex's fixture (review-8271-budget-and-local-fit): limit 25, 10 a step.
-    const clock = { now: 0 };
-    const budget = turnTokenBudget(25, 10);
-    const one = tirelessModel(clock);
-    const two = tirelessModel(clock);
-    const part = (model: typeof one.model) =>
-      runTurnLoop({
-        model,
-        system: "You are a bot.",
-        message: "Work.",
-        tools,
-        maxSteps: 500,
-        budget,
-        background: false,
-        deadline: 600 * MINUTE,
-        stopped: new AbortController().signal,
-        now: () => clock.now,
-      });
+  it.each([
+    // Codex rounds 8 and 13: limit 25 with two parts; limit 10 with three.
+    [25, 2],
+    [10, 3],
+  ])(
+    "admits %i tokens' worth of work across %i parts at once, and the turn alone writes the one wrap-up",
+    async (limit, parts) => {
+      const clock = { now: 0 };
+      const budget = turnTokenBudget(limit, 10);
+      const models = Array.from({ length: parts }, () => tirelessModel(clock));
+      const main = tirelessModel(clock);
+      const loop = (model: typeof main.model, part: boolean) =>
+        runTurnLoop({
+          model,
+          system: "You are a bot.",
+          message: "Work.",
+          tools,
+          maxSteps: 500,
+          budget,
+          part,
+          background: false,
+          deadline: 600 * MINUTE,
+          stopped: new AbortController().signal,
+          now: () => clock.now,
+        });
 
-    await Promise.all([part(one.model), part(two.model)]);
+      const handOvers = await Promise.all(
+        models.map(({ model }) => loop(model, true)),
+      );
+      const result = await loop(main.model, false);
 
-    const working = [...one.calls, ...two.calls].filter(
-      (call) => (call.toolChoice as { type?: string })?.type !== "none",
-    );
-    // Each part was admitted once, the room both saw already reserved; then
-    // each wrote its one answer without tools.
-    expect(working).toHaveLength(2);
-    expect(one.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
-    expect(two.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
-    expect(budget.reserved).toBe(0);
-    expect(budget.used).toBe(40);
-  });
+      const all = [...models.flatMap(({ calls }) => calls), ...main.calls];
+      const wrapUps = all.filter(
+        (call) => (call.toolChoice as { type?: string })?.type === "none",
+      );
+      // One wrap-up, the turn's; a part out of budget makes no call.
+      expect(wrapUps).toHaveLength(1);
+      expect(main.calls).toEqual([wrapUps[0]]);
+      expect(
+        handOvers.filter((handOver) =>
+          handOver.text.includes("token budget ran out"),
+        ).length,
+      ).toBeGreaterThan(0);
+      expect(result.text).toContain("filled 12 of 30 rows");
+      // Within the allowance plus the one reserved wrap-up step.
+      expect(budget.used).toBeLessThanOrEqual(limit + 10);
+      expect(budget.reserved).toBe(0);
+    },
+  );
 
   it("ends on the step whose tool said so, without a closing step", async () => {
     const clock = { now: 0 };
