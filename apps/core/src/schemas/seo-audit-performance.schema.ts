@@ -82,6 +82,8 @@ export const seoAuditPerformanceSchema = periodTotals.extend({
     }),
   ),
   previous: periodTotals.nullable(),
+  /** The reader requested this audit. Property-wide evidence and its refresh are the requester's alone. */
+  requester: z.literal(true).optional(),
   propertyDataExpired: z.literal(true).optional(),
   propertyTotals: auditTotalsSchema.optional(),
   pageDiscovery: seoPageDiscoverySchema.optional(),

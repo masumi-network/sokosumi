@@ -612,6 +612,221 @@ export const SeoFullAuditCostDetailSchema = {
     additionalProperties: false
 } as const;
 
+export const AdminSeoActionImpactSchema = {
+    type: 'object',
+    properties: {
+        hasNext: {
+            type: 'boolean'
+        },
+        pageSize: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    userId: {
+                        type: 'string'
+                    },
+                    actions: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                id: {
+                                    type: 'string'
+                                },
+                                pageUrl: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                },
+                                title: {
+                                    type: 'string'
+                                },
+                                impact: {
+                                    $ref: '#/components/schemas/ProjectSeoActionImpact'
+                                }
+                            },
+                            required: [
+                                'id',
+                                'pageUrl',
+                                'title',
+                                'impact'
+                            ],
+                            additionalProperties: false
+                        }
+                    }
+                },
+                required: [
+                    'auditId',
+                    'projectId',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'userId',
+                    'actions'
+                ],
+                additionalProperties: false
+            }
+        }
+    },
+    required: [
+        'hasNext',
+        'pageSize',
+        'items'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoActionImpactSchema = {
+    type: 'object',
+    properties: {
+        anchor: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        anchorKind: {
+            type: 'string',
+            enum: [
+                'completed',
+                'verified'
+            ]
+        },
+        days: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'measured',
+                'too_early',
+                'not_measured',
+                'low_counts'
+            ]
+        },
+        before: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        to: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        clicks: {
+                            type: 'number'
+                        },
+                        impressions: {
+                            type: 'number'
+                        },
+                        position: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'clicks',
+                        'impressions',
+                        'position'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        after: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        to: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        clicks: {
+                            type: 'number'
+                        },
+                        impressions: {
+                            type: 'number'
+                        },
+                        position: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'clicks',
+                        'impressions',
+                        'position'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'anchor',
+        'anchorKind',
+        'days',
+        'state',
+        'before',
+        'after'
+    ]
+} as const;
+
 export const AdminAgentListSchema = {
     type: 'array',
     items: {
@@ -45043,6 +45258,12 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 400
+                },
+                applyOpId: {
+                    type: 'string'
+                },
+                applyCreateOpId: {
+                    type: 'string'
                 }
             },
             required: [
@@ -48942,6 +49163,12 @@ export const ProjectSeoWorkspaceSchema = {
                             'to'
                         ]
                     },
+                    requester: {
+                        type: 'boolean',
+                        enum: [
+                            true
+                        ]
+                    },
                     propertyDataExpired: {
                         type: 'boolean',
                         enum: [
@@ -51621,6 +51848,9 @@ export const ProjectSeoActionSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        impact: {
+            $ref: '#/components/schemas/ProjectSeoActionImpact'
         },
         kind: {
             type: 'string',
