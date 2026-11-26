@@ -254,6 +254,52 @@ describe("withSeoRunDiffs", () => {
     expect(diff).toMatchObject({ comparable: false, reason: "rulebook" });
   });
 
+  it("pairs past a newer check of another rulebook that read the rule on another page only", () => {
+    const pages = ["page-1", "page-2"];
+    const both = { pageIds: pages };
+    // Each check reads both pages: rule Z passes on the page where rule A is not read.
+    const diff = diffOf(
+      [
+        source(
+          8,
+          result(
+            [
+              failed({ rowId: "A" }),
+              check("pass", { rowId: "Z", pageUrl: OTHER }),
+            ],
+            { rulebookVersion: "r3" },
+          ),
+          both,
+        ),
+        source(
+          5,
+          result(
+            [
+              check("pass", { rowId: "A", pageUrl: OTHER }),
+              check("pass", { rowId: "Y" }),
+            ],
+            { rulebookVersion: "r2" },
+          ),
+          both,
+        ),
+        source(
+          1,
+          result([
+            check("pass", { rowId: "A" }),
+            check("pass", { rowId: "X", pageUrl: OTHER }),
+          ]),
+          both,
+        ),
+      ],
+      pages,
+    );
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      newCount: 1,
+      rulebookChange: { compared: 1 },
+    });
+  });
+
   it("compares only the rules both checks tested across a rulebook change", () => {
     const diff = diffOf([
       source(

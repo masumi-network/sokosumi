@@ -132,7 +132,11 @@ function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
 const measuredRules = (payload: PublicSeoPayload) =>
   payload.checks.length > 0 || payload.findings.length > 0;
 
-/** The rules a check read on the selected pages: a row that passed or fired, or a finding. A blocked row read nothing. */
+/** A rule on one page: a rule read on another page says nothing about this one. */
+const ruleOnPage = (row: { pageUrl: string; rowId: string }) =>
+  `${normalizeSeoUrl(row.pageUrl)}\n${row.rowId}`;
+
+/** The rules a check read on the selected pages, each with its page: a row that passed or fired, or a finding. A blocked row read nothing. */
 const testedRules = (payload: PublicSeoPayload, selected: Selected) =>
   new Set(
     [
@@ -142,7 +146,7 @@ const testedRules = (payload: PublicSeoPayload, selected: Selected) =>
       ...payload.findings,
     ]
       .filter((row) => selected(row.pageUrl))
-      .map((row) => row.rowId),
+      .map(ruleOnPage),
   );
 
 /** The rules both checks read on the selected pages, and how many only one of them read. */
@@ -167,7 +171,7 @@ const onlyRules = (
   ids: ReadonlySet<string>,
 ): PublicSeoPayload => ({
   ...payload,
-  findings: payload.findings.filter((row) => ids.has(row.rowId)),
+  findings: payload.findings.filter((row) => ids.has(ruleOnPage(row))),
 });
 
 const bySeverity = (a: Issue, b: Issue) =>
