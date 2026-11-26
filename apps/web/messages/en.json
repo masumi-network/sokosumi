@@ -15269,7 +15269,8 @@
           "crux-url": "Checked on {device} only: {share} of this page’s visitors use it.",
           "crux-origin": "Checked on {device} only: {share} of the site’s visitors use it.",
           "page-type": "Checked on {device} only, the usual device for this kind of page.",
-          "default": "Checked on {device} only."
+          "default": "Checked on {device} only.",
+          "stopped": "The default device is {device}: the check found no visitor shares before it stopped."
         },
         "mix": "Visitors: {phone} phone · {desktop} desktop · {tablet} tablet",
         "notChecked": "Pages not checked: {count}. {reason}",

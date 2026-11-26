@@ -310,10 +310,12 @@ export function seoPageTrend(
 
 /**
  * Why a page with the short check was read on its one device. The share is that device's part of the visits, when Google gave one.
- * Null: the check stopped before it picked a device (the worker then writes basis default with the gap), so it checked no device.
+ * stopped: basis default with a gap. The worker writes it when a limit cut the read of the shares, and also when it found no shares,
+ * took the default device and a limit then cut that device's read. The row cannot tell the two apart, so the text holds for both.
  */
 export function seoDeviceReason(check: NonNullable<SeoSiteSpeedRow["check"]>) {
-  if (check.basis === "default" && check.notChecked) return null;
+  if (check.basis === "default" && check.notChecked)
+    return { basis: "stopped" as const, share: null };
   const share =
     check.mix?.[check.device === "mobile" ? "phone" : "desktop"] ?? null;
   const counted = check.basis === "crux-url" || check.basis === "crux-origin";

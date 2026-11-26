@@ -229,7 +229,8 @@ it("names no share of visitors when Google gave no device mix", () => {
       },
     }),
   ).toEqual({ basis: "crux-url", share: 0.72 });
-  // Review pass 15: a check that the rate limit stopped before it picked a device names no device.
+  // Review pass 16: a default device with a gap. A limit cut the read of the shares, or the device's read after
+  // no shares: the reason does not say the device was checked.
   expect(
     seoDeviceReason({
       ...check,
@@ -237,7 +238,7 @@ it("names no share of visitors when Google gave no device mix", () => {
       mix: null,
       notChecked: "quota",
     }),
-  ).toBeNull();
+  ).toEqual({ basis: "stopped", share: null });
   expect(
     seoDeviceReason({ ...check, basis: "default", mix: null })?.basis,
   ).toBe("default");
