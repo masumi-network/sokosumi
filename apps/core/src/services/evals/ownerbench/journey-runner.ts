@@ -554,7 +554,8 @@ const FILE_READS = [
 /**
  * Neither the first turn's context nor what its file reads returned names a
  * file an earlier case left: a Drive upload of the lane made before this
- * journey's isolation point, by id or by name.
+ * journey's isolation point, by its id. Names repeat (this journey may
+ * upload its own "evidence.pdf"), so a name never makes a file earlier.
  */
 export async function earlierCaseFilesCheck(
   turnId: string,
@@ -582,12 +583,7 @@ export async function earlierCaseFilesCheck(
       .filter((call) => FILE_READS.includes(call.capability))
       .map((call) => JSON.stringify(call.result ?? null)),
   ].join("\n");
-  const leaked = earlier.filter(
-    (file) =>
-      seen.includes(file.id) ||
-      // A short name ("notes.md") would match by chance.
-      (file.displayName.length >= 12 && seen.includes(file.displayName)),
-  );
+  const leaked = earlier.filter((file) => seen.includes(file.id));
   return {
     label: "Opens with no other case's files",
     pass: Boolean(snapshot) && leaked.length === 0,

@@ -1155,7 +1155,8 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             workspaceId,
             sourceKind: "DRIVE_UPLOAD",
             sourceScope: "USER",
-            sourceId: `drive/users/${userId}/${name}`,
+            // Each upload its own object; the shown name may repeat.
+            sourceId: `drive/users/${userId}/${randomUUID()}/${name}`,
             ownerUserId: userId,
             displayName: name,
             normalizedName: name.toLowerCase(),
@@ -1178,18 +1179,19 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           })
         ).items.map((file) => file.id);
       // Case A's prepare seeded its evidence PDF.
-      const evidence = await upload("Case A launch evidence.pdf");
+      const evidence = await upload("evidence.pdf");
       expect(await listing()).toContain(evidence.id);
-      // Case B starts: the clear, its isolation point, then its own file.
+      // Case B starts: the clear, its isolation point, then its own file of
+      // the same name.
       await clearEarlierCaseArtifacts({
         workspaceId,
         cusoProjectId: projectId,
       });
       const isolatedAt = new Date();
-      const own = await upload("Case B customer story.pdf");
+      const own = await upload("evidence.pdf");
       expect(await listing()).toEqual([own.id]);
       const { turnId } = await openingTurn();
-      // Its first read listed Files: only its own file came back.
+      // Its first read listed Files: its own "evidence.pdf" is fresh.
       const ownRead = [
         {
           capability: "list_files",
@@ -1199,19 +1201,18 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect(
         await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, ownRead),
       ).toMatchObject({ pass: true });
-      // A read that still returned case A's PDF fails the check, by id or name.
-      for (const leaked of [
-        { id: evidence.id },
-        { name: evidence.displayName },
-      ])
-        expect(
-          await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, [
-            { capability: "list_files", result: { files: [leaked] } },
-          ]),
-        ).toMatchObject({
-          pass: false,
-          actual: expect.stringContaining("Case A launch evidence.pdf"),
-        });
+      // A read that still returned case A's file, by its id, fails.
+      expect(
+        await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, [
+          {
+            capability: "list_files",
+            result: { files: [{ id: evidence.id, name: "evidence.pdf" }] },
+          },
+        ]),
+      ).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("evidence.pdf"),
+      });
       await prisma.fileResource.deleteMany({
         where: { id: { in: [evidence.id, own.id] } },
       });
