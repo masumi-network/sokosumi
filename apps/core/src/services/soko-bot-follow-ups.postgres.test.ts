@@ -2688,6 +2688,65 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         capabilityNames: [],
         cronExpression: "0 10 * * 1-5",
       });
+      // Creating a custom schedule with a built-in rhythm's name (same or
+      // different case) is refused instead of overwriting the built-in row.
+      for (const collidingName of ["Daily stand-up", "daily stand-up"]) {
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: ownerSessionId,
+            turnId: directChat.id,
+            capability: "create_schedule",
+            toolCallId: `standup-create-collide-${randomUUID()}`,
+            input: {
+              name: collidingName,
+              cronExpression: "0 8 * * 1-5",
+              timezone: "UTC",
+              prompt: "Read the daily KPI table.",
+              capabilities: ["read_table"],
+            },
+          }),
+        ).rejects.toThrow(/built-in rhythm.*different name/i);
+      }
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: standup.id },
+          select: {
+            name: true,
+            prompt: true,
+            capabilityNames: true,
+            cronExpression: true,
+            authority: true,
+          },
+        }),
+      ).toEqual({
+        name: "Daily stand-up",
+        prompt: "Run the daily stand-up.",
+        capabilityNames: [],
+        cronExpression: "0 10 * * 1-5",
+        authority: null,
+      });
+      const distinctReadOnly = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `standup-distinct-${randomUUID()}`,
+        input: {
+          name: "Daily KPI table check",
+          cronExpression: "0 8 * * 1-5",
+          timezone: "UTC",
+          prompt: "Read the daily KPI table.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      expect(distinctReadOnly.id).not.toBe(standup.id);
+      const distinctRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        distinctReadOnly.id,
+        "v36",
+      );
+      expect(distinctRun?.capabilities).toContain("read_table");
+      expect(distinctRun?.capabilities).not.toContain("write_table_rows");
 
       // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
       // and its next run actually carries write_table_rows.

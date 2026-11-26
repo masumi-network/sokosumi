@@ -626,6 +626,35 @@ describe("schedules of a shared bot", () => {
     );
   });
 
+  it("refuses creating a custom schedule with the same name as a built-in rhythm", async () => {
+    scheduleFindFirst.mockResolvedValueOnce({
+      ...PERSONAL,
+      name: "Daily stand-up",
+      systemKey: "standup",
+    });
+
+    await expect(
+      createSokoBotSchedule(
+        {
+          userId: "owner_1",
+          workspaceId: WORKSPACE_ID,
+          sokoBotId: PERSONAL_BOT_ID,
+          name: "Daily stand-up",
+          timezone: "UTC",
+          cronExpression: "0 9 * * 1-5",
+          prompt: "Read the daily KPI table.",
+          capabilityNames: ["read_table"],
+          explicitCapabilities: true,
+        },
+        tx,
+      ),
+    ).rejects.toThrow(
+      '"Daily stand-up" is a built-in rhythm. Choose a different name for a custom schedule',
+    );
+    expect(scheduleUpdate).not.toHaveBeenCalled();
+    expect(scheduleCreate).not.toHaveBeenCalled();
+  });
+
   it("lets any member with access edit and delete a schedule another member wrote", async () => {
     await expect(
       updateSokoBotSchedule(

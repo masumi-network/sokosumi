@@ -362,11 +362,18 @@ export async function createSokoBotSchedule(
   const link = { taskId: input.taskId ?? null, jobId: input.jobId ?? null };
   const mutate = async (tx: Prisma.TransactionClient) => {
     // Same name = same follow-up: a model retrying or re-planning updates
-    // the existing schedule instead of stacking duplicates.
+    // the existing custom schedule instead of stacking duplicates, while a
+    // collision with a built-in rhythm is refused so the rhythm stays intact.
+    const scheduleName = name.slice(0, 120);
     const existing = await tx.sokoBotSchedule.findFirst({
-      where: { sokoBotId: bot.id, name: name.slice(0, 120) },
+      where: {
+        sokoBotId: bot.id,
+        name: { equals: scheduleName, mode: "insensitive" },
+      },
+      orderBy: { systemKey: "asc" },
       select: {
         id: true,
+        name: true,
         requestedByUserId: true,
         systemKey: true,
         authority: true,
@@ -374,6 +381,11 @@ export async function createSokoBotSchedule(
         sokoBot: { select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT },
       },
     });
+    if (existing?.systemKey) {
+      throw new SokoBotScheduleValidationError(
+        `"${existing.name ?? scheduleName}" is a built-in rhythm. Choose a different name for a custom schedule, or update the built-in rhythm's timing instead.`,
+      );
+    }
     if (existing) {
       const now = new Date();
       const nextAuthority = input.resolveAuthority
