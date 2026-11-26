@@ -765,6 +765,32 @@ describe("withSeoRunDiffs edge cases", () => {
     expect(diff).toMatchObject({ newCount: 0, notCheckedBefore: 1 });
   });
 
+  it("counts a finding without a device as fixed where every device it fired on passes now", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(8, result([check("pass", { rowId: "A" })])),
+      source(1, result([anyDevice])),
+    ]);
+    expect(diff).toMatchObject({ fixedCount: 1, notCheckedAgain: 0 });
+  });
+
+  it("counts no fix of a finding without a device or a row that fired", () => {
+    const diff = diffOf([
+      source(8, result([check("pass", { rowId: "A" })])),
+      source(
+        1,
+        result([
+          { finding: { ...failed({ rowId: "A" }).finding, device: null } },
+          check("pass", { rowId: "B" }),
+        ]),
+      ),
+    ]);
+    expect(diff).toMatchObject({ fixedCount: 0, notCheckedAgain: 1 });
+  });
+
   it("reads a page check that stored findings without rows by the pages of its issues", () => {
     const diff = diffOf([
       source(
