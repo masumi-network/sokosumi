@@ -853,6 +853,9 @@ describe("the presenter model's video arriving with word timings", () => {
       falRequestId: null,
       idempotencyKey: "video-shape:job-1:16:9",
       chargedCents: 0n,
+      // The presenter clip of a source that was cut out: failing must not
+      // deliver it as the uncaptioned video and run the edit again.
+      pendingMediaUrl: AVATAR_URL,
       settings: {
         ...row.settings,
         shape: "16:9",
@@ -878,13 +881,11 @@ describe("the presenter model's video arriving with word timings", () => {
           : { kind: "error", message: "gone" },
     );
     editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
-    const logged = expectCoreLog(
-      "warn",
-      "Could not cut a video in another shape",
-    );
+    const logged = expectCoreLog("warn", "Could not cut a video in its shape");
 
     await reconcileJob("job-2");
 
+    expect(editTalkingVideoMock).toHaveBeenCalledTimes(1);
     expect(editTalkingVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({ shape: "16:9" }),
     );
@@ -902,6 +903,50 @@ describe("the presenter model's video arriving with word timings", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+
+  it("fails a 4:5 video whose edit fails, uncharged, instead of storing the vertical clip", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      chargedCents: 5_200_000_000_000n,
+      settings: { ...row.settings, shape: "4:5", shapes: ["16:9"] },
+    });
+    editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
+    const logged = expectCoreLog("warn", "Could not cut a video in its shape");
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(putMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "job-1" }),
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
+    expect(logged).toHaveLength(1);
+  });
+
+  it("fails a 4:5 video whose words were never timed: only Core's edit is that shape", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      pendingMediaUrl: AVATAR_URL,
+      settings: { ...row.settings, words: [], shape: "4:5" },
+    });
+
+    await settleWithMedia(
+      "job-1",
+      "https://v3b.fal.media/files/captioned.mp4",
+      undefined,
+      "fal-1",
+    );
+
+    expect(editTalkingVideoMock).not.toHaveBeenCalled();
+    expect(putMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
   });
 });
 

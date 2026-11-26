@@ -2861,15 +2861,30 @@ async function startTalkingVideoSecondStep(
 }
 
 /**
+ * A video delivered only as Core's edit: a shape other than vertical, or a
+ * shape cut from another job. The provider's own clip is vertical, so it is
+ * never a fallback for these.
+ */
+function onlyEdited(talking: TalkingVideoSettings): boolean {
+  return talking.sourceJobId !== null || talking.shape !== "9:16";
+}
+
+/**
  * A talking video whose caption step failed is still a video the studio paid
  * for: deliver it as its presenter model made it. True when it was handled.
  */
 async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
-    select: { kind: true, pendingMediaUrl: true },
+    select: { kind: true, pendingMediaUrl: true, settings: true },
   });
-  if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO || !job.pendingMediaUrl)
+  if (
+    job?.kind !== ProjectImageJobKind.TALKING_VIDEO ||
+    !job.pendingMediaUrl ||
+    // Only the vertical clip is a video as made; delivering it for another
+    // shape would also run that shape's failed edit again.
+    onlyEdited(readTalkingVideoSettings(job.settings))
+  )
     return false;
   recordCoreWarning(
     { operation: "image_job_settle", imageJobs: [{ id: jobId }] },
@@ -3221,6 +3236,11 @@ async function storeMedia(
       await failImageJob(job.id, "unknown");
       return;
     }
+  } else if (talking && !edits && onlyEdited(talking)) {
+    // Its words were never timed, so Core cannot cut it in its shape.
+    await releaseSettlementLease(job.id, lease);
+    await failImageJob(job.id, "unknown");
+    return;
   } else if (talking && edits) {
     try {
       const [site, endCard, broll, music] = await Promise.all([
@@ -3284,22 +3304,23 @@ async function storeMedia(
       if (edited) {
         downloaded = { bytes: edited.bytes, contentType: "video/mp4" };
         editedSeconds = Math.ceil(edited.durationSeconds);
-      } else if (talking.sourceJobId) {
-        throw new Error("The shape had no words to time its cuts by.");
+      } else if (onlyEdited(talking)) {
+        throw new Error("The video had no words to time its cuts by.");
       }
     } catch (error) {
-      // Another shape of a video is only ever its edit: the vertical clip
-      // would be the wrong shape. Nothing is delivered, so nothing is charged.
-      if (talking.sourceJobId) {
+      // A video in any shape but vertical is only ever its edit: the
+      // presenter's vertical clip would be the wrong shape. Nothing is
+      // delivered, so nothing is charged.
+      if (onlyEdited(talking)) {
         recordCoreWarning(
           {
             operation: "image_job_settle",
             imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
           },
           {
-            message: "Could not cut a video in another shape",
+            message: "Could not cut a video in its shape",
             why: "Reading its parts or running the edit threw",
-            fix: "The shape is marked failed and nothing is charged; the first shape was delivered. If this repeats, check Core's ffmpeg build and the studio's store.",
+            fix: "The job is marked failed and nothing is charged. If this repeats, check Core's ffmpeg build and the studio's store.",
           },
         );
         await releaseSettlementLease(job.id, lease);
@@ -3362,7 +3383,11 @@ async function storeMedia(
   // header, which is what covers the endpoints that report nothing. `recraft/v3`
   // returns WebP with no dimensions and `luma-photon` reports none at all, and both
   // stored 0x0 until this read the bytes.
+  // A video Core edited is its shape's frame, whatever the provider's clip was.
   const dimensions =
+    (talking && editedSeconds !== null
+      ? VIDEO_SHAPE_FRAMES[talking.shape]
+      : null) ??
     (!job.useProductCutout && !vectorSource
       ? readProviderSize(mediaInfo)
       : null) ??
@@ -3505,18 +3530,13 @@ async function storeMedia(
       durationSeconds: video
         ? (editedSeconds ?? readVideoSettings(job.settings).durationSeconds)
         : null,
-      width:
-        dimensions?.width ??
-        (editedSeconds !== null && talking
-          ? VIDEO_SHAPE_FRAMES[talking.shape].width
-          : 0),
-      height:
-        dimensions?.height ??
-        (editedSeconds !== null && talking
-          ? VIDEO_SHAPE_FRAMES[talking.shape].height
-          : 0),
+      width: dimensions?.width ?? 0,
+      height: dimensions?.height ?? 0,
       bytes: downloaded.bytes.byteLength,
       checksum,
+      ...(talking && editedSeconds !== null && talking.shapes.length > 0
+        ? { videoShapeJobs: videoShapeJobRows(job, talking) }
+        : {}),
     });
   } catch (error) {
     if (isUniqueViolation(error)) return; // Another settler won; its asset stands.
@@ -3570,8 +3590,6 @@ async function storeMedia(
     bytes: downloaded.bytes,
     contentType: downloaded.contentType,
   });
-  if (talking && editedSeconds !== null && talking.shapes.length > 0)
-    await startVideoShapeJobs(job, talking);
   // The outage this dependency was in ends here, not earlier: publishing the
   // asset clears every clock in the same transaction that records the success.
 }
@@ -3584,7 +3602,7 @@ async function storeMedia(
  * settlement gets. A job like this is the only talking video that runs
  * without a provider request of its own.
  */
-async function startVideoShapeJobs(
+function videoShapeJobRows(
   job: {
     id: string;
     projectId: string;
@@ -3598,34 +3616,31 @@ async function startVideoShapeJobs(
     presenterConsentAt: Date | null;
   },
   talking: TalkingVideoSettings,
-): Promise<void> {
+): Prisma.ProjectImageJobCreateManyInput[] {
   const now = new Date();
-  await prisma.projectImageJob.createMany({
-    data: talking.shapes.map((shape) => ({
-      projectId: job.projectId,
-      workspaceId: job.workspaceId,
-      requestedByUserId: job.requestedByUserId,
-      kind: job.kind,
-      model: job.model,
-      prompt: job.prompt,
-      settings: jsonInput({
-        ...talking,
-        aspectRatio: shape,
-        shape,
-        shapes: [],
-        sourceJobId: job.id,
-      } satisfies TalkingVideoSettings),
-      referenceAssetIds: [],
-      idempotencyKey: `${VIDEO_SHAPE_KEY_PREFIX}:${job.id}:${shape}`,
-      status: ProjectImageJobStatus.RUNNING,
-      chargedCents: 0n,
-      submittedAt: now,
-      voiceBlobPathname: job.voiceBlobPathname,
-      pendingMediaUrl: job.pendingMediaUrl,
-      presenterConsentAt: job.presenterConsentAt,
-    })),
-    skipDuplicates: true,
-  });
+  return talking.shapes.map((shape) => ({
+    projectId: job.projectId,
+    workspaceId: job.workspaceId,
+    requestedByUserId: job.requestedByUserId,
+    kind: job.kind,
+    model: job.model,
+    prompt: job.prompt,
+    settings: jsonInput({
+      ...talking,
+      aspectRatio: shape,
+      shape,
+      shapes: [],
+      sourceJobId: job.id,
+    } satisfies TalkingVideoSettings),
+    referenceAssetIds: [],
+    idempotencyKey: `${VIDEO_SHAPE_KEY_PREFIX}:${job.id}:${shape}`,
+    status: ProjectImageJobStatus.RUNNING,
+    chargedCents: 0n,
+    submittedAt: now,
+    voiceBlobPathname: job.voiceBlobPathname,
+    pendingMediaUrl: job.pendingMediaUrl,
+    presenterConsentAt: job.presenterConsentAt,
+  }));
 }
 
 /**
@@ -3729,6 +3744,11 @@ async function insertAsset(input: {
   height: number;
   bytes: number;
   checksum: string;
+  /**
+   * A video's other shapes, reserved with its asset: a delivered video never
+   * loses them to a failure after it was stored and charged.
+   */
+  videoShapeJobs?: Prisma.ProjectImageJobCreateManyInput[];
 }): Promise<{
   assetId: string;
   version: number | null;
@@ -3853,6 +3873,11 @@ async function insertAsset(input: {
           : {}),
       },
     });
+    if (input.videoShapeJobs?.length)
+      await tx.projectImageJob.createMany({
+        data: input.videoShapeJobs,
+        skipDuplicates: true,
+      });
 
     let letteringJobId: string | null = null;
     if (
