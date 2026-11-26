@@ -103,6 +103,7 @@
     "ContactScore": "contact_score",
     "ContactSearch": "contact_search",
     "ContactSuggestion": "contact_suggestion",
+    "ContactXFollow": "contact_x_follow",
     "Coworker": "coworker",
     "CoworkerApiKey": "coworker_api_key",
     "CoworkerAssignment": "coworker_assignment",
