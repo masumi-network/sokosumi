@@ -235,7 +235,12 @@ it.each([null, { observedAt: meta.timestamp, rows: [] }])(
     };
     const result = await getSeoAuditWorkspaceResponseTransformer({
       // The speed table is a nullable object with a date as well.
-      data: { ...empty, searchQueries, siteSpeed: searchQueries },
+      // Its own object: the search queries' transformer changes its object in place.
+      data: {
+        ...empty,
+        searchQueries,
+        siteSpeed: searchQueries && { ...searchQueries },
+      },
       meta: { ...meta },
     });
     expect(result.data.siteSpeed?.observedAt ?? null).toEqual(
