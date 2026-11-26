@@ -10844,6 +10844,35 @@ describe("Soko Bot project social tools", () => {
     }
   });
 
+  it("counts a slow authority lookup into the batch's deadline", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      runtimeEventFindFirstMock.mockImplementationOnce(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+        return null;
+      });
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      let answered = false;
+      const running = new SokoBotRuntimeService()
+        .executeTool({
+          ...SCOPE,
+          capability: "update_social_posts",
+          toolCallId: "slow-authority",
+          input: { projectId, posts: [{ postId, revision: 2, text: "Slow" }] },
+        })
+        .finally(() => {
+          answered = true;
+        });
+
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      expect(answered).toBe(true);
+      await expect(running).resolves.toMatchObject({ stillSaving: postId });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // Codex round 11 (#8277): two batches checked at once each passed against
   // the other's old words, and both saved "April release.".
   it("saves the same words once when two batches are checked at the same time", async () => {
@@ -13381,6 +13410,100 @@ describe("Soko Bot project social tools", () => {
         }),
       ).rejects.toThrow("stays a draft");
     }
+    expect(social.create).not.toHaveBeenCalled();
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("lets a shared Cuso workspace member create unscheduled drafts and edit DRAFT posts under taint, while blocking scheduledAt and SCHEDULED edits", async () => {
+    const connectionId = "01960001-0001-7001-8001-0000000000cc";
+    const memberId = "01960001-0001-7001-8001-0000000000dd";
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-cuso" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: memberId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      versionId: "cmo-v24",
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: memberId,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: [
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ],
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        userId: null,
+        workspaceId: SCOPE.workspaceId,
+        projectId: null,
+        archivedAt: null,
+        adminPausedAt: null,
+        status: "RUNNING",
+      },
+    });
+    social.create.mockResolvedValue({ ...post, status: "DRAFT" });
+    social.get.mockResolvedValue({ ...post, status: "DRAFT" });
+    social.update.mockResolvedValue({ ...post, status: "DRAFT" });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "cuso-tainted-draft",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Shared Cuso draft",
+        },
+      }),
+    ).resolves.toMatchObject({ id: postId, status: "DRAFT" });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "cuso-tainted-edit-draft",
+        input: { projectId, postId, revision: 2, text: "Updated draft" },
+      }),
+    ).resolves.toMatchObject({ id: postId, status: "DRAFT" });
+
+    social.create.mockClear();
+    social.update.mockClear();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "cuso-tainted-scheduled",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Scheduled under taint",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    social.get.mockResolvedValue({ ...post, status: "SCHEDULED" });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "cuso-tainted-edit-scheduled",
+        input: { projectId, postId, revision: 2, text: "Locked edit" },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
     expect(social.create).not.toHaveBeenCalled();
     expect(social.update).not.toHaveBeenCalled();
   });

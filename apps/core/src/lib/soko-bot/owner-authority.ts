@@ -28,6 +28,7 @@ import {
   type SokoBotCapability,
   sameOwnerAuthorityTargetScope,
 } from "@sokosumi/soko-bot";
+import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
@@ -1227,13 +1228,16 @@ export function evaluateSocialWriteAuthority(
   return { allowed: true, requireUnapprovedDraft: false };
 }
 
-const ADMIN_RETRY_TURN_PREFIX = "admin-retry:";
-const ADMIN_SCHEDULE_RETRY_PREFIX = "admin-schedule-retry:";
+const ADMIN_RETRY_TURN_KIND = "admin-retry";
+const ADMIN_SCHEDULE_RETRY_KIND = "admin-schedule-retry";
+const uuidSchema = z.string().uuid();
 
 /**
  * Resolves the underlying `SokoBotTurnSource` behind an `ADMIN_RETRY` chain
- * (mirroring `soko-bot-admin-retry.service.ts`), failing closed to `"EVENT"`
- * on missing, cross-bot, or cyclic targets so an admin retry of a failed
+ * (`admin-retry:<turnId>:<operationKey>` or `admin-schedule-retry:<runId>:<op>`,
+ * mirroring `soko-bot-admin-retry.service.ts`), validating the UUID segment and
+ * scoping lookup to `turn.sokoBotId`. Fails closed to `"EVENT"` on missing,
+ * malformed, cross-bot, or cyclic targets so an admin retry of a failed
  * delegation EVENT turn can never widen past `draft_only`.
  */
 export async function resolveSocialWriteOriginSource(
@@ -1242,32 +1246,31 @@ export async function resolveSocialWriteOriginSource(
 ): Promise<string | null> {
   if (turn.source !== "ADMIN_RETRY") return turn.source;
   const seen = new Set<string>([turn.id]);
-  let current = await client.sokoBotTurn.findUnique({
-    where: { id: turn.id },
+  let current = await client.sokoBotTurn.findFirst({
+    where: { id: turn.id, sokoBotId: turn.sokoBotId },
     select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
   });
   let hops = 0;
   while (current?.source === "ADMIN_RETRY") {
-    if (current.clientTurnId.startsWith(ADMIN_SCHEDULE_RETRY_PREFIX)) {
+    const [kind, targetId] = current.clientTurnId.split(":");
+    if (kind === ADMIN_SCHEDULE_RETRY_KIND) {
       return "SCHEDULE";
     }
-    if (!current.clientTurnId.startsWith(ADMIN_RETRY_TURN_PREFIX)) {
-      return "EVENT";
-    }
-    const targetId = current.clientTurnId.slice(ADMIN_RETRY_TURN_PREFIX.length);
     if (
+      kind !== ADMIN_RETRY_TURN_KIND ||
       !targetId ||
+      !uuidSchema.safeParse(targetId).success ||
       seen.has(targetId) ||
       ++hops > MAX_OWNER_AUTHORITY_PARENT_HOPS
     ) {
       return "EVENT";
     }
     seen.add(targetId);
-    const next = await client.sokoBotTurn.findUnique({
-      where: { id: targetId },
+    const next = await client.sokoBotTurn.findFirst({
+      where: { id: targetId, sokoBotId: turn.sokoBotId },
       select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
     });
-    if (!next || next.sokoBotId !== turn.sokoBotId) {
+    if (!next) {
       return "EVENT";
     }
     current = next;

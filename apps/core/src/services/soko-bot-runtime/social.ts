@@ -252,10 +252,8 @@ async function updateSocialPosts(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
   authorized: AuthorizedSokoBotRuntime,
+  deadline = Date.now() + BATCH_BUDGET_MS,
 ) {
-  // From the call's start: a 20-second access read once pushed the answer
-  // past the tool's 115 seconds (Codex round 11).
-  const deadline = Date.now() + BATCH_BUDGET_MS;
   const { projectId, posts } =
     SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_posts.parse(input.input);
   if (new Set(posts.map((post) => post.postId)).size !== posts.length)
@@ -371,14 +369,29 @@ export async function executeSocialTool(
   input: ExecuteSokoBotToolInput,
   authorized: AuthorizedSokoBotRuntime,
 ) {
+  // From the call's start: slow authority or access reads count toward the
+  // batch's 100s budget so the answer still returns inside the 115s timeout.
+  const batchDeadline =
+    input.capability === "update_social_posts"
+      ? Date.now() + BATCH_BUDGET_MS
+      : undefined;
   const { workspaceId } = authorized.turn;
   const userId = actingMemberOf(authorized);
   const writeAuthority = isSocialWriteCapability(input.capability)
-    ? await enforceSocialWriteAuthority(
-        authorized,
-        input.capability,
-        input.input,
-      )
+    ? await (batchDeadline !== undefined
+        ? beforeDeadline(
+            enforceSocialWriteAuthority(
+              authorized,
+              input.capability,
+              input.input,
+            ),
+            batchDeadline,
+          )
+        : enforceSocialWriteAuthority(
+            authorized,
+            input.capability,
+            input.input,
+          ))
     : null;
   if (
     getSokoBotVersion(authorized.turn.versionId).profile === "cmo" &&
@@ -552,7 +565,7 @@ export async function executeSocialTool(
       );
     }
     case "update_social_posts":
-      return updateSocialPosts(runtime, input, authorized);
+      return updateSocialPosts(runtime, input, authorized, batchDeadline);
     case "create_social_post":
     case "update_social_post":
     case "schedule_social_post":

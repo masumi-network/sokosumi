@@ -1154,109 +1154,164 @@ describe("intersectOwnerAuthority", () => {
     ).toEqual({ allowed: false, kind: "tainted" });
   });
 
-  it("traces ADMIN_RETRY chains to their origin source and fails closed to EVENT on missing or cross-bot targets", async () => {
+  it("traces production admin-retry:<uuid>:<op> chains with bot-scoped lookup and fails closed on missing, malformed, or cross-bot targets", async () => {
+    const ORIG_EVENT_ID = "01960000-0000-7000-8000-000000000101";
+    const RETRY_EVENT_ID = "01960000-0000-7000-8000-000000000102";
+    const RETRY_EVENT_2_ID = "01960000-0000-7000-8000-000000000103";
+    const ORIG_CHAT_ID = "01960000-0000-7000-8000-000000000104";
+    const RETRY_CHAT_ID = "01960000-0000-7000-8000-000000000105";
+    const OTHER_BOT_CHAT_ID = "01960000-0000-7000-8000-000000000106";
+    const RETRY_CROSS_BOT_ID = "01960000-0000-7000-8000-000000000107";
+    const RETRY_MALFORMED_ID = "01960000-0000-7000-8000-000000000108";
+    const RETRY_SCHEDULE_ID = "01960000-0000-7000-8000-000000000109";
+    const MISSING_ID = "01960000-0000-7000-8000-000000000199";
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     const rows = new Map<
       string,
       { id: string; sokoBotId: string; source: string; clientTurnId: string }
     >([
       [
-        "retry-of-event",
+        RETRY_EVENT_ID,
         {
-          id: "retry-of-event",
+          id: RETRY_EVENT_ID,
           sokoBotId: BOT_ID,
           source: "ADMIN_RETRY",
-          clientTurnId: "admin-retry:orig-event",
+          clientTurnId: `admin-retry:${ORIG_EVENT_ID}:op-1`,
         },
       ],
       [
-        "orig-event",
+        RETRY_EVENT_2_ID,
         {
-          id: "orig-event",
+          id: RETRY_EVENT_2_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-retry:${RETRY_EVENT_ID}:op-2`,
+        },
+      ],
+      [
+        ORIG_EVENT_ID,
+        {
+          id: ORIG_EVENT_ID,
           sokoBotId: BOT_ID,
           source: "EVENT",
           clientTurnId: "event:1",
         },
       ],
       [
-        "retry-of-chat",
+        RETRY_CHAT_ID,
         {
-          id: "retry-of-chat",
+          id: RETRY_CHAT_ID,
           sokoBotId: BOT_ID,
           source: "ADMIN_RETRY",
-          clientTurnId: "admin-retry:orig-chat",
+          clientTurnId: `admin-retry:${ORIG_CHAT_ID}:op-3`,
         },
       ],
       [
-        "orig-chat",
+        ORIG_CHAT_ID,
         {
-          id: "orig-chat",
+          id: ORIG_CHAT_ID,
           sokoBotId: BOT_ID,
           source: "CHAT",
           clientTurnId: "chat:1",
         },
       ],
       [
-        "retry-cross-bot",
+        RETRY_CROSS_BOT_ID,
         {
-          id: "retry-cross-bot",
+          id: RETRY_CROSS_BOT_ID,
           sokoBotId: BOT_ID,
           source: "ADMIN_RETRY",
-          clientTurnId: "admin-retry:other-bot-chat",
+          clientTurnId: `admin-retry:${OTHER_BOT_CHAT_ID}:op-4`,
         },
       ],
       [
-        "other-bot-chat",
+        OTHER_BOT_CHAT_ID,
         {
-          id: "other-bot-chat",
+          id: OTHER_BOT_CHAT_ID,
           sokoBotId: OTHER_BOT_ID,
           source: "CHAT",
           clientTurnId: "chat:2",
         },
       ],
       [
-        "retry-schedule",
+        RETRY_MALFORMED_ID,
         {
-          id: "retry-schedule",
+          id: RETRY_MALFORMED_ID,
           sokoBotId: BOT_ID,
           source: "ADMIN_RETRY",
-          clientTurnId: "admin-schedule-retry:run-1",
+          clientTurnId: "admin-retry:not-a-uuid:op-5",
+        },
+      ],
+      [
+        RETRY_SCHEDULE_ID,
+        {
+          id: RETRY_SCHEDULE_ID,
+          sokoBotId: BOT_ID,
+          source: "ADMIN_RETRY",
+          clientTurnId: `admin-schedule-retry:${SCHED_ID}:op-6`,
         },
       ],
     ]);
     const fakeClient = {
       sokoBotTurn: {
-        findUnique: async ({ where }: { where: { id: string } }) =>
-          rows.get(where.id) ?? null,
+        findFirst: async ({
+          where,
+        }: {
+          where: { id: string; sokoBotId: string };
+        }) => {
+          // Mirror PostgreSQL @db.Uuid rejection on non-UUID query params.
+          if (!UUID_RE.test(where.id)) {
+            throw new Error(
+              `22P02 invalid input syntax for type uuid: ${where.id}`,
+            );
+          }
+          const row = rows.get(where.id);
+          return row && row.sokoBotId === where.sokoBotId ? row : null;
+        },
       },
     } as never;
 
     expect(
       await resolveSocialWriteOriginSource(
-        { id: "retry-of-event", sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        { id: RETRY_EVENT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
         fakeClient,
       ),
     ).toBe("EVENT");
     expect(
       await resolveSocialWriteOriginSource(
-        { id: "retry-of-chat", sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        { id: RETRY_EVENT_2_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_CHAT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
         fakeClient,
       ),
     ).toBe("CHAT");
     expect(
       await resolveSocialWriteOriginSource(
-        { id: "retry-cross-bot", sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        { id: RETRY_CROSS_BOT_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
         fakeClient,
       ),
     ).toBe("EVENT");
     expect(
       await resolveSocialWriteOriginSource(
-        { id: "retry-missing", sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        { id: RETRY_MALFORMED_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
         fakeClient,
       ),
     ).toBe("EVENT");
     expect(
       await resolveSocialWriteOriginSource(
-        { id: "retry-schedule", sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        { id: MISSING_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
+        fakeClient,
+      ),
+    ).toBe("EVENT");
+    expect(
+      await resolveSocialWriteOriginSource(
+        { id: RETRY_SCHEDULE_ID, sokoBotId: BOT_ID, source: "ADMIN_RETRY" },
         fakeClient,
       ),
     ).toBe("SCHEDULE");

@@ -1016,7 +1016,7 @@ describe("sandbox turn service", () => {
     expect(grantUploadMock).not.toHaveBeenCalled();
   });
 
-  it("lets a member's own request to a shared bot make posts after a command", async () => {
+  it("allows sandbox preflight for a member's own request on a shared bot after a command", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
       id: claims.turnId,
