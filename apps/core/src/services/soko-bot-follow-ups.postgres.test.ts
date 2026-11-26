@@ -78,6 +78,7 @@ import {
 } from "./soko-bot-runtime.service";
 import {
   createSokoBotSchedule,
+  deleteSokoBotSchedule,
   purgeSokoBotSchedules,
   SOKO_BOT_SCHEDULE_RETENTION_MS,
 } from "./soko-bot-schedule.service";
@@ -4329,6 +4330,332 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           })
         ).origin,
       ).toBe("owner_chat");
+    });
+
+    it("keeps a settled one-time schedule alive through 7-day retention cleanup while its delegated follow-up is outstanding, then purges once settled and still revokes on explicit owner cancellation", async () => {
+      const projectA = randomUUID();
+      const mediaRuntime = {
+        mayActForOwner: async () => false,
+      };
+      const asAuthorized = (row: {
+        id: string;
+        source: string | null;
+        clientTurnId: string;
+      }) =>
+        ({
+          askedByKind: "OWNER",
+          reader: { sharedScope: null },
+          turn: {
+            id: row.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: row.source,
+            clientTurnId: row.clientTurnId,
+            actingUserId: userId,
+            chainDepth: 0,
+          },
+        }) as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+      const createSpentOneTimeWithDelegation = async (name: string) => {
+        const rootChat = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            askedByUserId: userId,
+            source: "CHAT",
+            status: "COMPLETED",
+            clientTurnId: `chat-ret-root:${randomUUID()}`,
+            userMessage: "Delegate a task and make one image when it returns.",
+            versionId: "v36",
+            deadlineAt: new Date(Date.now() + HOUR),
+            capabilityNames: ["create_task", "generate_image"],
+          },
+        });
+        const schedId = randomUUID();
+        const grantId = `ret-grant-${randomUUID()}`;
+        const slot = new Date(Date.now() - 2 * HOUR);
+        await prisma.sokoBotSchedule.create({
+          data: {
+            id: schedId,
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            name,
+            cronExpression: "0 9 1 12 *",
+            timezone: "UTC",
+            prompt: "Delegate and make 1 image.",
+            nextRunAt: slot,
+            lastRunAt: slot,
+            runOnce: true,
+            enabled: false,
+            capabilityNames: ["create_task", "generate_image"],
+            authority: {
+              version: 1,
+              grantId,
+              origin: "owner_chat",
+              sokoBotId: botId,
+              workspaceId,
+              ownerUserId: userId,
+              rootTurnId: rootChat.id,
+              targetScope: { kind: "project", projectId: projectA },
+              scheduleId: schedId,
+              scope: "owner_writes",
+              socialMode: "draft_only",
+              limits: {
+                grantId,
+                period: "per_occurrence",
+                images: 1,
+                maxMediaCredits: 10,
+              },
+              stopRule: { mode: "never" },
+            },
+          },
+        });
+        const schedTurn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requestedByUserId: userId,
+            source: "SCHEDULE",
+            status: "COMPLETED",
+            clientTurnId: `schedule:${schedId}:${slot.toISOString()}`,
+            userMessage: "Delegate and make 1 image.",
+            versionId: "v36",
+            deadlineAt: new Date(Date.now() + HOUR),
+            capabilityNames: ["create_task", "generate_image"],
+          },
+        });
+        await prisma.sokoBotScheduleRun.create({
+          data: {
+            scheduleId: schedId,
+            scheduledFor: slot,
+            status: "COMPLETED",
+            completedAt: slot,
+            turnId: schedTurn.id,
+          },
+        });
+        const delegationAuthority = await deriveDelegationAuthority(
+          {
+            id: schedTurn.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: "SCHEDULE",
+            parentTurnId: null,
+            askedByUserId: null,
+            requestedByUserId: userId,
+            actingUserId: userId,
+            chainDepth: 0,
+          },
+          {
+            followUpAllows: { images: 1, maxCredits: 10 },
+            projectId: projectA,
+          },
+        );
+        expect(delegationAuthority.scheduleId).toBe(schedId);
+        const task = await prisma.task.create({
+          data: {
+            workspaceId,
+            ownerId: userId,
+            name: `Pending task for ${name}`,
+            status: "READY",
+          },
+        });
+        const delegation = await prisma.sokoBotDelegation.create({
+          data: {
+            turnId: schedTurn.id,
+            toolCallId: `tool-ret-${randomUUID()}`,
+            action: "create_task",
+            kind: "TASK",
+            taskId: task.id,
+            followUp: "Make 1 image once the Coworker returns.",
+            followUpAllows: { images: 1, maxCredits: 10 },
+            authority: delegationAuthority,
+          },
+        });
+        return { rootChat, schedId, schedTurn, task, delegation };
+      };
+
+      const afterRetention = new Date(
+        Date.now() + SOKO_BOT_SCHEDULE_RETENTION_MS + HOUR,
+      );
+
+      // 1. Inside retention window: Task completes -> follow-up retains 1-image allowance.
+      const inside = await createSpentOneTimeWithDelegation("Inside retention");
+      await prisma.task.update({
+        where: { id: inside.task.id },
+        data: { status: "COMPLETED" },
+      });
+      const insideWake = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "EVENT",
+          status: "RUNNING",
+          clientTurnId: `event:inside:${randomUUID()}`,
+          userMessage: "Follow up on completed task.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+        },
+      });
+      await prisma.sokoBotDelegation.update({
+        where: { id: inside.delegation.id },
+        data: { followUpTurnId: insideWake.id },
+      });
+      expect(
+        (
+          await mayMakeMediaForOwner(mediaRuntime, asAuthorized(insideWake), {
+            projectId: projectA,
+            capability: "generate_image",
+          })
+        )?.images,
+      ).toBe(1);
+      await prisma.sokoBotTurn.update({
+        where: { id: insideWake.id },
+        data: { status: "COMPLETED" },
+      });
+
+      // 2. Past 7-day retention window: cleanup runs while Task is STILL pending.
+      //    Schedule row MUST survive routine retention (even after settled run rows purge),
+      //    Task completion retains its 1-image allowance, in-flight wake keeps it alive,
+      //    and once the wake settles COMPLETED, cleanup removes the spent schedule.
+      const past = await createSpentOneTimeWithDelegation("Past retention");
+      const firstPurge = await purgeSokoBotSchedules(afterRetention);
+      expect(firstPurge.settledRuns).toBeGreaterThanOrEqual(1);
+      expect(
+        await prisma.sokoBotSchedule.findUnique({
+          where: { id: past.schedId },
+        }),
+      ).not.toBeNull();
+      // Settled `inside` schedule had a COMPLETED wake, so routine cleanup removes it.
+      expect(
+        await prisma.sokoBotSchedule.findUnique({
+          where: { id: inside.schedId },
+        }),
+      ).toBeNull();
+
+      // Task finishes after day 7 -> wake still gets its 1-image allowance!
+      await prisma.task.update({
+        where: { id: past.task.id },
+        data: { status: "COMPLETED" },
+      });
+      const pastWake = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "EVENT",
+          status: "RUNNING",
+          clientTurnId: `event:past:${randomUUID()}`,
+          userMessage: "Follow up past 7-day retention.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+        },
+      });
+      await prisma.sokoBotDelegation.update({
+        where: { id: past.delegation.id },
+        data: { followUpTurnId: pastWake.id },
+      });
+      expect(
+        (
+          await mayMakeMediaForOwner(mediaRuntime, asAuthorized(pastWake), {
+            projectId: projectA,
+            capability: "generate_image",
+          })
+        )?.images,
+      ).toBe(1);
+
+      // Routine cleanup while follow-up wake is RUNNING still keeps the schedule alive.
+      await purgeSokoBotSchedules(afterRetention);
+      expect(
+        await prisma.sokoBotSchedule.findUnique({
+          where: { id: past.schedId },
+        }),
+      ).not.toBeNull();
+
+      // Once follow-up wake completes, routine cleanup removes the spent schedule.
+      await prisma.sokoBotTurn.update({
+        where: { id: pastWake.id },
+        data: { status: "COMPLETED" },
+      });
+      const finalPurge = await purgeSokoBotSchedules(afterRetention);
+      expect(finalPurge.spentOneTime).toBe(1);
+      expect(
+        await prisma.sokoBotSchedule.findUnique({
+          where: { id: past.schedId },
+        }),
+      ).toBeNull();
+
+      // 3. Explicit owner deletion AND explicit root-turn cancellation still revoke immediately.
+      const deletedByOwner = await createSpentOneTimeWithDelegation(
+        "Explicitly deleted by owner",
+      );
+      await deleteSokoBotSchedule(userId, {
+        workspaceId,
+        sokoBotId: botId,
+        scheduleId: deletedByOwner.schedId,
+      });
+      const deletedWake = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "EVENT",
+          status: "RUNNING",
+          clientTurnId: `event:deleted:${randomUUID()}`,
+          userMessage: "Follow up after owner deleted schedule.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+        },
+      });
+      await prisma.sokoBotDelegation.update({
+        where: { id: deletedByOwner.delegation.id },
+        data: { followUpTurnId: deletedWake.id },
+      });
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(deletedWake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
+
+      const cancelledByOwner = await createSpentOneTimeWithDelegation(
+        "Explicitly cancelled root",
+      );
+      await prisma.sokoBotTurn.update({
+        where: { id: cancelledByOwner.rootChat.id },
+        data: { status: "CANCELLED" },
+      });
+      const cancelledWake = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "EVENT",
+          status: "RUNNING",
+          clientTurnId: `event:cancelled:${randomUUID()}`,
+          userMessage: "Follow up after owner cancelled root turn.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+        },
+      });
+      await prisma.sokoBotDelegation.update({
+        where: { id: cancelledByOwner.delegation.id },
+        data: { followUpTurnId: cancelledWake.id },
+      });
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(cancelledWake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
     });
   });
 });
