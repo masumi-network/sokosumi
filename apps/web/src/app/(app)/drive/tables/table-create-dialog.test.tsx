@@ -34,6 +34,7 @@ const URL = "/api/drive/files/res-1/content?scope=me";
 function openFromFiles(
   response: Response | Promise<Response> | (() => Promise<Response>),
   name = "Leads.csv",
+  kind?: "csv" | "xlsx",
 ) {
   const fetch =
     typeof response === "function"
@@ -51,7 +52,10 @@ function openFromFiles(
         })
       }
     >
-      <TableCreateDialog workspaceId={null} sourceFile={{ url: URL, name }} />
+      <TableCreateDialog
+        workspaceId={null}
+        sourceFile={{ url: URL, name, kind }}
+      />
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "openAsTable" }));
@@ -351,12 +355,51 @@ describe("TableCreateDialog from a Files Excel workbook", () => {
     ]);
   });
 
+  it("reads a workbook known by its type, not its name, such as a linked Google Sheet", async () => {
+    openFromFiles(
+      await xlsx({
+        Leads: [
+          ["Name", "Zip"],
+          ["Ada", "007"],
+        ],
+      }),
+      "Leads",
+      "xlsx",
+    );
+
+    expect(await screen.findByText("007")).toBeTruthy();
+    expect(screen.getByLabelText("title")).toHaveValue("Leads");
+    expect(
+      screen
+        .getAllByLabelText("columnName")
+        .map((input) => (input as HTMLInputElement).value),
+    ).toEqual(["Name", "Zip"]);
+  });
+
+  it("opens on the first sheet with rows, past a blank cover sheet", async () => {
+    openFromFiles(
+      await xlsx({ Cover: [], Leads: [["Name"], ["Ada"]] }),
+      "Plan.xlsx",
+    );
+
+    expect(await screen.findByText("Ada")).toBeTruthy();
+    expect(screen.getByLabelText("sheet")).toHaveValue("1");
+    expect(screen.queryByText("sheetEmpty")).toBeNull();
+  });
+
+  it("says a workbook with no rows at all has nothing to import", async () => {
+    openFromFiles(await xlsx({ Cover: [] }), "Blank.xlsx");
+
+    expect(await screen.findByText("workbookEmpty")).toBeTruthy();
+  });
+
   it("says an unreadable workbook could not be read and offers another workbook", async () => {
     openFromFiles(new Response("not a workbook"), "Broken.xlsx");
 
     expect(await screen.findByText("errors.sheet")).toBeTruthy();
     expect(screen.queryByLabelText("columnName")).toBeNull();
-    expect(screen.getByLabelText("importCsv")).toHaveAttribute(
+    // Recovery names the kind it takes: another workbook, not a CSV.
+    expect(screen.getByLabelText("importXlsx")).toHaveAttribute(
       "accept",
       ".xlsx",
     );

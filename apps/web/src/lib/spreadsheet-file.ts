@@ -282,12 +282,11 @@ function readSheet(
   const grid: SpreadsheetCell[][] = [];
   let truncated = false;
   let width = 0;
+  // Only rows with values count toward the cap: spacer and format-only rows
+  // neither use it up nor, past it, make a sheet look cut.
+  let filled = 0;
   for (const row of elements(doc, "row")) {
     if (!keepHidden && row.getAttribute("hidden") === "1") continue;
-    if (grid.length >= maxRows) {
-      truncated = true;
-      break;
-    }
     const cells: SpreadsheetCell[] = [];
     for (const cell of Array.from(row.children)) {
       if (localName(cell) !== "c") continue;
@@ -302,6 +301,13 @@ function readSheet(
       if (!value.text) continue;
       while (cells.length < column) cells.push(EMPTY);
       cells[column] = value;
+    }
+    if (cells.length) {
+      if (filled >= maxRows) {
+        truncated = true;
+        break;
+      }
+      filled++;
     }
     grid.push(cells);
     width = Math.max(width, cells.length);

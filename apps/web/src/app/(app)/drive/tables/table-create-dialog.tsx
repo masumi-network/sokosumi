@@ -190,8 +190,12 @@ export function TableCreateDialog({
   attachment,
 }: {
   workspaceId: string | null;
-  /** A CSV or Excel workbook already in Files or chat: the trigger reads it into the import, ready to map. */
-  sourceFile?: { url: string; name: string };
+  /**
+   * A CSV or Excel workbook already in Files or chat: the trigger reads it
+   * into the import, ready to map. `kind` comes from the file's type where the
+   * caller knows it: a linked Google Sheet is a workbook without `.xlsx`.
+   */
+  sourceFile?: { url: string; name: string; kind?: "csv" | "xlsx" };
   /** The trigger sits beside a chat attachment: quiet, and labelled on phones too. */
   attachment?: boolean;
 }) {
@@ -209,7 +213,8 @@ export function TableCreateDialog({
   const [csv, setCsv] = useState<string[][]>([]);
   const [samples, setSamples] = useState<string[][]>([]);
   const [csvName, setCsvName] = useState("");
-  const sourceKind = sourceFile && spreadsheetKind("", sourceFile.name);
+  const sourceKind =
+    sourceFile && (sourceFile.kind ?? spreadsheetKind("", sourceFile.name));
   /** A workbook's sheets, to choose which one becomes the Table. */
   const [sheets, setSheets] = useState<Spreadsheet[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
@@ -273,10 +278,13 @@ export function TableCreateDialog({
         ).catch(() => {
           throw new Error(t("errors.sheet"));
         });
+        // Opens on the first sheet with rows: a blank cover sheet is common.
+        const first = read.findIndex((sheet) => sheetRows(sheet).length > 0);
+        if (first === -1) throw new Error(t("workbookEmpty"));
         setSheets(read);
-        setSheetIndex(0);
+        setSheetIndex(first);
         setCsvName(file.name);
-        mapRows(read[0] ? sheetRows(read[0]) : []);
+        mapRows(sheetRows(read[first]));
         return;
       }
       setSheets([]);
@@ -487,7 +495,9 @@ export function TableCreateDialog({
           or to choose another file when that one could not be read. */}
           {(!sourceFile || (!!error && !csv.length && !fileRead.loading)) && (
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="table-csv">{t("importCsv")}</Label>
+              <Label htmlFor="table-csv">
+                {sourceKind === "xlsx" ? t("importXlsx") : t("importCsv")}
+              </Label>
               {/* The native control stays the one real control: it keeps the
             label, the tab stop and the value, and only its browser-supplied,
             unlocalized chrome is replaced. The visible trigger and the
@@ -508,7 +518,7 @@ export function TableCreateDialog({
                   onClick={() => csvInput.current?.click()}
                 >
                   <Upload aria-hidden className="size-4" />
-                  {t("chooseCsv")}
+                  {sourceKind === "xlsx" ? t("chooseXlsx") : t("chooseCsv")}
                 </Button>
                 <span
                   aria-hidden

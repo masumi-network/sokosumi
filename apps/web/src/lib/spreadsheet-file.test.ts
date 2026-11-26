@@ -128,6 +128,22 @@ describe("readSpreadsheet", () => {
     expect(narrow.truncated).toBe(true);
   });
 
+  it("counts only rows with values toward the cap", async () => {
+    const value = (r: number) =>
+      `<row r="${r}"><c r="A${r}"><v>${r}</v></c></row>`;
+    // Spacer and format-only rows, as a styled export leaves them.
+    const blank = (r: number) => `<row r="${r}"><c r="A${r}" s="1"/></row>`;
+    const bytes = await workbook({
+      Spaced: [value(1), blank(2), value(3), blank(4), blank(5)].join(""),
+    });
+    const [sheet] = await readSpreadsheet("xlsx", bytes, {
+      maxRows: 2,
+      maxColumns: 5,
+    });
+    expect(sheet.rows.map((row) => row[0]?.text ?? "")).toEqual(["1", "", "3"]);
+    expect(sheet.truncated).toBe(false);
+  });
+
   it("reads a CSV export, ragged rows and blank headers included", async () => {
     const csv = new TextEncoder().encode(
       ',Q1,Q2\nRevenue,"1,200",900\nNotes\n',

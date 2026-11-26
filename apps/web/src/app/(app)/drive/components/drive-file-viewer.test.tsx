@@ -40,9 +40,9 @@ vi.mock("@/app/drive/tables/table-create-dialog", () => ({
   TableCreateDialog: ({
     sourceFile,
   }: {
-    sourceFile: { url: string; name: string };
+    sourceFile: { url: string; name: string; kind?: string };
   }) => (
-    <button type="button" data-url={sourceFile.url}>
+    <button type="button" data-url={sourceFile.url} data-kind={sourceFile.kind}>
       {`openAsTable:${sourceFile.name}`}
     </button>
   ),
@@ -157,15 +157,26 @@ describe("DriveFileViewer", () => {
   });
 
   it.each([
-    ["leads.csv", "text/csv"],
-    ["leads.xlsx", null],
+    ["leads.csv", "text/csv", "csv"],
+    ["leads.xlsx", null, "xlsx"],
+    // A linked Google Sheet: Excel by type, its name without the extension.
+    [
+      "Q4 report",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "xlsx",
+    ],
   ])(
-    "offers Open as Table on %s, reading it through the authorized route",
-    (name, type) => {
+    "offers Open as Table on %s (type %s), reading it through the authorized route",
+    (name, type, kind) => {
       open(name, type);
-      expect(
-        screen.getByRole("button", { name: `openAsTable:${name}` }),
-      ).toHaveAttribute("data-url", "/api/drive/files/res-1/content?scope=me");
+      const button = screen.getByRole("button", {
+        name: `openAsTable:${name}`,
+      });
+      expect(button).toHaveAttribute(
+        "data-url",
+        "/api/drive/files/res-1/content?scope=me",
+      );
+      expect(button).toHaveAttribute("data-kind", kind);
     },
   );
 

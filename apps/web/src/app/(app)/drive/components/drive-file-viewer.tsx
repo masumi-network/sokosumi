@@ -95,7 +95,7 @@ export function DriveFileViewer({
           sheet ? (
             <TableCreateDialog
               workspaceId={store.organizationId ?? null}
-              sourceFile={{ url, name: file.displayName }}
+              sourceFile={{ url, name: file.displayName, kind: sheet }}
             />
           ) : null
         }
