@@ -212,3 +212,75 @@ it("links the first metered run to its pending Task and shows only settled provi
   expect(screen.getByText("$0.000014")).toBeVisible();
   expect(screen.queryByText("Approved maximum")).toBeNull();
 });
+
+it("shows a settled run's cost breakdown with unpriced models and the Unattributed gap", async () => {
+  read.mockResolvedValue({
+    total: 0,
+    connectionTotal: 0,
+    billingTotal: 1,
+    pageSize: 25,
+    billing: [
+      {
+        id: "done-run",
+        taskId: "done",
+        at: new Date("2026-11-19T00:00:00Z"),
+        status: "settled",
+        approvedMaxCredits: null,
+        attemptedCredits: null,
+        dataBudgetUsd: null,
+        chargedCredits: 900,
+        cost: {
+          version: 1,
+          gatewayMicroUsd: 1_500_000,
+          directModelMicroUsd: 0,
+          dataForSeoMicroUsd: 2_000_000,
+          otherApiMicroUsd: 0,
+        },
+        costDetail: {
+          version: 1,
+          models: [
+            {
+              model: "openai/gpt-5",
+              provider: "openai",
+              calls: 4,
+              microUsd: 1_500_000,
+            },
+            { model: "local", provider: null, calls: 1, microUsd: null },
+          ],
+          dataForSeo: [
+            {
+              endpoint: "/v3/serp/google/organic/task_post",
+              reads: 7,
+              microUsd: 1_250_000,
+            },
+          ],
+          steps: [
+            {
+              step: "keywords",
+              modelMicroUsd: 1_500_000,
+              dataForSeoMicroUsd: 2_000_000,
+              otherApiMicroUsd: 0,
+            },
+          ],
+        },
+      },
+    ],
+  });
+  render(
+    await AdminSeoAlertsPage({
+      searchParams: Promise.resolve({ view: "billing" }),
+    }),
+  );
+  expect(screen.getByText("Cost breakdown")).toBeInTheDocument();
+  expect(screen.getByText("Unpriced")).toBeInTheDocument();
+  expect(screen.getByText("Unknown")).toBeInTheDocument();
+  const dataForSeoRows = screen
+    .getByText("/v3/serp/google/organic/task_post")
+    .closest("tbody")!
+    .querySelectorAll("tr");
+  expect([...dataForSeoRows].map((row) => row.textContent)).toEqual([
+    "/v3/serp/google/organic/task_post7$1.25",
+    "Unattributed$0.75",
+  ]);
+  expect(screen.getAllByText("Unattributed")).toHaveLength(1);
+});
