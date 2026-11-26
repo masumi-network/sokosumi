@@ -102,6 +102,7 @@ export const evalCaseReportSchema = z
     outcome: evalOutcomeSchema,
     states: z.array(evalResultStatusSchema),
     passRate: z.number().nullable(),
+    /** Pass rate in the last daily run that gave the case a verdict: the week it is compared with. */
     baselinePassRate: z.number().nullable(),
     /** Pass rate in earlier daily runs, newest first; null where it did not run. */
     history: z.array(z.number().nullable()),

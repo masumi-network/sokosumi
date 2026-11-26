@@ -100,6 +100,15 @@ describe("sendEvalRegressionEmail", () => {
     );
   });
 
+  it("shows a dash, not 0%, when there is no earlier week to compare with", async () => {
+    report.cases = [{ ...regressed, baselinePassRate: null }];
+    expect(await sendEvalRegressionEmail("run-1")).toBe(true);
+    const sent = sendEmail.mock.calls[0]?.[0] as unknown as { text: string };
+    expect(sent.text).toContain(
+      "Regressed: Ambiguous request (ambiguous-request): 0%, was –.",
+    );
+  });
+
   it("sends nothing for a slower case alone", async () => {
     report.cases = [{ ...regressed, outcome: "passing", slower: true }];
     expect(await sendEvalRegressionEmail("run-1")).toBe(false);

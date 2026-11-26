@@ -777,7 +777,7 @@ export async function getEvalRunReport(runId: string) {
         outcome: evalOutcome(states, scored),
         states,
         passRate: passRate(states),
-        baselinePassRate: rates[0] ?? null,
+        baselinePassRate: scored[0] ?? null,
         history: rates,
         costUsd: usage.costUsd,
         usualCostUsd,

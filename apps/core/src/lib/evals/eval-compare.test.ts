@@ -96,8 +96,16 @@ describe("evalOutcome", () => {
   );
 
   it("keeps genuine behavior failures visible when another repeat has an error", () => {
-    expect(evalOutcome(["FAILED", "ERROR"], [1])).toBe("regressed");
     expect(evalOutcome(["PASSED", "FAILED", "ERROR"], [])).toBe("flaky");
+  });
+
+  it("does not count an error as a vote for a regression", () => {
+    // Codex round 9: one failure and one infrastructure error after weeks of passing.
+    expect(evalOutcome(["FAILED", "ERROR"], [1, 1, 1, 1, 1])).toBe("flaky");
+    expect(evalOutcome(["FAILED", "FAILED", "ERROR"], [1, 1])).toBe(
+      "regressed",
+    );
+    expect(evalOutcome(["FAILED"], [1])).toBe("regressed");
   });
 
   it("is not fixed when the baseline could only error: errors are no verdict", () => {

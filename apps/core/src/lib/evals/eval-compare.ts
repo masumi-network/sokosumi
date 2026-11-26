@@ -1,8 +1,9 @@
 /**
  * How one case did in a run, against the daily runs on main before it.
  *
- * - regressed: it passed every repeat of the last daily runs and most of its
- *   repeats fail now (one failed repeat of two is flaky: a judge can flip)
+ * - regressed: it passed in the last daily runs and most of its finished
+ *   repeats fail now (one failed repeat of two is flaky: a judge can flip;
+ *   an error is no failing vote)
  * - fixed: it failed every repeat of the last daily run and passes now
  * - flaky: it passes some repeats, and its history already shows failures
  * - failing: it failed before and fails now
@@ -60,7 +61,8 @@ export function caseWeightedPassRate(
 
 /**
  * `history` holds the case's pass rate in earlier daily runs, newest first;
- * the first is the baseline. A run where the case was not scored is left out.
+ * the first is the baseline. A run without a behaviour verdict (not run, or
+ * errors only) is left out, so the baseline is the last week with a verdict.
  */
 export function evalOutcome(
   states: readonly EvalResultState[],
@@ -78,8 +80,15 @@ export function evalOutcome(
   const alwaysPassed = history.length > 0 && history.every((r) => r === 1);
   if (rate === 1) return baseline === 0 ? "fixed" : "passing";
   if (baseline === undefined) return rate === 0 ? "failing" : "flaky";
-  if (rate === 0) return baseline === 0 ? "failing" : "regressed";
-  return alwaysPassed && rate < 0.5 ? "regressed" : "flaky";
+  if (rate === 0 && baseline === 0) return "failing";
+  // A regression needs failures in most finished repeats. An error is no
+  // vote for failing, so one failure beside one error stays flaky.
+  const failed = scored.filter((state) => state === "FAILED").length;
+  const finished = scored.filter(
+    (state) => state === "PASSED" || state === "FAILED" || state === "ERROR",
+  ).length;
+  if (failed * 2 <= finished) return "flaky";
+  return rate === 0 || alwaysPassed ? "regressed" : "flaky";
 }
 
 /** A case costs or takes more than this many times its usual run. */
