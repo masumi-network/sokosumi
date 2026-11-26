@@ -229,7 +229,9 @@ function investor(fund: string, partner: string, startup: string) {
     fund,
     partner,
     startup,
-    source: `https://example.com/notes/${slug}`,
+    // The owner's own notes system: a placeholder domain made the bot
+    // distrust the notes and hand the research to Mira instead.
+    source: `https://notes.padierfind.com/investors/${slug}`,
   };
 }
 
@@ -753,7 +755,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
       {
         kind: "owner",
         message:
-          'My research notes on investors are in Files ("Seed investor notes"). Find 10 seed-stage investors in Europe who backed AI agent startups in the last 12 months. Put them in a table with fund, partner, a recent deal and a source link, then tell me the top 5 for us.',
+          'My research notes on investors are in Files ("Seed investor notes"); I checked them last week. From them, find 10 seed-stage investors in Europe who backed AI agent startups in the last 12 months. Put them in a table with fund, partner, a recent deal and a source link, then tell me the top 5 for us.',
         expect: {
           anyTools: ["create_table", "write_table_rows"],
           forbiddenTools: ["send_email_draft", "send_message"],

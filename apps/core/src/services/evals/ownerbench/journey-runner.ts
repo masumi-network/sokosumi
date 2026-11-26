@@ -567,21 +567,18 @@ async function beginStep(
 
 /**
  * Each journey is a new conversation: the bot's memory starts empty and its
- * earlier eval turns no longer count as the owner's, so they leave its
- * recent turns. Without this a Cuso asked about Instagram answered about
- * the launch an earlier journey planned.
+ * earlier turns no longer count as the owner's, so they leave a personal
+ * bot's recent turns (Cuso, a shared bot, gets a fresh room instead).
  */
 async function forgetEarlierJourneys(lane: EvalLaneRecord, botId: string) {
   await sokoBotControlPlane.resetMemory(lane.userId, lane.workspaceId, {
     kind: "id",
     sokoBotId: botId,
   });
+  // Every earlier turn of the lane's bot, not only the owner's own messages:
+  // a schedule run or a Coworker wake from the last journey is history too.
   await prisma.sokoBotTurn.updateMany({
-    where: {
-      sokoBotId: botId,
-      clientTurnId: { startsWith: "lab:" },
-      requestedByUserId: lane.userId,
-    },
+    where: { sokoBotId: botId, requestedByUserId: lane.userId },
     data: { requestedByUserId: null },
   });
 }
