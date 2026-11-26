@@ -52,6 +52,7 @@ export type SharedTableName =
   | "contact_score"
   | "contact_search"
   | "contact_suggestion"
+  | "contact_x_follow"
   | "coworker"
   | "coworker_api_key"
   | "coworker_assignment"

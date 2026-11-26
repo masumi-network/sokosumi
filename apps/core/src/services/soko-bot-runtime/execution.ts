@@ -53,6 +53,7 @@ import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
 import { isSkillRead, readSkillAgain } from "./read-skill";
 import { persistedErrorDetail } from "./seller-recovery";
+import { alternateCreateTaskEventInput } from "./task-policy";
 
 export async function executeTool(
   runtime: RuntimeOperations,
@@ -60,6 +61,17 @@ export async function executeTool(
 ): Promise<unknown> {
   const authorized = await runtime.authorize(rawInput);
   let input = await pinToBotProject(rawInput, authorized.turn.sokoBotId);
+  let alternateInputHash: string | null = null;
+  if (input.capability === "create_task") {
+    const alternate = await alternateCreateTaskEventInput(
+      prisma,
+      authorized.turn,
+      input.input,
+    );
+    if (alternate !== null) {
+      alternateInputHash = actionInputHash(alternate);
+    }
+  }
   // Before any receipt lookup, so a replay is refused like a first call.
   if (isSokoBotAnnouncementCapability(input.capability))
     requireAnnouncementBot(authorized.turn.sokoBotId);
@@ -97,6 +109,18 @@ export async function executeTool(
         inputHash,
       })
     : null;
+  const alternateOperationKey =
+    action && alternateInputHash !== null && alternateInputHash !== inputHash
+      ? actionOperationKey({
+          workspaceId: authorized.turn.workspaceId,
+          principalId: actionPrincipalId(authorized.turn),
+          intentRevision: authorized.turn.intentId
+            ? `${authorized.turn.intentId}:${authorized.turn.intentRevision}`
+            : authorized.turn.id,
+          capability: input.capability,
+          inputHash: alternateInputHash,
+        })
+      : null;
   let existing = await prisma.sokoBotToolCall.findUnique({
     where: {
       turnId_toolCallId: {
@@ -128,6 +152,12 @@ export async function executeTool(
         });
         if (operation) return operation;
       }
+      if (alternateOperationKey) {
+        const alternateOperation = await tx.sokoBotToolCall.findUnique({
+          where: { operationKey: alternateOperationKey },
+        });
+        if (alternateOperation) return alternateOperation;
+      }
       const isRead = CORE_READ_CAPABILITIES.includes(input.capability);
       const callCount = await tx.sokoBotToolCall.count({
         where: {
@@ -158,10 +188,11 @@ export async function executeTool(
     }, "Soko Bot tool-call reservation collided with another call");
   }
   if (existing) {
-    if (
-      existing.inputHash !== inputHash ||
-      existing.capability !== input.capability
-    ) {
+    const matchesInputHash =
+      existing.inputHash === inputHash ||
+      (alternateInputHash !== null &&
+        existing.inputHash === alternateInputHash);
+    if (!matchesInputHash || existing.capability !== input.capability) {
       throw new SokoBotRuntimeAuthorizationError(
         "Tool call id was reused with different input",
       );

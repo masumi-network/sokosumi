@@ -5,6 +5,7 @@ import type {
   ContactList,
   ContactReplyState,
   ContactStage,
+  ContactXFollowState,
 } from "@sokosumi/core-client";
 import {
   ChevronDown,
@@ -22,6 +23,7 @@ import {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_KINDS,
   CONTACT_REPLY_STATES,
+  CONTACT_X_FOLLOWS,
   LIST_COLOR_DOT,
   REPLY_DOT,
   STAGE_DOT,
@@ -55,6 +57,7 @@ export interface ContactFilters {
   /** `me` or a member's user id. */
   knownBy: string | null;
   source: ContactChannelSource | null;
+  xFollow: ContactXFollowState | null;
 }
 
 export type ContactFilterKey = keyof ContactFilters;
@@ -159,6 +162,14 @@ export function ContactsFilterBar({
       options: CONTACT_CHANNEL_SOURCES.map((source) => ({
         value: source,
         label: t(`sources.${source}`),
+      })),
+    },
+    {
+      key: "xFollow",
+      label: t("toolbar.onX"),
+      options: CONTACT_X_FOLLOWS.map((state) => ({
+        value: state,
+        label: t(`xFollows.${state}`),
       })),
     },
   ];

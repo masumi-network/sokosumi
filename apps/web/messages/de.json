@@ -12333,7 +12333,8 @@
         "more": "Weitere Aktionen",
         "filter": "Filter",
         "kind": "Art",
-        "source": "Quelle"
+        "source": "Quelle",
+        "onX": "Auf X"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -12636,7 +12637,22 @@
         "restoreName": "{name} wiederherstellen",
         "restored": "{name} wiederhergestellt",
         "restoreFailed": "{name} konnte nicht wiederhergestellt werden. Der Kontakt bleibt archiviert.",
-        "archivedOn": "Archiviert am {date}. Archivierte Kontakte erscheinen nicht in Listen und Suchen, bis du sie wiederherstellst."
+        "archivedOn": "Archiviert am {date}. Archivierte Kontakte erscheinen nicht in Listen und Suchen, bis du sie wiederherstellst.",
+        "isYou": "Das bist du",
+        "isTeammate": "Das ist {name} aus deinem Team",
+        "thisIs": "Das ist …",
+        "thisIsMe": "Ich ({name})",
+        "thisIsNoOne": "Niemand aus dem Team",
+        "x": {
+          "mutual": "Folgen sich auf X gegenseitig",
+          "follows": "Folgt {name} auf X",
+          "followed": "{name} folgt der Person auf X"
+        },
+        "xYou": {
+          "mutual": "Ihr folgt euch auf X gegenseitig",
+          "follows": "Folgt dir auf X · du folgst nicht zurück",
+          "followed": "Du folgst auf X · folgt dir nicht zurück"
+        }
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -12821,6 +12837,11 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Nicht zurückgefolgt",
+        "YOU_FOLLOW": "Folgen dir nicht zurück",
+        "MUTUAL": "Folgen sich gegenseitig"
       },
       "linkedInImport": {
         "menu": "LinkedIn-Kontakte importieren",

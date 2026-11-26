@@ -22,6 +22,7 @@ import {
   findDuplicateContacts,
   getContactDetail,
   inContactTransaction,
+  linkMemberByChannel,
   listContactActivity,
   listContacts,
   logContactInteraction,
@@ -31,6 +32,7 @@ import {
   removeContactInteraction,
   setContactArchived,
   setContactsStage,
+  setContactUser,
   undoContactsStage,
   updateContact,
   upsertContact,
@@ -1282,5 +1284,191 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
         where: { query: { endsWith: workspaceId } },
       });
     }
+  });
+
+  it("links contacts to members, and counts X follows as knowing someone", async () => {
+    const me = await create(asAlice, {
+      name: "Alice Self",
+      channels: [{ type: "EMAIL", value: `CONTACTS-${alice}@sokosumi.test` }],
+    });
+    const fan = await create(asAlice, { name: "Fan Follower" });
+    const twin = await create(asAlice, { name: "Fan Follower Two" });
+
+    // A member's address finds their contact, once.
+    const address = `contacts-${alice}@sokosumi.test`;
+    expect(
+      await linkMemberByChannel(workspaceId, alice, "EMAIL", address),
+    ).toBe(true);
+    expect(
+      await linkMemberByChannel(workspaceId, alice, "EMAIL", address),
+    ).toBe(false);
+    const self = await getContactDetail(asAlice, me.contact.id);
+    expect(self.user).toMatchObject({ id: alice, name: "Alice" });
+
+    // By hand: Bob is the fan; a member is one contact at most.
+    await inContactTransaction((tx) =>
+      setContactUser(tx, asAlice, fan.contact.id, bob),
+    );
+    const moved = await inContactTransaction((tx) =>
+      setContactUser(tx, asAlice, twin.contact.id, bob),
+    );
+    expect(moved.user?.id).toBe(bob);
+    const released = await prisma.contact.findUniqueOrThrow({
+      where: { id: fan.contact.id },
+    });
+    expect(released.userId).toBeNull();
+    await expect(
+      inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, fan.contact.id, outsider),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    // Fan follows Alice on X; Alice and Twin follow each other.
+    await prisma.contactXFollow.createMany({
+      data: [
+        { contactId: fan.contact.id, userId: alice, followsUser: true },
+        {
+          contactId: twin.contact.id,
+          userId: alice,
+          followsUser: true,
+          followedByUser: true,
+        },
+      ],
+    });
+    const fanDetail = await getContactDetail(asAlice, fan.contact.id);
+    expect(fanDetail.knownBy).toEqual([
+      expect.objectContaining({
+        id: alice,
+        interactionCount: 0,
+        lastInteractionAt: null,
+        followsOnX: true,
+        followedOnX: false,
+      }),
+    ]);
+    const names = async (
+      filter: NonNullable<Parameters<typeof listContacts>[1]["filter"]>,
+    ) =>
+      (await listContacts(asAlice, { filter, sort: "name", limit: 50 })).items
+        .map((contact) => contact.name)
+        .filter((name) => name.startsWith("Fan"))
+        .sort();
+    expect(await names({ knownByMe: true })).toEqual([
+      "Fan Follower",
+      "Fan Follower Two",
+    ]);
+    expect(await names({ xFollow: "FOLLOWS_YOU" })).toEqual(["Fan Follower"]);
+    expect(await names({ xFollow: "MUTUAL" })).toEqual(["Fan Follower Two"]);
+    expect(await names({ xFollow: "YOU_FOLLOW" })).toEqual([]);
+
+    // Merging keeps the member and both sides of every follow.
+    await inContactTransaction((tx) =>
+      mergeContacts(tx, asAlice, fan.contact.id, [twin.contact.id]),
+    );
+    const merged = await prisma.contact.findUniqueOrThrow({
+      where: { id: fan.contact.id },
+      include: { xFollows: true },
+    });
+    expect(merged.userId).toBe(bob);
+    expect(merged.xFollows).toEqual([
+      expect.objectContaining({
+        userId: alice,
+        followsUser: true,
+        followedByUser: true,
+      }),
+    ]);
+  });
+
+  it("lets a member go when a merge winner is an organization or archived", async () => {
+    for (const winnerInput of [
+      { name: "Merge Org Winner", kind: "ORGANIZATION" as const },
+      { name: "Merge Archived Winner" },
+    ]) {
+      const linked = await create(asAlice, { name: "Merge Linked Bob" });
+      await inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, linked.contact.id, bob),
+      );
+      const winner = await create(asAlice, winnerInput);
+      if (!winnerInput.kind)
+        await inContactTransaction((tx) =>
+          setContactArchived(tx, asAlice, winner.contact.id, true),
+        );
+      await inContactTransaction((tx) =>
+        mergeContacts(tx, asAlice, winner.contact.id, [linked.contact.id]),
+      );
+      const rows = await prisma.contact.findMany({
+        where: { id: { in: [winner.contact.id, linked.contact.id] } },
+        select: { userId: true },
+      });
+      expect(rows.map((row) => row.userId)).toEqual([null, null]);
+      expect(
+        await prisma.contact.count({ where: { workspaceId, userId: bob } }),
+      ).toBe(0);
+    }
+  });
+
+  it("links a member only to a live person, and archiving lets the member go", async () => {
+    const address = `member-${bob}@sokosumi.test`;
+    const old = await create(asAlice, {
+      name: "Bob Old",
+      channels: [{ type: "EMAIL", value: address }],
+    });
+    const team = await create(asAlice, {
+      name: "Bob Team Inbox",
+      kind: "ORGANIZATION",
+      channels: [{ type: "X", value: `bobteam${bob.slice(0, 6)}` }],
+    });
+    await inContactTransaction((tx) =>
+      setContactUser(tx, asAlice, old.contact.id, bob),
+    );
+
+    // Neither an organization nor an archived contact can be a member.
+    await expect(
+      inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, team.contact.id, bob),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    // Archiving the linked contact lets Bob go, so a live one links again.
+    await inContactTransaction((tx) =>
+      setContactArchived(tx, asAlice, old.contact.id, true),
+    );
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: old.contact.id },
+        })
+      ).userId,
+    ).toBeNull();
+    await expect(
+      inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, old.contact.id, bob),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+    // Bob is free again, yet his X handle names only an organization.
+    expect(
+      await linkMemberByChannel(
+        workspaceId,
+        bob,
+        "X",
+        `bobteam${bob.slice(0, 6)}`,
+      ),
+    ).toBe(false);
+    await prisma.contactChannel.deleteMany({
+      where: { contactId: old.contact.id },
+    });
+    const fresh = await create(asAlice, {
+      name: "Bob New",
+      channels: [{ type: "EMAIL", value: address }],
+    });
+    expect(await linkMemberByChannel(workspaceId, bob, "EMAIL", address)).toBe(
+      true,
+    );
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: fresh.contact.id },
+        })
+      ).userId,
+    ).toBe(bob);
   });
 });

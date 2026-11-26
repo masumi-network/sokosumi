@@ -66,6 +66,7 @@ const ADA: Contact = {
   updatedAt: new Date(),
   lists: [],
   knownBy: [],
+  user: null,
   channels: [
     {
       id: "email-1",

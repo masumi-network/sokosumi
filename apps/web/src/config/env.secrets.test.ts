@@ -17,7 +17,7 @@ const WEB_PKG = JSON.parse(
   devDependencies: Record<string, string>;
 };
 
-const PUPPETEER_VERSION = "25.18.1";
+const PUPPETEER_VERSION = "25.19.0";
 const CHROMIUM_MIN_VERSION = "158.0.0";
 const CHROMIUM_PACK_URL =
   "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar";
