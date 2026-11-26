@@ -248,6 +248,7 @@ export type SeoVitalTrend =
 /**
  * Why a history shows no weekly chart at all. no_series: a comparable history without weeks of LCP, INP or CLS. An
  * earlier worker saved none; the current one can give weeks of FCP or TTFB only, which Core does not keep.
+ * seoVitalTrend also gives no_series for one metric that Core left out of a history with weeks.
  */
 export type SeoHistoryGap =
   | Exclude<SeoSpeedHistory["status"], "comparable">
