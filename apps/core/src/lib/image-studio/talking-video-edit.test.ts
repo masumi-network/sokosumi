@@ -8,6 +8,7 @@ import {
   talkingVideoEditArgs,
   talkingVideoSubtitles,
 } from "./talking-video-edit";
+import { VIDEO_LAYOUTS } from "./video-layout";
 
 /** "We roast it here. [0.5 s pause] Taste it today, friends." */
 const WORDS = [
@@ -535,5 +536,96 @@ describe("a short's ffmpeg arguments", () => {
     expect(graph).toContain("volume=0.9");
     // No page: the tour's shots fall back to the picture, panned.
     expect(graph).toContain("scale=1188:2112,crop=1080:1920:(iw-ow)/2:");
+  });
+});
+
+describe("other shapes", () => {
+  const files = {
+    clip: "clip.mp4",
+    subtitles: "captions.ass",
+    fontsDir: "/tmp/fonts",
+    output: "edited.mp4",
+  };
+  const graphOf = (args: string[]) =>
+    args[args.indexOf("-filter_complex") + 1]!;
+
+  it("crops a 4:5 camera shot below the top, where the head is", () => {
+    const graph = graphOf(
+      talkingVideoEditArgs(
+        planTalkingVideoEdit(WORDS, 3.5)!,
+        files,
+        VIDEO_LAYOUTS["4:5"],
+      ),
+    );
+    expect(graph).toContain(
+      "[0:v]scale=1080:1920,crop=1080:1350:(iw-ow)/2:120,scale=1080:1350",
+    );
+    expect(graph).toContain("crop=900:1126:(iw-ow)/2:120");
+  });
+
+  it("shows a widescreen presenter whole between blurred copies of the clip", () => {
+    const graph = graphOf(
+      talkingVideoEditArgs(
+        planTalkingVideoEdit(WORDS, 3.5)!,
+        files,
+        VIDEO_LAYOUTS["16:9"],
+      ),
+    );
+    expect(graph).toContain(
+      "[ca0]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,boxblur=24",
+    );
+    expect(graph).toContain("[cf0]scale=-2:1080[cp0]");
+    expect(graph).toContain("[cb0][cp0]overlay=(W-w)/2:0");
+  });
+
+  it("stands a widescreen presenter beside the page", () => {
+    const plan = planTalkingVideoEdit(WORDS, 3.5, { siteShots: true })!;
+    const graph = graphOf(
+      talkingVideoEditArgs(
+        plan,
+        { ...files, alpha: "alpha.mp4", page: "page.jpg" },
+        VIDEO_LAYOUTS["16:9"],
+      ),
+    );
+    expect(graph).toContain("[pf1]scale=1240:-2,crop=1240:1080:0:");
+    expect(graph).toContain("[pb1][pt1]overlay=80:0[b1]");
+    expect(graph).toContain("[b1][c1]overlay=W-w-100:H-h:shortest=1");
+  });
+
+  it("sizes cards, pictures and subtitles to the frame", () => {
+    const plan = planShortVideo(WORDS, 3.5, {
+      format: "voiceover",
+      pictures: 1,
+      page: false,
+      endCard: true,
+    })!;
+    const args = talkingVideoEditArgs(
+      plan,
+      {
+        ...files,
+        clip: undefined,
+        voice: "voice.mp3",
+        pictures: ["a.jpg"],
+        endCard: { logo: "logo.png", dark: true },
+      },
+      VIDEO_LAYOUTS["1:1"],
+    );
+    expect(args).toContain("color=c=0x101010:s=1080x1080:r=30");
+    expect(graphOf(args)).toContain("scale=1188:1188,crop=1080:1080:");
+    expect(graphOf(args)).toContain("overlay=(W-w)/2:450-h/2");
+
+    const subtitles = talkingVideoSubtitles(
+      plan,
+      "Hook",
+      { text: "x.com", dark: true },
+      VIDEO_LAYOUTS["1:1"],
+    );
+    expect(subtitles).toContain("PlayResY: 1080");
+    const caption = subtitles
+      .split("\n")
+      .find((line) => line.startsWith("Style: Caption,"))!;
+    // 80 high, 30 above the safe area's bottom, inside its sides.
+    expect(caption.split(",")[2]).toBe("80");
+    expect(caption.endsWith(",2,100,100,120,1")).toBe(true);
   });
 });

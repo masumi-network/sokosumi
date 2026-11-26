@@ -19,8 +19,13 @@ import {
   EvalHistoryStrip,
   EvalOutcomeBadge,
   EvalRepeatMarks,
+  formatCost,
   formatPassRate,
 } from "./eval-marks";
+
+function formatMinutes(ms: number | null): string {
+  return ms === null ? "–" : (ms / 60_000).toFixed(1);
+}
 
 export const OUTCOME_ORDER: EvalOutcome[] = [
   "regressed",
@@ -81,6 +86,22 @@ function CaseRow({
           <span className="text-muted-foreground block truncate text-xs">
             {reason ?? evalCase.intent}
           </span>
+          {evalCase.costlier ? (
+            <span className="block truncate text-xs">
+              {t("costlier", {
+                cost: formatCost(evalCase.costUsd),
+                usual: formatCost(evalCase.usualCostUsd),
+              })}
+            </span>
+          ) : null}
+          {evalCase.slower ? (
+            <span className="block truncate text-xs">
+              {t("slower", {
+                minutes: formatMinutes(evalCase.durationMs),
+                usual: formatMinutes(evalCase.usualDurationMs),
+              })}
+            </span>
+          ) : null}
         </span>
         {/* One row on a phone; the grid's last three columns on wider screens. */}
         <span className="flex items-center gap-4 md:contents">

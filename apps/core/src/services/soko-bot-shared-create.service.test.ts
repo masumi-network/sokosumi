@@ -27,6 +27,7 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   ensureSystemSchedules: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { CUSO_FACE_URL } from "@/lib/cuso-face";
 import { createSharedSokoBot } from "./soko-bot-shared-create.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
@@ -162,6 +163,25 @@ describe("createSharedSokoBot", () => {
     });
 
     expect(calls).toContain("sokoBot.create");
+  });
+
+  it("gives a new Cuso his fixed face instead of a random look", async () => {
+    const tx = recordingTx(["caller"]);
+    const create = vi.spyOn(tx.sokoBot, "create");
+    transactionMock.mockImplementation(async (run) => await run(tx));
+
+    await createSharedSokoBot({
+      callerUserId: "caller",
+      workspaceId: "workspace_1",
+      projectId: "project_1",
+      name: "Cuso",
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+    });
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ avatarImageUrl: CUSO_FACE_URL }),
+    });
+    expect(assignCodeMock).not.toHaveBeenCalled();
   });
 
   it("lets a Project hold several bots of any other pinned version", async () => {

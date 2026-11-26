@@ -1624,6 +1624,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
     limit: z.number().int().min(1).max(8).optional(),
   }),
   write_month_pieces: z.object({}),
+  write_strategy: z.object({
+    change: z.string().trim().min(3).max(2_000).optional(),
+  }),
   read_calendar: cmoReadCalendarInputSchema,
   read_strategy: z.object({
     part: z.enum(CMO_STRATEGY_READ_PARTS as [string, ...string[]]),
@@ -1968,6 +1971,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     'Find old prints in the reference library (ads, posters, magazine covers, fruit crate labels, trade cards, playbills, record and book covers, illustrations, infographics from about 1700 to the 2000s) whose look would carry a piece. Describe in about what the piece shows and the look you want ("a launch announcement, bold Art Deco travel poster", "three steps of a process, Isotype pictograms"); kinds narrows the kind of print, purpose what it suits (event, offer, product, quote, how-to; data or comparison for a picture that shows numbers, the only purposes that take an infographic). Each result has its id, kind, era, technique, layout, lettering and palette. To make a picture in that style, put the id in the piece\'s styleReferenceId and the few words it carries in headline (left out, the picture has no words): Core makes it in that style with the brand\'s logo, colours and DESIGN.md, checks it and remakes a weak one. Pick a style that suits the piece and the brand, and vary styles across the month.',
   write_month_pieces:
     "Production runs only. Core writes the next pieces of the approved month at once (up to forty a call): each Social post's words, and the visual or script of each piece with a picture or video, from your Brand Brain, your strategy and the writing skills. It checks each piece like your own save and saves it, and Core then makes the pictures and schedules the posts. The answer counts what it wrote, lists the pieces it could not save with the reason (fix those yourself with update_social_post or save_strategy part pieces), and says how many are left: call it again until left is 0. Ads, articles and newsletter issues stay yours to write.",
+  write_strategy:
+    "Core writes the strategy for you in one step: from your strategy skill, the Brand Brain, the industry research and the turn's brief, it writes every part of the plan and its example posts, checks the whole plan against every rule at once, fixes what the checks find, and saves it. Without change it writes a new strategy (a strategy turn); with change (the owner's request in their own words, plus what the chat says it needs) it changes only what the request touches. Its answer ends the turn with the sentence for the owner. When it says Core is still writing, call it again with the same input to wait.",
   read_calendar:
     "Read pieces of the month's calendar in full: words, brief, claim, visual, status and the Social post id. Give from and to (YYYY-MM-DD, at most 31 days apart; a week is plenty) and narrow with network (x, linkedin, instagram, …), pillar or status, or pass ids for named pieces. Without from it starts today. Long answers stop at a size cap and say how many more match: read a narrower range then. The month a turn carries out is the approved strategy; other turns read the newest one.",
   read_strategy:

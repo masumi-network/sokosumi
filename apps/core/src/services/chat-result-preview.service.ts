@@ -24,6 +24,7 @@ import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
+import { sokoBotFace } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { requireProjectAccess } from "@/lib/image-studio/access";
@@ -87,6 +88,7 @@ function previewAssignee(source: {
     name: string | null;
     avatarImageUrl: string | null;
     avatarSeed: string | null;
+    versionId: string | null;
   } | null;
 }) {
   if (source.assignee)
@@ -106,7 +108,7 @@ function previewAssignee(source: {
     ? {
         id: bot.id,
         name: (bot.name ?? "Soko Bot").slice(0, 500),
-        image: bot.avatarImageUrl,
+        image: sokoBotFace(bot).avatarImageUrl,
         avatarSeed: bot.avatarSeed,
         kind: "sokoBot" as const,
       }
@@ -603,6 +605,7 @@ export async function resolveChatResultReference(
               name: true,
               avatarImageUrl: true,
               avatarSeed: true,
+              versionId: true,
             },
           },
           project: {
@@ -694,6 +697,7 @@ export async function resolveChatResultReference(
               name: true,
               avatarImageUrl: true,
               avatarSeed: true,
+              versionId: true,
             },
           },
         },
@@ -744,6 +748,7 @@ export async function resolveChatResultReference(
               name: true,
               avatarImageUrl: true,
               avatarSeed: true,
+              versionId: true,
             },
           },
         },

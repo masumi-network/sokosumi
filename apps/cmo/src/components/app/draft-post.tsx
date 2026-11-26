@@ -299,7 +299,7 @@ export function DraftPost({
         <div className="cf draft-done" role="status">
           <img
             className="draft-done-cuso"
-            src={cusoArt("done")}
+            src={cusoArt("correct")}
             alt=""
             width={48}
             height={48}

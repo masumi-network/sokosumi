@@ -49,9 +49,12 @@ export default function mount(app: Hono) {
           },
         });
         context.log.set({ result });
+        context.reportWork(result.claimed);
         await purgeSchedules(context);
       },
-      { errorDetail: "safe-fields" },
+      // About 85 built-in rhythm runs an hour across the fleet: an hour of
+      // minute runs that claim none means claiming broke.
+      { errorDetail: "safe-fields", idleRunsAlert: 60 },
     );
   });
 }

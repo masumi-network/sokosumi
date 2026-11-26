@@ -5,6 +5,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -20,6 +21,32 @@ const MIN_SCHEDULE_INTERVAL_MS = 60_000;
 export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
 /** Consecutive failed runs after which a schedule switches itself off. */
 export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
+
+/** Turn failures of the platform (runtime, deploy, limit), not the schedule's. */
+const PLATFORM_TURN_FAILURES: ReadonlySet<string> = new Set([
+  AI_BUDGET_EXCEEDED,
+  "busy",
+  "runtime_start_ambiguous",
+  "runtime_start_failed",
+  "runtime_stream_interrupted",
+  "start_aborted",
+  "turn_deadline_exceeded",
+]);
+
+/**
+ * Whether a failed turn says nothing about its schedule: the platform failed
+ * it (a provider or gateway error is stored by its class name, `AI_…` or
+ * `Gateway…`). Such failures do not count toward switching a schedule off,
+ * so an outage cannot turn off every bot's rhythms.
+ */
+export function isPlatformTurnFailure(errorKind: string | null): boolean {
+  if (!errorKind) return false;
+  return (
+    PLATFORM_TURN_FAILURES.has(errorKind) ||
+    errorKind.startsWith("AI_") ||
+    errorKind.startsWith("Gateway")
+  );
+}
 
 export class SokoBotScheduleNotFoundError extends Error {}
 export class SokoBotScheduleValidationError extends Error {}

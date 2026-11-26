@@ -180,6 +180,7 @@ import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
   deleteSokoBotSchedule,
+  isPlatformTurnFailure,
   SokoBotScheduleNotFoundError,
   SokoBotScheduleValidationError,
   type UpdateSokoBotScheduleInput,
@@ -1924,7 +1925,11 @@ export class SokoBotControlPlane {
               : {}),
           },
         });
-        if (scheduleRunUpdate.count === 1) {
+        // A turn the platform failed says nothing about its schedule.
+        if (
+          scheduleRunUpdate.count === 1 &&
+          (completed || !isPlatformTurnFailure(errorKind ?? null))
+        ) {
           await tx.sokoBotSchedule.update({
             where: { id: scheduleRun.scheduleId },
             data: completed

@@ -75,8 +75,11 @@ import {
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
+  CMO_STRATEGY_BRIEF_MARK,
   cmoAlsoOnProblem,
   cmoChangeKind,
+  cmoStrategyStepTurn,
+  cmoStrategyStepTurnId,
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
@@ -677,6 +680,8 @@ export const CMO_CHANNEL_FIT_FINISH_TURNS = 6;
 function finishRound(clientTurnId: string | null): number {
   if (!clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)) return -1;
   if (cmoChangeKind(clientTurnId) !== null) return -1;
+  // cmo-v25: Core's step checked the whole plan and repaired it already.
+  if (cmoStrategyStepTurn(clientTurnId)) return -1;
   const parts = clientTurnId.split(":");
   return parts[3] === FINISH_KIND ? Number(parts[5] ?? 1) : 0;
 }
@@ -1111,19 +1116,26 @@ async function startStrategyTurn(
     if (input.kind === "patch" && !planned) {
       throw new CmoConflictError("Cuso has not written the strategy yet");
     }
+    const message = changeMessage(
+      cuso,
+      brain,
+      input,
+      planned,
+      rules.claims === true,
+      newestPlan !== null && cmoShowsExamples(newestPlan),
+    );
+    if (input.kind === "patch" && rules.strategyStep)
+      return startCmoTurn(cuso, input.userId, {
+        clientTurnId: cmoStrategyStepTurnId(cuso.sokoBotId, "patch"),
+        message: stepMessage(cuso, message, input.note),
+        route: CMO_STRATEGY_ROUTE,
+      });
     return startCmoTurn(cuso, input.userId, {
       clientTurnId:
         input.kind === "fix"
           ? `${id}fix:${Date.now()}:${input.sent}`
           : `${id}patch:${Date.now()}`,
-      message: changeMessage(
-        cuso,
-        brain,
-        input,
-        planned,
-        rules.claims === true,
-        newestPlan !== null && cmoShowsExamples(newestPlan),
-      ),
+      message,
       route: CMO_STRATEGY_ROUTE,
     });
   }
@@ -1142,63 +1154,90 @@ async function startStrategyTurn(
     ? null
     : (input.siteLanguage ?? (await detectSiteLanguage(cuso.websiteUrl)));
   const span = planWindow();
+  const message = brandCorrections(brain, rules.claims === true)
+    .concat(
+      input.note
+        ? [
+            `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
+            "",
+            "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
+            rules.partPatch
+              ? PART_CHANGE_SAVE
+              : "Save with save_strategy: part plan for changes to the strategy (send the whole strategy with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
+          ]
+        : [
+            `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,
+            ...seasonLines(span),
+            `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The strategy sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole strategy.`,
+            "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
+            ...(siteLanguage
+              ? [
+                  `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, unless the owner asked for another. Every piece is in it, from its calendar title, brief and story to its words (hooks, drafts, the offer's action), and so are the pillar names. What explains the strategy to the owner (the idea, summary, goals, each why, the funnel, the questions) stays in the owner's language.`,
+                ]
+              : []),
+            ...ownerAnswers(brain),
+            "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
+            "",
+            "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
+            // A restaurant's LinkedIn once got two diner posts a day: who
+            // is on each network decides its role before its cadence.
+            ...(savesWeekly || examplesOnly
+              ? [
+                  "",
+                  "Who is on each network, to set each channel's role (main or side) and the buyer a side channel serves:",
+                  networkAudiences(),
+                  "",
+                ]
+              : []),
+            (examplesOnly
+              ? PLAN_SAVE_EXAMPLES
+              : savesWeekly
+                ? PLAN_SAVE_WEEKLY
+                : PLAN_SAVE_TWO_CALLS
+            ).replaceAll(
+              "campaignId, and story for each LinkedIn piece",
+              rules.claims
+                ? "campaignId, claim, and story for each social-proof piece"
+                : "campaignId, and story for each LinkedIn piece",
+            ),
+          ],
+    )
+    .concat([
+      "Do not create Social posts or images yet; that starts after the owner approves.",
+      "Then tell the owner in one or two sentences what the strategy does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
+    ])
+    .join("\n");
+  if (rules.strategyStep)
+    return startCmoTurn(cuso, input.userId, {
+      clientTurnId: cmoStrategyStepTurnId(
+        cuso.sokoBotId,
+        input.note ? "patch" : "plan",
+      ),
+      message: stepMessage(cuso, message, input.note ?? null),
+      route: CMO_STRATEGY_ROUTE,
+    });
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${id}${Date.now()}`,
-    message: brandCorrections(brain, rules.claims === true)
-      .concat(
-        input.note
-          ? [
-              `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
-              "",
-              "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
-              rules.partPatch
-                ? PART_CHANGE_SAVE
-                : "Save with save_strategy: part plan for changes to the strategy (send the whole strategy with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
-            ]
-          : [
-              `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,
-              ...seasonLines(span),
-              `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The strategy sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole strategy.`,
-              "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
-              ...(siteLanguage
-                ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, unless the owner asked for another. Every piece is in it, from its calendar title, brief and story to its words (hooks, drafts, the offer's action), and so are the pillar names. What explains the strategy to the owner (the idea, summary, goals, each why, the funnel, the questions) stays in the owner's language.`,
-                  ]
-                : []),
-              ...ownerAnswers(brain),
-              "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
-              "",
-              "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-              // A restaurant's LinkedIn once got two diner posts a day: who
-              // is on each network decides its role before its cadence.
-              ...(savesWeekly || examplesOnly
-                ? [
-                    "",
-                    "Who is on each network, to set each channel's role (main or side) and the buyer a side channel serves:",
-                    networkAudiences(),
-                    "",
-                  ]
-                : []),
-              (examplesOnly
-                ? PLAN_SAVE_EXAMPLES
-                : savesWeekly
-                  ? PLAN_SAVE_WEEKLY
-                  : PLAN_SAVE_TWO_CALLS
-              ).replaceAll(
-                "campaignId, and story for each LinkedIn piece",
-                rules.claims
-                  ? "campaignId, claim, and story for each social-proof piece"
-                  : "campaignId, and story for each LinkedIn piece",
-              ),
-            ],
-      )
-      .concat([
-        "Do not create Social posts or images yet; that starts after the owner approves.",
-        "Then tell the owner in one or two sentences what the strategy does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
-      ])
-      .join("\n"),
+    message,
     route: CMO_STRATEGY_ROUTE,
   });
+}
+
+/**
+ * cmo-v25: Core writes the strategy in one step (`write_strategy`), from the
+ * brief this message carries; the brief is also Cuso's to follow himself
+ * when the step fails.
+ */
+function stepMessage(cuso: Cuso, brief: string, change: string | null): string {
+  return [
+    change
+      ? `Call write_strategy now with change set to what the owner asked for ${cuso.businessName}'s marketing strategy, in their words: ${change}`
+      : `Call write_strategy now, with no input: Core writes ${cuso.businessName}'s marketing strategy from your strategy skill and the brief below, checks the whole plan against every rule, fixes what the checks find and saves it.`,
+    "Its answer ends the turn. When it says Core is still writing, call it again with the same input. Only when it says Core could not write the strategy, follow the brief below yourself with save_strategy.",
+    "",
+    CMO_STRATEGY_BRIEF_MARK,
+    brief,
+  ].join("\n");
 }
 
 /**

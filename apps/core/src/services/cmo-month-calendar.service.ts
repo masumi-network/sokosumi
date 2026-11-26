@@ -88,6 +88,12 @@ export const CMO_MONTH_CALENDAR_STALE_MS = 15 * 60_000;
 export const CMO_MONTH_CALENDAR_ATTEMPTS = 3;
 /** How long Core waits after its tries ran out, before the next. */
 export const CMO_MONTH_CALENDAR_RETRY_MS = 3 * 60 * 60_000;
+/**
+ * Writes after which Core stops: the quick tries, then a day of tries every
+ * three hours. Every write is a round of strong-model calls, so a month that
+ * cannot be written must not cost them forever; the error says it stopped.
+ */
+export const CMO_MONTH_CALENDAR_MAX_ATTEMPTS = CMO_MONTH_CALENDAR_ATTEMPTS + 8;
 
 const DAY_MS = 86_400_000;
 
@@ -581,6 +587,21 @@ export async function writeCmoMonthCalendar(context: WriteContext): Promise<{
   };
 }
 
+/** What Core does after a short or failed write, for the alert to say. */
+function monthRetryNote(attempts: number): string {
+  if (attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS)
+    return `Core stopped after ${attempts} writes; a new strategy version or plan level starts it again, or reset monthWriter.attempts on this version to retry`;
+  return attempts >= CMO_MONTH_CALENDAR_ATTEMPTS
+    ? "Core tries again in three hours"
+    : "The next CMO production sync tries again";
+}
+
+function monthStuckAlert(attempts: number): string {
+  return attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS
+    ? "cmo_month_calendar_gave_up"
+    : "cmo_month_calendar_stuck";
+}
+
 type WriterState = CmoMonthWriter;
 
 /** Whether the month is written for this plan level. */
@@ -606,6 +627,7 @@ export function cmoMonthCalendarDue(
   const running = started !== null && (ended === null || ended < started);
   if (running) return now.getTime() - started >= CMO_MONTH_CALENDAR_STALE_MS;
   const attempts = writer.level === level ? writer.attempts : 0;
+  if (attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS) return false;
   if (attempts < CMO_MONTH_CALENDAR_ATTEMPTS || ended === null) return true;
   return now.getTime() - ended >= CMO_MONTH_CALENDAR_RETRY_MS;
 }
@@ -819,10 +841,13 @@ export async function runCmoMonthCalendar(
         { operation: "cmo_month_calendar", sokoBot: { id: cuso.sokoBotId } },
         {
           message: "Core could not write a whole CMO month",
-          why: `${writer.attempts} writes ended with ${result.missing} posts missing; Core tries again in three hours`,
+          why: `${writer.attempts} writes ended with ${result.missing} posts missing; ${monthRetryNote(writer.attempts)}`,
           fix: "Look up this event's earlier cmo_month_calendar warnings for the chunk errors; the owner sees that Cuso is planning the month.",
         },
-        { alert: "cmo_month_calendar_stuck", missing: result.missing },
+        {
+          alert: monthStuckAlert(writer.attempts),
+          missing: result.missing,
+        },
       );
     if (whole && options.kickProduction !== false) {
       const { kickCmoProduction } = await import(
@@ -850,10 +875,10 @@ export async function runCmoMonthCalendar(
     const said = {
       message: "Core's write of a CMO month failed",
       why: `Attempt ${writer.attempts} threw`,
-      fix: "The next CMO production sync tries again, every 10 minutes until three tries, then every three hours. Look up the error name and code under failure.",
+      fix: `${monthRetryNote(writer.attempts)}. Look up the error name and code under failure.`,
     };
     if (writer.attempts >= CMO_MONTH_CALENDAR_ATTEMPTS)
-      emitCoreError(context, said, { alert: "cmo_month_calendar_stuck" });
+      emitCoreError(context, said, { alert: monthStuckAlert(writer.attempts) });
     else emitCoreWarning(context, said);
     return false;
   }

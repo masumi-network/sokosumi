@@ -7,6 +7,7 @@ import {
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
+import { sokoBotFace } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import {
   ACTIVE_TURN_STATUSES,
@@ -72,6 +73,7 @@ export async function getSokoBotActivity(
       avatarSeed: true,
       avatarImageUrl: true,
       avatarCode: true,
+      versionId: true,
       turns: {
         where: {
           ...FOREGROUND_TURN,
@@ -92,8 +94,7 @@ export async function getSokoBotActivity(
     id: bot.id,
     userId: bot.userId,
     avatarSeed: bot.avatarSeed,
-    avatarImageUrl: bot.avatarImageUrl,
-    avatarCode: bot.avatarCode,
+    ...sokoBotFace(bot),
   };
 }
 
@@ -125,6 +126,7 @@ export async function getSokoBotState(
   const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
   return {
     ...bot,
+    ...sokoBotFace(bot),
     memoryHash: memoryRevisions[0]?.hash ?? bot.memoryHash,
     memoryRevisions,
     viewerCanManage: await canManageSokoBot(viewerUserId, bot),
@@ -173,6 +175,7 @@ export async function listSharedSokoBots(
   return bots.map(
     ({ userId: _userId, workspaceId: _workspaceId, versionId, ...bot }) => ({
       ...bot,
+      ...sokoBotFace({ ...bot, versionId }),
       // Cuso as `CUSO_BOT_WHERE` finds him: a Project bot on CMO's version.
       cuso:
         bot.projectId !== null &&

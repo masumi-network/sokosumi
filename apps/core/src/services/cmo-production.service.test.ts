@@ -138,6 +138,27 @@ vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/brand-brain.service")>()),
   getBrandBrain,
 }));
+// The sync's steps before its Cusos; each has its own tests.
+vi.mock("@/services/cmo-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-strategy.service")>()),
+  resumeCmoMonthFinishes: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-brand-media.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-brand-media.service")
+  >()),
+  scheduleMissingCmoBrandIndex: vi.fn(async () => false),
+}));
+vi.mock("@/services/cmo-site-pages.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-site-pages.service")
+  >()),
+  scheduleCmoSitePages: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-industry.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-industry.service")>()),
+  scheduleCmoIndustry: vi.fn(async () => undefined),
+}));
 
 import {
   advanceCmoProduction,

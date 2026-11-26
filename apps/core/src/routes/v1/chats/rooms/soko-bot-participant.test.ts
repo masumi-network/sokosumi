@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CUSO_FACE_URL } from "@/lib/cuso-face";
 import { chatRoomSokoBotParticipantSchema } from "@/schemas/chat-room-participant.schema";
 
 import {
@@ -17,6 +18,7 @@ function row(overrides: Partial<ChatRoomSokoBotRow> = {}): ChatRoomSokoBotRow {
     avatarImageUrl: null,
     avatarSeed: null,
     avatarCode: null,
+    versionId: null,
     userId: "user_ana",
     projectId: null,
     sharedRoomId: null,
@@ -83,5 +85,20 @@ describe("mapChatRoomSokoBotParticipant", () => {
       avatarSeed: "orb:jewel-sky:x",
       image: "https://example.com/bot.png",
     });
+  });
+
+  it("shows every Cuso with his fixed face, not the look he got at hire", () => {
+    expect(
+      mapChatRoomSokoBotParticipant(
+        row({
+          userId: null,
+          user: null,
+          projectId: "project_1",
+          versionId: "cmo-v23",
+          avatarCode: "v1.owl.sky",
+          avatarImageUrl: "https://blob.example/owl.webp",
+        }),
+      ),
+    ).toMatchObject({ image: CUSO_FACE_URL, avatarCode: null });
   });
 });

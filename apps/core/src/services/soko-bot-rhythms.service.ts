@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/soko-bot";
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { failOpen } from "@/lib/fail-open";
 import {
   foreignTasksBlock,
   memoryTasks,
@@ -55,6 +56,31 @@ export const RHYTHM_KEYS = new Set([
   "dreaming",
 ]);
 
+/**
+ * A rhythm's input (an account's calendar or mail, a block of the packet)
+ * that failed to load; the rhythm runs without it, which would otherwise read
+ * as an empty day.
+ */
+export function rhythmInputFailed<T>(
+  fallback: T,
+  botId: string,
+  input: string,
+): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    {
+      operation: "soko_bot_rhythm",
+      sokoBot: { id: botId },
+      rhythmInput: input,
+    },
+    {
+      message: "A Soko Bot rhythm ran without one of its inputs",
+      why: "Loading the input threw, so the rhythm saw it as empty",
+      fix: "Read rhythmInput and the failure fields; an integration that keeps failing needs reconnecting.",
+    },
+  );
+}
+
 async function calendar(
   bot: RhythmBot,
   from: Date,
@@ -67,7 +93,7 @@ async function calendar(
   for (const integration of integrations)
     events.push(
       ...(await fetchCalendarEvents(integration, { from, to, limit }).catch(
-        () => [],
+        rhythmInputFailed([], bot.id, "calendar"),
       )),
     );
   return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -94,7 +120,7 @@ async function mail(
       query: integration.provider.id === "gmail" ? options.query : undefined,
       since: options.since,
       limit: options.limit,
-    }).catch(() => []);
+    }).catch(rhythmInputFailed([], bot.id, "mail"));
     messages.push(
       ...(options.replies && options.since
         ? await withOwnerReplies(integration, fetched, options.since)

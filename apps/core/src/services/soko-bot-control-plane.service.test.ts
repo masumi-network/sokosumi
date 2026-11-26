@@ -5635,11 +5635,8 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({ status: "FAILED" }),
       }),
     );
-    expect(scheduleUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { consecutiveFailures: { increment: 1 } },
-      }),
-    );
+    // A turn past its deadline is the platform's failure, not the schedule's.
+    expect(scheduleUpdateMock).not.toHaveBeenCalled();
     // The turn cost nothing, so settling it never checks the balance.
     expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
   });

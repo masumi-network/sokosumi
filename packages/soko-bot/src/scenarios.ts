@@ -1434,10 +1434,13 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      'Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. When he files a report card (report_update kind request), its title is one short plain sentence to the owner ("LinkedIn is down to one post a week"); a title in internal terms or with two clauses joined by a semicolon fails. He saves only the entries he changes (save_strategy part patch); sending the whole calendar, or asking the owner for the calendar, fails. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.',
+      'Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. When he files a report card (report_update kind request), its title is one short plain sentence to the owner ("LinkedIn is down to one post a week"); a title in internal terms or with two clauses joined by a semicolon fails. He saves only the entries he changes (save_strategy part patch); sending the whole calendar, or asking the owner for the calendar, fails. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. A write_strategy call with the change counts as his save when its save_strategy calls succeed. If no strategy exists yet, saying so is correct.',
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
+      // cmo-v25 hands the change to Core's step, which saves through
+      // save_strategy in the same turn.
+      anyTools: ["save_strategy", "write_strategy"],
       // A save that breaks a hard rule is refused so Cuso fixes it; the
       // rubric still fails a turn that never saves.
       allowFailedTools: ["save_strategy"],
