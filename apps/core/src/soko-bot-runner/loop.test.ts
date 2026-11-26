@@ -2,6 +2,7 @@ import { simulateReadableStream, tool } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { turnTokenBudget } from "../lib/soko-bot/turn-budget";
 import { runTurnLoop } from "./loop";
 import {
   FOREGROUND_TIME_UP_PROMPT,
@@ -387,22 +388,22 @@ describe("runTurnLoop", () => {
       message: "Fill the table.",
       tools,
       maxSteps: 500,
-      budget: { limit: 25, used: 0 },
+      budget: turnTokenBudget(25, 10),
       background: true,
       deadline: 600 * MINUTE,
       stopped: new AbortController().signal,
       now: () => clock.now,
     });
 
-    // 10 input tokens a step: the third step passes 25, then the report.
-    expect(calls).toHaveLength(4);
+    // 10 input tokens a step: a third would pass 25, so two run, then the report.
+    expect(calls).toHaveLength(3);
     expect(calls.at(-1)?.lastUser).toBe(TIME_UP_PROMPT);
     expect(result.text).toBe("filled 12 of 30 rows; 18 left.");
   });
 
   it("shares one budget between a turn's parts and its main loop, and still reports", async () => {
     const clock = { now: 0 };
-    const budget = { limit: 45, used: 0 };
+    const budget = turnTokenBudget(45, 10);
     const part = tirelessModel(clock);
     const main = tirelessModel(clock);
     const loop = (model: typeof part.model, maxSteps: number) =>
@@ -427,6 +428,40 @@ describe("runTurnLoop", () => {
     expect(main.calls).toHaveLength(1);
     expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
     expect(result.text).toContain("filled 12 of 30 rows");
+  });
+
+  it("admits two parts running at once against one allowance", async () => {
+    // Codex's fixture (review-8271-budget-and-local-fit): limit 25, 10 a step.
+    const clock = { now: 0 };
+    const budget = turnTokenBudget(25, 10);
+    const one = tirelessModel(clock);
+    const two = tirelessModel(clock);
+    const part = (model: typeof one.model) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps: 500,
+        budget,
+        background: false,
+        deadline: 600 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await Promise.all([part(one.model), part(two.model)]);
+
+    const working = [...one.calls, ...two.calls].filter(
+      (call) => (call.toolChoice as { type?: string })?.type !== "none",
+    );
+    // Each part was admitted once, the room both saw already reserved; then
+    // each wrote its one answer without tools.
+    expect(working).toHaveLength(2);
+    expect(one.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(two.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(budget.reserved).toBe(0);
+    expect(budget.used).toBe(40);
   });
 
   it("ends on the step whose tool said so, without a closing step", async () => {

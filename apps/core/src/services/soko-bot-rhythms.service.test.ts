@@ -346,34 +346,63 @@ describe("dreaming", () => {
     );
   });
 
-  // Codex's repro (codex-8244-dream-window.mjs): one owner chat, then N
-  // routine turns. At N = 100 the chat fell out of the newest hundred, the
-  // night skipped, and the skip moved the cutoff past the chat for good.
-  it.each([99, 100, 250])(
-    "learns from the owner's chat behind %i newer routine turns",
-    async (routineTurns) => {
-      const start = new Date("2026-10-31T04:00:00.000Z").getTime();
-      const rows = Array.from({ length: routineTurns + 1 }, (_, index) =>
-        turn({
-          createdAt: new Date(start + index * 60_000),
-          source: index === 0 ? "CHAT" : "SCHEDULE",
-          userMessage:
-            index === 0 ? "Always copy Finance on invoices" : "Meeting prep.",
-        }),
-      );
-      // A faithful stand-in for the two reads: filter, newest first, take.
-      turnFindManyMock.mockImplementation(
-        async ({ where, take }: { where: { OR?: unknown[] }; take: number }) =>
-          rows
-            .filter(
-              (row) =>
-                !where.OR ||
-                row.source === "CHAT" ||
-                row.ownerFeedback !== null ||
-                row.status === "FAILED",
-            )
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-            .slice(0, take),
+  /** The two turn reads as the database answers them: its OR, newest first, take. */
+  function serveTurns(rows: ReturnType<typeof turn>[]) {
+    const matches = (
+      row: ReturnType<typeof turn>,
+      clause: Record<string, unknown>,
+    ) =>
+      Object.entries(clause).every(([field, test]) => {
+        const value = (row as Record<string, unknown>)[field];
+        if (field === "qualityVerdict") {
+          const { equals } = test as { path: string[]; equals: string };
+          return (value as { verdict?: string } | null)?.verdict === equals;
+        }
+        if (test && typeof test === "object" && "not" in test)
+          return value !== (test as { not: unknown }).not;
+        return value === test;
+      });
+    turnFindManyMock.mockImplementation(
+      async ({
+        where,
+        take,
+      }: {
+        where: { OR?: Record<string, unknown>[] };
+        take: number;
+      }) =>
+        rows
+          .filter(
+            (row) =>
+              !where.OR || where.OR.some((clause) => matches(row, clause)),
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .slice(0, take),
+    );
+  }
+  const minutes = (index: number) =>
+    new Date(new Date("2026-10-31T04:00:00.000Z").getTime() + index * 60_000);
+
+  // Codex's repros (codex-8244-dream-window.mjs, review-8271-dream-window):
+  // one owner chat, then N routine turns. At N = 100 the chat fell out of the
+  // newest hundred, the night skipped, and the skip moved the cutoff past it.
+  it.each([
+    [99, null],
+    [100, null],
+    [250, null],
+    [100, { verdict: "pass", issues: [] }],
+  ])(
+    "learns from the owner's chat behind %i newer routine turns (review %j)",
+    async (routineTurns, qualityVerdict) => {
+      serveTurns(
+        Array.from({ length: routineTurns + 1 }, (_, index) =>
+          turn({
+            createdAt: minutes(index),
+            source: index === 0 ? "CHAT" : "SCHEDULE",
+            userMessage:
+              index === 0 ? "Always copy Finance on invoices" : "Meeting prep.",
+            qualityVerdict: index === 0 ? null : qualityVerdict,
+          }),
+        ),
       );
       const packet = await dream();
       expect(packet.skip).toBe(false);
@@ -383,6 +412,28 @@ describe("dreaming", () => {
       turnFindManyMock.mockResolvedValue([]);
     },
   );
+
+  it("dreams over a lone weak review on a scheduled turn", async () => {
+    serveTurns([
+      ...Array.from({ length: 30 }, (_, index) =>
+        turn({ createdAt: minutes(index), source: "SCHEDULE" }),
+      ),
+      turn({
+        createdAt: minutes(31),
+        source: "SCHEDULE",
+        qualityVerdict: {
+          verdict: "weak",
+          issues: ["Stand-up named a Task that was already closed"],
+        },
+      }),
+    ]);
+    const packet = await dream();
+    expect(packet.skip).toBe(false);
+    expect(packet.lines.join("\n")).toContain(
+      "weak: Stand-up named a Task that was already closed",
+    );
+    turnFindManyMock.mockResolvedValue([]);
+  });
 
   it("quotes chats with the owner's thumbs, and only counts packet-driven turns", async () => {
     turnFindManyMock.mockResolvedValue([

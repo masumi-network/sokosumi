@@ -352,6 +352,47 @@ describe("InProcessSokoBotRuntime", () => {
     ).toHaveLength(3);
   });
 
+  it("gives the main call no tool to pick once a part spent the turn's allowance", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v2" },
+      grant: { capabilities: ["create_task"] },
+    });
+    cmoTurnPartsMock.mockResolvedValue([
+      {
+        key: "website",
+        title: "Website",
+        message: "Read the site",
+        tools: ["web_fetch"],
+      },
+    ]);
+    streamModelCallMock.mockImplementation(async (options) => {
+      const message = options.messages[0].content as string;
+      if (message.startsWith("Read the"))
+        await options.onStepFinish?.({
+          usage: { inputTokens: 9_000_000, outputTokens: 5 },
+          providerMetadata: {},
+          reasoning: [],
+        });
+      return { text: "Done.", finishReason: "stop", steps: [] };
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Save the essentials",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const main = streamModelCallMock.mock.calls.at(-1)?.[0];
+    expect(main.toolChoice).toBe("none");
+    expect(main.messages[0].content).toContain("you cannot call tools");
+    // One wrap-up step, not a loop.
+    expect(main.stopWhen).toBe(1);
+  });
+
   it("ends a turn on the step whose tool said so, with that tool's answer", async () => {
     authorizeMock.mockResolvedValue({
       turn: { id: TURN_ID, versionId: "cmo-v2" },

@@ -447,25 +447,49 @@ async function dreamSince(bot: RhythmBot, now: Date): Promise<Date> {
  * every bot dream every night.
  */
 export function hasDreamMaterial(
-  turns: ReadonlyArray<{
-    source: string;
-    status: string;
-    ownerFeedback: number | null;
-  }>,
+  turns: ReadonlyArray<DreamTurn>,
   failedTools: number,
   staleLines: number,
 ): boolean {
+  return staleLines > 0 || failedTools > 0 || turns.some(teachesTheDream);
+}
+
+/** A reviewer's verdict worth learning from; a passing one teaches nothing. */
+const MEANINGFUL_VERDICTS = ["weak", "fail"] as const;
+
+interface DreamTurn {
+  source: string;
+  status: string;
+  ownerFeedback: number | null;
+  qualityVerdict?: unknown;
+}
+
+/**
+ * The one rule for which turns a dream learns from, as code; the query
+ * below asks the database the same.
+ */
+function teachesTheDream(turn: DreamTurn): boolean {
+  const verdict = (turn.qualityVerdict as { verdict?: unknown } | null)
+    ?.verdict;
   return (
-    staleLines > 0 ||
-    failedTools > 0 ||
-    turns.some(
-      (turn) =>
-        turn.source === "CHAT" ||
-        turn.ownerFeedback != null ||
-        turn.status === "FAILED",
-    )
+    turn.source === "CHAT" ||
+    turn.ownerFeedback != null ||
+    turn.status === "FAILED" ||
+    (MEANINGFUL_VERDICTS as readonly unknown[]).includes(verdict)
   );
 }
+
+/** {@link teachesTheDream} as a filter. */
+const TEACHES_THE_DREAM = {
+  OR: [
+    { source: "CHAT" },
+    { ownerFeedback: { not: null } },
+    { status: "FAILED" },
+    ...MEANINGFUL_VERDICTS.map((verdict) => ({
+      qualityVerdict: { path: ["verdict"], equals: verdict },
+    })),
+  ],
+} satisfies Prisma.SokoBotTurnWhereInput;
 
 /**
  * What the bot did since its last dream, for it to learn from: its chats
@@ -505,12 +529,7 @@ export async function dreaming(
       where: {
         sokoBotId: bot.id,
         createdAt: { gte: since },
-        OR: [
-          { source: "CHAT" },
-          { ownerFeedback: { not: null } },
-          { status: "FAILED" },
-          { qualityVerdict: { not: Prisma.DbNull } },
-        ],
+        ...TEACHES_THE_DREAM,
       },
       orderBy: { createdAt: "desc" },
       take: DREAM_MAX_TURNS,

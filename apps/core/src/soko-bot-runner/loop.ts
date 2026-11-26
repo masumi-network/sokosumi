@@ -9,6 +9,10 @@ import {
   stepReasoningSummary,
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
+import {
+  StepAdmission,
+  type TurnTokenBudget,
+} from "../lib/soko-bot/turn-budget";
 import { endedByTool, toolEndedTurn } from "../lib/soko-bot/turn-parts";
 import { compactHistory } from "./history";
 import {
@@ -45,12 +49,6 @@ export interface TurnLoopInput {
   now?: () => number;
 }
 
-/** One turn's input-token allowance; every loop of the turn adds to `used`. */
-export interface TurnTokenBudget {
-  limit: number;
-  used: number;
-}
-
 export interface TurnLoopResult {
   text: string;
   finishReason: string;
@@ -79,28 +77,30 @@ export async function runTurnLoop(
           Math.max(0, input.deadline - now()) / 5,
         ));
   const timeUp = () => now() >= reportAt;
-  const budget = input.budget ?? {
-    limit: Number.POSITIVE_INFINITY,
-    used: 0,
+  const admission = new StepAdmission(input.budget);
+  // Set once a step is refused: the allowance is spent, and the one call
+  // left is the wrap-up below, without tools.
+  let refused = false;
+  const budgetSpent = () => {
+    if (!admission.admit()) refused = true;
+    return refused;
   };
-  const spend = (step: { usage: { inputTokens?: number | undefined } }) => {
-    budget.used += step.usage.inputTokens ?? 0;
-  };
-  const overBudget = () => budget.used >= budget.limit;
   let messages: ModelMessage[] = [{ role: "user", content: input.message }];
   let stepsLeft = input.maxSteps;
   let text = "";
   let finishReason = "";
   let idleRounds = 0;
   for (let round = 0; ; round++) {
-    // The turn's parts may have spent the allowance: answer without tools.
-    if (overBudget()) break;
+    // The turn's other calls may have spent the allowance already.
+    if (budgetSpent()) break;
     const result = await streamModelCall({
       model: input.model,
       system: input.system,
       messages: compactHistory(messages) ?? messages,
       tools: input.tools,
-      stopWhen: [stepCountIs(stepsLeft), timeUp, overBudget, endedByTool],
+      // The budget is checked last, so it reserves room only for a step
+      // that will run.
+      stopWhen: [stepCountIs(stepsLeft), timeUp, endedByTool, budgetSpent],
       prepareStep: ({ messages: current }) => {
         const compacted = compactHistory(current);
         return compacted ? { messages: compacted } : {};
@@ -109,13 +109,13 @@ export async function runTurnLoop(
       // chat can show what the bot considered, as Coworker replies do.
       providerOptions: modelReasoningSummaryOptions(input.model),
       onStepFinish: async (step) => {
-        spend(step);
+        admission.settle(step.usage.inputTokens);
         const summary = stepReasoningSummary(step);
         if (summary) await input.onReasoning?.(summary);
       },
       abortSignal: signal(),
       maxRetries: 1,
-    });
+    }).finally(() => admission.release());
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
@@ -137,14 +137,14 @@ export async function runTurnLoop(
       idleRounds < MAX_IDLE_ROUNDS &&
       round < MAX_KEEP_GOING_ROUNDS &&
       stepsLeft > 0 &&
-      !overBudget() &&
+      !refused &&
       reportAt - now() > MIN_ROUND_TIME_MS;
     if (!keepGoing) break;
     messages.push({ role: "user", content: KEEP_GOING_PROMPT });
   }
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
-  const cutOff = stepsLeft <= 0 || timeUp() || overBudget();
+  const cutOff = stepsLeft <= 0 || timeUp() || refused;
   const needsReport = input.background
     ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
     : cutOff && (finishReason === "tool-calls" || !text.trim());
@@ -166,7 +166,8 @@ export async function runTurnLoop(
       abortSignal: signal(),
       maxRetries: 1,
     });
-    for (const step of result.steps) spend(step);
+    // The one wrap-up call: never refused, always booked.
+    for (const step of result.steps) admission.settle(step.usage.inputTokens);
     text = result.text || text;
     finishReason = result.finishReason;
   }

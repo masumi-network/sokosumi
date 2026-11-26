@@ -49,12 +49,18 @@ import {
   withReplyLanguage,
 } from "@/lib/soko-bot/turn-model-context";
 import { compactHistory } from "@/soko-bot-runner/history";
+import { FOREGROUND_TIME_UP_PROMPT } from "@/soko-bot-runner/rounds";
 import { runCoreWebTool } from "./core-web-tools";
 import {
   evaluationBinding,
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import {
+  estimateInputTokens,
+  StepAdmission,
+  turnTokenBudget,
+} from "./turn-budget";
 import {
   announceTurn,
   closeTurn,
@@ -128,13 +134,16 @@ async function runTurn(
 
   try {
     const { ms: budgetMs, inputTokens } = await turnBudget(input.turnId);
-    // One allowance for the turn's parts and its main call together.
-    const budget = { limit: inputTokens, used: 0 };
     const abortSignal = AbortSignal.timeout(budgetMs);
     await announceTurn(log, input.message);
     const [turn, replyLanguage] = await withReplyLanguage(
       input.turnId,
       prepareTurn(sessionId, input.turnId, { sandbox: false, web: true }),
+    );
+    // One allowance for the turn's parts and its main call together.
+    const budget = turnTokenBudget(
+      inputTokens,
+      estimateInputTokens(turn.system, input.message),
     );
 
     const tools: ToolSet = {};
@@ -186,6 +195,10 @@ async function runTurn(
       offered: ToolSet = tools,
     ) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
+      // Once the turn's allowance is spent (a part may have spent it), the
+      // call is the turn's one wrap-up: a single step with no tool to pick.
+      const admission = new StepAdmission(budget);
+      const wrapUp = !admission.admit();
       const request = sokoBotModelRequest({
         role: "agent",
         model: turn.model,
@@ -209,23 +222,34 @@ async function runTurn(
               : {}),
           },
           system: turn.system,
-          messages: [{ role: "user", content: message }],
+          messages: [
+            {
+              role: "user",
+              content: wrapUp
+                ? `${message}\n\n${FOREGROUND_TIME_UP_PROMPT}`
+                : message,
+            },
+          ],
           telemetry: modelCallTelemetryFor("soko-bot-agent"),
           tools: offered,
+          ...(wrapUp ? { toolChoice: "none" as const } : {}),
           prepareStep: (step) => {
             const evaluation = prepareEvaluationStep(step);
             if (evaluation) return evaluation;
             const compacted = compactHistory(step.messages);
             return compacted ? { messages: compacted } : {};
           },
-          stopWhen: [
-            stepCountIs(maxSteps),
-            endedByTool,
-            () => budget.used >= budget.limit,
-          ],
+          stopWhen: wrapUp
+            ? stepCountIs(1)
+            : [
+                stepCountIs(maxSteps),
+                endedByTool,
+                // Last, so it reserves room only for a step that will run.
+                () => !admission.admit(),
+              ],
           abortSignal: signal,
           async onStepFinish(step) {
-            budget.used += step.usage?.inputTokens ?? 0;
+            admission.settle(step.usage?.inputTokens);
             assertSokoBotInferenceRegion(step.providerMetadata, {
               model: turn.model,
               role: "agent",
@@ -253,22 +277,24 @@ async function runTurn(
             );
           },
         }),
-      ).catch(async (error: unknown) => {
-        if (
-          error instanceof Error &&
-          error.name === GATEWAY_INTERNAL_SERVER_ERROR
-        ) {
-          const scope = aiGatewayBudgetScope(error.message);
-          if (scope) {
-            await reportAiGatewayBudgetFailure(
-              scope,
-              purpose,
-              aiGatewayApiKey(purpose),
-            );
+      )
+        .catch(async (error: unknown) => {
+          if (
+            error instanceof Error &&
+            error.name === GATEWAY_INTERNAL_SERVER_ERROR
+          ) {
+            const scope = aiGatewayBudgetScope(error.message);
+            if (scope) {
+              await reportAiGatewayBudgetFailure(
+                scope,
+                purpose,
+                aiGatewayApiKey(purpose),
+              );
+            }
           }
-        }
-        throw error;
-      });
+          throw error;
+        })
+        .finally(() => admission.release());
       assertSokoBotInferenceRegion(result.steps.at(-1)?.providerMetadata, {
         model: turn.model,
         role: "agent",
