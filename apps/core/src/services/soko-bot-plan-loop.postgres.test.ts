@@ -510,16 +510,29 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
 
     const ownerPrompt = /^You are waiting on the owner/;
 
-    it("asks a turn that waits on the owner to mark what needs the answer and do the rest", async () => {
+    const question =
+      "Which account should I schedule them on? I'll wait for your answer.";
+    // Two steps the owner's answer does not decide, beside the one it does.
+    const threeSteps = [
+      { step: "Write the posts", status: "pending" },
+      { step: "Schedule them", status: "pending" },
+      { step: "Make a picture for each", status: "pending" },
+    ];
+
+    it("lets a question about the only step left go to the owner now", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, twoSteps);
-      const prompt = await check(
-        chat,
-        "Which account should I schedule them on? I'll wait for your answer.",
-      );
+      await expect(check(chat, question)).resolves.toBeNull();
+    });
+
+    it("asks a turn that waits on the owner to mark what needs the answer and do the rest", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, threeSteps);
+      const prompt = await check(chat, question);
       expect(prompt).toMatch(ownerPrompt);
       expect(prompt).toContain("blockedOn owner");
       expect(prompt).toContain("- s2 [pending] Schedule them");
+      expect(prompt).toContain("- s3 [pending] Make a picture for each");
     });
 
     it("counts only owner blockers still open", async () => {
@@ -535,14 +548,14 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         });
       // Refused, then saved under another name: nothing waits on the owner.
       const resolved = await turn("CHAT");
-      await updatePlan(resolved, twoSteps);
+      await updatePlan(resolved, threeSteps);
       await call(resolved, 1, { status: "FAILED", errorKind: "refused" });
       await call(resolved, 2, { status: "COMPLETED" });
       const plain = await check(resolved);
       expect(plain).toMatch(/^Your plan still lists open steps/);
       // Refused and never made good: the turn waits on the owner.
       const open = await turn("CHAT");
-      await updatePlan(open, twoSteps);
+      await updatePlan(open, threeSteps);
       await call(open, 1, { status: "FAILED", errorKind: "refused" });
       await expect(check(open)).resolves.toMatch(ownerPrompt);
     });
@@ -611,13 +624,82 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       });
       const prompt = await check(chat);
       expect(prompt).toContain(
-        "Since your plan's revision 1 you completed: schedule_social_post.",
+        "Since your plan's revision 1, Core's receipts show:\n- schedule_social_post: done",
       );
       expect(prompt).toContain("do not do them again");
       expect(prompt).not.toContain("upload_file");
       await expect(openStepsNote(chat)).resolves.toContain(
-        "you completed: schedule_social_post",
+        "- schedule_social_post: done",
       );
+    });
+
+    /** A finished child run's receipts after the plan, as Core settled them. */
+    async function childReceipts(
+      chat: string,
+      receipts: { capability: string; extra: object }[],
+    ) {
+      const run = await turn("CHAT", chat);
+      for (const [n, receipt] of receipts.entries())
+        await prisma.sokoBotToolCall.create({
+          data: {
+            turnId: run,
+            toolCallId: `receipt-${run}-${n}`,
+            capability: receipt.capability,
+            inputHash: `receipt-${n}`,
+            status: "COMPLETED",
+            ...receipt.extra,
+          },
+        });
+      await prisma.sokoBotTurn.update({
+        where: { id: run },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+    }
+
+    it("never calls a Studio request Core rejected done", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      await childReceipts(chat, [
+        {
+          capability: "generate_image",
+          // The studio refused before sending, and refunded.
+          extra: {
+            disposition: "REJECTED",
+            verification: "NONE",
+            result: { status: "FAILED" },
+          },
+        },
+      ]);
+      const prompt = await check(chat);
+      expect(prompt).toContain("- generate_image: did not happen");
+      expect(prompt).not.toContain("generate_image: done");
+      expect(prompt).toContain("is still open");
+    });
+
+    it("names which file each save made, so the bot can make the other", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, [
+        { step: "Save agenda.md", status: "pending" },
+        { step: "Save minutes.md", status: "pending" },
+      ]);
+      const fileId = randomUUID();
+      await childReceipts(chat, [
+        {
+          capability: "upload_file",
+          extra: {
+            disposition: "APPLIED",
+            verification: "PROVIDER_ACK",
+            targetId: fileId,
+            committedAt: new Date(),
+            result: { id: fileId, filename: "minutes.md", size: 120 },
+          },
+        },
+      ]);
+      const prompt = await check(chat);
+      expect(prompt).toContain(
+        `- upload_file ("minutes.md", id ${fileId}): done`,
+      );
+      expect(prompt).not.toContain('agenda.md"');
     });
 
     it("does not push a turn that waits on a Coworker to poll", async () => {

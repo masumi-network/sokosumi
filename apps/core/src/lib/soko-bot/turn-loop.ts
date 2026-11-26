@@ -52,7 +52,11 @@ import { claimsAction } from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
-import { readRequestPlan, resolveRequestId } from "./request-chain";
+import {
+  type ChainPlan,
+  readRequestPlan,
+  resolveRequestId,
+} from "./request-chain";
 import { fitToolResult, TOOL_RESULT_SHORTENED_EVENT } from "./tool-result-fit";
 import { modelContextBlock, modelContextParts } from "./turn-model-context";
 import type { TurnPart } from "./turn-parts";
@@ -344,6 +348,8 @@ export interface PreparedTurn {
    * Core about the plan from the start, not only once the turn writes one.
    */
   planInherited: boolean;
+  /** That plan, read once when the turn was prepared, for its first message. */
+  requestPlan: ChainPlan | null;
   /** The provider's prompt cache key for this system and tool set, or null. */
   cacheKey: string | null;
   /**
@@ -580,6 +586,12 @@ export async function prepareTurn(
   // The plan is shown only to a turn that can update it.
   const planLoop =
     version.planLoop === true && capabilities.includes("update_plan");
+  const requestPlan = planLoop
+    ? await readRequestPlan(
+        authorized.turn.sokoBotId,
+        await resolveRequestId(turnId),
+      )
+    : null;
   const toolDescriptions: Partial<Record<SokoBotCapability, string>> = {
     ...(version.texts
       ? Object.fromEntries(
@@ -608,12 +620,8 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep,
     planLoop,
-    planInherited:
-      planLoop &&
-      (await readRequestPlan(
-        authorized.turn.sokoBotId,
-        await resolveRequestId(turnId),
-      )) !== null,
+    planInherited: requestPlan !== null,
+    requestPlan,
     parts,
     reasoningEffort: turnReasoningEffortOptions({
       version,

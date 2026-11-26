@@ -1,6 +1,10 @@
 import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
+import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  STUDIO_JOB_CAPABILITIES,
+} from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
@@ -157,17 +161,69 @@ async function waitingOnOthers(
   return Boolean(delegation || watch || run);
 }
 
+/** A receipt's outcome as Core recorded it, and what the bot should do. */
+type ReceiptOutcome = "done" | "started" | "not done";
+
+interface SaveReceipt {
+  capability: string;
+  /** What it was about: the file's name, and Core's id for it. */
+  label: string;
+  outcome: ReceiptOutcome;
+}
+
+const nameSchema = z.object({
+  filename: z.string().optional(),
+  name: z.string().optional(),
+  title: z.string().optional(),
+});
+
+/** The artifact a receipt is about, so two saves of one tool tell apart. */
+function receiptLabel(targetId: string | null, result: unknown): string {
+  const named = nameSchema.safeParse(result).data;
+  const name = (named?.filename ?? named?.name ?? named?.title)
+    ?.replace(/\s+/g, " ")
+    .slice(0, 80);
+  return [name ? `"${name}"` : null, targetId ? `id ${targetId}` : null]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
+ * The outcome Core recorded: refused or uncertain is not done, a Studio job
+ * is done only once it made its asset, and anything else completed is done.
+ */
+async function receiptOutcome(call: {
+  capability: string;
+  disposition: string | null;
+  targetId: string | null;
+}): Promise<ReceiptOutcome> {
+  if (call.disposition === "REJECTED" || call.disposition === "UNKNOWN")
+    return "not done";
+  if (!STUDIO_JOB_CAPABILITIES.has(call.capability)) return "done";
+  if (!call.targetId) return "not done";
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: call.targetId },
+    select: { status: true },
+  });
+  if (job?.status === "SUCCEEDED") return "done";
+  return job &&
+    ["PENDING", "SUBMITTING", "QUEUED", "RUNNING"].includes(job.status)
+    ? "started"
+    : "not done";
+}
+
 /**
  * What the request saved after its plan's newest revision, from Core's own
- * receipts: the plan's text may not show those steps as done yet, and the
- * bot must not be told, or tell the owner, that they are still to do.
+ * receipts and their recorded outcomes: the plan's text may not show those
+ * steps yet, and the bot must not be told, or tell the owner, that a save
+ * that worked is still to do, nor that one that failed was done.
  */
 async function savesSincePlan(
   sokoBotId: string,
   requestId: string,
   plan: ChainPlan,
   turnIds: readonly string[],
-): Promise<string[]> {
+): Promise<SaveReceipt[]> {
   const written = await prisma.sokoBotToolCall.findFirst({
     where: {
       turn: { sokoBotId },
@@ -181,7 +237,7 @@ async function savesSincePlan(
     select: { createdAt: true },
   });
   if (!written) return [];
-  const saves = await prisma.sokoBotToolCall.findMany({
+  const calls = await prisma.sokoBotToolCall.findMany({
     where: {
       turnId: { in: [...turnIds] },
       status: "COMPLETED",
@@ -189,17 +245,39 @@ async function savesSincePlan(
       createdAt: { gt: written.createdAt },
     },
     orderBy: { createdAt: "asc" },
-    select: { capability: true },
+    select: {
+      capability: true,
+      disposition: true,
+      targetId: true,
+      result: true,
+    },
     take: 20,
   });
-  return [...new Set(saves.map((save) => save.capability))];
+  return Promise.all(
+    calls.map(async (call) => ({
+      capability: call.capability,
+      label: receiptLabel(call.targetId, call.result),
+      outcome: await receiptOutcome(call),
+    })),
+  );
 }
 
+const OUTCOME_WORDS: Record<ReceiptOutcome, string> = {
+  done: "done",
+  started: "started, not finished yet",
+  "not done": "did not happen",
+};
+
 /** The saves the plan does not show yet, and what to do about them. */
-function savedNote(saves: readonly string[], revision: number): string {
-  return saves.length
-    ? `Since your plan's revision ${revision} you completed: ${saves.join(", ")}. Core has the receipts, so the steps they did are done: mark them done with update_plan (revision ${revision}) and do not do them again. `
-    : "";
+function savedNote(saves: readonly SaveReceipt[], revision: number): string {
+  if (!saves.length) return "";
+  const lines = saves
+    .map(
+      (save) =>
+        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
+    )
+    .join("\n");
+  return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nMark the steps done saves finished done with update_plan (revision ${revision}) and do not do them again. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started stays in progress until it finishes.\n`;
 }
 
 /** The draft asks the owner something: its clarification, or a question. */
@@ -272,6 +350,9 @@ export async function evaluateTurnDoneCheck(input: {
     found.plan.revision,
   );
   const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
+  // Waiting on the owner with one step left: the answer is what that step
+  // needs, so the question goes to them now. With more, the rest may not.
+  if (onOwner && open.length === 1) return null;
   const claimed = await new RuntimeEventLog(
     input.turnId,
     input.sessionId,

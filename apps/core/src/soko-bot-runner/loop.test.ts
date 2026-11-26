@@ -932,6 +932,120 @@ describe("the done check (planLoop)", () => {
     expect(result.text).toBe("Answer 1.");
   });
 
+  /** Text first, then each answer in turn: tool calls or text. */
+  function scriptedModel(answers: ("tool" | string | Error)[]) {
+    let calls = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        const answer = answers[Math.min(calls, answers.length - 1)];
+        calls += 1;
+        if (answer instanceof Error) throw answer;
+        return streamOf(
+          answer === "tool"
+            ? {
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: `call_${calls}`,
+                    toolName: "work",
+                    input: "{}",
+                  },
+                ],
+                finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                warnings: [],
+                usage,
+              }
+            : {
+                content: [{ type: "text", text: answer }],
+                finishReason: { unified: "stop", raw: "stop" },
+                warnings: [],
+                usage,
+              },
+        );
+      },
+    });
+    return { model, calls: () => calls };
+  }
+  const goBack = {
+    doneCheck: async () => "Go back.",
+    openSteps: async () => null,
+  };
+
+  it("takes the extra round's answer when it saved and answered on its last step", async () => {
+    const { model } = scriptedModel([
+      "The note still needs saving.",
+      "tool",
+      "The note is saved in Files.",
+    ]);
+    const result = await runTurnLoop(loopInput(model, goBack, { maxSteps: 3 }));
+    expect(result.text).toBe("The note is saved in Files.");
+  });
+
+  it("keeps the finished answer when the extra round fails", async () => {
+    const { model } = scriptedModel([
+      "Here is your summary.",
+      new Error("provider down"),
+    ]);
+    const result = await runTurnLoop(loopInput(model, goBack));
+    expect(result.text).toBe("Here is your summary.");
+  });
+
+  it("asks nothing after a first plan Core refused", async () => {
+    let asked = 0;
+    let calls = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        calls += 1;
+        return streamOf(
+          calls === 1
+            ? {
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "plan_1",
+                    toolName: "update_plan",
+                    input: "{}",
+                  },
+                ],
+                finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                warnings: [],
+                usage,
+              }
+            : {
+                content: [{ type: "text", text: "Answer." }],
+                finishReason: { unified: "stop", raw: "stop" },
+                warnings: [],
+                usage,
+              },
+        );
+      },
+    });
+    await runTurnLoop(
+      loopInput(
+        model,
+        {
+          inherited: false,
+          doneCheck: async () => {
+            asked += 1;
+            return null;
+          },
+          openSteps: async () => null,
+        },
+        {
+          tools: {
+            update_plan: tool({
+              inputSchema: z.object({}),
+              execute: async (): Promise<string> => {
+                throw new Error("The plan must keep every step it has now");
+              },
+            }),
+          },
+        },
+      ),
+    );
+    expect(asked).toBe(0);
+  });
+
   it("keeps the finished answer when the extra round runs out of steps", async () => {
     let calls = 0;
     const model = new MockLanguageModelV3({

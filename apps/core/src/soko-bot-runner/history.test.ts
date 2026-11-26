@@ -147,7 +147,18 @@ describe("compactHistory", () => {
     );
     expect(outputs["plan-ok"]).toBe("json");
     expect(outputs.read).toBe("text");
-    expect(outputs["plan-refused"]).toBe("text");
+    // Shortened, the refusal is still an error, so compacting again keeps
+    // the accepted plan, not the refusal, as the plan.
+    expect(outputs["plan-refused"]).toBe("error-text");
+    const again = compactHistory(compacted ?? [], 20_000, {
+      keepLatestPlan: true,
+    });
+    const kept = (again ?? compacted ?? [])
+      .flatMap((message) => (message.role === "tool" ? message.content : []))
+      .find(
+        (part) => part.type === "tool-result" && part.toolCallId === "plan-ok",
+      );
+    expect(kept?.type === "tool-result" && kept.output.type).toBe("json");
   });
 
   it("counts only what the turn added after its first message", () => {

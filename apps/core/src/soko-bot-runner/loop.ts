@@ -249,13 +249,22 @@ export async function runTurnLoop(
       },
       abortSignal: signal(),
       maxRetries: 1,
-    }).finally(() => admission.release());
+    })
+      .finally(() => admission.release())
+      // The done check's extra round is optional: if it fails, the answer
+      // the check sent back stands.
+      .catch((error: unknown) => {
+        if (draft) return null;
+        throw error;
+      });
+    if (!result) return draft as TurnLoopResult;
     bookUnreported(result.steps);
     if (
       input.plan &&
       !activePlan &&
+      // Only a plan Core accepted: a refused write is a tool error.
       result.steps.some((step) =>
-        step.toolCalls.some((call) => call.toolName === "update_plan"),
+        step.toolResults.some((call) => call.toolName === "update_plan"),
       )
     )
       activePlan = input.plan;
@@ -341,10 +350,9 @@ export async function runTurnLoop(
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
   const cutOff = stepsLeft <= 0 || timeUp() || refused;
-  // The answer the done check sent back stands when the extra round ran out
-  // before it wrote a new one: a finished reply is never lost to the check.
-  if (draft && (cutOff || finishReason === "tool-calls" || !text.trim()))
-    return draft;
+  // The latest complete answer wins. The one the done check sent back stands
+  // only when the extra round ran out before it wrote a new one.
+  if (draft && (finishReason === "tool-calls" || !text.trim())) return draft;
   // A part never makes a wrap-up call, whatever stopped it: the turn's own
   // loop makes the one, from what the parts handed back.
   if (cutOff && input.part)

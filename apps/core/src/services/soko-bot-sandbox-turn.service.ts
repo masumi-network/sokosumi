@@ -176,7 +176,10 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 }
 
 export interface SandboxTurnStart
-  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep" | "granted"> {
+  extends Omit<
+    PreparedTurn,
+    "inferenceRegion" | "meetingPrep" | "granted" | "requestPlan"
+  > {
   message: string;
   deadlineAt: string;
   budgetMs: number;
@@ -222,6 +225,8 @@ export async function startSandboxTurn(
   const {
     inferenceRegion: _region,
     meetingPrep: _meetingPrep,
+    // Already in the message below; the runner needs only planInherited.
+    requestPlan: _requestPlan,
     granted,
     ...turn
   } = prepared;

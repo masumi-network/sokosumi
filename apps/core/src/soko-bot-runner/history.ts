@@ -49,8 +49,17 @@ function shortenMessage(
         )
           return part;
         const short = shorten(part.output);
+        // A shortened error is still an error: compacted again, a refused
+        // call must not read as one that worked.
+        const failed = part.output.type.startsWith("error");
         return short
-          ? { ...part, output: { type: "text" as const, value: short } }
+          ? {
+              ...part,
+              output: {
+                type: failed ? ("error-text" as const) : ("text" as const),
+                value: short,
+              },
+            }
           : part;
       }),
     };
