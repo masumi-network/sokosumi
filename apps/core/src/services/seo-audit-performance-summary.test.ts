@@ -85,7 +85,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("gives a colleague the snapshot of an audit Task they may see, and no retry on it", async () => {
+it("gives a colleague the snapshot of an audit Task they may see, property-wide data included, and no retry on it", async () => {
   db.observations.mockResolvedValue([snapshot]);
   const summary = await readAuditPerformanceSummaries(colleague, [
     "public-audit",
@@ -94,8 +94,10 @@ it("gives a colleague the snapshot of an audit Task they may see, and no retry o
     { taskId: "public-audit", clicks: 12 },
   ]);
   expect(summary.auditSearchConsoleRetryTaskIds).toEqual([]);
-  // Property-wide totals go past the audit's pages. The requester agreed to them for their own report only.
-  expect(summary.auditSearchConsole[0]).not.toHaveProperty("propertyTotals");
+  // Property-wide totals are shared with the audit; only their refresh stays with the requester.
+  expect(summary.auditSearchConsole[0]).toMatchObject({
+    propertyTotals: { clicks: 900 },
+  });
   expect(summary.auditSearchConsole[0]).not.toHaveProperty("requester");
   const own = await readAuditPerformanceSummaries(
     { ...colleague, userId: "requester" },

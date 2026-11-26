@@ -65,8 +65,9 @@ async function retryableAudits(actor: SeoActor, taskIds: string[]) {
  * It follows its audit Task: the caller passes only Tasks the reader may see, so a member reads
  * the snapshot of a public audit a colleague requested. `retryCandidates` stay the reader's own
  * audits, because a retry reads Google through the reader's own connection.
- * Property-wide totals, page discovery and submitted sitemaps go past the audit's pages, and
- * the requester agreed to them for their own report only, so a colleague does not get them.
+ * Property-wide totals, page discovery and submitted sitemaps go past the audit's pages. A
+ * colleague who sees the audit Task reads them too; only their refresh stays with the requester,
+ * because it reads Google through the requester's connection.
  */
 export async function readAuditPerformanceSummaries(
   actor: SeoActor,
@@ -113,7 +114,6 @@ export async function readAuditPerformanceSummaries(
   );
   const withDiscovery = observations.flatMap((row) =>
     row.sourceTaskId &&
-    row.ownerId === actor.userId &&
     nativeSeoMetricsSchema.safeParse(row.payload).data?.auditDiscovery
       ? [row.sourceTaskId]
       : [],
@@ -173,14 +173,13 @@ export async function readAuditPerformanceSummaries(
           evidence,
         })),
         coverage: data.coverage,
-        ...(requester &&
-          data.auditDiscovery && {
-            discovery: auditDiscoveryResult(
-              data.auditDiscovery,
-              data.propertyId,
-              publicRoots.get(row.sourceTaskId) ?? [],
-            ),
-          }),
+        ...(data.auditDiscovery && {
+          discovery: auditDiscoveryResult(
+            data.auditDiscovery,
+            data.propertyId,
+            publicRoots.get(row.sourceTaskId) ?? [],
+          ),
+        }),
         ...((data.searchType ?? "web") === "web" &&
           data.countries &&
           data.pageUrls.length > 0 &&
@@ -194,14 +193,12 @@ export async function readAuditPerformanceSummaries(
           }),
         ...(data.auditClickHistory && { history: data.auditClickHistory }),
         ...totals(data),
-        ...(requester &&
-          data.auditPageDiscovery && {
-            pageDiscovery: data.auditPageDiscovery,
-          }),
-        ...(requester &&
-          data.auditPropertyTotals && {
-            propertyTotals: data.auditPropertyTotals,
-          }),
+        ...(data.auditPageDiscovery && {
+          pageDiscovery: data.auditPageDiscovery,
+        }),
+        ...(data.auditPropertyTotals && {
+          propertyTotals: data.auditPropertyTotals,
+        }),
         previous: earlier
           ? { from: earlier.from, to: earlier.to, ...totals(data, true) }
           : null,
