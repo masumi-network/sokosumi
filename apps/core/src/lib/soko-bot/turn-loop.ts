@@ -43,7 +43,6 @@ import {
   ACTION_LABELS,
   type ActionNarrative,
   buildActionResponse,
-  HELD_BACK_REPLY,
   parseActionNarrativeText,
 } from "./action-response";
 import { claimsAction } from "./answer-claims";
@@ -858,34 +857,131 @@ async function ownerNarrative(
         }
       : null);
   if (!narrative?.message) return narrative ?? undefined;
-  const claim = await claimsAction(
-    narrative.message,
-    await confirmedChanges(turnId),
-  );
+  const confirmed = await confirmedChanges(turnId);
+  const claim = await claimsAction(narrative.message, confirmed);
   if (claim === false) return narrative;
-  // Counted, never quoted: how often a reply is withheld is the signal.
+  // The owner always gets the reply, never an unconfirmed claim: the
+  // sentences that say something was done go, and the rest stays (what was
+  // found, a blocker, what waits on the owner). Joseph's whole answer to a
+  // six-step request was withheld when the check timed out (2026-11-26).
+  const kept = withoutChangeClaims(narrative.message);
+  if (claim === null) {
+    warnReplyCheck(turnId, "unchecked");
+    // Nothing is left that claims a change, so the cut needs no check.
+    return { ...narrative, message: kept, replyCheck: "unchecked" };
+  }
+  warnReplyCheck(turnId, "claims_unconfirmed_change");
+  const recheck =
+    kept !== null && kept !== narrative.message
+      ? await claimsAction(kept, confirmed)
+      : true;
+  // A second check that cannot run leaves the cut as it is: it already
+  // holds no sentence that says something was done.
+  if (recheck === null)
+    return { ...narrative, message: kept, replyCheck: "unchecked" };
+  return {
+    ...narrative,
+    message: recheck === false ? kept : null,
+    replyCheck: "cut",
+  };
+}
+
+/** A sentence saying something was done: created, sent, scheduled and the like. */
+const CHANGE_CLAIM =
+  /\b(created|assigned|sent|posted|scheduled|set up|hired|generated|made|drafted|prepared|uploaded|archived|updated|changed|saved|added|booked|published|replied|emailed|messaged|moved|deleted|removed|started|launched)\b/i;
+
+/**
+ * A sentence saying something was not done: true even when nothing was
+ * confirmed ("No posts have been drafted because the account still needs
+ * approval"). The negation has to come before the verb, so "I scheduled the
+ * post, which needs your approval" still goes.
+ */
+const NOT_DONE = new RegExp(
+  `(\\b(not|no|nothing|never|unable to|failed to)\\b|n't\\b).*${CHANGE_CLAIM.source}`,
+  "i",
+);
+
+/** Clauses of a sentence: "No one objected, so I created it" has two. */
+const CLAUSE_BREAK = /[,;:—–]|\b(?:and|but|so|then|because|while|though)\b/i;
+
+/**
+ * "drafted, scheduled, or published" is one verb list in one clause: the
+ * negation before it covers every verb, so the list counts as its first.
+ */
+const VERB_LIST = new RegExp(
+  // The list ends on "or", "and" or "nor": "Nothing was posted, drafted 3
+  // options" is two clauses, and the second claims.
+  `(${CHANGE_CLAIM.source})(?:\\s*,\\s*${CHANGE_CLAIM.source})*\\s*,?\\s*\\b(?:or|and|nor)\\b\\s*${CHANGE_CLAIM.source}`,
+  "gi",
+);
+
+/**
+ * The shapes in which the bot reports its own work: "I created the
+ * schedule", "the schedule was created", "Drafted 3 options". A sentence
+ * about what someone else did ("Hannah sent the recording") is none of them
+ * and stays: the cut is for the bot's own claims, not for what it reports.
+ */
+const OWN_CHANGE = [
+  new RegExp(`\\b(?:I|we)\\b[^.!?]*${CHANGE_CLAIM.source}`, "i"),
+  new RegExp(
+    `\\b(?:is|are|was|were|been|be|got|gets)\\s+(?:\\w+\\s+){0,2}${CHANGE_CLAIM.source}`,
+    "i",
+  ),
+  new RegExp(
+    `^(?:(?:also|and|then|just|now|already|successfully)\\b\\s*)*${CHANGE_CLAIM.source}`,
+    "i",
+  ),
+];
+
+/** A clause in which the bot says it did something, and not that it did not. */
+function claimsOwnChange(sentence: string): boolean {
+  return sentence
+    .replace(VERB_LIST, "$1")
+    .split(CLAUSE_BREAK)
+    .map((clause) => clause?.trim() ?? "")
+    .some(
+      (clause) =>
+        CHANGE_CLAIM.test(clause) &&
+        !NOT_DONE.test(clause) &&
+        OWN_CHANGE.some((shape) => shape.test(clause)),
+    );
+}
+
+/** The message without the bot's claims of its own changes; null when none is left. */
+export function withoutChangeClaims(message: string): string | null {
+  const kept = message
+    .split(/\n/)
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/)
+        .filter((sentence) => !claimsOwnChange(sentence))
+        .join(" "),
+    )
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return kept || null;
+}
+
+/** Counted, never quoted: how often a reply needed this is the signal. */
+function warnReplyCheck(
+  turnId: string,
+  reason: "unchecked" | "claims_unconfirmed_change",
+): void {
   recordCoreWarning(
     { operation: "soko_bot_reply_check" },
     {
-      message: "Withheld a Soko Bot reply",
+      message:
+        reason === "unchecked"
+          ? "Showed a Soko Bot reply its claim check could not check"
+          : "Cut a Soko Bot reply's claim of an unconfirmed change",
       why:
-        claim === null
+        reason === "unchecked"
           ? "The check for claims of unconfirmed changes could not run"
           : "The reply claims a change that no action receipt confirms",
     },
-    {
-      turnId,
-      replyWithheld: {
-        reason: claim === null ? "unchecked" : "claims_unconfirmed_change",
-      },
-    },
+    { turnId, replyChecked: { reason } },
   );
-  // A claim is dropped: the receipts say what changed, or that nothing did.
-  // An unchecked reply is not shown either, but the owner is told why.
-  return {
-    ...narrative,
-    message: claim === null ? HELD_BACK_REPLY : null,
-  };
 }
 
 /**
