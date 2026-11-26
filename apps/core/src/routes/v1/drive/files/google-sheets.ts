@@ -78,7 +78,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!spreadsheetId)
       throw unprocessableEntity("That is not a Google Sheets link.");
 
-    const folder = normalizeDriveFolderPath(body.folder ?? "");
+    const folder = normalizeDriveFolderPath(
+      body.folderPath ?? body.folder ?? "",
+    );
     if (body.scope === "org") {
       if (!body.organizationId)
         throw unprocessableEntity("organizationId is required when scope=org");
