@@ -5,6 +5,11 @@
 -- its schema; a trigger runs on its caller's search path, so a bare name would
 -- resolve there or not at all.
 --
+-- A function here that reads a Network table names the Network's schema in
+-- its body. Image Studio is Mainnet only and its tables have no `network`
+-- column, so the image History functions (`history_image_amount` and its
+-- callers) name `mainnet`.
+--
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
 -- database. The move script of the maintenance window applies the same text.
@@ -77,6 +82,7 @@ BEGIN
       ('enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)', '144218e45d23e3b7f16abb58b5ce55c9'),
       ('erase_calendar_outbox_for_workspace_delete()', '60e1e659b70377e7f16288d70324523c'),
       ('history_bucket_slug_from_metadata(jsonb)', 'f75544f0226a41435b455199e227c325'),
+      ('history_image_amount(uuid)', '059422996e8b87360346cba91ca9acfc'),
       ('history_slugify(text)', '14f4c248f71f03bcf140f7c6625205a1'),
       ('invalidate_calendar_for_contact_change()', '58b978046028054c43c59a0efe3d68a2'),
       ('invalidate_calendar_for_marketing_strategy_change()', '2ce1e533a94eac55bc51b35dc4f2101d'),
@@ -94,11 +100,14 @@ BEGIN
       ('project_set_identifier()', '51ebc5342f951bae9afa844890a270bd'),
       ('reject_soko_bot_admin_action_mutation()', '391039c4aa764e7bc57591bb963aa590'),
       ('social_post_quote_before_delete()', '5c033f342f04a15fd5a5f434745fcf28'),
+      ('sync_history_from_project_image_asset()', '6e11ad6fccf619d83759a52d014beb5d'),
+      ('sync_history_from_project_image_job_charge()', '7da342df7a6d5eb53167f83d383bb23a'),
       ('task_alias_old_number()', 'ef2b3f591be26eb257c3aa14b06dad68'),
       ('task_assign_number()', 'c7ed9b511a18321323c9fd36f80fdb75'),
       ('task_subtask_follow_parent()', '302228a69d5f1ab1d421c913d722976a'),
       ('task_subtask_guard()', '20887f6150174f6d679c7f8323693869'),
-      ('task_tag_revision()', '584d8ba0c0719e4fdbf87f6cfad055ce')
+      ('task_tag_revision()', '584d8ba0c0719e4fdbf87f6cfad055ce'),
+      ('upsert_history_image_asset(uuid)', 'cdcd9f77622953f2f069399c7b75998d')
     ) AS listed(signature, digest)
     LEFT JOIN pg_proc p ON p.oid = to_regprocedure('shared.' || listed.signature)
     LEFT JOIN pg_language l ON l.oid = p.prolang
@@ -759,6 +768,27 @@ AS $function$
   );
 $function$;
 
+CREATE OR REPLACE FUNCTION shared.history_image_amount(job_id uuid)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT GREATEST(
+    COALESCE(j."chargedCents", 0)
+      - COALESCE(
+          (
+            SELECT t."amount"
+            FROM mainnet."Transaction" AS t
+            WHERE t."id" = j."refundTransactionId"
+          ),
+          0
+        ),
+    0
+  )::BIGINT
+  FROM shared."project_image_job" AS j
+  WHERE j."id" = job_id;
+$function$;
+
 CREATE OR REPLACE FUNCTION shared.history_slugify(value text)
  RETURNS text
  LANGUAGE sql
@@ -1348,6 +1378,42 @@ BEGIN
 END;
 $function$;
 
+CREATE OR REPLACE FUNCTION shared.sync_history_from_project_image_asset()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'IMAGE'::shared."HistoryKind"
+      AND "entityId" = OLD."id"::TEXT;
+    RETURN OLD;
+  END IF;
+
+  PERFORM shared.upsert_history_image_asset(NEW."id");
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.sync_history_from_project_image_job_charge()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  owned_asset_id UUID;
+BEGIN
+  SELECT "id" INTO owned_asset_id
+  FROM shared."project_image_asset"
+  WHERE "jobId" = NEW."id";
+
+  IF owned_asset_id IS NOT NULL THEN
+    PERFORM shared.upsert_history_image_asset(owned_asset_id);
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION shared.task_alias_old_number()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1488,5 +1554,108 @@ BEGIN
     NEW."tagClassificationAvailableAt" := CURRENT_TIMESTAMP;
   END IF;
   RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.upsert_history_image_asset(asset_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  source RECORD;
+  spend BIGINT;
+BEGIN
+  SELECT
+    a."id",
+    a."jobId",
+    a."projectId",
+    a."workspaceId",
+    a."prompt",
+    a."model",
+    a."createdAt",
+    j."requestedByUserId",
+    w."organizationId"
+  INTO source
+  FROM shared."project_image_asset" AS a
+  JOIN shared."project_image_job" AS j ON j."id" = a."jobId"
+  LEFT JOIN shared."workspace" AS w ON w."id" = a."workspaceId"
+  WHERE a."id" = asset_id;
+
+  IF NOT FOUND THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'IMAGE'::shared."HistoryKind"
+      AND "entityId" = asset_id::TEXT;
+    RETURN;
+  END IF;
+
+  spend := shared.history_image_amount(source."jobId");
+
+  INSERT INTO shared."history" (
+    "id",
+    "kind",
+    "entityId",
+    "userId",
+    "workspaceId",
+    "organizationId",
+    "title",
+    "description",
+    "status",
+    "sortAt",
+    "amount",
+    "projectId",
+    "agentId",
+    "coworkerId",
+    "sokoBotId",
+    "bucketSlug",
+    "archivedAt"
+  )
+  VALUES (
+    gen_random_uuid()::TEXT,
+    'IMAGE'::shared."HistoryKind",
+    source."id"::TEXT,
+    source."requestedByUserId",
+    source."workspaceId",
+    source."organizationId",
+    -- The prompt is the only thing that tells these rows apart, so it is the
+    -- title. Bounded because a prompt may be four thousand characters and a feed
+    -- row is one line.
+    left(source."prompt", 200),
+    -- `<provider endpoint> · <credits> credits`, in that order and with that
+    -- separator, because the Core history route parses the endpoint back out of
+    -- it to resolve the model's display label from the live studio catalog. SQL
+    -- cannot see those labels — they come from a provider API read in
+    -- TypeScript — and freezing one into the row would leave it wrong the moment
+    -- fal renamed the model. The endpoint is also what the feed's text search
+    -- matches on, and it stays true for a model fal has since withdrawn.
+    --
+    -- Integer division is exact: the credits contract rounds every charge up to
+    -- a whole credit, and the API returns the authoritative decimal.
+    source."model" || ' · ' || (spend / 10000000000)::TEXT || ' credits',
+    'active',
+    source."createdAt",
+    spend,
+    source."projectId",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+  )
+  ON CONFLICT ("kind", "entityId") DO UPDATE
+  SET
+    "userId" = EXCLUDED."userId",
+    "workspaceId" = EXCLUDED."workspaceId",
+    "organizationId" = EXCLUDED."organizationId",
+    "title" = EXCLUDED."title",
+    "description" = EXCLUDED."description",
+    "status" = EXCLUDED."status",
+    "sortAt" = EXCLUDED."sortAt",
+    "amount" = EXCLUDED."amount",
+    "projectId" = EXCLUDED."projectId",
+    "agentId" = EXCLUDED."agentId",
+    "coworkerId" = EXCLUDED."coworkerId",
+    "sokoBotId" = EXCLUDED."sokoBotId",
+    "bucketSlug" = EXCLUDED."bucketSlug",
+    "archivedAt" = EXCLUDED."archivedAt";
 END;
 $function$;
