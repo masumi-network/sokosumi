@@ -55,10 +55,17 @@ const receiptSchema = z.object({
 function normalize(value?: string | null) {
   return (value ?? "").trim().replace(/\s+/gu, " ");
 }
+/**
+ * The description the classifier reads. Redact first: the request line is
+ * found by its line start, which normalize flattens.
+ */
+function suggestionDescription(input: SuggestionInput) {
+  return normalize(hideSeoAuditRequest(input.description));
+}
 function inputHash(input: SuggestionInput) {
   return createHash("sha256")
     .update(
-      JSON.stringify([normalize(input.name), normalize(input.description)]),
+      JSON.stringify([normalize(input.name), suggestionDescription(input)]),
     )
     .digest("hex");
 }
@@ -347,8 +354,7 @@ export async function suggestTaskTags(
     const result = await pTimeout(
       classifyTaskTags(
         normalize(input.name),
-        // Redact first: the request line is found by its line start, which normalize flattens.
-        normalize(hideSeoAuditRequest(input.description)) || null,
+        suggestionDescription(input) || null,
         signal,
         catalog,
       ),
