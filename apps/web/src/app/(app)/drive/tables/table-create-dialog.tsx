@@ -29,9 +29,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import { dataTableService } from "@/lib/services/data-table.client";
+import {
+  readSpreadsheet,
+  type Spreadsheet,
+  spreadsheetKind,
+} from "@/lib/spreadsheet-file";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
-import { isNumericCsvColumn, tableImportBatches } from "./table-import";
+import {
+  isNumericCsvColumn,
+  sheetTableRows,
+  tableImportBatches,
+} from "./table-import";
 import { isTableRejection } from "./table-mutations";
 import { parseTableInput, tableError } from "./table-value";
 
@@ -48,6 +57,12 @@ export const TABLE_TYPES: TableColumn["type"][] = [
   "last_updated",
 ];
 const CSV_LIMIT = 5_000_000;
+/** A CSV's own limits, so a workbook imports as much as a CSV may: the header and 10,000 rows, 100 columns. */
+const SHEET_IMPORT_LIMITS = {
+  maxRows: 10_001,
+  maxColumns: 100,
+  keepHidden: true,
+};
 
 /** A Files CSV's bytes, refused as soon as they pass the import limit. */
 async function readCsvFile(response: Response, name: string, tooLarge: string) {
@@ -171,12 +186,12 @@ function useCsvFileRead() {
 
 export function TableCreateDialog({
   workspaceId,
-  csvFile,
+  sourceFile,
   attachment,
 }: {
   workspaceId: string | null;
-  /** A CSV already in Files or chat: the trigger reads it into the import, ready to map. */
-  csvFile?: { url: string; name: string };
+  /** A CSV or Excel workbook already in Files or chat: the trigger reads it into the import, ready to map. */
+  sourceFile?: { url: string; name: string };
   /** The trigger sits beside a chat attachment: quiet, and labelled on phones too. */
   attachment?: boolean;
 }) {
@@ -194,6 +209,10 @@ export function TableCreateDialog({
   const [csv, setCsv] = useState<string[][]>([]);
   const [samples, setSamples] = useState<string[][]>([]);
   const [csvName, setCsvName] = useState("");
+  const sourceKind = sourceFile && spreadsheetKind("", sourceFile.name);
+  /** A workbook's sheets, to choose which one becomes the Table. */
+  const [sheets, setSheets] = useState<Spreadsheet[]>([]);
+  const [sheetIndex, setSheetIndex] = useState(0);
   const csvInput = useRef<HTMLInputElement>(null);
   const [columns, setColumns] = useState<
     Array<{
@@ -213,32 +232,67 @@ export function TableCreateDialog({
     key: string;
     tableId?: string;
   } | null>(null);
+  /** Rows the import maps: a CSV's, or one sheet of a workbook. */
+  function mapRows(rows: string[][]) {
+    if (!rows.length) throw new Error(t("sheetEmpty"));
+    setCsv(rows);
+    setSamples(csvSamples(rows));
+    const next = rows[0].map((name, i) => ({
+      id: crypto.randomUUID(),
+      name,
+      type: isNumericCsvColumn(
+        name,
+        rows.slice(1).map((row) => row[i]),
+      )
+        ? ("number" as const)
+        : ("text" as const),
+      options: [],
+    }));
+    setColumns(next);
+    setGuessedIds(
+      next.filter((column) => column.type === "number").map((c) => c.id),
+    );
+    setAttempt(null);
+    setError("");
+  }
+  function sheetRows(sheet: Spreadsheet) {
+    return sheetTableRows(sheet.rows, (number) =>
+      t("untitledColumn", { number }),
+    );
+  }
   async function handleCsv(file: File | undefined) {
     if (!file) return;
     try {
       if (file.size > CSV_LIMIT) throw new Error(t("csvLimit"));
-      const rows = parseTableCsv(await file.text());
-      setCsv(rows);
-      setSamples(csvSamples(rows));
+      // Only a workbook from Files or chat, or its recovery pick, is Excel.
+      if (sourceKind === "xlsx") {
+        const read = await readSpreadsheet(
+          "xlsx",
+          await file.arrayBuffer(),
+          SHEET_IMPORT_LIMITS,
+        ).catch(() => {
+          throw new Error(t("errors.sheet"));
+        });
+        setSheets(read);
+        setSheetIndex(0);
+        setCsvName(file.name);
+        mapRows(read[0] ? sheetRows(read[0]) : []);
+        return;
+      }
+      setSheets([]);
+      mapRows(parseTableCsv(await file.text()));
       setCsvName(file.name);
-      const next = rows[0].map((name, i) => ({
-        id: crypto.randomUUID(),
-        name,
-        type: isNumericCsvColumn(
-          name,
-          rows.slice(1).map((row) => row[i]),
-        )
-          ? ("number" as const)
-          : ("text" as const),
-        options: [],
-      }));
-      setColumns(next);
-      setGuessedIds(
-        next.filter((column) => column.type === "number").map((c) => c.id),
-      );
-      setAttempt(null);
-      setError("");
     } catch (error) {
+      setError(tableError(error, t));
+    }
+  }
+  function handleSheet(index: number) {
+    setSheetIndex(index);
+    try {
+      mapRows(sheetRows(sheets[index]));
+    } catch (error) {
+      setCsv([]);
+      setColumns([]);
       setError(tableError(error, t));
     }
   }
@@ -247,14 +301,16 @@ export function TableCreateDialog({
     if (pending) return;
     setOpen(value);
     if (!value) fileRead.cancel();
-    if (!value || !csvFile || csv.length) return;
+    if (!value || !sourceFile || csv.length) return;
     setError("");
     // Before the read, so a title typed while it loads is kept.
-    setTitle((current) => current || csvFile.name.replace(/\.csv$/i, ""));
+    setTitle(
+      (current) => current || sourceFile.name.replace(/\.(csv|xlsx)$/i, ""),
+    );
     // Names the file being read, and the one that failed, as a chosen CSV is named.
-    setCsvName(csvFile.name);
+    setCsvName(sourceFile.name);
     try {
-      const file = await fileRead.read(csvFile, {
+      const file = await fileRead.read(sourceFile, {
         tooLarge: t("csvLimit"),
         missing: t("fileMissing"),
       });
@@ -333,7 +389,7 @@ export function TableCreateDialog({
   return (
     <Dialog open={open} onOpenChange={(value) => void handleOpenChange(value)}>
       <DialogTrigger asChild>
-        {csvFile ? (
+        {sourceFile ? (
           <OpenAsTableButton label={t("openAsTable")} attachment={attachment} />
         ) : (
           /* The Files toolbar states the house rule for this row: 32px
@@ -357,7 +413,7 @@ export function TableCreateDialog({
         <DialogHeader>
           <DialogTitle>{t("newTable")}</DialogTitle>
           <DialogDescription>
-            {csvFile ? (
+            {sourceFile ? (
               <>
                 <span className="text-foreground font-medium break-words">
                   {csvName}
@@ -429,7 +485,7 @@ export function TableCreateDialog({
           {/* A CSV opened from Files or chat is already chosen: the header
           names it, so the picker and its limits only show for a new table,
           or to choose another file when that one could not be read. */}
-          {(!csvFile || (!!error && !csv.length && !fileRead.loading)) && (
+          {(!sourceFile || (!!error && !csv.length && !fileRead.loading)) && (
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="table-csv">{t("importCsv")}</Label>
               {/* The native control stays the one real control: it keeps the
@@ -459,14 +515,15 @@ export function TableCreateDialog({
                   className="text-muted-foreground min-w-0 truncate text-sm"
                 >
                   {/* From a file the header names it; here it would say it twice. */}
-                  {csvFile ? null : csvName || t("noFileChosen")}
+                  {sourceFile ? null : csvName || t("noFileChosen")}
                 </span>
                 <span className="sr-only">
                   <Input
                     id="table-csv"
                     ref={csvInput}
                     type="file"
-                    accept=".csv,text/csv"
+                    // Recovering an Excel file takes another workbook.
+                    accept={sourceKind === "xlsx" ? ".xlsx" : ".csv,text/csv"}
                     disabled={pending || fileRead.loading || !!attempt}
                     onChange={(event) =>
                       void handleCsv(event.target.files?.[0])
@@ -475,10 +532,38 @@ export function TableCreateDialog({
                 </span>
               </div>
               {/* On recovery the error above already says what went wrong. */}
-              {!csvFile && (
+              {!sourceFile && (
                 <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
               )}
             </div>
+          )}
+          {sheets.length > 1 && (
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="table-sheet">{t("sheet")}</Label>
+              <select
+                id="table-sheet"
+                className={withEditableTextSize(
+                  "bg-background h-10 rounded-md border px-3 py-2",
+                )}
+                value={sheetIndex}
+                onChange={(event) => handleSheet(Number(event.target.value))}
+                disabled={pending || !!attempt}
+              >
+                {sheets.map((sheet, index) => (
+                  // Excel keeps sheet names unique within a workbook.
+                  <option value={index} key={sheet.name}>
+                    {sheet.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Said before Create, never found later: rows or columns past a
+          Table's limits are left out of this import. */}
+          {sheets[sheetIndex]?.truncated && columns.length > 0 && (
+            <Alert className="sm:col-span-2">
+              <AlertDescription>{t("sheetCut")}</AlertDescription>
+            </Alert>
           )}
           {columns.length > 0 && (
             // One row per column: its name and type, then a few of its
@@ -607,7 +692,7 @@ export function TableCreateDialog({
             {pending && csv.length
               ? t("importProgress", { count: progress })
               : fileRead.loading
-                ? t("loadingCsv")
+                ? t("loadingFile")
                 : null}
           </p>
         </div>
@@ -626,7 +711,7 @@ export function TableCreateDialog({
             variant="primary"
             loading={pending}
             // From Files the CSV is the point: no blank Table if it did not load.
-            disabled={fileRead.loading || (!!csvFile && csv.length === 0)}
+            disabled={fileRead.loading || (!!sourceFile && csv.length === 0)}
             onClick={() => void handleCreate()}
           >
             {attempt?.tableId ? t("retry") : t("create")}

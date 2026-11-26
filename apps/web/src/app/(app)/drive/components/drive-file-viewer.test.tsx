@@ -38,12 +38,12 @@ vi.mock("@/components/spreadsheet/spreadsheet-view", () => ({
 
 vi.mock("@/app/drive/tables/table-create-dialog", () => ({
   TableCreateDialog: ({
-    csvFile,
+    sourceFile,
   }: {
-    csvFile: { url: string; name: string };
+    sourceFile: { url: string; name: string };
   }) => (
-    <button type="button" data-url={csvFile.url}>
-      {`openAsTable:${csvFile.name}`}
+    <button type="button" data-url={sourceFile.url}>
+      {`openAsTable:${sourceFile.name}`}
     </button>
   ),
 }));
@@ -156,16 +156,18 @@ describe("DriveFileViewer", () => {
     );
   });
 
-  it("offers Open as Table on a CSV, reading it through the authorized route", () => {
-    const { unmount } = open("leads.csv", "text/csv");
-    expect(
-      screen.getByRole("button", { name: "openAsTable:leads.csv" }),
-    ).toHaveAttribute("data-url", "/api/drive/files/res-1/content?scope=me");
-    unmount();
-
-    open("leads.xlsx", null);
-    expect(screen.queryByRole("button", { name: /openAsTable/ })).toBeNull();
-  });
+  it.each([
+    ["leads.csv", "text/csv"],
+    ["leads.xlsx", null],
+  ])(
+    "offers Open as Table on %s, reading it through the authorized route",
+    (name, type) => {
+      open(name, type);
+      expect(
+        screen.getByRole("button", { name: `openAsTable:${name}` }),
+      ).toHaveAttribute("data-url", "/api/drive/files/res-1/content?scope=me");
+    },
+  );
 
   it("renders nothing while closed", () => {
     const { container } = render(

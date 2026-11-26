@@ -100,6 +100,34 @@ describe("readSpreadsheet", () => {
     expect(sheet.truncated).toBe(true);
   });
 
+  it("reads a whole sheet for import: own caps, hidden rows kept", async () => {
+    const rows = Array.from(
+      { length: MAX_ROWS + 5 },
+      (_, index) =>
+        `<row r="${index + 1}"${index === 1 ? ' hidden="1"' : ""}><c r="A${index + 1}"><v>${index}</v></c><c r="B${index + 1}"><v>1</v></c></row>`,
+    ).join("");
+    const bytes = await workbook({ Big: rows });
+    const [whole] = await readSpreadsheet("xlsx", bytes, {
+      maxRows: MAX_ROWS + 10,
+      maxColumns: 2,
+      keepHidden: true,
+    });
+    expect(whole.rows).toHaveLength(MAX_ROWS + 5);
+    expect(whole.rows[1][0].text).toBe("1");
+    expect(whole.truncated).toBe(false);
+    const [narrow] = await readSpreadsheet("xlsx", bytes, {
+      maxRows: 3,
+      maxColumns: 1,
+      keepHidden: true,
+    });
+    expect(narrow.rows.map((row) => row.map((cell) => cell.text))).toEqual([
+      ["0"],
+      ["1"],
+      ["2"],
+    ]);
+    expect(narrow.truncated).toBe(true);
+  });
+
   it("reads a CSV export, ragged rows and blank headers included", async () => {
     const csv = new TextEncoder().encode(
       ',Q1,Q2\nRevenue,"1,200",900\nNotes\n',

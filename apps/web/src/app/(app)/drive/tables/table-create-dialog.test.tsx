@@ -7,6 +7,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TableCreateDialog } from "./table-create-dialog";
 
@@ -32,6 +33,7 @@ const URL = "/api/drive/files/res-1/content?scope=me";
 
 function openFromFiles(
   response: Response | Promise<Response> | (() => Promise<Response>),
+  name = "Leads.csv",
 ) {
   const fetch =
     typeof response === "function"
@@ -49,10 +51,7 @@ function openFromFiles(
         })
       }
     >
-      <TableCreateDialog
-        workspaceId={null}
-        csvFile={{ url: URL, name: "Leads.csv" }}
-      />
+      <TableCreateDialog workspaceId={null} sourceFile={{ url: URL, name }} />
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "openAsTable" }));
@@ -235,7 +234,7 @@ describe("TableCreateDialog from a Files CSV", () => {
         }),
     );
 
-    expect(await screen.findByText("loadingCsv")).toBeTruthy();
+    expect(await screen.findByText("loadingFile")).toBeTruthy();
     expect(screen.getByText("Leads.csv")).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -247,5 +246,128 @@ describe("TableCreateDialog from a Files CSV", () => {
 
     expect(await screen.findByText("errors.request")).toBeTruthy();
     expect(screen.queryByText("Failed to fetch")).toBeNull();
+  });
+});
+
+const MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+/** A workbook whose cells are inline text, one sheet per entry. */
+async function xlsx(sheets: Record<string, string[][]>) {
+  const zip = new JSZip();
+  const names = Object.keys(sheets);
+  zip.file(
+    "xl/workbook.xml",
+    `<workbook xmlns="${MAIN}" xmlns:r="r"><sheets>${names
+      .map(
+        (n, i) => `<sheet name="${n}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`,
+      )
+      .join("")}</sheets></workbook>`,
+  );
+  zip.file(
+    "xl/_rels/workbook.xml.rels",
+    `<Relationships>${names
+      .map(
+        (_, i) =>
+          `<Relationship Id="rId${i + 1}" Target="worksheets/sheet${i + 1}.xml"/>`,
+      )
+      .join("")}</Relationships>`,
+  );
+  names.forEach((n, i) => {
+    const rows = sheets[n]
+      .map(
+        (row) =>
+          `<row>${row.map((text) => `<c t="inlineStr"><is><t>${text}</t></is></c>`).join("")}</row>`,
+      )
+      .join("");
+    zip.file(
+      `xl/worksheets/sheet${i + 1}.xml`,
+      `<worksheet xmlns="${MAIN}"><sheetData>${rows}</sheetData></worksheet>`,
+    );
+  });
+  return new Response(await zip.generateAsync({ type: "arraybuffer" }));
+}
+
+describe("TableCreateDialog from a Files Excel workbook", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("maps the chosen sheet and creates the Table from its rows", async () => {
+    openFromFiles(
+      await xlsx({
+        Leads: [
+          ["Name", "Zip"],
+          ["Ada", "007"],
+        ],
+        Notes: [["Topic"], ["Hi"]],
+      }),
+      "Plan.xlsx",
+    );
+
+    expect(await screen.findByText("007")).toBeTruthy();
+    expect(screen.getByLabelText("title")).toHaveValue("Plan");
+    const sheet = screen.getByLabelText("sheet");
+    expect(
+      Array.from((sheet as HTMLSelectElement).options).map((o) => o.text),
+    ).toEqual(["Leads", "Notes"]);
+
+    fireEvent.change(sheet, { target: { value: "1" } });
+    expect(await screen.findByText("Hi")).toBeTruthy();
+    const names = screen.getAllByLabelText("columnName");
+    expect(names.map((input) => (input as HTMLInputElement).value)).toEqual([
+      "Topic",
+    ]);
+
+    f.create.mockResolvedValue({ id: "table-1" });
+    f.batch.mockResolvedValue({});
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(f.push).toHaveBeenCalledWith("/drive/tables/table-1"),
+    );
+    expect(f.create.mock.calls[0][0].title).toBe("Plan");
+    expect(Object.values(f.batch.mock.calls[0][1].insert[0].values)).toEqual([
+      "Hi",
+    ]);
+  });
+
+  it("offers no sheet choice for one sheet, and names a blank header", async () => {
+    openFromFiles(
+      await xlsx({
+        Only: [
+          ["Name", ""],
+          ["Ada", "x"],
+        ],
+      }),
+      "One.xlsx",
+    );
+
+    expect(await screen.findByText("Ada")).toBeTruthy();
+    expect(screen.queryByLabelText("sheet")).toBeNull();
+    const names = screen.getAllByLabelText("columnName");
+    expect(names.map((input) => (input as HTMLInputElement).value)).toEqual([
+      "Name",
+      'untitledColumn {"number":2}',
+    ]);
+  });
+
+  it("says an unreadable workbook could not be read and offers another workbook", async () => {
+    openFromFiles(new Response("not a workbook"), "Broken.xlsx");
+
+    expect(await screen.findByText("errors.sheet")).toBeTruthy();
+    expect(screen.queryByLabelText("columnName")).toBeNull();
+    expect(screen.getByLabelText("importCsv")).toHaveAttribute(
+      "accept",
+      ".xlsx",
+    );
+  });
+
+  it("says before creating when the sheet is larger than a Table takes", async () => {
+    const wide = Array.from({ length: 101 }, (_, i) => `C${i}`);
+    openFromFiles(await xlsx({ Wide: [wide, wide] }), "Wide.xlsx");
+
+    expect(await screen.findByText("sheetCut")).toBeTruthy();
+    expect(screen.getAllByLabelText("columnName")).toHaveLength(100);
+    expect(screen.getByRole("button", { name: "create" })).toBeEnabled();
   });
 });
