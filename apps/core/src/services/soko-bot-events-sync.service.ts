@@ -200,7 +200,7 @@ export function buildEventMessage(
  */
 async function backgroundRunReadChange(
   runTurnId: string,
-  current: { id: string; eventAt?: Date | null },
+  current: { id: string; status: string; eventAt?: Date | null },
   delegation: { task: unknown; job: unknown },
 ): Promise<boolean> {
   const field = delegation.task ? "taskId" : "jobId";
@@ -210,6 +210,9 @@ async function backgroundRunReadChange(
       capability: delegation.task ? "get_task_status" : "get_job_status",
       status: "COMPLETED",
       input: { path: [field], equals: current.id },
+      // What the read returned decides, not when it ran: one that started
+      // before the change and was saved after it still said RUNNING.
+      result: { path: ["status"], equals: current.status },
       ...(current.eventAt ? { updatedAt: { gte: current.eventAt } } : {}),
     },
     select: { id: true },

@@ -460,12 +460,54 @@ describe("SokoBotEventsSyncService", () => {
             turnId: "run_turn",
             capability: "get_task_status",
             input: { path: ["taskId"], equals: "task_shared" },
-            // A read that started just before the change still returned it.
+            // Only a read that returned the change counts.
+            result: { path: ["status"], equals: "COMPLETED" },
             updatedAt: { gte: new Date("2026-10-23T10:00:00Z") },
           }),
         }),
       );
       expect(delegationUpdateMock).toHaveBeenCalledOnce();
+    });
+
+    it("does not count a read saved after the change that still returned RUNNING", async () => {
+      runTurn.status = "COMPLETED";
+      const reads = [
+        {
+          turnId: "run_turn",
+          capability: "get_task_status",
+          status: "COMPLETED",
+          input: { taskId: "task_shared" },
+          // Started a moment before the Task completed, saved after it.
+          result: { status: "RUNNING" },
+          updatedAt: new Date("2026-10-23T10:00:00.002Z"),
+        },
+      ];
+      toolCallFindFirstMock.mockImplementation(
+        async ({
+          where,
+        }: {
+          where: {
+            turnId: string;
+            capability: string;
+            input: { equals: string };
+            result: { equals: string };
+            updatedAt: { gte: Date };
+          };
+        }) =>
+          reads.find(
+            (read) =>
+              read.turnId === where.turnId &&
+              read.capability === where.capability &&
+              read.input.taskId === where.input.equals &&
+              read.result.status === where.result.equals &&
+              read.updatedAt >= where.updatedAt.gte,
+          ) ?? null,
+      );
+      delegationFindManyMock.mockResolvedValue([runDelegation()]);
+      expect((await sync()).woken).toBe(1);
+      expect(
+        startTurnMock.mock.calls[0]![0].eventBatch[0].followUpDelegationIds,
+      ).toEqual(["d1"]);
     });
 
     it("hands the follow-up on when the run read the result and then failed", async () => {
