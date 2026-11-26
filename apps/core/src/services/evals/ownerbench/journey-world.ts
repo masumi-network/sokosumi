@@ -36,6 +36,8 @@ export interface JourneyWorld {
   projects: Record<JourneyProject, string>;
   /** The Drive file a journey seeded, and the post it seeded. */
   seededFileId?: string;
+  /** A phrase only the seeded file's text holds: a read must return it. */
+  seededFileMarker?: string;
   seededPostId?: string;
   /** Schedules seeded on other members' bots, as they were. */
   seededSchedules?: SeededSchedule[];
@@ -545,18 +547,24 @@ export async function prepareJourneyWorld(
       Cuso: lane.cusoProjectId,
     },
   };
-  if (prepare.includes("launch-one-pager-pdf"))
+  if (prepare.includes("launch-one-pager-pdf")) {
     world.seededFileId = await seedPdf(lane, LAUNCH_ONE_PAGER);
-  if (prepare.includes("customer-story-pdf"))
+    world.seededFileMarker = "Nightly dreaming";
+  }
+  if (prepare.includes("customer-story-pdf")) {
     world.seededFileId = await seedPdf(lane, CUSTOMER_STORY);
+    world.seededFileMarker = "43% fewer no-shows";
+  }
   if (prepare.includes("outdated-price-post"))
     world.seededPostId = await seedOutdatedPricePost(lane);
-  if (prepare.includes("investor-notes"))
+  if (prepare.includes("investor-notes")) {
     world.seededFileId = await seedFile(lane, {
       name: "Seed investor notes.md",
       bytes: new TextEncoder().encode(investorNotes()),
       contentType: "text/markdown",
     });
+    world.seededFileMarker = INVESTOR_FIXTURE.fits[0]?.startup;
+  }
   if (prepare.includes("weekly-reports")) await seedCmoReports(lane);
   if (prepare.includes("friday-and-linkedin-posts"))
     world.seededWeekdayPostIds = await seedFridayAndLinkedInPosts(lane);

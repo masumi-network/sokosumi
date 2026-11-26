@@ -100,7 +100,7 @@ async function scheduleCheck(
       enabled: true,
     },
   });
-  const [rememberedId, rememberedCron, rememberedPrompt] =
+  const [rememberedId, rememberedCron, rememberedPrompt, rememberedZone] =
     context.memo.schedule ?? [];
   const compared =
     outcome.identity === "unchanged" || outcome.identity === "edited";
@@ -116,9 +116,17 @@ async function scheduleCheck(
         : "no schedule",
     };
   if (outcome.identity === "remember")
-    context.memo.schedule = [latest.id, latest.cronExpression, latest.prompt];
+    context.memo.schedule = [
+      latest.id,
+      latest.cronExpression,
+      latest.prompt,
+      latest.timezone,
+    ];
   const problems: string[] = [];
   if (!latest.enabled) problems.push("disabled");
+  // Neither a run nor "move it to 7:30" changes the owner's time zone.
+  if (compared && latest.timezone !== rememberedZone)
+    problems.push(`time zone ${rememberedZone} → ${latest.timezone}`);
   if (outcome.count !== undefined && schedules.length !== outcome.count)
     problems.push(`${schedules.length} schedules`);
   if (
@@ -788,16 +796,26 @@ function readSeededFileCheck(
   context: CheckContext,
 ): ScenarioCheck {
   const id = context.world.seededFileId ?? "";
-  const read = context.toolCalls.some(
+  const marker = context.world.seededFileMarker ?? "";
+  const reads = context.toolCalls.filter(
     (call) =>
       ["read_file", "workspace_import_file"].includes(call.capability) &&
       call.status !== "FAILED" &&
       JSON.stringify(call.input ?? "").includes(id),
   );
+  // A read that came back empty ("still being processed") is no read: the
+  // file's own text, a phrase only it holds, has to be in what came back.
+  const withText = reads.some((call) =>
+    JSON.stringify(call.result ?? "").includes(marker),
+  );
   return {
     label: outcome.label,
-    pass: Boolean(id) && read,
-    actual: read ? "read" : "never read",
+    pass: Boolean(id && marker) && withText,
+    actual: withText
+      ? "read, with its text"
+      : reads.length
+        ? `${reads.length} read(s), none returned the file's text`
+        : "never read",
   };
 }
 

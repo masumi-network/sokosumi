@@ -245,6 +245,30 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect((await check("edited")).pass).toBe(false);
     });
 
+    it("fails a run or an edit that moves the schedule to another time zone", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      const original = await create("Report finished and waiting work.");
+      await check("remember");
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { timezone: "UTC" },
+      });
+      expect(await check("unchanged")).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("time zone Europe/Berlin → UTC"),
+      });
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { cronExpression: "30 7 * * 1" },
+      });
+      expect((await check("edited")).pass).toBe(false);
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { timezone: "Europe/Berlin" },
+      });
+      expect((await check("edited")).pass).toBe(true);
+    });
+
     it("fails an edit that keeps the dropped clause, passes the same id without it", async () => {
       await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
       const original = await create("Report finished, stuck and waiting work.");
@@ -264,6 +288,39 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         true,
       );
     });
+  });
+
+  it("counts a file read only when it returned the file's text", async () => {
+    const read = (result: unknown) =>
+      outcomeCheck(
+        { kind: "readSeededFile", label: "read" },
+        {
+          ...context,
+          world: {
+            ...context.world,
+            seededFileId: "file-1",
+            seededFileMarker: "Nightly dreaming",
+          },
+          toolCalls: [
+            {
+              capability: "read_file",
+              status: "COMPLETED",
+              input: { fileId: "file-1" },
+              result,
+            },
+          ],
+        },
+      );
+    expect(
+      await read({ text: "", note: "Still being processed; try again." }),
+    ).toMatchObject({
+      pass: false,
+      actual: "1 read(s), none returned the file's text",
+    });
+    expect(
+      (await read({ text: "- Nightly dreaming: the bot tidies its memory." }))
+        .pass,
+    ).toBe(true);
   });
 
   it("fails a turn without a context snapshot as no evidence of a fresh start", async () => {
