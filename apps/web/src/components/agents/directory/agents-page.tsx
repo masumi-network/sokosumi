@@ -1,3 +1,5 @@
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
@@ -85,5 +87,24 @@ export function AgentsSection({
       </div>
       <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>{children}</div>
     </section>
+  );
+}
+
+/** A quiet text link beside a section heading, such as "Manage Soko Bots". */
+export function AgentsSectionLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm font-medium outline-none focus-visible:ring-2"
+    >
+      {children}
+      <ArrowRight aria-hidden className="size-3.5" />
+    </Link>
   );
 }

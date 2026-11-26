@@ -1,21 +1,29 @@
-import type { Coworker } from "@sokosumi/core-client";
-import { ArrowRight } from "lucide-react";
+import { type Coworker, SokoBotScope } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
 import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { PersonAvatar } from "@/app/contacts/components/contact-visuals";
+import { CreateSokoBotDialog } from "@/app/soko-bots/components/create-soko-bot-dialog.client";
+import { ArchivedBotRows } from "@/app/soko-bots/components/managed-bot-sections";
+import {
+  loadSokoBotsManagement,
+  type ManagedBot,
+} from "@/app/soko-bots/managed-bots";
 import { CoworkerAvatar } from "@/components/agents/coworker-avatar";
 import { AgentStatus } from "@/components/agents/directory/agent-status";
 import {
   AGENT_TILE_GRID_CLASS,
   AgentTile,
 } from "@/components/agents/directory/agent-tile";
-import { AgentsSection } from "@/components/agents/directory/agents-page";
+import {
+  AgentsSection,
+  AgentsSectionLink,
+  AgentsTag,
+} from "@/components/agents/directory/agents-page";
 import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
@@ -26,7 +34,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 import {
@@ -40,34 +48,19 @@ import {
   botPurpose,
   botStatusLabel,
 } from "./bot-labels";
+import { ArchivedFold } from "./components/archived-fold.client";
+import { BotManageMenu } from "./components/bot-manage-menu.client";
 import {
   BotCardAction,
   CoworkerCardAction,
 } from "./components/card-actions.client";
 import { Marketplace } from "./components/marketplace.client";
+import { NotSetUpLine } from "./components/not-set-up-line";
 import type { DirectoryBot } from "./soko-bot-directory";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
   return { title: t("title"), description: t("description") };
-}
-
-function SectionLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm font-medium outline-none focus-visible:ring-2"
-    >
-      {children}
-      <ArrowRight aria-hidden className="size-3.5" />
-    </Link>
-  );
 }
 
 function TilesSkeleton() {
@@ -105,12 +98,18 @@ function BotOwner({ bot, t }: { bot: DirectoryBot; t: DirectoryT }) {
 function BotGroup({
   label,
   bots,
+  managed,
   t,
+  pausedLabel,
   children,
 }: {
   label: string;
   bots: DirectoryBot[];
+  /** The bots the viewer configures, by id; others get no menu. */
+  managed: Map<string, ManagedBot>;
   t: DirectoryT;
+  /** The "Paused" tag's text. */
+  pausedLabel: string;
   children?: ReactNode;
 }) {
   return (
@@ -134,17 +133,21 @@ function BotGroup({
               purpose={botPurpose(bot, t)}
               meta={<BotOwner bot={bot} t={t} />}
               status={
-                <AgentStatus
-                  status={bot.status}
-                  label={botStatusLabel(bot, t)}
-                />
+                <span className="flex items-center gap-1.5">
+                  {managed.get(bot.id)?.paused ? (
+                    <AgentsTag>{pausedLabel}</AgentsTag>
+                  ) : null}
+                  <AgentStatus
+                    status={bot.status}
+                    label={botStatusLabel(bot, t)}
+                  />
+                </span>
               }
               action={
-                <BotCardAction
-                  botId={bot.id}
-                  botName={botName(bot, t)}
-                  shared={!isPersonal(bot)}
-                  sharedRoomId={bot.sharedRoomId}
+                <BotActions
+                  bot={bot}
+                  managed={managed.get(bot.id)}
+                  name={botName(bot, t)}
                 />
               }
             />
@@ -156,13 +159,58 @@ function BotGroup({
   );
 }
 
+/** Message, and the "…" menu on the bots the viewer configures. */
+function BotActions({
+  bot,
+  managed,
+  name,
+}: {
+  bot: DirectoryBot;
+  managed: ManagedBot | undefined;
+  name: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <BotCardAction
+        botId={bot.id}
+        botName={name}
+        shared={!isPersonal(bot)}
+        sharedRoomId={bot.sharedRoomId}
+        iconOnly={Boolean(managed)}
+      />
+      {managed ? (
+        <BotManageMenu
+          name={name}
+          settingsHref={managed.settingsHref}
+          botId={managed.targetId}
+          paused={managed.paused}
+          canArchive={managed.canArchive}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const INVITERS = new Set(["owner", "admin"]);
+
 async function SokoBotsSection() {
-  const [t, directory] = await Promise.all([
+  const [t, tSoko, format, directory, management] = await Promise.all([
     getTranslations("App.Agents.Directory"),
+    getTranslations("App.SokoBots"),
+    getFormatter(),
     loadAgentsBotDirectory(),
+    loadSokoBotsManagement(),
   ]);
   const personal = directory?.bots.filter(isPersonal) ?? [];
   const shared = directory?.bots.filter((bot) => !isPersonal(bot)) ?? [];
+  const managed = new Map(
+    management.bots
+      .filter((bot) => bot.archivedAt === null)
+      .map((bot) => [bot.id, bot]),
+  );
+  const archived = management.bots.filter((bot) => bot.archivedAt !== null);
+  const { team, projects } = management;
+  const me = team?.members.find((member) => member.isYou) ?? null;
 
   return (
     <AgentsSection
@@ -170,7 +218,13 @@ async function SokoBotsSection() {
       title={t("sokoBotsTitle")}
       note={t("sokoBotsNote")}
       action={
-        <SectionLink href={SOKO_BOTS_ROUTE}>{t("manageSokoBots")}</SectionLink>
+        directory && projects ? (
+          <CreateSokoBotDialog
+            canCreatePersonal={!directory.hasOwnBot}
+            projects={projects}
+            defaultScope={SokoBotScope.WORKSPACE}
+          />
+        ) : null
       }
     >
       {!directory ? (
@@ -179,7 +233,13 @@ async function SokoBotsSection() {
         </p>
       ) : (
         <>
-          <BotGroup label={t("groupPersonal")} bots={personal} t={t}>
+          <BotGroup
+            label={t("groupPersonal")}
+            bots={personal}
+            managed={managed}
+            t={t}
+            pausedLabel={tSoko("paused")}
+          >
             {directory.hasOwnBot ? null : (
               <li>
                 <Link
@@ -202,7 +262,32 @@ async function SokoBotsSection() {
             )}
           </BotGroup>
           {shared.length > 0 ? (
-            <BotGroup label={t("groupShared")} bots={shared} t={t} />
+            <BotGroup
+              label={t("groupShared")}
+              bots={shared}
+              managed={managed}
+              t={t}
+              pausedLabel={tSoko("paused")}
+            />
+          ) : null}
+          {archived.length > 0 ? (
+            <ArchivedFold
+              label={tSoko("archivedTitle")}
+              count={format.number(archived.length)}
+            >
+              <ArchivedBotRows
+                bots={archived}
+                t={tSoko}
+                tDir={t}
+                format={format}
+              />
+            </ArchivedFold>
+          ) : null}
+          {team?.workspace.kind === "organization" ? (
+            <NotSetUpLine
+              others={team.members.filter((member) => !member.isYou)}
+              canInvite={INVITERS.has(me?.role ?? "")}
+            />
           ) : null}
         </>
       )}
@@ -281,9 +366,9 @@ async function MarketplaceSection() {
       tag={t("external")}
       note={t("marketplaceNote")}
       action={
-        <SectionLink href="/developer/coworkers">
+        <AgentsSectionLink href="/developer/coworkers">
           {t("bringYourOwn")}
-        </SectionLink>
+        </AgentsSectionLink>
       }
     >
       <Marketplace

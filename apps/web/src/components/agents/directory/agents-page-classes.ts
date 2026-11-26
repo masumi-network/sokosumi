@@ -7,3 +7,7 @@ export const AGENTS_PAGE_CLASS =
 
 /** A white, bordered block inside a section's panel. */
 export const AGENTS_CARD_CLASS = cn(HOLDER_ITEM_CLASS, "p-4");
+
+/** The quiet back link above a profile or console header. */
+export const AGENTS_BACK_LINK_CLASS =
+  "text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 px-1 text-sm transition-colors";

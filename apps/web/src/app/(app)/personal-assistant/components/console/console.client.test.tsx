@@ -30,6 +30,7 @@ const useStateMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
+    prefetch: vi.fn(),
     replace: vi.fn(),
     refresh: refreshMock,
   }),
