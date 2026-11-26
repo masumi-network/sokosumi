@@ -4,7 +4,7 @@ Run once when the brand guide's poses change:
 
     python3 scripts/cuso-poses.py "<Masumi-Family-Brand-Guide>/Cuso 2D Mascot"
 
-It reads the `-default` walking, friendly, idea, done and correct poses and writes one SVG with a
+It reads the `-default` walking, friendly, idea and correct poses and writes one SVG with a
 nested <svg> per pose, all scaled so the body is the same size and the feet stand on the same line.
 The walking pose is cut into parts that script.js moves: its body and arms are masked out of the
 drawing, and its legs are tubes the script draws, each ending in the drawing's own shoe. The
@@ -106,7 +106,6 @@ def main() -> None:
         "walk": ((952, 1344, 725), walking(root)),
         "friendly": ((1364, 1942, 950), friendly(root)),
         "idea": ((1168, 1956, 820), inner(pose_svg(root, "idea"), "cuso-i-")),
-        "done": ((954, 1466, 714), inner(pose_svg(root, "done"), "cuso-d-")),
         "correct": ((1261, 1836, 862), inner(pose_svg(root, "correct"), "cuso-c-")),
     }
     nested = "".join(

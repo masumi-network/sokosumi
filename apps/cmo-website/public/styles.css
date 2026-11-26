@@ -377,7 +377,7 @@ h3 { font-size: var(--text-h3); }
 .step__cuso { position: absolute; bottom: 0; width: clamp(130px, 17vw, 230px); }
 .step__cuso--right { right: 0; z-index: 2; }
 .step__cuso--left { left: 0; z-index: 2; }
-/* The done pose is wider than tall (its check mark), so it gets more width to stand as tall as the others. */
+/* The correct pose is wider than tall (its check mark), so it gets more width to stand as tall as the others. */
 .step__cuso--wide { width: clamp(149px, 19.5vw, 264px); }
 .step--flip .step__show:has(.step__cuso) { padding-left: clamp(100px, 12vw, 170px); }
 

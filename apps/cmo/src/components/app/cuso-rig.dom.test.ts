@@ -45,15 +45,15 @@ afterEach(() => {
 it("shows his first pose at once, then changes pose at the bottom of a squash", async () => {
   rig.pose("pointing");
   expect(shown()).toEqual(["pointing"]);
-  rig.pose("done");
+  rig.pose("correct");
   // He sinks first; the drawing changes where the motion hides the cut.
   expect(shown()).toEqual(["pointing"]);
   await vi.advanceTimersByTimeAsync(400);
-  expect(shown()).toEqual(["done"]);
+  expect(shown()).toEqual(["correct"]);
 });
 
 it("walks in with his legs drawn live", async () => {
-  rig.pose("done");
+  rig.pose("correct");
   rig.pose("walking");
   await vi.advanceTimersByTimeAsync(300);
   expect(shown()).toEqual(["walking"]);
@@ -79,7 +79,7 @@ it("hops off the ground and lands back where he stood", async () => {
 it("stops moving once stopped", async () => {
   rig.pose("pointing");
   rig.stop();
-  rig.pose("done");
+  rig.pose("correct");
   await vi.advanceTimersByTimeAsync(1000);
   expect(shown()).toEqual(["pointing"]);
 });
