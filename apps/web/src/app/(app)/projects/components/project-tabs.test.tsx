@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { activeProjectTabId, ProjectTabs } from "./project-tabs";
@@ -129,5 +130,43 @@ describe("ProjectTabs pending cue", () => {
     linkStatus.pending = false;
     render(<ProjectTabs ariaLabel="Project" tabs={TABS.slice(0, 1)} />);
     expect(container.ownerDocument.querySelector("[data-pending]")).toBeNull();
+  });
+});
+
+describe("ProjectTabs focus after a route change", () => {
+  // Every subpage renders its own row of tabs, so following a tab, or coming
+  // back from Edit, removes the focused control with the old page and focus
+  // falls to the body.
+  it("puts focus on the current tab when the route change dropped it", () => {
+    pathname.current = "/projects/p1/studio";
+    expect(document.activeElement).toBe(document.body);
+
+    render(<ProjectTabs ariaLabel="Project sections" tabs={TABS} />);
+
+    expect(screen.getByRole("link", { name: "Image studio" })).toHaveFocus();
+  });
+
+  it("leaves focus alone when another control holds it", () => {
+    pathname.current = "/projects/p1/studio";
+    const search = document.createElement("input");
+    document.body.append(search);
+    search.focus();
+
+    render(<ProjectTabs ariaLabel="Project sections" tabs={TABS} />);
+
+    expect(search).toHaveFocus();
+    search.remove();
+  });
+
+  it("does not take focus on a fresh page load", () => {
+    pathname.current = "/projects/p1/studio";
+    const ui = <ProjectTabs ariaLabel="Project sections" tabs={TABS} />;
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(ui);
+    document.body.append(container);
+
+    render(ui, { container, hydrate: true });
+
+    expect(document.activeElement).toBe(document.body);
   });
 });

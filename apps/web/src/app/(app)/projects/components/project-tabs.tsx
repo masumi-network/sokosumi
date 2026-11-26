@@ -2,7 +2,13 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, Suspense, use } from "react";
+import {
+  type ReactNode,
+  Suspense,
+  use,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -73,6 +79,14 @@ export function ProjectTabs({
 }) {
   const pathname = usePathname();
   const activeId = activeProjectTabId(pathname, tabs);
+  // The server snapshot answers only while the page hydrates. Kept from the
+  // first render, so the re-render after hydration does not count as arriving.
+  const mountedByHydration = useSyncExternalStore(
+    subscribeToNothing,
+    () => false,
+    () => true,
+  );
+  const [arrivedByNavigation] = useState(!mountedByHydration);
 
   return (
     // The tabs wrap rather than scroll. A horizontal scroller here was worse
@@ -89,6 +103,9 @@ export function ProjectTabs({
           const item = (
             <li key={tab.id}>
               <Link
+                ref={
+                  isActive && arrivedByNavigation ? focusIfDropped : undefined
+                }
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative -mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
@@ -119,6 +136,24 @@ export function ProjectTabs({
       </ul>
     </nav>
   );
+}
+
+function subscribeToNothing() {
+  return () => {};
+}
+
+/**
+ * Each subpage renders its own row of tabs, so following a tab, or coming
+ * back from Edit, removes the focused control with the old page and focus
+ * falls to the body: a keyboard user starts again at the top of the app.
+ * The current tab takes it back, only when nothing else holds it. Module
+ * level, so React calls it once per link rather than on every render.
+ */
+function focusIfDropped(link: HTMLAnchorElement | null) {
+  const focused = link?.ownerDocument.activeElement;
+  if (link && (!focused || focused === link.ownerDocument.body)) {
+    link.focus({ preventScroll: true });
+  }
 }
 
 function ShowWhen({
