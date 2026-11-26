@@ -362,15 +362,11 @@ describe("the speed table in a workspace view", () => {
 
   it("keeps a row's own device that the audit did not measure for a page another page redirects to (review pass 17)", () => {
     // The audited page redirects to /pricing on mobile only: the audit measured /pricing on mobile, not on desktop.
-    const pageSpeed = [
-      {
-        pageUrl: SEO_TEST_PAGE,
-        testedUrl: EXTRA,
-        device: "mobile" as const,
-        lab: { status: "unavailable" as const },
-        field: { status: "no_data" as const },
-      },
-    ];
+    const pageSpeed = readPageSpeed(
+      section(SEO_TEST_PAGE, EXTRA),
+      SEO_TEST_PAGE,
+      { mobile: EXTRA },
+    ).filter((own) => own.device === "mobile");
     const siteSpeed = readSiteSpeed(
       site([extra(EXTRA)]),
       [SEO_TEST_PAGE],
@@ -394,7 +390,40 @@ describe("the speed table in a workspace view", () => {
         item.lab.status,
       ]),
     ).toEqual([
-      [SEO_TEST_PAGE, "mobile", "unavailable"],
+      [SEO_TEST_PAGE, "mobile", "measured"],
+      [EXTRA, "desktop", "deadline"],
+    ]);
+  });
+
+  it("keeps a row's measured device when the audit read of a page that redirects to it is a gap (review pass 22)", () => {
+    // The audited page redirects to /pricing on mobile and its lab test hit a quota. The report measured /pricing on mobile.
+    const pageSpeed = [
+      {
+        pageUrl: SEO_TEST_PAGE,
+        testedUrl: EXTRA,
+        device: "mobile" as const,
+        lab: { status: "quota" as const },
+        field: { status: "no_data" as const },
+      },
+    ];
+    const siteSpeed = readSiteSpeed(
+      site([extra(EXTRA)]),
+      [SEO_TEST_PAGE],
+      pageSpeed,
+    );
+    const table = scopedSiteSpeed(
+      { siteSpeed: siteSpeed!, pageSpeed, pageUrls: [SEO_TEST_PAGE] },
+      row,
+      new Set([SEO_TEST_PAGE]),
+    );
+    expect(
+      table?.rows[0]?.devices.map((item) => [
+        item.pageUrl,
+        item.device,
+        item.lab.status,
+      ]),
+    ).toEqual([
+      [EXTRA, "mobile", "measured"],
       [EXTRA, "desktop", "deadline"],
     ]);
   });
