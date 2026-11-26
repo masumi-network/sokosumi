@@ -142,6 +142,12 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   xDms?: boolean;
 }
 
+const ENDED_ON_CHAIN_JOB_STATUSES = [
+  "REFUND_WITHDRAWN",
+  "DISPUTED_WITHDRAWN",
+  "FUNDS_OR_DATUM_INVALID",
+] as const;
+
 const PACKET_JOB_SELECT = {
   id: true,
   name: true,
@@ -168,6 +174,13 @@ async function openJobsFirst(where: Prisma.JobWhereInput, take: number) {
     where: {
       ...where,
       events: { none: { status: { in: ["COMPLETED", "FAILED"] } } },
+      // Refunded or ended on chain: over, whatever its last event said.
+      refundedTransactionId: null,
+      NOT: {
+        purchase: {
+          is: { onChainStatus: { in: [...ENDED_ON_CHAIN_JOB_STATUSES] } },
+        },
+      },
     },
     orderBy: order,
     take,

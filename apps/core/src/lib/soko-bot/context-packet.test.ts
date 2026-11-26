@@ -552,9 +552,15 @@ describe("ContextPacketBuilder", () => {
       "project-old",
     ]);
     // Open jobs are read first, so finished ones never crowd them out.
-    expect(jobFindManyMock.mock.calls[0]?.[0].where.events).toEqual({
+    const openWhere = jobFindManyMock.mock.calls[0]?.[0].where;
+    expect(openWhere.events).toEqual({
       none: { status: { in: ["COMPLETED", "FAILED"] } },
     });
+    // A refunded or on-chain-ended Job is not open, whatever its last event.
+    expect(openWhere.refundedTransactionId).toBeNull();
+    expect(openWhere.NOT.purchase.is.onChainStatus.in).toEqual(
+      expect.arrayContaining(["REFUND_WITHDRAWN", "DISPUTED_WITHDRAWN"]),
+    );
     expect(result.packet.projects[0]?.status).toEqual({
       taskCounts: { COMPLETED: 1, RUNNING: 1 },
       jobCounts: { AWAITING_INPUT: 1 },
