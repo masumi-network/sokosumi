@@ -62,22 +62,21 @@ async function requireWholeMemorySeen(
   const omitted = (snapshot?.omissions as Record<string, unknown> | null)
     ?.memory;
   if (typeof omitted !== "number" || omitted <= 0) return;
-  const [reads, shortened] = await Promise.all([
-    tx.sokoBotToolCall.findMany({
-      // A script's read (`script:` id) reached a script, not the model.
-      where: {
-        turnId,
-        capability: "read_memory",
-        status: "COMPLETED",
-        NOT: { toolCallId: { startsWith: "script:" } },
-      },
-      select: { toolCallId: true },
-    }),
-    tx.sokoBotRuntimeEvent.findMany({
-      where: { turnId, type: TOOL_RESULT_SHORTENED_EVENT },
-      select: { data: true },
-    }),
-  ]);
+  // One query at a time: an interactive transaction runs no two at once.
+  const reads = await tx.sokoBotToolCall.findMany({
+    // A script's read (`script:` id) reached a script, not the model.
+    where: {
+      turnId,
+      capability: "read_memory",
+      status: "COMPLETED",
+      NOT: { toolCallId: { startsWith: "script:" } },
+    },
+    select: { toolCallId: true },
+  });
+  const shortened = await tx.sokoBotRuntimeEvent.findMany({
+    where: { turnId, type: TOOL_RESULT_SHORTENED_EVENT },
+    select: { data: true },
+  });
   const cut = new Set(
     shortened.map(
       (event) => (event.data as { callId?: unknown } | null)?.callId,

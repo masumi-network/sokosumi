@@ -71,33 +71,53 @@ function fakeLog(events: { type: string; data: unknown }[]): RuntimeEventLog {
   } as unknown as RuntimeEventLog;
 }
 
-/** The transaction update_memory runs in, over the turn's recorded reads. */
+/**
+ * The transaction update_memory runs in, over the turn's recorded reads. Like
+ * Prisma's interactive transaction client, it refuses a query while another
+ * is still running (AGENTS.md: never Promise.all inside a transaction).
+ */
 function txFor(input: {
   reads: { toolCallId: string }[];
   events: { type: string; data: unknown }[];
 }) {
+  let running = false;
+  const one =
+    <A extends unknown[], R>(query: (...args: A) => R) =>
+    async (...args: A): Promise<Awaited<R>> => {
+      if (running) throw new Error("Two queries at once on one transaction");
+      running = true;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      try {
+        return await query(...args);
+      } finally {
+        running = false;
+      }
+    };
   return {
     sokoBotContextSnapshot: {
-      findUnique: async () => ({ omissions: { memory: 9_000 } }),
+      findUnique: one(() => ({ omissions: { memory: 9_000 } })),
     },
     sokoBotToolCall: {
-      findMany: async ({
-        where,
-      }: {
-        where: { NOT?: { toolCallId: { startsWith: string } } };
-      }) =>
-        input.reads.filter(
-          (read) =>
-            !where.NOT ||
-            !read.toolCallId.startsWith(where.NOT.toolCallId.startsWith),
-        ),
-      update: async () => ({}),
+      findMany: one(
+        ({
+          where,
+        }: {
+          where: { NOT?: { toolCallId: { startsWith: string } } };
+        }) =>
+          input.reads.filter(
+            (read) =>
+              !where.NOT ||
+              !read.toolCallId.startsWith(where.NOT.toolCallId.startsWith),
+          ),
+      ),
+      update: one(() => ({})),
     },
     sokoBotRuntimeEvent: {
-      findMany: async ({ where }: { where: { type: string } }) =>
+      findMany: one(({ where }: { where: { type: string } }) =>
         input.events
           .filter((event) => event.type === where.type)
           .map((event) => ({ data: event.data })),
+      ),
     },
     sokoBot: {
       findUniqueOrThrow: async () => ({ memoryVersion: 3 }),
