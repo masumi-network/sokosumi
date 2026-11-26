@@ -243,7 +243,7 @@ export function SeoSpeedDetail({
                   {t("pageSpeed.auditedPage", { url: row.pageUrl })}
                 </p>
               )}
-              {testedUrl !== pageUrl && (
+              {seoPageKey(testedUrl) !== seoPageKey(pageUrl) && (
                 <p className="break-all text-xs text-muted-foreground">
                   {testedUrl}
                 </p>

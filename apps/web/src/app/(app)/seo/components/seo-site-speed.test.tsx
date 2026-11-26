@@ -248,7 +248,7 @@ it("names no audited page when it is the row's page without its root slash", () 
         url,
         audited: true,
         tier: "full",
-        devices: [seoTestSpeedDevice({ pageUrl: bare, testedUrl: url })],
+        devices: [seoTestSpeedDevice({ pageUrl: bare, testedUrl: bare })],
       },
     ],
     dropped: 0,
@@ -263,18 +263,24 @@ it("names no audited page when it is the row's page without its root slash", () 
   fireEvent.click(screen.getByRole("button", { name: /example\.test/ }));
   expect(screen.getByRole("button", { expanded: true })).toBeTruthy();
   expect(screen.queryByText(/That address leads to this page/)).toBeNull();
+  // The tested address is this page too: it is not shown as a redirect target.
+  expect(screen.queryByText(bare)).toBeNull();
 });
 
 it("says a checked row with no readable device has no readable measurement", () => {
   const workspace = seoTestWorkspace();
   const page = (path: string) => `https://example.com/${path}`;
   workspace.siteSpeed = {
-    rows: (["full", "reduced", "none"] as const).map((tier) => ({
-      url: page(tier),
-      audited: false,
-      tier,
-      devices: [],
-    })),
+    rows: [
+      ...(["full", "reduced", "none"] as const).map((tier) => ({
+        url: page(tier),
+        audited: false,
+        tier,
+        devices: [],
+      })),
+      // A row from before the tiers was checked.
+      { url: page("legacy"), audited: false, devices: [] },
+    ],
     dropped: 0,
     observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
     observedAt: new Date("2026-11-11T00:26:00Z"),
@@ -296,4 +302,5 @@ it("says a checked row with no readable device has no readable measurement", () 
   expect(said("full")).toEqual([true, false]);
   expect(said("reduced")).toEqual([true, false]);
   expect(said("none")).toEqual([false, true]);
+  expect(said("legacy")).toEqual([true, false]);
 });
