@@ -883,7 +883,12 @@ describe("the guards of speed data on each path", () => {
   });
 
   it("keeps the first readable stored measurement of each device of a row", () => {
-    const broken = { ...device(EXTRA, "mobile"), lab: { status: "invalid" } };
+    // A tested URL on another host is still refused (review pass 17: a lab Core cannot read is now unavailable).
+    const broken = {
+      ...device(EXTRA, "mobile"),
+      testedUrl: "https://other.test/page",
+      field: { status: "deadline" },
+    };
     const second = { ...device(EXTRA, "mobile"), field: { status: "quota" } };
     const table = storedRows([
       {
