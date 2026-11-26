@@ -120,6 +120,11 @@ function compactCalendarReferences(value: unknown) {
   return kept.length ? { calendarContactReferences: kept } : {};
 }
 
+export interface PersistedToolResultOptions {
+  /** Pre-clip digest of the canonical input, kept on truncated audit rows. */
+  canonicalInputHash?: string;
+}
+
 /**
  * A tool input or result as stored on its row: sanitized, and at most 16 KB,
  * plus the addresses of one that had to be cut.
@@ -127,6 +132,7 @@ function compactCalendarReferences(value: unknown) {
 export function persistedToolResult(
   value: unknown,
   capability?: string,
+  options?: PersistedToolResultOptions,
 ): Prisma.InputJsonValue {
   const sanitized = sanitizePersistedValue(value);
   const serialized = JSON.stringify(sanitized);
@@ -152,6 +158,9 @@ export function persistedToolResult(
     ...fields,
     ...(capability === "list_calendar_events" &&
       compactCalendarReferences(sanitized)),
+    ...(options?.canonicalInputHash
+      ? { canonicalInputHash: options.canonicalInputHash }
+      : {}),
   };
   const emptyWrapper = JSON.stringify({
     truncated: true,
