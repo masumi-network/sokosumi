@@ -40,14 +40,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
-const minute = 60_000;
-const day = 24 * 60 * minute;
+const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+
+afterAll(() => prisma.$disconnect());
 
 describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
   "SQL dates in %s",
   (zone) => {
-    afterAll(() => prisma.$disconnect());
-
     async function inSession(
       run: (tx: Prisma.TransactionClient, now: Date) => Promise<void>,
     ) {
@@ -103,7 +103,7 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
           data: {
             taskId,
             status: "RUNNING",
-            createdAt: new Date(+now - 60 * minute),
+            createdAt: new Date(+now - 60 * MINUTE_MS),
           },
         });
 
@@ -125,18 +125,28 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
           await next();
         });
         mountTaskSummary(app);
-        const response = await app.request("/summary");
-        expect(response.status).toBe(200);
-        expect(await response.json()).toMatchObject({
-          data: { workedMinutes: 60 },
-        });
+        await tx.$executeRaw`SET LOCAL search_path TO DEFAULT`;
+        vi.useFakeTimers({ toFake: ["Date"] });
+        try {
+          // With either cutoff, the task contributes its full hour on the database clock.
+          for (const requestAt of [+now, +now + DAY_MS - 60 * MINUTE_MS]) {
+            vi.setSystemTime(requestAt);
+            const response = await app.request("/summary");
+            expect(response.status).toBe(200);
+            expect(await response.json()).toMatchObject({
+              data: { workedMinutes: 60 },
+            });
+          }
+        } finally {
+          vi.useRealTimers();
+        }
       });
     });
 
     it("prunes only published Calendar rows past the UTC retention cutoff", async () => {
       await inSession(async (tx, now) => {
         const workspaceId = randomUUID();
-        const cutoff = +now - 7 * day;
+        const cutoff = +now - 7 * DAY_MS;
         await tx.calendarInvalidationOutbox.createMany({
           data: [30, -30, null].map((offset) => ({
             workspaceId,
@@ -144,9 +154,10 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
             calendarRevision: 1,
             payload: {},
             publishedAt:
-              offset === null ? null : new Date(cutoff + offset * minute),
+              offset === null ? null : new Date(cutoff + offset * MINUTE_MS),
           })),
         });
+        await tx.$executeRaw`SET LOCAL search_path TO DEFAULT`;
         await calendarInvalidationOutboxService.syncInvalidations({
           shouldContinue: () => false,
         });
@@ -158,7 +169,7 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
         expect(rows).toEqual(
           expect.arrayContaining([
             { publishedAt: null },
-            { publishedAt: new Date(cutoff + 30 * minute) },
+            { publishedAt: new Date(cutoff + 30 * MINUTE_MS) },
           ]),
         );
       });
@@ -168,19 +179,26 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
       await inSession(async (tx, now) => {
         const actor = await owner(tx, now);
         await tx.contact.createMany({
-          data: [30, -30].map((offset) => ({
-            workspaceId: actor.workspaceId,
-            name: `Contact ${offset}`,
-            lastContactAt: new Date(+now - 30 * day + offset * minute),
-          })),
+          data: [30, 90, 365].flatMap((days) =>
+            [30, -30].map((offset) => ({
+              workspaceId: actor.workspaceId,
+              name: `Contact ${days} days ${offset} minutes`,
+              lastContactAt: new Date(
+                +now - days * DAY_MS + offset * MINUTE_MS,
+              ),
+            })),
+          ),
         });
+        await tx.$executeRaw`SET LOCAL search_path TO DEFAULT`;
         const { groups } = await breakDownContacts(actor, {
           filter: {},
           by: "lastContact",
         });
         expect(groups).toMatchObject([
           { key: "30d", count: 1 },
-          { key: "90d", count: 1 },
+          { key: "90d", count: 2 },
+          { key: "365d", count: 2 },
+          { key: "older", count: 1 },
         ]);
       });
     });
@@ -193,6 +211,9 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
         });
         const scored = await tx.contact.create({
           data: { workspaceId, name: "Scored" },
+        });
+        const firstScore = await tx.contact.create({
+          data: { workspaceId, name: "First score" },
         });
         await tx.contactScore.createMany({
           data: [
@@ -210,17 +231,33 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
             summary: "Met",
           },
         });
+        // At 180 days, the score is just below 30.5. A four-hour age shift rounds to 31.
+        await tx.contactInteraction.createMany({
+          data: Array.from({ length: 10 }, (_, index) => ({
+            workspaceId,
+            userId,
+            contactId: firstScore.id,
+            occurredAt: new Date(+now - 180 * DAY_MS),
+            channel: index === 0 ? "MEETING" : "EMAIL",
+            direction: index < 2 ? "IN" : "OUT",
+            summary: "Previously met",
+          })),
+        });
+        await tx.$executeRaw`SET LOCAL search_path TO DEFAULT`;
         await refreshContactFamiliarity(tx, { workspaceId });
         const scores = await tx.contactScore.findMany({
           where: { workspaceId },
         });
-        expect(scores).toHaveLength(2);
+        expect(scores).toHaveLength(3);
         expect(scores.find((row) => row.contactId === reset.id)).toMatchObject({
           familiarity: 0,
         });
         expect(
           scores.find((row) => row.contactId === scored.id)?.familiarity,
         ).toBeGreaterThan(0);
+        expect(
+          scores.find((row) => row.contactId === firstScore.id)?.familiarity,
+        ).toBe(30);
         for (const score of scores) {
           expect.soft(Math.abs(+score.updatedAt - +now)).toBeLessThanOrEqual(1);
         }
@@ -248,6 +285,7 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
             },
           },
         });
+        await tx.$executeRaw`SET LOCAL search_path TO DEFAULT`;
         await listCompanies(actor, { limit: 10 });
         const result = await enrichCompanies(workspaceId, {
           limit: 1,
@@ -300,6 +338,7 @@ describe.runIf(enabled).each(["UTC", "Europe/Berlin", "America/New_York"])(
         const version = await tx.fileVersion.create({
           data: { resourceId: resource.id, revision: 1, objectKey: "notes" },
         });
+        await tx.$executeRaw`SET LOCAL search_path TO DEFAULT`;
         await writeVersionChunks({
           versionId: version.id,
           evidenceScopeId: scope.id,

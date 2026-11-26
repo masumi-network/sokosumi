@@ -37,7 +37,7 @@ import { reconcileUnsettledCosts } from "./eval-runs.service";
 
 const { failRealtime, cleanupSession } = vi.hoisted(() => ({
   failRealtime: { times: 0 },
-  cleanupSession: { tx: undefined as Prisma.TransactionClient | undefined },
+  cleanupSession: { zone: undefined as string | undefined },
 }));
 vi.mock("@/lib/db/prisma", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/prisma")>();
@@ -45,8 +45,17 @@ vi.mock("@/lib/db/prisma", async (importOriginal) => {
     ...actual,
     default: new Proxy(actual.default, {
       get(target, key) {
-        if (key === "$executeRaw" && cleanupSession.tx) {
-          return cleanupSession.tx.$executeRaw.bind(cleanupSession.tx);
+        const zone = cleanupSession.zone;
+        if (key === "$executeRaw" && zone) {
+          return (
+            ...args: Parameters<Prisma.TransactionClient["$executeRaw"]>
+          ) => {
+            cleanupSession.zone = undefined;
+            return target.$transaction(async (tx) => {
+              await tx.$queryRaw`SELECT set_config('TimeZone', ${zone}, true)`;
+              return tx.$executeRaw(...args);
+            });
+          };
         }
         return Reflect.get(target, key, target);
       },
@@ -243,23 +252,17 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
         })),
       });
       try {
-        await prisma.$transaction(async (tx) => {
-          await tx.$queryRaw`SELECT set_config('TimeZone', ${zone}, true)`;
-          cleanupSession.tx = tx;
-          try {
-            await prepareA2aCase(lane, scenario("a2a-ask-and-relay"));
-          } finally {
-            cleanupSession.tx = undefined;
-          }
-          const rows = await tx.chatRoomMessage.findMany({ where: fixtures });
-          expect(rows.find((row) => row.id === recentId)?.createdAt).toEqual(
-            older,
-          );
-          expect(rows.find((row) => row.id === olderId)?.createdAt).toEqual(
-            older,
-          );
-        });
+        cleanupSession.zone = zone;
+        await prepareA2aCase(lane, scenario("a2a-ask-and-relay"));
+        const rows = await prisma.chatRoomMessage.findMany({ where: fixtures });
+        expect(rows.find((row) => row.id === recentId)?.createdAt).toEqual(
+          older,
+        );
+        expect(rows.find((row) => row.id === olderId)?.createdAt).toEqual(
+          older,
+        );
       } finally {
+        cleanupSession.zone = undefined;
         await prisma.chatRoomMessage.deleteMany({ where: fixtures });
         await closeA2aWorld(lane);
       }
