@@ -55797,6 +55797,12 @@ export const CreateSeoAuditRequestSchema = {
         projectId: {
             type: 'string',
             format: 'uuid'
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128,
+            description: 'Send the same key to retry a create: the first Audit comes back and no second one is made'
         }
     },
     required: [

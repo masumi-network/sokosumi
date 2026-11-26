@@ -377,6 +377,38 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     expect((await routeApp().request(url)).status).toBe(200);
   });
 
+  it("returns the first Audit for a retried create with the same key and refuses the key with other input", async () => {
+    const idempotencyKey = `create-${randomUUID()}`;
+    const before = await prisma.seoAudit.count({ where: { workspaceId } });
+    const first = await createSeoAudit(actor, {
+      name: "Retried create",
+      firstPage,
+      idempotencyKey,
+    });
+    const retry = await createSeoAudit(actor, {
+      name: "Retried create",
+      firstPage,
+      idempotencyKey,
+    });
+    expect(retry.auditId).toBe(first.auditId);
+    expect(await prisma.seoAudit.count({ where: { workspaceId } })).toBe(
+      before + 1,
+    );
+    await expect(
+      createSeoAudit(actor, {
+        name: "Other name",
+        firstPage,
+        idempotencyKey,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    // A create without a key never matches an earlier one.
+    const keyless = await createSeoAudit(actor, {
+      name: "Retried create",
+      firstPage,
+    });
+    expect(keyless.auditId).not.toBe(first.auditId);
+  });
+
   it("rejects a foreign optional Project link without retaining an Audit or its first page", async () => {
     const foreignProject = await prisma.project.create({
       data: { workspaceId: foreignWorkspaceId, name: "Foreign native Project" },
