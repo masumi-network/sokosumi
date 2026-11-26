@@ -120,11 +120,7 @@ function VendorCard({
             }}
             className="text-sm font-medium"
           />
-          {status ? (
-            <Badge variant="muted">
-              {statusLabel()}
-            </Badge>
-          ) : null}
+          {status ? <Badge variant="muted">{statusLabel()}</Badge> : null}
         </div>
         {grantedDetail ? (
           <p className="text-muted-foreground text-sm">{grantedDetail}</p>
