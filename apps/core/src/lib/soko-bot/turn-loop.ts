@@ -823,19 +823,52 @@ async function confirmedChanges(turnId: string): Promise<string[]> {
     },
     select: { capability: true, result: true },
   });
+  const pending = await pendingStrategyVersions(calls);
   return [
     ...new Set(
       calls.flatMap((call) => {
         const save = RECORDED_SAVES[call.capability];
         if (save) {
-          return save.confirmed && !save.confirmed(call.result)
-            ? []
-            : [save.label];
+          if (save.confirmed && !save.confirmed(call.result)) return [];
+          return [
+            pending.has(savedVersionId(call.result) ?? "")
+              ? PENDING_STRATEGY_LABEL
+              : save.label,
+          ];
         }
         return [ACTION_LABELS[call.capability] ?? call.capability];
       }),
     ),
   ];
+}
+
+/**
+ * A chat change to the strategy saves a new version, and the running month
+ * keeps its posts until the owner approves it: saying "saved" alone let
+ * Cuso answer "Done" while no upcoming post had changed.
+ */
+export const PENDING_STRATEGY_LABEL =
+  "Saved a new strategy version that waits for the owner's approval; no upcoming post changed";
+
+function savedVersionId(result: unknown): string | undefined {
+  const id = (result as { versionId?: unknown } | null)?.versionId;
+  return typeof id === "string" ? id : undefined;
+}
+
+async function pendingStrategyVersions(
+  calls: { capability: string; result: unknown }[],
+): Promise<Set<string>> {
+  const ids = calls.flatMap((call) =>
+    call.capability === "save_strategy" || call.capability === "write_strategy"
+      ? (savedVersionId(call.result) ?? [])
+      : [],
+  );
+  if (ids.length === 0) return new Set();
+  const versions = await prisma.marketingStrategy.findMany({
+    where: { id: { in: ids }, approvedAt: null },
+    select: { id: true },
+  });
+  return new Set(versions.map((version) => version.id));
 }
 
 /**

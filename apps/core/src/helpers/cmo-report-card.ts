@@ -19,7 +19,15 @@ const cmoReportSchema = cmoReportUpdateInputSchema.extend({
   /** The version this turn wrote: reverting discards it while unapproved. */
   versionId: z.string().optional(),
   revertedAt: z.string().optional(),
+  /**
+   * Set by Core, never Cuso: the strategy change this request saved waits
+   * for the owner's approval, so no upcoming post has changed yet.
+   */
+  awaitsApproval: z.literal(true).optional(),
 });
+
+const AWAITS_APPROVAL =
+  "Your upcoming posts change once you approve the new strategy.";
 export type CmoReport = z.infer<typeof cmoReportSchema>;
 
 /** The report a message carries; null for any other message. */
@@ -56,17 +64,30 @@ const KIND_LABELS: Record<CmoReport["kind"], string> = {
  */
 export function cmoReportCard(report: CmoReport, projectId: string) {
   const production = report.kind === "production";
+  // Nothing ran yet: Cuso's changes and done lines are what he proposes.
+  const pending = report.awaitsApproval === true && !report.revertedAt;
   return {
     title: report.headline,
-    status: report.revertedAt ? "Reverted" : KIND_LABELS[report.kind],
+    status: report.revertedAt
+      ? "Reverted"
+      : pending
+        ? "Waits for your approval"
+        : KIND_LABELS[report.kind],
     summary: production ? null : (report.results ?? null),
     // The newest report is the Project's latest update.
     sourceHref: `/projects/${encodeURIComponent(projectId)}`,
     details: production
       ? []
       : [
-          ...report.changes.map((value) => ({ label: "Changed", value })),
-          ...report.done.map((value) => ({ label: "Done", value })),
+          ...(pending ? [{ label: "Not yet", value: AWAITS_APPROVAL }] : []),
+          ...report.changes.map((value) => ({
+            label: pending ? "Proposed" : "Changed",
+            value,
+          })),
+          ...report.done.map((value) => ({
+            label: pending ? "Proposed" : "Done",
+            value,
+          })),
           ...report.upNext.map((value) => ({ label: "Up next", value })),
         ].slice(0, 8),
   };
@@ -82,8 +103,12 @@ export function cmoReportMarkdown(report: CmoReport): string {
     [`# ${KIND_LABELS[report.kind]} report`],
     ["## TL;DR", "", report.headline],
     report.results ? ["## Results", "", report.results] : [],
-    list("Changes", report.changes),
-    list("Done", report.done),
+    ...(report.awaitsApproval
+      ? [
+          ["## Waits for your approval", "", AWAITS_APPROVAL],
+          list("Proposed", [...report.changes, ...report.done]),
+        ]
+      : [list("Changes", report.changes), list("Done", report.done)]),
     list("Up next", report.upNext),
   ]
     .filter((section) => section.length > 0)

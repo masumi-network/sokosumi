@@ -129,11 +129,21 @@ export async function reportCmoUpdate(
           approvedMarketingStrategy(projectId, db),
         ])
       : [null, null];
+  // A chat change saves a new version; the running month's posts stay until
+  // the owner approves it, so the card must not read as done.
+  const pending =
+    update.kind === "request"
+      ? await db.marketingStrategy.findFirst({
+          where: { projectId, authorTurnId: input.turnId, approvedAt: null },
+          select: { id: true },
+        })
+      : null;
   const report: CmoReport = {
     ...update,
     ...(wroteThisTurn && approved && approved.id !== wroteThisTurn.id
       ? { previousVersionId: approved.id, versionId: wroteThisTurn.id }
       : {}),
+    ...(pending ? { awaitsApproval: true } : {}),
   };
   const clientMessageId = `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`;
   // One card per turn and kind: a turn that reports again (a run nudged to

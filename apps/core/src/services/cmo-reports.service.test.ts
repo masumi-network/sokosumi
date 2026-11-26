@@ -301,6 +301,57 @@ describe("report_update", () => {
     expect(record.previousVersionId).toBeUndefined();
   });
 
+  it("shows a chat change that waits for approval as proposed, not done", async () => {
+    // Run 01a2186c: the card said the Friday posts moved; none had.
+    seedStrategy(strategy, { approvedAt: new Date("2026-11-01T09:00:00Z") });
+    seedStrategy(revised, { authorTurnId: "turn-1" });
+    sokoBotFindUnique.mockResolvedValue(cuso());
+    const update = {
+      kind: "request" as const,
+      headline: "No more Friday posts",
+      done: ["Moved the Friday posts to Thursday"],
+      upNext: [],
+      changes: ["More X, less LinkedIn"],
+    };
+    const record = await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-1",
+      update,
+    });
+    expect(record.awaitsApproval).toBe(true);
+    const { create } = messageUpsert.mock.calls[0]?.[0];
+    expect(create.metadata.result_preview_snapshots[0].data).toMatchObject({
+      status: "Waits for your approval",
+      details: [
+        {
+          label: "Not yet",
+          value:
+            "Your upcoming posts change once you approve the new strategy.",
+        },
+        { label: "Proposed", value: "More X, less LinkedIn" },
+        { label: "Proposed", value: "Moved the Friday posts to Thursday" },
+      ],
+    });
+    expect(projectUpdateMany.mock.calls[0]?.[0].data.latestUpdateMd).toContain(
+      "## Waits for your approval",
+    );
+
+    // A request that saved no new version, or Cuso claiming the flag, is a report as before.
+    messageUpsert.mockClear();
+    const plain = await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-2",
+      toolCallId: "call-1",
+      update: { ...update, awaitsApproval: true } as typeof update,
+    });
+    expect(plain.awaitsApproval).toBeUndefined();
+    expect(
+      messageUpsert.mock.calls[0]?.[0].create.metadata
+        .result_preview_snapshots[0].data.status,
+    ).toBe("Request");
+  });
+
   it("makes the newest report the Project's latest update, unless Project memory holds it", async () => {
     sokoBotFindUnique.mockResolvedValue(cuso());
     await reportCmoUpdate({
