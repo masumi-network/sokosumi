@@ -64,6 +64,7 @@ export function TaskComposer({
 }) {
   const t = useTranslations("App.Tasks.Composer");
   const tRunAt = useTranslations("App.Tasks.RunAt");
+  const tTags = useTranslations("App.Tasks.Tags");
   const createMoreId = useId();
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const attachButtonRef = useRef<HTMLButtonElement>(null);
@@ -143,6 +144,14 @@ export function TaskComposer({
   // Deferred a frame so it lands after the dialog's own first focus.
   useFocusWhen(titleRef, true, { deferToFrame: true, resetKey: composeKey });
 
+  // Same tags that carry the Jev mark, so the line below names what it means.
+  const jevTopics = new Set(draftTags.tags);
+  const hasJevTags =
+    !isCopy &&
+    (workspaceSelection.visibleTopics.some((tag) => jevTopics.has(tag)) ||
+      workspaceSelection.workspaceTags.some((tag) =>
+        workspaceSelection.liveAutomaticIds.has(tag.id),
+      ));
   const attachDisabled = isSubmitting || isUploadingAttachments;
   const submitLabel = hasRunAt
     ? (labels.scheduleTask ?? labels.createTask ?? labels.submit)
@@ -280,7 +289,7 @@ export function TaskComposer({
           role="group"
           aria-label={t("properties")}
           data-testid="task-compose-meta-row"
-          className="app-scrollbar -mx-5 flex items-center gap-1.5 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
+          className="flex flex-wrap items-center gap-1.5"
         >
           <TaskStatusPicker
             variant="composer"
@@ -352,7 +361,7 @@ export function TaskComposer({
             >
               <TaskDraftTags
                 tags={workspaceSelection.visibleTopics}
-                addedByJev={isCopy ? undefined : new Set(draftTags.tags)}
+                addedByJev={isCopy ? undefined : jevTopics}
                 status={draftTags.status}
                 onRemove={workspaceSelection.removeTopic}
                 disabled={isSubmitting || workspaceSelection.hasConflict}
@@ -368,6 +377,14 @@ export function TaskComposer({
             />
           ) : null}
         </div>
+        {/* Mounted before Jev answers, so screen readers hear the line appear. */}
+        <p
+          role="status"
+          aria-live="polite"
+          className={cn("text-muted-foreground text-xs", hasJevTags && "mt-2")}
+        >
+          {hasJevTags ? tTags("appliedByJev") : null}
+        </p>
         {blocksOtherPeople && labels.privateOtherPeopleHint ? (
           <p className="text-muted-foreground mt-2 text-xs">
             {labels.privateOtherPeopleHint}

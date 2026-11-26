@@ -4,19 +4,26 @@ import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 
 type TasksTranslator = ReturnType<typeof useTranslations<"App.Tasks">>;
 
-/**
- * The toolbar and column names, from the `App.Tasks` messages. The page and
- * its loading shell both build them here, so the shell draws the same words
- * and wraps where the board does.
- */
-export function buildTasksViewLabels(t: TasksTranslator) {
-  const columns: Record<KanbanColumnId, string> = {
+/** The board column titles. The status picker also searches by them. */
+export function buildTaskColumnLabels(
+  t: TasksTranslator,
+): Record<KanbanColumnId, string> {
+  return {
     backlog: t("Columns.backlog"),
     todo: t("Columns.todo"),
     "in-progress": t("Columns.inProgress"),
     "input-required": t("Columns.inputRequired"),
     done: t("Columns.done"),
   };
+}
+
+/**
+ * The toolbar and column names, from the `App.Tasks` messages. The page and
+ * its loading shell both build them here, so the shell draws the same words
+ * and wraps where the board does.
+ */
+export function buildTasksViewLabels(t: TasksTranslator) {
+  const columns = buildTaskColumnLabels(t);
   return {
     filters: {
       title: t("Filters.title"),

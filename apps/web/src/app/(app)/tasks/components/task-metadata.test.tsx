@@ -61,6 +61,13 @@ const baseStatusLabels = {
 const baseStatusFieldLabels = {
   status: "Status",
   statusLabels: baseStatusLabels,
+  columnLabels: {
+    backlog: "Backlog",
+    todo: "Todo",
+    "in-progress": "In progress",
+    "input-required": "Input required",
+    done: "Done",
+  },
   changeStatus: "Change status…",
   noStatusMatches: "No status matches",
   reopenToReadyTitle: "Reopen task",
@@ -100,7 +107,7 @@ const baseLabels = {
   schedule: "Schedule",
   startsAt: "Start time",
   assignee: "Assignee",
-  noAssignee: "No assignee",
+  noAssignee: "Unassigned",
   memberFallback: "Member",
   personalAssistantFallback: "Personal assistant",
 };
@@ -371,12 +378,10 @@ describe("TaskMetadata", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows a muted No assignee when nobody is assigned", () => {
+  it("shows a muted Unassigned when nobody is assigned", () => {
     renderTaskMetadata({ task: createTask({ assigneeName: null }) });
 
-    expect(screen.getByText("No assignee")).toHaveClass(
-      "text-muted-foreground",
-    );
+    expect(screen.getByText("Unassigned")).toHaveClass("text-muted-foreground");
   });
 
   it("shows the avatar the bot claimed, not a generated orb", () => {

@@ -5,6 +5,11 @@ import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 
 import { TaskMetaDetails } from "./task-meta";
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) =>
+    key === "noAssignee" ? "Unassigned" : key,
+}));
+
 vi.mock("@/lib/utils/datetime.client", () => ({
   useLocalizedDateTime: () => ({
     formatShortDate: () => "Mar 1",
@@ -68,7 +73,7 @@ describe("TaskMetaDetails", () => {
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
 
     const projectNode = screen.getByTestId("project-avatar");
-    const assigneeNode = screen.getByText("S");
+    const assigneeNode = screen.getByText("SO");
     expect(projectNode.compareDocumentPosition(assigneeNode)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
@@ -106,7 +111,7 @@ describe("TaskMetaDetails", () => {
     expect(container.textContent).not.toContain("Owner");
   });
 
-  it("shows a question-mark avatar and em dash label when unassigned on cards", () => {
+  it("shows a person outline named Unassigned when unassigned on cards", () => {
     render(
       <TaskMetaDetails
         {...buildMetaProps({
@@ -116,11 +121,12 @@ describe("TaskMetaDetails", () => {
       />,
     );
 
-    expect(screen.getByText("?")).toBeInTheDocument();
-    expect(screen.getByLabelText("—")).toBeInTheDocument();
+    const unassigned = screen.getByRole("img", { name: "Unassigned" });
+    expect(unassigned.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("?")).toBeNull();
   });
 
-  it("shows a question-mark avatar and em dash label when unassigned on list rows", () => {
+  it("shows a person outline named Unassigned when unassigned on list rows", () => {
     render(
       <TaskMetaDetails
         {...buildMetaProps({
@@ -130,8 +136,9 @@ describe("TaskMetaDetails", () => {
       />,
     );
 
-    expect(screen.getByText("?")).toBeInTheDocument();
-    expect(screen.getByLabelText("—")).toBeInTheDocument();
+    const unassigned = screen.getByRole("img", { name: "Unassigned" });
+    expect(unassigned.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("?")).toBeNull();
   });
 
   it("uses an em dash label for blank project names", () => {

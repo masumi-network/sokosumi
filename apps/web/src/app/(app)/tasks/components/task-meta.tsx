@@ -2,6 +2,7 @@
 
 import type { ProjectSummary } from "@sokosumi/core-client";
 import { MessageSquare } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type {
@@ -69,11 +70,13 @@ export function TaskActorCluster({
   assignee,
   participants,
 }: Pick<TaskMetaDetailsProps, "assignee" | "participants">) {
+  const t = useTranslations("App.Tasks.Detail");
   const actors = collectTaskActors(assignee, participants);
   const faces = actors.slice(0, MAX_CLUSTER_FACES);
   const remainder = actors.length - faces.length;
   const names =
-    actors.map((actor) => actor.name?.trim() || "—").join(", ") || "—";
+    actors.map((actor) => actor.name?.trim() || "—").join(", ") ||
+    t("noAssignee");
 
   return (
     <Tooltip>

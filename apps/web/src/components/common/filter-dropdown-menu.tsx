@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils/text";
 
 export interface FilterDropdownMenuOption {
   value: string;
@@ -515,7 +516,7 @@ function FilterDropdownMenuOptionAvatar({
     );
   }
 
-  const fallback = option.avatarLabel.trim().charAt(0).toUpperCase() || "?";
+  const fallback = getInitials(option.avatarLabel);
 
   return (
     <Avatar className="size-5 shrink-0">
