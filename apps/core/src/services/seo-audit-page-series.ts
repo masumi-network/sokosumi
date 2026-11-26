@@ -103,7 +103,10 @@ export async function collectSeoAuditPageSeries(
   const pages = new Map(
     storedPages(stored?.payload).map((page) => [page.pageUrl, page]),
   );
-  const missing = measured.filter((page) => !pages.has(page.pageUrl));
+  // A page whose verified address changed since its read is read again under the new address.
+  const missing = measured.filter(
+    (page) => pages.get(page.pageUrl)?.measuredUrl !== page.measuredUrl,
+  );
   if (!missing.length) return;
   const integration = await resolveSeoStatisticsIntegration(
     actor,
@@ -114,6 +117,7 @@ export async function collectSeoAuditPageSeries(
     connectionVersion(integration) !== access.connectionVersion
   )
     return;
+  const fresh = new Map<string, ReturnType<typeof storedPages>[number]>();
   const reads = await Promise.allSettled(
     missing.map(async (page) => {
       const query: NativeStatisticsQuery = {
@@ -150,7 +154,7 @@ export async function collectSeoAuditPageSeries(
       const position = new Map(
         points("position").map((point) => [point.date, point.value]),
       );
-      pages.set(page.pageUrl, {
+      fresh.set(page.pageUrl, {
         pageUrl: page.pageUrl,
         measuredUrl: page.measuredUrl,
         ...period,
@@ -177,22 +181,31 @@ export async function collectSeoAuditPageSeries(
         failure: messageSafeErrorFields(failed.reason),
       },
     );
-  if (!pages.size) return;
+  if (!fresh.size) return;
   const sourceKey = auditPageSeriesKey(taskId);
   await serializableTransaction(async (tx) => {
     await authorize(tx);
-    // Another collection of this audit can have stored a page since the read above. Its page is kept.
+    // Another collection of this audit can have stored a page since the read above. Of two reads of one address, the longer range stays.
     const latest = await tx.projectSeoObservation.findFirst({
       where: { ...where, kind: AUDIT_PAGE_SERIES_KIND },
       select: { payload: true },
     });
-    const kept = storedPages(latest?.payload).filter(
-      (page) => !pages.has(page.pageUrl),
+    const merged = new Map(
+      storedPages(latest?.payload).map((page) => [page.pageUrl, page]),
     );
+    for (const page of fresh.values()) {
+      const held = merged.get(page.pageUrl);
+      if (
+        !held ||
+        held.measuredUrl !== page.measuredUrl ||
+        page.from < held.from
+      )
+        merged.set(page.pageUrl, page);
+    }
     const payload: AuditPageSeries = {
       propertyId: access.propertyId,
       ...period,
-      pages: [...kept, ...pages.values()],
+      pages: [...merged.values()],
     };
     // Only a page with stored days counts as a page of this row: a reader limits the rows it takes per page.
     const held = new Set(

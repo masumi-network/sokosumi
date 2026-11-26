@@ -52,24 +52,28 @@ export async function withSeoActionImpact(
       pageIds: { hasSome: pages.map((page) => page.id) },
       ...(ownerId && { ownerId }),
     },
-    orderBy: { observedAt: "desc" },
     select: { id: true, pageIds: true, sourceTaskId: true },
   });
   // The Tasks are checked here, not taken from the report list: that list holds only the newest checks.
-  const visible = new Set(
+  // Newest audit first, by when its Task began: a later retry of an older audit does not make it newer.
+  const visible = new Map(
     (
       await prisma.task.findMany({
         where: {
           id: { in: stored.flatMap((row) => row.sourceTaskId ?? []) },
           ...seoLinkedTaskWhere(actor, true),
         },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: { id: true },
       })
-    ).map((task) => task.id),
+    ).map((task, rank) => [task.id, rank]),
   );
-  const audits = stored.filter(
-    (row) => row.sourceTaskId && visible.has(row.sourceTaskId),
-  );
+  const audits = stored
+    .filter((row) => row.sourceTaskId && visible.has(row.sourceTaskId))
+    .sort(
+      (a, b) => visible.get(a.sourceTaskId!)! - visible.get(b.sourceTaskId!)!,
+    );
+  const rank = new Map(audits.map((row, index) => [row.id, index]));
   // The limit counts per page: many audits of one page must not hide the only audit of another.
   const wanted = new Set<string>();
   for (const { id } of pages)
@@ -77,11 +81,12 @@ export async function withSeoActionImpact(
       .filter((row) => row.pageIds.includes(id))
       .slice(0, IMPACT_SERIES_AUDITS))
       wanted.add(audit.id);
-  const rows = await prisma.projectSeoObservation.findMany({
-    where: { id: { in: [...wanted] } },
-    orderBy: { observedAt: "desc" },
-    select: { payload: true },
-  });
+  const rows = (
+    await prisma.projectSeoObservation.findMany({
+      where: { id: { in: [...wanted] } },
+      select: { id: true, payload: true },
+    })
+  ).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
   const byPage = new Map<
     string,
     { source: string; series: SeoImpactSeries[] }

@@ -241,7 +241,16 @@ vi.mock("@/lib/db/prisma", () => {
     projectSeoKeyword: { findMany: async () => state.keywords },
     projectSeoCompetitor: { findMany: async () => [] },
     projectSeoAnalysis: {
-      findMany: async () => [],
+      // A retry check reads the audit's approved connection.
+      findMany: async ({ where }: { where?: { taskId?: { in: string[] } } }) =>
+        where?.taskId?.in.includes("audit-task")
+          ? [
+              {
+                taskId: "audit-task",
+                request: { searchConsoleAccess: state.auditAccess },
+              },
+            ]
+          : [],
       findUnique: async () => ({
         kind: "audit_full",
         requestedBy: "owner",

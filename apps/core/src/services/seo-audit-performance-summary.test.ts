@@ -5,14 +5,27 @@ import { AUDIT_PAGE_SERIES_KIND } from "@/schemas/seo-action-impact.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { readAuditPerformanceSummaries } from "./seo-audit-performance-summary";
 
-const db = vi.hoisted(() => ({ observations: vi.fn() }));
+const db = vi.hoisted(() => ({
+  observations: vi.fn(),
+  analyses: vi.fn(),
+  integration: vi.fn(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { projectSeoObservation: { findMany: db.observations } },
+  default: {
+    projectSeoObservation: { findMany: db.observations },
+    projectSeoAnalysis: { findMany: db.analyses },
+  },
+}));
+vi.mock("./seo-connections.service", () => ({
+  resolveSeoStatisticsIntegration: db.integration,
+  connectionVersion: (account: { connectionRevision: string }) =>
+    account.connectionRevision,
 }));
 vi.mock("./seo-audit-public-sitemaps", () => ({
   readPublicAuditSitemaps: vi.fn(async () => new Map()),
 }));
 
+const approved = "a".repeat(64);
 const colleague = {
   userId: "colleague",
   workspaceId: "work",
@@ -55,6 +68,18 @@ const snapshot = {
 // A hook that returns a function gets it called as a cleanup, so neither returns the mock.
 beforeEach(() => {
   db.observations.mockReset();
+  db.integration.mockResolvedValue({ connectionRevision: approved });
+  db.analyses.mockResolvedValue([
+    {
+      taskId: "public-audit",
+      request: {
+        searchConsoleAccess: {
+          propertyId: "sc-domain:example.test",
+          connectionVersion: approved,
+        },
+      },
+    },
+  ]);
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -105,7 +130,11 @@ it("keeps the retry for the requester while a verified page has no daily rows", 
     ...snapshot,
     payload: { ...snapshot.payload, auditPerformanceComplete: true },
   };
-  const read = (pages: string[], propertyId = snapshot.payload.propertyId) => {
+  const read = (
+    pages: string[],
+    propertyId = snapshot.payload.propertyId,
+    measuredUrl?: string,
+  ) => {
     db.observations.mockReset();
     db.observations.mockImplementation(async ({ where }) =>
       where.kind === AUDIT_PAGE_SERIES_KIND
@@ -118,7 +147,7 @@ it("keeps the retry for the requester while a verified page has no daily rows", 
                 to: "2026-06-28",
                 pages: pages.map((pageUrl) => ({
                   pageUrl,
-                  measuredUrl: pageUrl,
+                  measuredUrl: measuredUrl ?? pageUrl,
                   days: [],
                 })),
               },
@@ -144,10 +173,25 @@ it("keeps the retry for the requester while a verified page has no daily rows", 
   expect(
     (await read(["https://example.test/a"])).auditSearchConsoleRetryTaskIds,
   ).toEqual([]);
+  // The stored rows are of an address Google no longer names for the page.
+  expect(
+    (
+      await read(
+        ["https://example.test/a"],
+        undefined,
+        "https://www.example.test/a",
+      )
+    ).auditSearchConsoleRetryTaskIds,
+  ).toEqual(["public-audit"]);
   expect(db.observations.mock.calls[1][0].where).toMatchObject({
     kind: AUDIT_PAGE_SERIES_KIND,
     ownerId: "requester",
   });
+  // After a switch to another account, a retry could not read Google.
+  db.integration.mockResolvedValueOnce({ connectionRevision: "b".repeat(64) });
+  expect((await read([])).auditSearchConsoleRetryTaskIds).toEqual([]);
+  db.integration.mockResolvedValueOnce(null);
+  expect((await read([])).auditSearchConsoleRetryTaskIds).toEqual([]);
   // Google no longer keeps the period: a retry could not read it.
   vi.setSystemTime(new Date("2027-12-01T00:00:00Z"));
   expect((await read([])).auditSearchConsoleRetryTaskIds).toEqual([]);

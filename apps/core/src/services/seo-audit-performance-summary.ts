@@ -15,8 +15,13 @@ import {
   AUDIT_PERFORMANCE_KIND,
   AUDIT_QUERY_PREVIEW_LIMIT,
 } from "@/schemas/seo-audit-performance.schema";
+import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 import { seoOwnerWhere } from "./project-seo-store";
 import { readPublicAuditSitemaps } from "./seo-audit-public-sitemaps";
+import {
+  connectionVersion,
+  resolveSeoStatisticsIntegration,
+} from "./seo-connections.service";
 
 function totals(data: NativeSeoMetrics, previous = false) {
   function value(key: string) {
@@ -29,6 +34,30 @@ function totals(data: NativeSeoMetrics, previous = false) {
     ctr: value("ctr"),
     averagePosition: value("position"),
   };
+}
+
+/** A retry reads Google through the connection the audit approved. After a switch to another account, every retry fails. */
+async function retryableAudits(actor: SeoActor, taskIds: string[]) {
+  if (!taskIds.length) return new Set<string>();
+  const current = await resolveSeoStatisticsIntegration(
+    actor,
+    "search_console",
+  );
+  if (!current) return new Set<string>();
+  const version = connectionVersion(current);
+  const analyses = await prisma.projectSeoAnalysis.findMany({
+    where: { taskId: { in: taskIds } },
+    select: { taskId: true, request: true },
+  });
+  return new Set(
+    analyses.flatMap((analysis) =>
+      analysis.taskId &&
+      storedSeoAuditSearchConsoleSchema.safeParse(analysis.request).data
+        ?.searchConsoleAccess?.connectionVersion === version
+        ? [analysis.taskId]
+        : [],
+    ),
+  );
 }
 
 /**
@@ -45,9 +74,9 @@ export async function readAuditPerformanceSummaries(
   retryCandidates: string[] = [],
   selectedUrls?: ReadonlySet<string>,
 ) {
-  const retry = new Set(retryCandidates);
   if (actor.sokoBotId || !taskIds.length)
     return { auditSearchConsole: [], auditSearchConsoleRetryTaskIds: [] };
+  const retry = await retryableAudits(actor, retryCandidates);
   const observations = await prisma.projectSeoObservation.findMany({
     where: {
       ...seoOwnerWhere(actor),
@@ -75,7 +104,9 @@ export async function readAuditPerformanceSummaries(
       return [
         row.sourceTaskId,
         new Set(
-          data?.pages.map((page) => `${data.propertyId} ${page.pageUrl}`),
+          data?.pages.map(
+            (page) => `${data.propertyId} ${page.pageUrl} ${page.measuredUrl}`,
+          ),
         ),
       ];
     }),
@@ -107,7 +138,9 @@ export async function readAuditPerformanceSummaries(
         data.auditMeasuredPages.some(
           (page) =>
             page.basis !== "unverified" &&
-            !stored?.has(`${data.propertyId} ${page.pageUrl}`),
+            !stored?.has(
+              `${data.propertyId} ${page.pageUrl} ${page.measuredUrl}`,
+            ),
         )
       )
     )

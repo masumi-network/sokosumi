@@ -200,6 +200,40 @@ describe("withSeoActionImpact", () => {
     expect(a.impact).toMatchObject({ state: "not_measured", before: null });
   });
 
+  it("ranks the audits by when their Task began, so a late retry of an older audit does not win", async () => {
+    // The older audit measured the www address from 2026-06-01. Its retry wrote last, so the store lists it first.
+    const moved: AuditPageSeries = {
+      ...series,
+      from: "2026-06-01",
+      pages: [
+        {
+          pageUrl: pageA,
+          measuredUrl: "https://www.example.test/a",
+          days: days("2026-06-01", "2026-07-18", 9, 90),
+        },
+      ],
+    };
+    store(
+      { payload: moved, sourceTaskId: "older-audit" },
+      { payload: series, sourceTaskId: "newer-audit" },
+    );
+    boundary.tasks.mockResolvedValue([
+      { id: "newer-audit" },
+      { id: "older-audit" },
+    ]);
+    const [a] = await withSeoActionImpact(
+      actor,
+      [action(pageA)],
+      undefined,
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    expect(a.impact).toMatchObject({ state: "measured" });
+    expect(boundary.tasks.mock.calls[0][0].orderBy).toEqual([
+      { createdAt: "desc" },
+      { id: "desc" },
+    ]);
+  });
+
   it("counts the limit of audits per page, so many audits of one page do not hide another page's only audit", async () => {
     boundary.pages.mockResolvedValue([{ id: "page-a" }, { id: "page-b" }]);
     const [onlyA, onlyB] = [0, 1].map((index) => ({
@@ -512,6 +546,63 @@ describe("collectSeoAuditPageSeries", () => {
     measured(null, ["unverified", "unverified"]);
     await collectSeoAuditPageSeries("task", binding, authorize);
     expect(boundary.integration).not.toHaveBeenCalled();
+    expect(boundary.upsert).not.toHaveBeenCalled();
+  });
+
+  it("reads a page again under its new address, keeps a longer read stored meanwhile, and writes nothing when every read fails", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-26T00:00:00Z"));
+    const row = (from: string, ...pages: [string, string][]) => ({
+      payload: {
+        propertyId: binding.access.propertyId,
+        from,
+        to: binding.period.to,
+        pages: pages.map(([pageUrl, measuredUrl]) => ({
+          pageUrl,
+          measuredUrl,
+          days: [],
+        })),
+      },
+    });
+    const www = "https://www.example.test/a";
+    // Page A was read under the www address. Google now names the bare address.
+    measured(row("2025-04-30", [pageA, www], [pageB, pageB]));
+    boundary.integration.mockResolvedValue(account);
+    boundary.read.mockResolvedValue({ rows: [] });
+    // Another retry read the bare address for more days and stored it first.
+    const longer = row("2025-06-01", [pageA, pageA], [pageB, pageB]);
+    boundary.latest.mockResolvedValue(longer);
+    await collectSeoAuditPageSeries("task", binding, authorize);
+    expect(boundary.read).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(boundary.read.mock.calls[0][2])).toContain(
+      '"expression":"https://example.test/a"',
+    );
+    const range = { from: "2025-06-01", to: binding.period.to };
+    expect(boundary.upsert.mock.calls[0][0].update.payload.pages).toEqual(
+      longer.payload.pages.map((page) => ({ ...range, ...page })),
+    );
+
+    // Stored meanwhile under the old address only: the new read replaces it.
+    vi.clearAllMocks();
+    boundary.latest.mockResolvedValue(row("2025-04-30", [pageA, www]));
+    await collectSeoAuditPageSeries("task", binding, authorize);
+    expect(boundary.upsert.mock.calls[0][0].update.payload.pages).toEqual([
+      {
+        pageUrl: pageA,
+        measuredUrl: pageA,
+        from: "2025-08-04",
+        to: binding.period.to,
+        days: [],
+      },
+    ]);
+
+    expectCoreLog(
+      "warn",
+      "Could not read every audit page's daily Search Console rows",
+    );
+    vi.clearAllMocks();
+    boundary.read.mockRejectedValue(new Error("quota"));
+    await collectSeoAuditPageSeries("task", binding, authorize);
     expect(boundary.upsert).not.toHaveBeenCalled();
   });
 
