@@ -52,6 +52,11 @@ async function genericIntegration(sokoBotId: string, provider: string) {
   return { integration, readOnly: sourceBotId !== null };
 }
 
+/** What to do instead: the bot asked for an app nobody connected. */
+function notConnected(provider: string): string {
+  return `No account for ${provider} is connected, so nothing can be read or run there. Do not try it again in this turn: call list_integrations to see what is connected (mailboxes use search_inbox), and if the work needs ${provider}, tell the owner to connect it in your settings.`;
+}
+
 export async function dispatchIntegrationsTools(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -182,9 +187,7 @@ export async function dispatchIntegrationsTools(
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
-        throw new SokoBotRuntimeValidationError(
-          `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
-        );
+        throw new SokoBotRuntimeValidationError(notConnected(parsed.provider));
       }
       return integrationToolSearchResult(
         await listIntegrationTools(integration, {
@@ -207,9 +210,7 @@ export async function dispatchIntegrationsTools(
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
-        throw new SokoBotRuntimeValidationError(
-          `No connected account for provider ${parsed.provider}`,
-        );
+        throw new SokoBotRuntimeValidationError(notConnected(parsed.provider));
       }
       return (
         input.capability === "read_integration_tool" || readOnly

@@ -127,6 +127,7 @@ export async function checkStyledPicture(input: {
   const logo = input.logo ? rest[0] : undefined;
   const brandPictures = input.logo ? rest.slice(1) : rest;
   const result = await generateText({
+    telemetry: { functionId: "picture-style-check" },
     model: gateway(STYLE_CHECK_MODEL),
     output: Output.object({ schema: verdictSchema }),
     system:

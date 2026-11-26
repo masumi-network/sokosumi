@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
+import { type Prisma } from "@sokosumi/database";
 import {
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
   parseSokoBotMemory,
   renderSokoBotMemory,
+  sokoBotMemoryNotKept,
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
@@ -15,6 +17,32 @@ import { type RuntimeOperations } from "./operations";
 
 export function hashMemory(markdown: string): string {
   return createHash("sha256").update(markdown).digest("hex");
+}
+
+/**
+ * The context packet shows at most part of a long memory, and update_memory
+ * replaces the whole document: a write built from that part would erase the
+ * rest. Such a turn reads its memory first.
+ */
+async function requireWholeMemorySeen(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+): Promise<void> {
+  const snapshot = await tx.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { omissions: true },
+  });
+  const omitted = (snapshot?.omissions as Record<string, unknown> | null)
+    ?.memory;
+  if (typeof omitted !== "number" || omitted <= 0) return;
+  const read = await tx.sokoBotToolCall.findFirst({
+    where: { turnId, capability: "read_memory", status: "COMPLETED" },
+    select: { id: true },
+  });
+  if (!read)
+    throw new SokoBotRuntimeValidationError(
+      "Nothing was saved: your context showed only part of your memory, and update_memory replaces all of it. Call read_memory, then save the whole document with your change.",
+    );
 }
 
 export async function updateMemory(
@@ -38,6 +66,7 @@ export async function updateMemory(
     );
   }
   const hash = hashMemory(markdown);
+  const notKept = sokoBotMemoryNotKept(input.markdown);
   return serializableTransaction(async (tx) => {
     await runtime.requireMutationAuthority(
       tx,
@@ -45,6 +74,7 @@ export async function updateMemory(
       false,
       "update_memory",
     );
+    await requireWholeMemorySeen(tx, authorized.turn.id);
     const bot = await tx.sokoBot.findUniqueOrThrow({
       where: { id: authorized.turn.sokoBotId },
       select: { memoryVersion: true },
@@ -78,6 +108,13 @@ export async function updateMemory(
       },
       select: { id: true, version: true, hash: true, markdown: true },
     });
+    const result = notKept.length
+      ? {
+          ...revision,
+          notKept,
+          note: "Saved, but these did not fit: merge or shorten them and save again if they still matter.",
+        }
+      : revision;
     await tx.sokoBot.update({
       where: { id: authorized.turn.sokoBotId },
       data: { memoryVersion: version, memoryHash: hash },
@@ -88,7 +125,7 @@ export async function updateMemory(
       },
       data: {
         status: "COMPLETED",
-        result: persistedToolResult(revision),
+        result: persistedToolResult(result),
         actorBotId: authorized.turn.sokoBotId,
         targetId: revision.id,
         disposition: "APPLIED",
@@ -96,6 +133,6 @@ export async function updateMemory(
         committedAt: new Date(),
       },
     });
-    return revision;
+    return result;
   }, "Memory changed during turn");
 }

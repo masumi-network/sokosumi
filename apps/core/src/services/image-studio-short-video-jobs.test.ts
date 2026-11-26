@@ -151,6 +151,8 @@ vi.mock("@/lib/image-studio/talking-video", async () => ({
     "@/lib/image-studio/talking-video",
   )),
   frameTalkingVideoPresenter: vi.fn(async () => new Uint8Array([9])),
+  keepVideoPicture: vi.fn(async () => new Uint8Array([9])),
+  fitVideoPicture: vi.fn(async (bytes: Uint8Array) => bytes),
 }));
 vi.mock("@/lib/image-studio/studio-brand", async () => ({
   ...(await vi.importActual<typeof import("@/lib/image-studio/studio-brand")>(
@@ -164,6 +166,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 
 import {
   createShortVideoJob,
+  reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
@@ -437,5 +440,130 @@ describe("a short's music arriving", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+});
+
+describe("a short in several shapes", () => {
+  it("makes the first shape it reads well in and keeps the rest for later", async () => {
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      format: "site_tour",
+      shapes: ["16:9", "1:1", "9:16"],
+    });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        settings: expect.objectContaining({
+          aspectRatio: "9:16",
+          shape: "9:16",
+          // A website tour reads badly in a square.
+          shapes: ["16:9"],
+        }),
+        // Only the first shape is quoted: the others cost nothing more.
+        chargedCents: convertCreditsToCents(12),
+      }),
+    });
+    // A phone's page for the upright shape, a desktop's for widescreen.
+    expect(captureSitePageMock).toHaveBeenCalledWith(
+      "https://roastery.example",
+      "phone",
+    );
+    expect(captureSitePageMock).toHaveBeenCalledWith(
+      "https://roastery.example",
+      "desktop",
+    );
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({
+            sitePagePathname: "projects/project-1/image-studio/job-1-site.jpg",
+            siteDesktopPagePathname:
+              "projects/project-1/image-studio/job-1-site-desktop.jpg",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("cuts another shape from the delivered short's music, uncharged", async () => {
+    await createShortVideoJob({ ...BASE_INPUT, shapes: ["9:16", "16:9"] });
+    const source = {
+      ...stored,
+      status: "SUCCEEDED",
+      falRequestId: "fal-1",
+    };
+    const shape = {
+      ...stored,
+      id: "job-2",
+      idempotencyKey: "video-shape:job-1:16:9",
+      status: "RUNNING",
+      falRequestId: null,
+      chargedCents: 0n,
+      settings: {
+        ...(stored.settings as object),
+        aspectRatio: "16:9",
+        shape: "16:9",
+        shapes: [],
+        sourceJobId: "job-1",
+        siteDesktopPagePathname: "desktop-page.jpg",
+      },
+      asset: null,
+    };
+    jobFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "job-1" ? source : shape,
+    );
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "media",
+      media: [{ url: "https://v3b.fal.media/files/music.wav" }],
+    });
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([4]),
+      contentType: "audio/wav",
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+    putMock.mockRejectedValue(new Error("stop at the upload"));
+
+    await reconcileJob("job-2");
+
+    expect(fetchQueueResultMock).toHaveBeenCalledWith({
+      model: "fal-ai/lyria2",
+      requestId: "fal-1",
+    });
+    expect(readAssetBytesMock).toHaveBeenCalledWith("desktop-page.jpg");
+    expect(editShortVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "16:9", music: new Uint8Array([4]) }),
+    );
+    // Nothing new is asked of the provider.
+    expect(submitToQueueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a shape whose source failed", async () => {
+    jobFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "job-1"
+          ? { status: "FAILED", falRequestId: "fal-1", settings: {} }
+          : {
+              id: "job-2",
+              kind: "TALKING_VIDEO",
+              idempotencyKey: "video-shape:job-1:4:5",
+              falRequestId: null,
+              status: "RUNNING",
+              settings: { shape: "4:5", sourceJobId: "job-1" },
+            },
+    );
+
+    await reconcileJob("job-2");
+
+    expect(fetchQueueResultMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "job-2" }),
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
   });
 });

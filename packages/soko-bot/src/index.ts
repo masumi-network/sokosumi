@@ -53,6 +53,7 @@ export {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
+  sokoBotMemoryNotKept,
 } from "./memory.js";
 export {
   composeSokoBotIntroduction,
@@ -246,6 +247,11 @@ export {
   sokoBotUpdateScheduleInputSchema,
   sokoBotUploadFileInputSchema,
 } from "./tool-contracts.js";
+export {
+  CMO_PLAYBOOKS_SKILL,
+  cmoReadsPlaybooks,
+  cmoWritingSkills,
+} from "./versions/cmo-playbooks-skill.js";
 export {
   CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,

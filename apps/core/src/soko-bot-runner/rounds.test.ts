@@ -44,11 +44,20 @@ describe("background run rounds", () => {
     );
   });
 
-  it("counts a round that only re-read things as idle, never one that waited or wrote", () => {
-    expect(isIdleRound(["list_tasks", "get_task_status", "read_file"])).toBe(
+  const calls = (...names: string[]) =>
+    names.map((toolName) => ({ toolName, input: {} }));
+  const bash = (command: string) => ({ toolName: "bash", input: { command } });
+
+  it("counts a round that only re-read things or slept as idle, never one that worked or wrote", () => {
+    expect(
+      isIdleRound(calls("list_tasks", "get_task_status", "read_file")),
+    ).toBe(true);
+    expect(isIdleRound([...calls("get_task_status"), bash("sleep 300")])).toBe(
       true,
     );
-    expect(isIdleRound(["get_task_status", "bash"])).toBe(false);
-    expect(isIdleRound(["upload_file", "list_files"])).toBe(false);
+    expect(isIdleRound([bash("sleep 5m; sleep 5m")])).toBe(true);
+    expect(isIdleRound([bash("sleep 60 && curl https://x.dev")])).toBe(false);
+    expect(isIdleRound([bash("python3 build.py")])).toBe(false);
+    expect(isIdleRound(calls("upload_file", "list_files"))).toBe(false);
   });
 });

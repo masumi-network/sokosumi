@@ -85,6 +85,7 @@ const defaultDeps: SeoChatDeps = {
     if (!getEnv().AI_GATEWAY_API_KEY)
       throw serviceUnavailable("SEO chat is unavailable");
     const result = await generateText({
+      telemetry: { functionId: "seo-chat" },
       ...sokoBotModelRequest({ role: "agent", model: SEO_CHAT_MODEL }),
       system,
       prompt,

@@ -441,6 +441,32 @@ async function dreamSince(bot: RhythmBot, now: Date): Promise<Date> {
 }
 
 /**
+ * Only people's words and failures teach the dream anything. Scheduled and
+ * inbox turns run every day (the last dream is one), so counting them made
+ * every bot dream every night.
+ */
+export function hasDreamMaterial(
+  turns: ReadonlyArray<{
+    source: string;
+    status: string;
+    ownerFeedback: number | null;
+  }>,
+  failedTools: number,
+  staleLines: number,
+): boolean {
+  return (
+    staleLines > 0 ||
+    failedTools > 0 ||
+    turns.some(
+      (turn) =>
+        turn.source === "CHAT" ||
+        turn.ownerFeedback != null ||
+        turn.status === "FAILED",
+    )
+  );
+}
+
+/**
  * What the bot did since its last dream, for it to learn from: its chats
  * (what was asked, what it answered, the owner's thumbs), failed turns,
  * failing tools grouped so a repeat shows, answers the judge found weak, and
@@ -491,7 +517,7 @@ export async function dreaming(
     }),
     staleMemoryLines(bot, now),
   ]);
-  if (turns.length === 0 && stale.length === 0)
+  if (!hasDreamMaterial(turns, failedTools.length, stale.length))
     return { lines: [], skip: true };
 
   const at = (date: Date) =>

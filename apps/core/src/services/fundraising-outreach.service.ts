@@ -107,6 +107,7 @@ async function composeWithModel(input: { system: string; prompt: string }) {
   });
   const result = await generateText({
     ...request,
+    telemetry: { functionId: "fundraising-outreach" },
     providerOptions: {
       ...request.providerOptions,
       google: { thinkingConfig: { thinkingLevel: "low" } },

@@ -125,6 +125,7 @@ const defaultDeps: ChatSummaryDeps = {
     });
     const result = await generateText({
       ...request,
+      telemetry: { functionId: "chat-catch-up" },
       providerOptions: {
         ...request.providerOptions,
         google: { thinkingConfig: { thinkingLevel: "low" } },

@@ -28,6 +28,7 @@ export async function writeStudioAssetCaption(options: {
   if (!asset) return err("missing");
 
   const { text } = await generateText({
+    telemetry: { functionId: "image-caption" },
     ...sokoBotModelRequest({
       role: "agent",
       model: CAPTION_MODEL,

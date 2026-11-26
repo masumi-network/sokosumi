@@ -2,7 +2,7 @@ import { z } from "zod";
 import { databaseNow } from "@/lib/db/database-now";
 import { withTurnSkills } from "@/services/chat-message-skills.service";
 import { withActiveBackgroundRuns } from "./active-background-runs";
-import { withCmoReplyLanguage } from "./cmo-reply-language";
+import { cmoReplyLanguageFor } from "./cmo-reply-language";
 import { evaluationContext } from "./evaluation-dispatch";
 
 /**
@@ -118,16 +118,27 @@ export async function modelContextBlock(
   ];
 }
 
+/**
+ * The turn's preparation and Cuso's reply-language note (a Jev call of up to
+ * five seconds), side by side rather than one after the other.
+ */
+export async function withReplyLanguage<T>(
+  turnId: string,
+  prepare: Promise<T>,
+): Promise<[T, string | null]> {
+  return Promise.all([prepare, cmoReplyLanguageFor(turnId)]);
+}
+
+/** The turn's message as the model reads it. */
 export async function modelUserMessage(
   turn: { turnId: string; meetingPrep: boolean },
   message: string,
+  replyLanguage: string | null,
 ): Promise<string> {
   if (turn.meetingPrep) return message;
-  return withCmoReplyLanguage(
+  const text = await withActiveBackgroundRuns(
     turn.turnId,
-    await withActiveBackgroundRuns(
-      turn.turnId,
-      await withTurnSkills(turn.turnId, message),
-    ),
+    await withTurnSkills(turn.turnId, message),
   );
+  return replyLanguage ? `${text}\n\n${replyLanguage}` : text;
 }

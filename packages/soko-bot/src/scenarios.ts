@@ -123,6 +123,8 @@ export interface SokoBotScenario {
     anyTools?: string[];
     /** None of these may be called. */
     forbiddenTools?: string[];
+    /** Each of these skills must be read in full (read_writing_skill or read_skill). */
+    readsSkills?: string[];
     /**
      * Tools whose failure the scenario sets up (a site that does not load),
      * so a failed call to one is not counted against the bot.
@@ -1298,6 +1300,15 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
 export const CMO_PLACEHOLDER_PATTERN =
   "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
 
+/**
+ * Bracket placeholders, but not Markdown links: a page or email draft the
+ * owner pastes elsewhere may link its button ("[Start your trial](https://…)").
+ */
+const CMO_PLACEHOLDER_NOT_LINK_PATTERN = CMO_PLACEHOLDER_PATTERN.replace(
+  "{2,}\\]",
+  "{2,}\\](?!\\()",
+);
+
 /** The chat case whose picture must start as a reference library job. */
 export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
 
@@ -2162,6 +2173,76 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       ],
     },
   },
+  {
+    id: "cmo-landing-page-copy",
+    title: "Reads the landing page skill before writing page copy",
+    intent:
+      "Asked for homepage copy, Cuso reads the landing-page skill and writes one clear promise from the Brand Brain, with no invented proof.",
+    prompt:
+      "Rewrite the top of our homepage: the headline, the line under it and the button. Give me the copy here, I'll put it on the site myself.",
+    rubric:
+      "Cuso read the landing-page skill and answers with finished copy: one headline that says what cal.com does for whom, one supporting line, and a button label that names the action (not 'Learn more' or 'Submit'). Everything comes from the Brand Brain and the site; it invents no customer count, rating, percentage, testimonial or logo. A short reason for the choice is fine. Changing the strategy or calendar, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["landing-page"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-page-review-first-fix",
+    title: "Says what to change first on a page that does not convert",
+    intent:
+      "Asked why the pricing page does not convert, Cuso reads the page-review skill, looks at the real page and answers with a short ordered list in plain words.",
+    prompt:
+      "Lots of people visit our pricing page but few start a trial. What should we change first?",
+    rubric:
+      "Cuso read the page-review skill and looked at cal.com's pricing page (web_fetch or the site pages he has). The answer leads with the one change to make first and why, then at most a few more in order, each tied to something actually on the page. Plain words a founder understands without marketing terms (no 'CRO', 'conversion rate optimization', 'CTA', 'above the fold', 'friction'). It invents no numbers about the page's performance and does not promise a result. Changing the strategy, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["page-review"],
+      allowFailedTools: ["web_fetch"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: `${CMO_PLACEHOLDER_NOT_LINK_PATTERN}|\\bCRO\\b|\\bCTA\\b|above the fold`,
+    },
+  },
+  {
+    id: "cmo-launch-plan",
+    title: "Plans a feature launch from the launch skill",
+    intent:
+      "Asked to plan a launch, Cuso reads the launch-plan skill and says what goes out where and in what order, starting with the owner's own channels.",
+    prompt:
+      "Next Tuesday we launch routing forms: people answer a few questions and get booked with the right teammate. Plan the announcement, what goes out where and when. Don't put anything on the calendar yet.",
+    rubric:
+      "Cuso read the launch-plan skill and answers with a short plan in order: the owner's own channels first (site, email to existing users, their social accounts), launch day itself, and a follow-up after. Each item says what it says and where. It describes routing forms only with what the owner said or what the Brand Brain holds; it invents no numbers, customers or quotes. Plain words. Saving to the strategy or calendar, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["launch-plan"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-trial-welcome-emails",
+    title: "Writes trial welcome emails from the email sequence skill",
+    intent:
+      "Asked for the emails a new Teams trial gets, Cuso reads the email-sequence skill and writes a short sequence with one job per email.",
+    prompt:
+      "Write the emails someone gets after they start the 14-day Teams trial. Just the text here, I'll set them up in our email tool.",
+    rubric:
+      "Cuso read the email-sequence skill and writes a short sequence (about three to five emails) with when each one goes out, a subject line, and a body that does one job and ends with one clear next step. It is about the Teams plan and its 14-day trial from the Brand Brain, in the brand's voice. It invents no numbers, customer names or quotes, uses no fake urgency, and mentions no newsletter. Creating a newsletter issue, changing the strategy, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["email-sequence"],
+      forbiddenTools: [
+        "save_strategy",
+        "create_task",
+        "hire_agent",
+        "create_newsletter_issue",
+      ],
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
 ];
 
 /**
@@ -2263,6 +2344,25 @@ export function evaluateScenario(
           ? `called ${list(used)}`
           : `none called — used ${list(tools)}`,
     });
+  }
+  if (expect.readsSkills?.length) {
+    const read = new Set(
+      turn.toolCalls
+        .filter(
+          (call) =>
+            call.status === "COMPLETED" &&
+            (call.capability === "read_writing_skill" ||
+              call.capability === "read_skill"),
+        )
+        .map((call) => (call.result as { skill?: unknown } | null)?.skill)
+        .filter((skill): skill is string => typeof skill === "string"),
+    );
+    for (const skill of expect.readsSkills)
+      checks.push({
+        label: `Reads skill ${skill}`,
+        pass: read.has(skill),
+        actual: read.has(skill) ? "read" : `not read: read ${list(read)}`,
+      });
   }
   if (expect.forbiddenTools?.length) {
     const violated = expect.forbiddenTools.filter((tool) => tools.has(tool));

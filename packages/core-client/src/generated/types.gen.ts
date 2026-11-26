@@ -6977,6 +6977,8 @@ export type ProjectTalkingVideo = {
     broll: boolean;
     music: boolean;
     format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    shape: '9:16' | '4:5' | '1:1' | '16:9';
+    sourceJobId: string | null;
 };
 
 export type ImageStudioRecentProjects = {
@@ -12250,6 +12252,7 @@ export type CreateProjectTalkingVideoJobRequest = {
     siteShots?: boolean;
     broll?: boolean;
     music?: boolean;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
@@ -12261,6 +12264,7 @@ export type CreateProjectShortVideoJobRequest = {
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 

@@ -726,8 +726,18 @@ export function talkingVideoEditArgs(
         ...(files.clip ? [] : ["-stream_loop", "-1"]),
         ...["-t", seconds, "-i", files.broll!],
       );
+      // A vertical clip in a widescreen frame is shown whole, like the presenter.
       graph.push(
-        `[${broll}:v]scale=${size}:force_original_aspect_ratio=increase,crop=${size},setsar=1,fps=30[v${index}]`,
+        ...(layout.camera === "pillar"
+          ? [
+              `[${broll}:v]split[ra${index}][rf${index}]`,
+              `[ra${index}]scale=${size}:force_original_aspect_ratio=increase,crop=${size},boxblur=24,drawbox=c=black@0.25:t=fill,setsar=1[rb${index}]`,
+              `[rf${index}]scale=-2:${frame.height}[rp${index}]`,
+              `[rb${index}][rp${index}]overlay=(W-w)/2:0,setsar=1,fps=30[v${index}]`,
+            ]
+          : [
+              `[${broll}:v]scale=${size}:force_original_aspect_ratio=increase,crop=${size},setsar=1,fps=30[v${index}]`,
+            ]),
       );
     } else if (shot === "picture") {
       const picture = addInput(

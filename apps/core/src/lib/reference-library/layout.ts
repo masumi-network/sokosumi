@@ -82,6 +82,7 @@ export async function describeComposition(
   bytes: Uint8Array,
 ): Promise<{ text: string; costUsd: number }> {
   const result = await generateText({
+    telemetry: { functionId: "reference-composition" },
     model: gateway(LAYOUT_MODEL),
     maxRetries: 1,
     abortSignal: AbortSignal.timeout(60_000),
@@ -106,6 +107,7 @@ export async function describeBrandPictureStyle(
   designMd: string,
 ): Promise<{ text: string; costUsd: number }> {
   const result = await generateText({
+    telemetry: { functionId: "brand-picture-style" },
     model: gateway(LAYOUT_MODEL),
     maxRetries: 1,
     abortSignal: AbortSignal.timeout(60_000),
@@ -139,6 +141,7 @@ export async function pickBestPicture(input: {
     [input.layout, ...input.candidates].map((bytes) => jpeg(bytes, 768)),
   );
   const result = await generateText({
+    telemetry: { functionId: "reference-pick" },
     model: gateway(LAYOUT_MODEL),
     output: Output.object({ schema: pickSchema }),
     system: PICK_RUBRIC,
