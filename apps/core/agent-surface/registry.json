@@ -1,0 +1,3 @@
+{
+  "excluded": "API-key-only registry proxy. The CLI and MCP sign in with OAuth tokens, which this route refuses by design."
+}
