@@ -13822,7 +13822,25 @@
         "alternative": "Alternative",
         "nextCheck": "Nächste Prüfung",
         "canceled": "Aufgabe abgebrochen",
-        "failed": "Aufgabe fehlgeschlagen"
+        "failed": "Aufgabe fehlgeschlagen",
+        "impact": {
+          "title": "Vorher und nachher",
+          "completed": "Gezählt ab {date}, dem Tag, an dem die Aufgabe abgeschlossen wurde.",
+          "verified": "Gezählt ab {date}, dem Tag, an dem die Korrektur bestätigt wurde.",
+          "metric": "Kennzahl",
+          "beforeDays": "{days, number} Tage davor",
+          "afterDays": "{days, number} Tage danach",
+          "clicks": "Klicks",
+          "impressions": "Impressionen",
+          "position": "Durchschnittliche Position",
+          "notMeasured": "Nicht gemessen",
+          "pending": "Noch nicht endgültig",
+          "noPosition": "Keine Impressionen",
+          "tooEarly": "Search Console hat ab {date} endgültige Daten für die {days, number} Tage danach. Das nächste Audit nach diesem Tag liest sie.",
+          "notMeasuredNote": "Kein Audit hat die täglichen Search-Console-Daten dieser Seite für den ganzen Zeitraum gelesen. Ein neues Audit liest die 90 Tage davor.",
+          "lowCounts": "Ein Zeitraum hat weniger als {min, number} Impressionen. Das ist zu wenig für eine Prozentangabe.",
+          "caveat": "Das sind Search-Console-Zahlen nur für diese Seite. Sie schließen die Saison, andere Änderungen an der Seite oder ein Google-Update nicht aus."
+        }
       },
       "pages": {
         "title": "Seiten",

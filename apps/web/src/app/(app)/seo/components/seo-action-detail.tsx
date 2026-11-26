@@ -9,6 +9,7 @@ import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionTaskButton, useSeoActionFinding } from "./seo-action-finding";
+import { SeoActionImpact } from "./seo-action-impact";
 import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
 import { seoFollowUpText } from "./seo-followup-review";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
@@ -174,6 +175,7 @@ export function SeoActionDetail({
             </p>
           </DetailPart>
         )}
+        {action.impact && <SeoActionImpact impact={action.impact} />}
         {action.followUpReview && (
           <DetailPart title={report("actions.reviewAgain")}>
             <p lang="en">{seoFollowUpText(action.followUpReview, report)}</p>
