@@ -15759,6 +15759,67 @@
           "quota": "A CrUX rate limit was reached.",
           "other": "The speed test did not finish."
         }
+      },
+      "siteCrawl": {
+        "title": "Site crawl",
+        "read": "Pages read: {count}",
+        "stop": {
+          "pageCap": "Stopped at the page limit",
+          "depthCap": "Stopped at the depth limit",
+          "templateCap": "Stopped at the limit for one page template",
+          "linkCap": "Stopped at the link limit",
+          "time": "Stopped at the time limit",
+          "rateLimited": "Stopped: the site limited the request rate",
+          "robots": "Stopped: robots.txt blocks the crawl",
+          "fetchFailed": "Stopped: a fetch failed"
+        },
+        "notCrawled": "The audit could not crawl the site",
+        "notDetermined": "Not determined",
+        "missing": "This report has no result for this check.",
+        "clear": "No problem found",
+        "otherGaps": "What the crawl could not see",
+        "showMore": "Show {count} more",
+        "listed": "The crawl lists {listed} of {total}.",
+        "candidates": "A script may add a link to these pages, so they are not confirmed orphans.",
+        "status": "Status {status}",
+        "from": "Linked from",
+        "kind": {
+          "javascript": "Only in the rendered page",
+          "loop": "Loop",
+          "tooManyHops": "Too many hops",
+          "targetNot2xx": "Canonical target is not 2xx",
+          "otherHost": "Canonical on another host",
+          "conflicting": "Canonicals conflict",
+          "changedInRender": "JavaScript changes the canonical",
+          "removedInRender": "JavaScript removes the canonical",
+          "unreadable": "Canonical cannot be read"
+        },
+        "count": {
+          "linkingPages": "Linking pages: {count}",
+          "pages": "Pages: {count}",
+          "shellPages": "Shell pages: {count}"
+        },
+        "left": {
+          "links": "Links not judged: {count}",
+          "pages": "Pages not checked: {count}",
+          "compared": "Pages not compared: {count}",
+          "sitemapUrls": "Sitemap URLs not checked: {count}",
+          "canonicals": "Canonicals not judged: {count}",
+          "seen": "Pages not seen: {count}"
+        },
+        "noSitemapPage": "The sitemap names no page on this site.",
+        "olderReport": "This report is from before this check.",
+        "checks": {
+          "brokenLinks": "Broken links",
+          "noindexInSitemap": "Noindex pages in the sitemap",
+          "badCanonicals": "Bad canonicals",
+          "missingTitle": "Pages without a title",
+          "redirectChains": "Redirect chains",
+          "missingH1": "Pages without an h1",
+          "duplicateTitles": "Duplicate titles",
+          "orphans": "Orphan pages",
+          "javascript": "Page groups that need JavaScript"
+        }
       }
     },
     "AdDataConsent": {

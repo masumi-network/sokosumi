@@ -18,6 +18,7 @@ import { SeoIndexStatus } from "./seo-index-status";
 import { seoOverviewModel } from "./seo-overview-model";
 import { SeoPageDetails } from "./seo-page-details";
 import { SeoEmpty, SeoFoldSummary, SeoSection } from "./seo-shared";
+import { SeoSiteCrawl } from "./seo-site-crawl";
 import { SeoStrategicPlanning } from "./seo-strategic-planning";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { seoWorklistEvidence } from "./seo-worklist-evidence";
@@ -152,6 +153,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         ) : null}
         <SeoPageDetails model={model} overview={overview} />
       </SeoSection>
+      <SeoSiteCrawl workspace={model.data} />
       {research}
       <SeoStrategicPlanning model={model} />
       <SeoCurrentDiscoveryActions
