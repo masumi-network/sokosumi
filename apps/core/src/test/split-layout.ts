@@ -1,3 +1,5 @@
+import type { Prisma } from "@sokosumi/database";
+
 import { networkLayoutSchema } from "../config/network-layout";
 import { isSplitLayout } from "./split-layout-pending";
 
@@ -7,6 +9,31 @@ import { isSplitLayout } from "./split-layout-pending";
  */
 export function testSchemaNames() {
   return networkLayoutSchema.parse(process.env);
+}
+
+/**
+ * Runs a test fixture's writes in one transaction whose search path holds this
+ * run's schemas (shared, then Mainnet). Some trigger bodies still name a table
+ * without its schema (ticket 19): creating or deleting an Organization or a
+ * Project fires them, and on the split layout they would not find
+ * `calendar_invalidation_outbox` or `project_default_identifier`. Test fixtures
+ * only; production SQL names its schemas.
+ */
+export async function withFixtureSchemas<T>(
+  run: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  const names = testSchemaNames();
+  const path = [
+    ...new Set([names.DATABASE_SCHEMA_SHARED, names.DATABASE_SCHEMA_MAINNET]),
+  ]
+    .map((name) => `"${name}"`)
+    .join(", ");
+  // Loaded here: files that only ask `onSplitLayout` need no database client.
+  const { default: prisma } = await import("../lib/db/prisma");
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL search_path TO ${path}`);
+    return run(tx);
+  });
 }
 
 /**

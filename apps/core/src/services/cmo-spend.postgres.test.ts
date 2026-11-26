@@ -6,6 +6,7 @@ import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { withFixtureSchemas } from "@/test/split-layout";
 
 import { cmoSpend } from "./cmo-spend.service";
 
@@ -22,41 +23,43 @@ describe.skipIf(!enabled)("cmoSpend", () => {
   let cusoId: string;
 
   beforeAll(async () => {
-    await prisma.organization.create({
-      data: { id: organizationId, name: "Spend", slug: organizationId },
-    });
-    await prisma.user.create({
-      data: {
-        id: userId,
-        name: "Ada",
-        email: `${userId}@example.test`,
-        emailVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-    workspaceId = (await prisma.workspace.create({ data: { organizationId } }))
-      .id;
-    const projectId = (
-      await prisma.project.create({
-        data: { workspaceId, name: "Cuso's brand" },
-      })
-    ).id;
-    cusoId = (
-      await prisma.sokoBot.create({
+    await withFixtureSchemas(async (tx) => {
+      await tx.organization.create({
+        data: { id: organizationId, name: "Spend", slug: organizationId },
+      });
+      await tx.user.create({
         data: {
-          workspaceId,
-          projectId,
-          createdByUserId: userId,
-          versionId: CMO_SOKO_BOT_VERSION_ID,
+          id: userId,
+          name: "Ada",
+          email: `${userId}@example.test`,
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      })
-    ).id;
+      });
+      workspaceId = (await tx.workspace.create({ data: { organizationId } }))
+        .id;
+      const projectId = (
+        await tx.project.create({ data: { workspaceId, name: "Cuso's brand" } })
+      ).id;
+      cusoId = (
+        await tx.sokoBot.create({
+          data: {
+            workspaceId,
+            projectId,
+            createdByUserId: userId,
+            versionId: CMO_SOKO_BOT_VERSION_ID,
+          },
+        })
+      ).id;
+    });
   });
 
   afterAll(async () => {
-    await prisma.organization.deleteMany({ where: { id: organizationId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    await withFixtureSchemas(async (tx) => {
+      await tx.organization.deleteMany({ where: { id: organizationId } });
+      await tx.user.deleteMany({ where: { id: userId } });
+    });
     await prisma.$disconnect();
   });
 

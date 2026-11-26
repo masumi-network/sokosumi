@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
 import { labRootedTurnIds } from "@/lib/soko-bot/lab-turns";
+import { withFixtureSchemas } from "@/test/split-layout";
 
 import { fleetBotsToMove } from "./soko-bot-control-plane.service";
 import { getSokoBotQualityOverview } from "./soko-bot-quality.service";
@@ -26,47 +27,53 @@ describe.skipIf(!enabled)("fleet moves and lab trees", () => {
   let laneBotId: string;
 
   beforeAll(async () => {
-    for (const id of [organizationId, laneOrganizationId]) {
-      await prisma.organization.create({
-        data: { id, name: "Move", slug: id },
+    await withFixtureSchemas(async (tx) => {
+      for (const id of [organizationId, laneOrganizationId]) {
+        await tx.organization.create({ data: { id, name: "Move", slug: id } });
+      }
+      await tx.user.create({
+        data: {
+          id: userId,
+          name: "Ada",
+          email: `${userId}@example.test`,
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       });
-    }
-    await prisma.user.create({
-      data: {
-        id: userId,
-        name: "Ada",
-        email: `${userId}@example.test`,
-        emailVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      customerWorkspaceId = (
+        await tx.workspace.create({ data: { organizationId } })
+      ).id;
+      laneWorkspaceId = (
+        await tx.workspace.create({
+          data: { organizationId: laneOrganizationId },
+        })
+      ).id;
+      customerBotId = (
+        await tx.sokoBot.create({
+          data: {
+            userId,
+            workspaceId: customerWorkspaceId,
+            versionId: version,
+          },
+        })
+      ).id;
+      laneBotId = (
+        await tx.sokoBot.create({
+          data: { workspaceId: laneWorkspaceId, versionId: version },
+        })
+      ).id;
     });
-    customerWorkspaceId = (
-      await prisma.workspace.create({ data: { organizationId } })
-    ).id;
-    laneWorkspaceId = (
-      await prisma.workspace.create({
-        data: { organizationId: laneOrganizationId },
-      })
-    ).id;
-    customerBotId = (
-      await prisma.sokoBot.create({
-        data: { userId, workspaceId: customerWorkspaceId, versionId: version },
-      })
-    ).id;
-    laneBotId = (
-      await prisma.sokoBot.create({
-        data: { workspaceId: laneWorkspaceId, versionId: version },
-      })
-    ).id;
   });
 
   afterAll(async () => {
-    await prisma.evalLane.deleteMany({ where: { lane } });
-    await prisma.organization.deleteMany({
-      where: { id: { in: [organizationId, laneOrganizationId] } },
+    await withFixtureSchemas(async (tx) => {
+      await tx.evalLane.deleteMany({ where: { lane } });
+      await tx.organization.deleteMany({
+        where: { id: { in: [organizationId, laneOrganizationId] } },
+      });
+      await tx.user.deleteMany({ where: { id: userId } });
     });
-    await prisma.user.deleteMany({ where: { id: userId } });
     await prisma.$disconnect();
   });
 
