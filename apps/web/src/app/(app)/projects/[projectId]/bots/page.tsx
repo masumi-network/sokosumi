@@ -1,6 +1,8 @@
 import { SokoBotScope } from "@sokosumi/core-client";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { projectPageMetadata } from "@/app/projects/[projectId]/project-page-metadata";
 import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import {
   getProjectWorkspaceLabels,
@@ -17,6 +19,19 @@ export const instant = false;
 
 interface ProjectBotsPageProps {
   params: Promise<{ projectId: string }>;
+}
+
+/** The section's name, then the project's, as the tab title. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const [{ projectId }, t] = await Promise.all([
+    params,
+    getTranslations("App.Projects.Detail"),
+  ]);
+  return projectPageMetadata(projectId, t("tabs.bots"));
 }
 
 /**
