@@ -21,10 +21,13 @@ const metrics = ["clicks", "impressions"] as const;
 export function SeoSiteTrafficReportView({
   report,
   model,
+  brandLoading = false,
 }: {
   report: SeoSiteTrafficReport;
   /** With the workspace, the report also shows the branded split and the brand term list. */
   model?: SeoWorkspaceModel;
+  /** The report is the last read, shown while the split of a new term list loads. */
+  brandLoading?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -119,7 +122,12 @@ export function SeoSiteTrafficReportView({
         </div>
       </SeoSection>
       {model && (
-        <SeoSiteBrand model={model} report={report} metric={activeMetric} />
+        <SeoSiteBrand
+          model={model}
+          report={report}
+          metric={activeMetric}
+          loading={brandLoading}
+        />
       )}
       <SeoSection title={t("siteTraffic.pages")}>
         <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4 sm:p-5")}>
