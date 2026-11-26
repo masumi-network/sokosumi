@@ -580,6 +580,46 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       );
     });
 
+    it("tells the turn which saves Core has receipts for since the plan, not that they are still to do", async () => {
+      const chat = await turn("CHAT");
+      // A save before the plan's revision is not news to it.
+      await prisma.sokoBotToolCall.create({
+        data: {
+          turnId: chat,
+          toolCallId: `early-${chat}`,
+          capability: "upload_file",
+          inputHash: "early",
+          status: "COMPLETED",
+          createdAt: new Date(Date.now() - 60_000),
+        },
+      });
+      await updatePlan(chat, twoSteps);
+      // The background run scheduled the posts and the plan was not updated.
+      const run = await turn("CHAT", chat);
+      await prisma.sokoBotToolCall.create({
+        data: {
+          turnId: run,
+          toolCallId: `schedule-${run}`,
+          capability: "schedule_social_post",
+          inputHash: "schedule",
+          status: "COMPLETED",
+        },
+      });
+      await prisma.sokoBotTurn.update({
+        where: { id: run },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+      const prompt = await check(chat);
+      expect(prompt).toContain(
+        "Since your plan's revision 1 you completed: schedule_social_post.",
+      );
+      expect(prompt).toContain("do not do them again");
+      expect(prompt).not.toContain("upload_file");
+      await expect(openStepsNote(chat)).resolves.toContain(
+        "you completed: schedule_social_post",
+      );
+    });
+
     it("does not push a turn that waits on a Coworker to poll", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, twoSteps);

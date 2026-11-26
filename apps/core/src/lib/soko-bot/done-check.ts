@@ -1,5 +1,6 @@
 import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
@@ -61,7 +62,14 @@ export async function openStepsNote(turnId: string): Promise<string | null> {
   const found = await turnPlan(turnId);
   const open = found ? openSteps(found.plan) : [];
   if (!found || !open.length) return null;
-  return `Open steps in your plan (revision ${found.plan.revision}):\n${stepList(open)}`;
+  const saves = await savesSincePlan(
+    found.turn.sokoBotId,
+    found.requestId,
+    found.plan,
+    await requestTurnIds(found.turn.sokoBotId, found.requestId, turnId),
+  );
+  const saved = savedNote(saves, found.plan.revision).trim();
+  return `Open steps in your plan (revision ${found.plan.revision}):\n${stepList(open)}${saved ? `\n${saved}` : ""}`;
 }
 
 const MAX_REQUEST_DEPTH = 6;
@@ -120,27 +128,26 @@ async function requestTurnIds(
  * Pushing the bot on would only make it poll.
  */
 async function waitingOnOthers(
-  sokoBotId: string,
   turnId: string,
-  requestId: string,
+  turnIds: readonly string[],
 ): Promise<boolean> {
-  const turnIds = await requestTurnIds(sokoBotId, requestId, turnId);
+  const ids = [...turnIds];
   const [delegation, watch, run] = await Promise.all([
     prisma.sokoBotDelegation.findFirst({
       where: {
-        turnId: { in: turnIds },
+        turnId: { in: ids },
         followUp: { not: null },
         followUpTurnId: null,
       },
       select: { id: true },
     }),
     prisma.sokoBotWatch.findFirst({
-      where: { turnId: { in: turnIds }, status: "WAITING" },
+      where: { turnId: { in: ids }, status: "WAITING" },
       select: { id: true },
     }),
     prisma.sokoBotTurn.findFirst({
       where: {
-        parentTurnId: { in: turnIds },
+        parentTurnId: { in: ids },
         id: { not: turnId },
         status: { in: [...ACTIVE_RUN_STATUSES] },
       },
@@ -148,6 +155,51 @@ async function waitingOnOthers(
     }),
   ]);
   return Boolean(delegation || watch || run);
+}
+
+/**
+ * What the request saved after its plan's newest revision, from Core's own
+ * receipts: the plan's text may not show those steps as done yet, and the
+ * bot must not be told, or tell the owner, that they are still to do.
+ */
+async function savesSincePlan(
+  sokoBotId: string,
+  requestId: string,
+  plan: ChainPlan,
+  turnIds: readonly string[],
+): Promise<string[]> {
+  const written = await prisma.sokoBotToolCall.findFirst({
+    where: {
+      turn: { sokoBotId },
+      capability: "update_plan",
+      status: { not: "FAILED" },
+      AND: [
+        { result: { path: ["requestId"], equals: requestId } },
+        { result: { path: ["revision"], equals: plan.revision } },
+      ],
+    },
+    select: { createdAt: true },
+  });
+  if (!written) return [];
+  const saves = await prisma.sokoBotToolCall.findMany({
+    where: {
+      turnId: { in: [...turnIds] },
+      status: "COMPLETED",
+      capability: { in: [...ACTION_CAPABILITIES] },
+      createdAt: { gt: written.createdAt },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { capability: true },
+    take: 20,
+  });
+  return [...new Set(saves.map((save) => save.capability))];
+}
+
+/** The saves the plan does not show yet, and what to do about them. */
+function savedNote(saves: readonly string[], revision: number): string {
+  return saves.length
+    ? `Since your plan's revision ${revision} you completed: ${saves.join(", ")}. Core has the receipts, so the steps they did are done: mark them done with update_plan (revision ${revision}) and do not do them again. `
+    : "";
 }
 
 /** The draft asks the owner something: its clarification, or a question. */
@@ -204,11 +256,21 @@ export async function evaluateTurnDoneCheck(input: {
   const open = openSteps(found.plan);
   if (!open.length) return null;
   const working = open.some((step) => step.status === "in_progress");
-  if (
-    !working &&
-    (await waitingOnOthers(found.turn.sokoBotId, input.turnId, found.requestId))
-  )
-    return null;
+  const turnIds = await requestTurnIds(
+    found.turn.sokoBotId,
+    found.requestId,
+    input.turnId,
+  );
+  if (!working && (await waitingOnOthers(input.turnId, turnIds))) return null;
+  const saved = savedNote(
+    await savesSincePlan(
+      found.turn.sokoBotId,
+      found.requestId,
+      found.plan,
+      turnIds,
+    ),
+    found.plan.revision,
+  );
   const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
   const claimed = await new RuntimeEventLog(
     input.turnId,
@@ -221,6 +283,6 @@ export async function evaluateTurnDoneCheck(input: {
   );
   if (!claimed) return null;
   if (onOwner)
-    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open)}\nCall update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
-  return `Your plan still lists open steps:\n${stepList(open)}\nDo what you can of them now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open)}\n${saved}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
+  return `Your plan still lists open steps:\n${stepList(open)}\n${saved}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
 }
