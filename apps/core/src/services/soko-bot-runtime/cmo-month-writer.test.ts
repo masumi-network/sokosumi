@@ -7,6 +7,7 @@ const m = vi.hoisted(() => ({
   generateText: vi.fn(),
   append: vi.fn(),
   turnFindUnique: vi.fn(),
+  toolCallFindMany: vi.fn(),
   readCmoProduction: vi.fn(),
   findStyleReferences: vi.fn(),
   getSocialPost: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("@/lib/soko-bot/turn-loop", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findUnique: m.turnFindUnique },
+    sokoBotToolCall: { findMany: m.toolCallFindMany },
     referenceImage: { findMany: m.referenceFindMany },
   },
 }));
@@ -174,6 +176,7 @@ beforeEach(() => {
   m.turnFindUnique.mockResolvedValue({
     clientTurnId: "cmo:production:bot-1:1:1:0",
   });
+  m.toolCallFindMany.mockResolvedValue([]);
   m.getSocialPost.mockResolvedValue({ revision: 3 });
   m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
   m.findStyleReferences.mockResolvedValue([
@@ -454,6 +457,79 @@ describe("writeCmoMonthPieces", () => {
       },
     ]);
     expect(result.left).toBe(0);
+    expect(result.next).toContain("Fix each refused piece yourself");
+    expect(result.next).toContain("at most 10 a call");
+    expect(result.next).not.toContain("in one");
+  });
+
+  it("moves past the pieces it handed back earlier in the turn", async () => {
+    const month = Array.from({ length: 40 }, (_, index) =>
+      piece(`p${index + 1}`),
+    );
+    const handedBack = month.slice(0, 30);
+    m.toolCallFindMany.mockResolvedValue([
+      {
+        result: {
+          refused: handedBack.map((each) => ({ id: each.id, reason: "x" })),
+        },
+      },
+    ]);
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: month,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({
+        strategy,
+        pending: handedBack,
+        failedMedia: new Set(),
+      });
+    const named = (id: string, prompt: string) =>
+      new RegExp(`\\b${id}\\b`).test(prompt);
+    m.generateText.mockImplementation(
+      async ({ prompt }: { prompt: string }) => ({
+        output: {
+          pieces: month
+            .filter((each) => named(each.id, prompt))
+            .map((each) => written(each.id)),
+        },
+      }),
+    );
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    const prompts = m.generateText.mock.calls.map(
+      (call) => (call[0] as { prompt: string }).prompt,
+    );
+    expect(prompts.some((prompt) => named("p5", prompt))).toBe(false);
+    expect(prompts.some((prompt) => named("p31", prompt))).toBe(true);
+    expect(result.written).toBe(10);
+    expect(result.left).toBe(0);
+    expect(result.next).toContain("Fix each refused piece yourself");
+  });
+
+  it("says what is Cuso's when only handed-back pieces are left", async () => {
+    const month = [piece("p1"), piece("p2")];
+    m.toolCallFindMany.mockResolvedValue([
+      { result: { refused: [{ id: "p1" }, { id: "p2" }] } },
+    ]);
+    m.readCmoProduction.mockResolvedValue({
+      strategy,
+      pending: month,
+      failedMedia: new Set(),
+    });
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(m.generateText).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ written: 0, left: 0 });
     expect(result.next).toContain("Fix each refused piece yourself");
   });
 

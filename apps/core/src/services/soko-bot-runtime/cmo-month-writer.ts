@@ -14,6 +14,7 @@ import {
   PICTURE_KINDS,
   type PictureKind,
   REFERENCE_PURPOSES,
+  SOCIAL_POSTS_PER_BATCH,
   WRITING_SKILLS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
@@ -578,13 +579,21 @@ export async function writeCmoMonthPieces(
     throw new SokoBotRuntimeValidationError(
       "No strategy is approved: there is no month to write.",
     );
-  const batch = cmoWriterPieces(pending).slice(0, PIECES_PER_CALL);
+  // Pieces an earlier call of this turn handed back are Cuso's to fix: taking
+  // them again would write the same first page forever.
+  const handedBack = await handedBackThisTurn(authorized.turn.id);
+  const batch = cmoWriterPieces(pending)
+    .filter((piece) => !handedBack.has(piece.id))
+    .slice(0, PIECES_PER_CALL);
   if (batch.length === 0)
     return {
       written: 0,
       refused: [],
       left: 0,
-      next: "Nothing is left for Core to write. Write the pieces your brief lists as yours, then report.",
+      next:
+        handedBack.size > 0
+          ? `Nothing new is left for Core to write. ${FIX_REFUSED} Then write the pieces your brief lists as yours and report.`
+          : "Nothing is left for Core to write. Write the pieces your brief lists as yours, then report.",
     };
 
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
@@ -1016,7 +1025,9 @@ export async function writeCmoMonthPieces(
   const written = batch.filter(
     (piece) => !after.some((left) => left.id === piece.id),
   ).length;
-  const left = after.filter((piece) => !refused.has(piece.id)).length;
+  const left = after.filter(
+    (piece) => !refused.has(piece.id) && !handedBack.has(piece.id),
+  ).length;
   // Nothing written and nothing refused: every chunk failed, which is ours.
   if (written === 0 && refused.size === 0 && left > 0) {
     emitCoreError(
@@ -1049,11 +1060,31 @@ export async function writeCmoMonthPieces(
     left,
     next:
       left > 0
-        ? "Call write_month_pieces again for the rest."
-        : refused.size > 0
-          ? "Fix each refused piece yourself (the refused Social posts' words in one update_social_posts call, revisions from get_social_post, save_strategy part pieces for its visual or script), then write the pieces your brief lists as yours and report."
+        ? "Call write_month_pieces again for the rest; it skips the pieces it handed back."
+        : refused.size > 0 || handedBack.size > 0
+          ? `${FIX_REFUSED} Then write the pieces your brief lists as yours and report.`
           : "Write the pieces your brief lists as yours, then report.",
   };
+}
+
+const FIX_REFUSED = `Fix each refused piece yourself: the refused Social posts' words with update_social_posts, at most ${SOCIAL_POSTS_PER_BATCH} a call (revisions from get_social_post), and save_strategy part pieces for a visual or script.`;
+
+/** The pieces this turn's earlier write_month_pieces calls handed back. */
+async function handedBackThisTurn(turnId: string): Promise<Set<string>> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId, capability: "write_month_pieces", status: "COMPLETED" },
+    select: { result: true },
+  });
+  return new Set(
+    calls.flatMap((call) => {
+      const refused = (call.result as { refused?: unknown } | null)?.refused;
+      return Array.isArray(refused)
+        ? refused.flatMap((piece: { id?: unknown }) =>
+            typeof piece?.id === "string" ? [piece.id] : [],
+          )
+        : [];
+    }),
+  );
 }
 
 /** The fields a pieces save names a piece by, as the brief gives them. */
