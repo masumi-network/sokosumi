@@ -141,7 +141,10 @@ function DiffList({
       {empty ? (
         <p className="text-muted-foreground">{t("runDiff.none")}</p>
       ) : (
-        <ul className="space-y-1">{children}</ul>
+        // Safari drops the list role of a list without markers.
+        <ul role="list" className="space-y-1">
+          {children}
+        </ul>
       )}
       {more ? (
         <p className="text-muted-foreground">

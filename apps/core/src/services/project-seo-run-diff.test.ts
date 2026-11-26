@@ -187,6 +187,19 @@ describe("withSeoRunDiffs", () => {
     });
   });
 
+  it("pairs with the check of the same Market before one of another Market, where no check matches", () => {
+    const diff = diffOf([
+      source(8, result([failed({ rowId: "A" })])),
+      source(5, result([], { countryCode: "DE", languageCode: "de" })),
+      source(3, result([], { rulebookVersion: "r2" })),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-03T09:00:00.000Z",
+      comparable: false,
+      reason: "rulebook",
+    });
+  });
+
   it("compares with the earlier check of the same rulebook when another rulebook ran in between", () => {
     const diff = diffOf([
       source(8, result([failed({ rowId: "A" })])),

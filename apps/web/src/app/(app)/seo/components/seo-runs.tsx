@@ -458,7 +458,9 @@ export function SeoRuns({
           // A range compares its newest check: the timeline can lack a check that was stored after the range.
           days.find((entry) =>
             detailsDay === WHOLE
-              ? entry.inRange && entry.check
+              ? entry.check &&
+                (!from || entry.day >= from) &&
+                (!to || entry.day <= to)
               : entry.day === detailsDay,
           )?.check
         }
