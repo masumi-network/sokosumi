@@ -193,6 +193,26 @@ export function compareSeoRuns(
 }
 
 /**
+ * A check of page rules read a page where one of its rules passed, fired or left a finding there. A page it names but
+ * only blocked was not read. A check without checklist rows, such as a ranking check, is read by the pages it names.
+ */
+function readsEveryUrl(
+  payload: PublicSeoPayload,
+  selectedUrls: ReadonlySet<string>,
+) {
+  if (!payload.checks.length) return true;
+  const read = new Set(
+    [
+      ...payload.checks.filter(
+        (check) => check.result === "pass" || check.result === "fired",
+      ),
+      ...payload.findings,
+    ].map((row) => normalizeSeoUrl(row.pageUrl)),
+  );
+  return [...selectedUrls].every((url) => read.has(normalizeSeoUrl(url)));
+}
+
+/**
  * The check to compare with: the latest earlier check of the same kind that read every selected page, with the same
  * Market and rulebook where one exists. Checks of two Markets that take turns each keep their own line.
  */
@@ -200,6 +220,7 @@ function seoRunDiffOf(
   run: SeoRunDiffSource,
   sources: SeoRunDiffSource[],
   selectedIds: ReadonlySet<string>,
+  selectedUrls: ReadonlySet<string>,
   selected: Selected,
 ) {
   const earlier = sources
@@ -210,7 +231,8 @@ function seoRunDiffOf(
     .sort((a, b) => b.observedAt.getTime() - a.observedAt.getTime());
   if (!earlier.length) return null;
   const readsAll = (source: SeoRunDiffSource) =>
-    [...selectedIds].every((id) => source.pageIds.includes(id));
+    [...selectedIds].every((id) => source.pageIds.includes(id)) &&
+    readsEveryUrl(source.payload, selectedUrls);
   const full = earlier.filter(readsAll);
   if (!readsAll(run) || !full.length)
     return {
@@ -248,7 +270,9 @@ export function withSeoRunDiffs<T extends { observationId: string }>(
   const selected: Selected = (url) => selectedUrls.has(normalizeSeoUrl(url));
   return runs.map((run) => {
     const source = sources.find((item) => item.id === run.observationId);
-    const pair = source && seoRunDiffOf(source, sources, selectedIds, selected);
+    const pair =
+      source &&
+      seoRunDiffOf(source, sources, selectedIds, selectedUrls, selected);
     if (!pair) return run;
     const { moves, issues, ...lists } = pair.diff;
     return {

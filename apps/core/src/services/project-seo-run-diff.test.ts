@@ -7,6 +7,7 @@ import { type SeoRunDiffSource, withSeoRunDiffs } from "./project-seo-run-diff";
 
 const PAGE = "https://example.test/pricing";
 const OTHER = "https://example.test/about";
+const URLS: Record<string, string> = { "page-1": PAGE, "page-2": OTHER };
 type Device = "mobile" | "desktop";
 type Row = { rowId: string; device?: Device; pageUrl?: string };
 
@@ -31,7 +32,7 @@ function payload(patch: Partial<PublicSeoPayload> = {}): PublicSeoPayload {
   };
 }
 const check = (
-  result: "pass" | "fired" | "not_checked",
+  result: "pass" | "fired" | "blocked" | "not_checked",
   { rowId, device = "desktop", pageUrl = PAGE }: Row,
 ) => ({ rowId, pageUrl, device, result });
 /** A failed rule as a check stores it: the fired check and its finding, whose id changes with every check. */
@@ -93,7 +94,7 @@ function diffOf(sources: SeoRunDiffSource[], pageIds = ["page-1"]) {
   return withSeoRunDiffs(runs, {
     sources,
     selectedIds: new Set(pageIds),
-    selectedUrls: new Set([PAGE, OTHER]),
+    selectedUrls: new Set(pageIds.map((id) => URLS[id])),
   })[0].runDiff;
 }
 const rows = (items: Array<{ rowId: string }>) =>
@@ -311,7 +312,13 @@ describe("withSeoRunDiffs", () => {
   it("does not count an issue as new when the earlier check did not read its rule", () => {
     const diff = diffOf([
       source(8, result([failed({ rowId: "A" })])),
-      source(1, result([check("not_checked", { rowId: "A" })])),
+      source(
+        1,
+        result([
+          check("not_checked", { rowId: "A" }),
+          check("pass", { rowId: "B" }),
+        ]),
+      ),
     ]);
     expect(diff).toMatchObject({
       comparable: true,
@@ -356,10 +363,11 @@ describe("withSeoRunDiffs", () => {
   });
 
   it("gives no diff for a check that read only some of the selected pages", () => {
+    const other = check("pass", { rowId: "Z", pageUrl: OTHER });
     const partial = diffOf(
       [
         source(8, result([failed({ rowId: "A" })])),
-        source(1, result([check("pass", { rowId: "A" })]), {
+        source(1, result([check("pass", { rowId: "A" }), other]), {
           pageIds: ["page-1", "page-2"],
         }),
       ],
@@ -374,17 +382,42 @@ describe("withSeoRunDiffs", () => {
     // An earlier check of some pages is no base either: the full check before it is.
     const skipped = diffOf(
       [
-        source(8, result([failed({ rowId: "A" })]), {
+        source(8, result([failed({ rowId: "A" }), other]), {
           pageIds: ["page-1", "page-2"],
         }),
         source(5, result([failed({ rowId: "A" })])),
-        source(1, result([check("pass", { rowId: "A" })]), {
+        source(1, result([check("pass", { rowId: "A" }), other]), {
           pageIds: ["page-1", "page-2"],
         }),
       ],
       ["page-1", "page-2"],
     );
     expect(skipped).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      comparable: true,
+      newCount: 1,
+    });
+    // A check that names a page but only blocked its rules there did not read it: the full check before it is the base.
+    const blocked = diffOf(
+      [
+        source(8, result([failed({ rowId: "A" }), other]), {
+          pageIds: ["page-1", "page-2"],
+        }),
+        source(
+          5,
+          result([
+            failed({ rowId: "A" }),
+            check("blocked", { rowId: "Z", pageUrl: OTHER }),
+          ]),
+          { pageIds: ["page-1", "page-2"] },
+        ),
+        source(1, result([check("pass", { rowId: "A" }), other]), {
+          pageIds: ["page-1", "page-2"],
+        }),
+      ],
+      ["page-1", "page-2"],
+    );
+    expect(blocked).toMatchObject({
       from: "2026-11-01T09:00:00.000Z",
       comparable: true,
       newCount: 1,
