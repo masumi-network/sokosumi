@@ -14827,7 +14827,8 @@
           "stillOpen": "Still open"
         },
         "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out.",
-        "firstNew": "First new issues"
+        "firstNew": "First new issues",
+        "outside": "{count, plural, one {# more open issue comes from Search Console indexing. It is outside this comparison.} other {# more open issues come from Search Console indexing. They are outside this comparison.}}"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

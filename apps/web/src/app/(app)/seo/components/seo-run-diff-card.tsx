@@ -16,7 +16,14 @@ import { SeoFoldSummary } from "./seo-shared";
  * What the newest check changed, open on the Agent tab: how many issues are new, fixed and still open, the first new
  * issues, and every change in a fold. A comparison with no issue counts stays in its fold.
  */
-export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
+export function SeoRunDiffCard({
+  diff,
+  outside = 0,
+}: {
+  diff: ProjectSeoRunDiff;
+  /** Open issues the check counts outside its page issues, such as Search Console indexing issues. */
+  outside?: number;
+}) {
   const t = useSeoResultTranslations("App.Seo");
   const title = useSeoRunDiffTitle(diff);
   const view = seoRunDiffView(diff);
@@ -39,7 +46,7 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
     // No region of its own: the full comparison in its fold already is one, under the same name.
     <div
       lang="en"
-      className="border-border space-y-3 border-t pt-3 text-sm"
+      className="border-border mt-1 space-y-3 border-t pt-3 text-sm"
       data-testid="seo-agent-run-diff-card"
     >
       <div>
@@ -57,7 +64,7 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
             </dt>
             <dd
               className={cn(
-                "text-xl font-semibold tabular-nums",
+                "text-lg font-semibold tabular-nums",
                 list.total > 0 &&
                   list.id === "new" &&
                   "text-status-destructive",
@@ -69,7 +76,10 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
           </div>
         ))}
       </dl>
-      {view.rulebookChange || view.notCheckedAgain || view.notCheckedBefore ? (
+      {view.rulebookChange ||
+      view.notCheckedAgain ||
+      view.notCheckedBefore ||
+      outside ? (
         <div className="text-muted-foreground space-y-1 text-xs">
           {/* The counts cover only the rules both checks ran: say so beside them, not only in the fold. */}
           {view.rulebookChange ? (
@@ -88,6 +98,8 @@ export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
               })}
             </p>
           ) : null}
+          {/* The issue count above the card also counts these: say why it is higher than "now". */}
+          {outside ? <p>{t("runDiff.outside", { count: outside })}</p> : null}
         </div>
       ) : null}
       {added?.items.length ? (

@@ -150,9 +150,9 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
     fixedCount: 2,
     rulebookChange: { compared: 40, other: 3 },
     notCheckedBefore: 1,
-    numbers: { issues: { from: 1, to: 4 }, moves: [], moveCount: 0 },
+    numbers: { issues: { from: 2, to: 5 }, moves: [], moveCount: 0 },
   });
-  show(value, <SeoRunDiffCard diff={value} />);
+  show(value, <SeoRunDiffCard diff={value} outside={2} />);
   const card = screen.getByTestId("seo-agent-run-diff-card");
   expect(
     within(card).getByRole("heading", {
@@ -163,8 +163,14 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
   expect(within(card).getByText("Fixed").nextSibling).toHaveTextContent("2");
   // The issue count above the card is the "now" total: the counts add up to it.
   expect(
-    within(card).getAllByText("Open page issues: 1 before, 4 now"),
+    within(card).getAllByText("Open page issues: 2 before, 5 now"),
   ).toHaveLength(2);
+  // The issue count above the card also counts Search Console indexing issues: the card says so.
+  expect(
+    within(card).getByText(
+      "2 more open issues come from Search Console indexing. They are outside this comparison.",
+    ),
+  ).toBeInTheDocument();
   expect(
     within(within(card).getByRole("list", { name: "First new issues" }))
       .getAllByRole("listitem")

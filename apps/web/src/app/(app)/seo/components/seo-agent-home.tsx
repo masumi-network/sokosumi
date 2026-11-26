@@ -41,7 +41,7 @@ import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
 import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
 import { SeoRunDiffCard } from "./seo-run-diff-card";
-import { seoRunDiffOf } from "./seo-run-diff-model";
+import { seoRunDiffOf, seoRunIssuesOutsideDiff } from "./seo-run-diff-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
@@ -92,10 +92,16 @@ function SeoAgentPanel({
   const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
-  const lastCheckDiff = seoRunDiffOf(model.data, brief.lastCheck?.id);
   // The written plan and the verdict card both show one: the plan takes the place of the card.
-  const runDiffFold = (diff: typeof lastCheckDiff) =>
-    diff ? <SeoRunDiffCard diff={diff} /> : null;
+  const runDiffFold = (id: string | undefined) => {
+    const diff = seoRunDiffOf(model.data, id);
+    return diff ? (
+      <SeoRunDiffCard
+        diff={diff}
+        outside={seoRunIssuesOutsideDiff(model.data, id)}
+      />
+    ) : null;
+  };
   const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
@@ -349,7 +355,7 @@ function SeoAgentPanel({
           figures={
             <>
               {/* The plan stays on its audit after a newer focused check: it compares its own check. */}
-              {runDiffFold(seoRunDiffOf(model.data, selectedPlan.report?.id))}
+              {runDiffFold(selectedPlan.report?.id)}
               {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
               <SeoAgentFigures
                 model={model}
@@ -416,7 +422,7 @@ function SeoAgentPanel({
               <SeoDate report day value={brief.lastCheck.at} />
             </p>
           ) : null}
-          {runDiffFold(lastCheckDiff)}
+          {runDiffFold(brief.lastCheck?.id)}
           <SeoStrategyLine strategy={model.data.strategy} />
           {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
           <SeoAgentFigures

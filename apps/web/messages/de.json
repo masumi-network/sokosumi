@@ -14827,7 +14827,8 @@
           "stillOpen": "Weiter offen"
         },
         "rulebookChange": "Die Tests haben sich zwischen den beiden Prüfungen geändert. {compared, plural, one {# Test, den beide Prüfungen ausgeführt haben, wird} other {# Tests, die beide Prüfungen ausgeführt haben, werden}} verglichen, {other, number} nicht.",
-        "firstNew": "Erste neue Probleme"
+        "firstNew": "Erste neue Probleme",
+        "outside": "{count, plural, one {# weiteres offenes Problem kommt aus der Search-Console-Indexierung. Es ist nicht Teil dieses Vergleichs.} other {# weitere offene Probleme kommen aus der Search-Console-Indexierung. Sie sind nicht Teil dieses Vergleichs.}}"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",
