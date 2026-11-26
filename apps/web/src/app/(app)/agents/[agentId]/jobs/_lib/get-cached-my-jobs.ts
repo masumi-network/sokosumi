@@ -65,20 +65,25 @@ export async function getOwnedAgentJobsCount(agentId: string): Promise<number> {
 export const LAST_KNOWN_NAME_JOB_READS = 3;
 
 /**
- * A delisted agent's name as the viewer's own jobs recorded it, so its jobs
+ * A delisted agent's name, read through the viewer's own jobs, so its jobs
  * page can still say whose jobs these are.
  *
- * Data contract: a job summary (the jobs list) carries no agent name, so
- * the name comes from job detail (`GET /v1/jobs/:id`, `agent.overrideName`
- * else `agent.name`), which Core resolves even for an agent that left the
- * catalog. Only the viewer's own jobs from the list already loaded are read,
- * newest first, and a job is used only when its agent is this agent and its
- * name is not blank.
+ * Data contract: a job summary (the jobs list) carries no agent name. Job
+ * detail (`GET /v1/jobs/:id`) serializes the job's related agent record as
+ * it is now (`agent.overrideName` else `agent.name`), which Core still
+ * returns after the agent leaves the catalog. Jobs keep no name of their
+ * own: every job of one agent shows the same current name, so this is the
+ * agent's current name, not a name a job recorded.
  *
- * Limit: at most `LAST_KNOWN_NAME_JOB_READS` reads, in parallel, and the
- * newest job that names the agent wins. When none of those newest jobs
- * carries a name, the page says "Unavailable agent", even if an older job
- * outside that window would have one.
+ * Reading more than one job only bridges a job the viewer cannot read
+ * (refused, gone, or answering for another agent). It cannot recover an
+ * older name when the agent's own name is blank: then every job is blank.
+ * Only jobs from the viewer's owned list already loaded are read, each read
+ * checks access on its own, and only the trimmed name leaves this helper.
+ *
+ * Limit: at most `LAST_KNOWN_NAME_JOB_READS` reads, in parallel; the newest
+ * readable job wins. When none of those reads succeeds, the page says
+ * "Unavailable agent", even if a fourth job would have been readable.
  */
 export const getLastKnownAgentName = cache(
   async (agentId: string): Promise<string | null> => {

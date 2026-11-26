@@ -167,7 +167,7 @@ describe("getLastKnownAgentName", () => {
     vi.resetModules();
   });
 
-  it("names the agent as the viewer's newest own job recorded it", async () => {
+  it("names the agent through the viewer's newest own job", async () => {
     getAgentJobsMock.mockResolvedValueOnce({
       data: [{ id: "job-newest" }, { id: "job-older" }],
       meta: { pagination: { nextCursor: null, total: 2 } },
@@ -231,12 +231,13 @@ describe("getLastKnownAgentName", () => {
     await expect(getLastKnownAgentName("agent-1")).resolves.toBeNull();
   });
 
-  it("treats a blank name as no name", async () => {
+  it("treats a blank agent name as no name", async () => {
+    // Every job shows the agent's one current record, so all are blank.
     getAgentJobsMock.mockResolvedValueOnce({
-      data: [{ id: "job-newest" }],
-      meta: { pagination: { nextCursor: null, total: 1 } },
+      data: [{ id: "job-newest" }, { id: "job-older" }],
+      meta: { pagination: { nextCursor: null, total: 2 } },
     });
-    getJobByIdMock.mockResolvedValueOnce({
+    getJobByIdMock.mockResolvedValue({
       data: { agent: { id: "agent-1", name: "   ", overrideName: " " } },
     });
 
@@ -259,18 +260,22 @@ describe("getLastKnownAgentName", () => {
     await expect(getLastKnownAgentName("agent-1")).resolves.toBe("Research");
   });
 
-  it("takes the name from an older job when newer ones have none", async () => {
+  it("reads an older job when the newer ones cannot be read", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     getAgentJobsMock.mockResolvedValueOnce({
       data: [{ id: "job-1" }, { id: "job-2" }, { id: "job-3" }],
       meta: { pagination: { nextCursor: null, total: 3 } },
     });
-    getJobByIdMock
-      .mockRejectedValueOnce(new CoreApiRequestError("gone", { status: 404 }))
-      .mockResolvedValueOnce({ data: { agent: { id: "agent-1", name: "" } } })
-      .mockResolvedValueOnce({
-        data: { agent: { id: "agent-1", name: "Web Research" } },
-      });
+    // The same agent record behind every job; only access differs.
+    getJobByIdMock.mockImplementation(async (jobId: string) => {
+      if (jobId === "job-1") {
+        throw new CoreApiRequestError("gone", { status: 404 });
+      }
+      if (jobId === "job-2") {
+        throw new CoreApiRequestError("refused", { status: 403 });
+      }
+      return { data: { agent: { id: "agent-1", name: "Web Research" } } };
+    });
 
     const { getLastKnownAgentName } = await import("./get-cached-my-jobs");
 
@@ -292,9 +297,10 @@ describe("getLastKnownAgentName", () => {
       data: Array.from({ length: 20 }, (_, index) => ({ id: `job-${index}` })),
       meta: { pagination: { nextCursor: "job-19", total: 45 } },
     });
-    getJobByIdMock.mockResolvedValue({
-      data: { agent: { id: "agent-1", name: "" } },
-    });
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getJobByIdMock.mockRejectedValue(
+      new CoreApiRequestError("refused", { status: 403 }),
+    );
 
     await expect(getLastKnownAgentName("agent-1")).resolves.toBeNull();
     expect(getJobByIdMock).toHaveBeenCalledTimes(LAST_KNOWN_NAME_JOB_READS);

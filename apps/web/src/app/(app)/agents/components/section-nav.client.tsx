@@ -17,6 +17,36 @@ import {
 } from "@/hooks/effects/use-media-query";
 import { cn } from "@/lib/utils";
 
+/** How long a jump into a loading section waits to hand focus on. */
+const FOCUS_HANDOFF_MS = 10_000;
+
+/**
+ * A jump into a section that is still loading focuses its fallback heading,
+ * which Suspense then swaps for the real one with the same id. Moves focus
+ * to the replacement, but only while focus is lost with the removed node:
+ * a reader who has moved on keeps their focus.
+ */
+function handOffFocus(fallback: HTMLElement) {
+  if (!fallback.closest("[data-agents-section-loading]")) return;
+  const { id } = fallback;
+  const observer = new MutationObserver(() => {
+    if (fallback.isConnected) return;
+    const replacement = document.getElementById(id);
+    if (!replacement) return;
+    stop();
+    const active = document.activeElement;
+    if (!active || active === document.body) {
+      replacement.focus({ preventScroll: true });
+    }
+  });
+  const timer = window.setTimeout(stop, FOCUS_HANDOFF_MS);
+  function stop() {
+    observer.disconnect();
+    window.clearTimeout(timer);
+  }
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 /** The section headings' ids, in page order. */
 const AGENTS_SECTION_IDS = [
   "agents-soko-bots",
@@ -51,6 +81,7 @@ export function AgentsSectionNav() {
         : "smooth",
     });
     heading.focus({ preventScroll: true });
+    handOffFocus(heading);
     writeAgentsSectionHash(id, AGENTS_SECTION_IDS[0]);
   }
 

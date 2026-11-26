@@ -56,7 +56,7 @@ describe("jobs layout metadata", () => {
     expect(metadata.title).toBe("Unavailable agent");
   });
 
-  it("keeps the name the viewer's jobs recorded for a delisted agent", async () => {
+  it("keeps a delisted agent's name, read through the viewer's jobs", async () => {
     getCoreAgentByIdMock.mockResolvedValue(null);
     getLastKnownAgentNameMock.mockResolvedValue("Web Research Agent");
     const { generateMetadata } = await import("./layout");

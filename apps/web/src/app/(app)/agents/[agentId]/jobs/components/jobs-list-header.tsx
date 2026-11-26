@@ -15,7 +15,7 @@ interface JobsListHeaderProps {
   total?: number;
   /** Agent deleted or inaccessible: its page 404s, so Back goes to the catalog. */
   disabled?: boolean;
-  /** Left the catalog; the name is the one the viewer's jobs recorded. */
+  /** Left the catalog; the name is its current one, read through the viewer's jobs. */
   unlisted?: boolean;
 }
 
