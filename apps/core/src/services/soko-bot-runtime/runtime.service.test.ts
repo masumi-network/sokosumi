@@ -3249,7 +3249,11 @@ describe("SokoBotRuntimeService authorization", () => {
     [
       "update_schedule",
       "updateSokoBotSchedule",
-      { scheduleId: "01960001-0001-7001-8001-0000000000cc", prompt: "New" },
+      {
+        scheduleId: "01960001-0001-7001-8001-0000000000cc",
+        prompt: "New",
+        keepCapabilities: true,
+      },
     ],
   ] as const)(
     "runs %s on the turn's own bot, member and workspace",

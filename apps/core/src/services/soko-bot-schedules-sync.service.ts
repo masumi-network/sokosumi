@@ -17,7 +17,7 @@ import {
 } from "@/lib/soko-bot/runtime-errors";
 import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
-  inheritedScheduleRoute,
+  scheduleAuthorityRoute,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
 import {
@@ -121,13 +121,18 @@ interface ClaimedOccurrence {
     id: string;
     sokoBotId: string;
     requestedByUserId: string | null;
-    sokoBot: { userId: string | null };
+    sokoBot: {
+      userId: string | null;
+      projectId?: string | null;
+      versionId?: string | null;
+    };
     workspaceId: string;
     cronExpression: string;
     timezone: string;
     prompt: string;
     systemKey: string | null;
     capabilityNames: string[];
+    authority?: unknown;
     consecutiveFailures: number;
   };
   scheduledFor: Date;
@@ -300,7 +305,13 @@ export class SokoBotSchedulesSyncService {
         ],
       },
       include: {
-        schedule: { include: { sokoBot: { select: { userId: true } } } },
+        schedule: {
+          include: {
+            sokoBot: {
+              select: { userId: true, projectId: true, versionId: true },
+            },
+          },
+        },
       },
       orderBy: [{ leaseExpiresAt: "asc" }, { id: "asc" }],
     });
@@ -360,7 +371,9 @@ export class SokoBotSchedulesSyncService {
           proactivePaused: false,
         },
       },
-      include: { sokoBot: { select: { userId: true } } },
+      include: {
+        sokoBot: { select: { userId: true, projectId: true, versionId: true } },
+      },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
     if (!due?.nextRunAt) return null;
@@ -658,8 +671,9 @@ export class SokoBotSchedulesSyncService {
             "Soko Bot has reached its owner's daily limit",
           );
         }
+        const actingUserId = sokoBotScheduleActingUserId(schedule);
         const started = await sokoBotControlPlane.startTurn({
-          userId: sokoBotScheduleActingUserId(schedule),
+          userId: actingUserId,
           sokoBotId: schedule.sokoBotId,
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
@@ -667,10 +681,21 @@ export class SokoBotSchedulesSyncService {
           source: "SCHEDULE",
           ownScheduleId: schedule.systemKey ? undefined : schedule.id,
           // Built-in rhythms run on the route Core gives them; a schedule the
-          // owner or the bot wrote runs with the tools stored with it.
+          // owner or the bot wrote runs with its stored tools intersected
+          // against its persisted OwnerAuthority.
           presetRoute:
             systemScheduleRoute(schedule.systemKey) ??
-            inheritedScheduleRoute(schedule.capabilityNames),
+            scheduleAuthorityRoute({
+              id: schedule.id,
+              sokoBotId: schedule.sokoBotId,
+              workspaceId: schedule.workspaceId,
+              capabilityNames: schedule.capabilityNames,
+              authority: schedule.authority ?? null,
+              actingUserId,
+              botUserId: schedule.sokoBot.userId,
+              botProjectId: schedule.sokoBot.projectId ?? null,
+              botVersionId: schedule.sokoBot.versionId ?? null,
+            }),
           scheduleReservation: {
             runId: run.id,
             attempt: run.attempt,

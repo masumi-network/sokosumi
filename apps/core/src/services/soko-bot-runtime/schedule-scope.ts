@@ -109,13 +109,39 @@ function directOwnerChatScheduleEdit(
 }
 
 /**
+ * Bounds a schedule's requested capabilities by the authoring turn's grant so
+ * a job can declare a narrower toolset (such as a read-only check from a
+ * broader turn) without escalating beyond what the authoring turn holds.
+ */
+export function resolveRequestedScheduleCapabilities(
+  requested: readonly string[] | undefined,
+  granted: readonly SokoBotCapability[],
+): SokoBotCapability[] {
+  if (requested === undefined) {
+    return [...granted];
+  }
+  const grantSet = new Set<string>(granted);
+  const uniqueRequested = [...new Set(requested)];
+  const unavailable = uniqueRequested.filter(
+    (capability) => !grantSet.has(capability),
+  );
+  if (unavailable.length > 0) {
+    throw new SokoBotRuntimeValidationError(
+      `This turn does not have permission to grant ${unavailable.join(", ")} to a schedule. Request only capabilities available in this turn.`,
+    );
+  }
+  return uniqueRequested as SokoBotCapability[];
+}
+
+/**
  * Resolves the persisted OwnerAuthority for a bot `create_schedule` or
  * `update_schedule` tool call.
  *
  * - Brand-new schedules always persist an attenuated OwnerAuthority bound to
  *   the concrete `scheduleId` (retaining any project scope separately).
- * - Unrelated edits/upserts (neither `stopRule` nor `allowScheduledPosts`
- *   passed) preserve any existing persisted authority verbatim.
+ * - Unrelated edits/upserts (neither `stopRule`, `allowScheduledPosts`, nor a
+ *   direct-owner / legacy capability upgrade) preserve any existing persisted
+ *   authority verbatim.
  * - Setting/clearing `stopRule` or changing `allowScheduledPosts` requires a
  *   direct top-level owner chat turn; later top-level owner chat edits on an
  *   existing owner-originated schedule preserve `grantId`, `origin`,
@@ -126,6 +152,8 @@ export function resolveBotScheduleAuthority(
   input: {
     stopRule?: OwnerAuthorityStopRuleInput;
     allowScheduledPosts?: boolean;
+    /** Job-specific capabilities requested on create/update, when updating job scope. */
+    capabilities?: readonly SokoBotCapability[];
   },
   options: { isUpdate: boolean },
 ): ResolveScheduleAuthority {
@@ -139,12 +167,23 @@ export function resolveBotScheduleAuthority(
     );
     const wantsAuthorityEdit =
       input.stopRule !== undefined || input.allowScheduledPosts !== undefined;
+    const wantsCapabilitiesEdit = input.capabilities !== undefined;
+    const upgradesSystemToOwner =
+      wantsCapabilitiesEdit &&
+      scheduleEdit !== undefined &&
+      context.existingAuthority?.origin === "system";
+    const initializesLegacyCapabilities =
+      wantsCapabilitiesEdit && context.existingAuthority === null;
 
     if (options.isUpdate || context.existingAuthority !== null) {
-      if (!wantsAuthorityEdit) {
+      if (
+        !wantsAuthorityEdit &&
+        !upgradesSystemToOwner &&
+        !initializesLegacyCapabilities
+      ) {
         return undefined;
       }
-      if (!scheduleEdit) {
+      if (wantsAuthorityEdit && !scheduleEdit) {
         throw new OwnerAuthorityError(
           "Only a direct top-level owner chat turn may change a schedule's stop rule or posting permission",
         );
@@ -157,7 +196,7 @@ export function resolveBotScheduleAuthority(
         if (input.allowScheduledPosts !== undefined) {
           assertDirectOwnerScheduleEdit(
             next,
-            scheduleEdit,
+            scheduleEdit!,
             input.allowScheduledPosts
               ? "authorize a personal schedule to schedule posts"
               : "change a schedule's posting permission",
@@ -180,7 +219,7 @@ export function resolveBotScheduleAuthority(
           next = bindScheduleStopRule(next, {
             scheduleId: context.scheduleId,
             stopRule: input.stopRule,
-            edit: scheduleEdit,
+            edit: scheduleEdit!,
           });
         }
         return next;

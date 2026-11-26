@@ -23,7 +23,7 @@ import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import {
   evaluateSocialWriteAuthority,
   isSocialWriteCapability,
-  resolveSocialWriteOriginSource,
+  resolveSocialWriteOrigin,
   resolveTurnOwnerAuthority,
   TAINTED_SOCIAL_UPDATE_DETAIL,
 } from "@/lib/soko-bot/owner-authority";
@@ -166,17 +166,14 @@ async function enforceSocialWriteAuthority(
   const resolved = tainted
     ? await resolveTurnOwnerAuthority(authorized.turn.id, tx)
     : null;
-  const effectiveSource =
-    authorized.turn.source === "ADMIN_RETRY"
-      ? await resolveSocialWriteOriginSource(authorized.turn, tx)
-      : authorized.turn.source;
+  const origin = await resolveSocialWriteOrigin(authorized.turn, tx);
   const decision = evaluateSocialWriteAuthority({
     turn: {
       id: authorized.turn.id,
       sokoBotId: authorized.turn.sokoBotId,
       workspaceId: authorized.turn.workspaceId,
       versionId: authorized.turn.versionId,
-      source: effectiveSource,
+      source: origin.source,
       actingUserId: authorized.turn.actingUserId,
       askedByKind: authorized.askedByKind,
       sharedBot: Boolean(authorized.reader?.sharedScope),
@@ -185,6 +182,7 @@ async function enforceSocialWriteAuthority(
     rawInput,
     tainted,
     turnAuthority: resolved?.authority ?? null,
+    scheduleAuthority: origin.scheduleAuthority,
   });
   if (!decision.allowed) {
     if (decision.kind === "tainted") {

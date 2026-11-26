@@ -14,6 +14,7 @@ import {
   isStoredMeetingPrep,
   PERSON_SCHEDULE_CAPABILITIES,
   SYSTEM_TURN_ROUTES,
+  scheduleAuthorityRoute,
   storedMeetingRetrySlot,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
@@ -215,6 +216,128 @@ describe("system turn routes", () => {
     expect(route?.capabilities).not.toContain("update_schedule");
     expect(route?.capabilities).not.toContain("delete_schedule");
     expect(route?.sandbox).toBe(true);
+  });
+
+  it("intersects scheduleAuthorityRoute against persisted OwnerAuthority without widening on expiry or malformed grants", () => {
+    const schedId = "01960000-0000-7000-8000-000000000060";
+    const botId = "01960000-0000-7000-8000-000000000061";
+    const workspaceId = "01960000-0000-7000-8000-000000000062";
+    const ownerId = "user_owner";
+    const storedCaps = [
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+      "cancel_social_post",
+      "bash",
+    ];
+
+    // Legacy null authority stays identical to inheritedScheduleRoute.
+    expect(
+      scheduleAuthorityRoute({
+        id: schedId,
+        sokoBotId: botId,
+        workspaceId,
+        capabilityNames: storedCaps,
+        authority: null,
+        actingUserId: ownerId,
+        botUserId: ownerId,
+        botProjectId: null,
+        botVersionId: "v36",
+      }),
+    ).toEqual(inheritedScheduleRoute(storedCaps));
+
+    const baseAuthority = {
+      version: 1,
+      grantId: "grant-1",
+      origin: "owner_chat",
+      sokoBotId: botId,
+      workspaceId,
+      ownerUserId: ownerId,
+      rootTurnId: "turn-1",
+      targetScope: { kind: "workspace" },
+      scheduleId: schedId,
+      scope: "owner_writes",
+      socialMode: "draft_only",
+      stopRule: { mode: "never" },
+    };
+
+    const draftOnly = scheduleAuthorityRoute({
+      id: schedId,
+      sokoBotId: botId,
+      workspaceId,
+      capabilityNames: storedCaps,
+      authority: baseAuthority,
+      actingUserId: ownerId,
+      botUserId: ownerId,
+      botProjectId: null,
+      botVersionId: "v36",
+    });
+    expect(draftOnly.capabilities).toEqual([
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "bash",
+    ]);
+    expect(draftOnly.sandbox).toBe(true);
+
+    const schedulePosts = scheduleAuthorityRoute({
+      id: schedId,
+      sokoBotId: botId,
+      workspaceId,
+      capabilityNames: storedCaps,
+      authority: { ...baseAuthority, socialMode: "schedule_posts" },
+      actingUserId: ownerId,
+      botUserId: ownerId,
+      botProjectId: null,
+      botVersionId: "v36",
+    });
+    expect(schedulePosts.capabilities).toEqual([
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+      "bash",
+    ]);
+    expect(schedulePosts.capabilities).not.toContain("publish_social_post");
+    expect(schedulePosts.capabilities).not.toContain("cancel_social_post");
+
+    // Expired schedule with empty capabilityNames clamps to read-only (never PERSON_SCHEDULE_CAPABILITIES writes).
+    const expired = scheduleAuthorityRoute({
+      id: schedId,
+      sokoBotId: botId,
+      workspaceId,
+      capabilityNames: [],
+      authority: { ...baseAuthority, expiresAt: "2020-01-01T00:00:00.000Z" },
+      actingUserId: ownerId,
+      botUserId: ownerId,
+      botProjectId: null,
+      botVersionId: "v36",
+      now: new Date("2026-11-26T12:00:00.000Z"),
+    });
+    expect(expired.capabilities).toContain("list_social_posts");
+    expect(expired.capabilities).not.toContain("create_social_post");
+    expect(expired.capabilities).not.toContain("schedule_social_post");
+    expect(expired.capabilities).not.toContain("create_task");
+    expect(expired.sandbox).toBe(false);
+
+    // Malformed non-null authority clamps strictly to read-only.
+    const malformed = scheduleAuthorityRoute({
+      id: schedId,
+      sokoBotId: botId,
+      workspaceId,
+      capabilityNames: storedCaps,
+      authority: { corrupt: true },
+      actingUserId: ownerId,
+      botUserId: ownerId,
+      botProjectId: null,
+      botVersionId: "v36",
+    });
+    expect(malformed.capabilities).toEqual(["list_social_posts"]);
+    expect(malformed.sandbox).toBe(false);
   });
 
   it("gives every built-in rhythm a route", () => {
