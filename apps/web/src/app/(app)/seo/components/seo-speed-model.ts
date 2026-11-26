@@ -323,9 +323,9 @@ export function seoDeviceReason(check: NonNullable<SeoSiteSpeedRow["check"]>) {
   const share =
     check.mix?.[check.device === "mobile" ? "phone" : "desktop"] ?? null;
   const counted = check.basis === "crux-url" || check.basis === "crux-origin";
-  // A reason that names a share cannot stand without one.
+  // A reason that names a share cannot stand without one. Shares chose the device, so it is not the default device.
   return {
-    basis: counted && share == null ? ("default" as const) : check.basis,
+    basis: counted && share == null ? ("unknown" as const) : check.basis,
     share,
   };
 }

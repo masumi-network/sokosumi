@@ -216,7 +216,8 @@ it("names no share of visitors when Google gave no device mix", () => {
     basis: "crux-url" as const,
     notChecked: null,
   };
-  expect(seoDeviceReason({ ...check, mix: null })?.basis).toBe("default");
+  // Review pass 18: the shares chose the device, so the reason does not call it the default device.
+  expect(seoDeviceReason({ ...check, mix: null })?.basis).toBe("unknown");
   expect(
     seoDeviceReason({
       ...check,

@@ -15270,6 +15270,7 @@
           "crux-origin": "Short check on {device}: {share} of the site’s visitors use it.",
           "page-type": "Short check on {device}, the usual device for this kind of page.",
           "default": "Short check on {device}, the default device.",
+          "unknown": "Short check on {device}.",
           "stopped": "The default device is {device}: the check found no visitor shares before it stopped."
         },
         "mix": "Visitors: {phone} phone · {desktop} desktop · {tablet} tablet",
