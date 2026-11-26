@@ -1,9 +1,30 @@
 -- Trigger and function bodies for the three-schema layout (`shared`, `mainnet`,
--- `preprod`): the functions behind the triggers on shared tables that reach
--- shared objects only, and the helpers they call. Each body is the one the
--- migrations created, with every table, type, sequence and function named with
--- its schema; a trigger runs on its caller's search path, so a bare name would
--- resolve there or not at all.
+-- `preprod`): the functions behind the triggers on shared tables, and the
+-- helpers they call. Each body is the one the migrations created, with every
+-- table, type, sequence and function named with its schema; a trigger runs on
+-- its caller's search path, so a bare name would resolve there or not at all.
+--
+-- Some bodies differ from their migration's in more than schema names. The
+-- three paragraphs below list every such difference. Keep them when you copy
+-- a migration's new body over one of these.
+--
+-- A function here that reads a Network table names the Network's schema in
+-- its body. Image Studio is Mainnet only and its tables have no `network`
+-- column, so the image History functions (`history_image_amount` and its
+-- callers) name `mainnet`.
+--
+-- The Task and image rows of `shared."history"` have no Network, so their
+-- upserts conflict on (kind, entityId) WHERE network IS NULL, the key
+-- `history_untagged_kind_entityId_key`. The old key on (kind, entityId) must
+-- be dropped in the transaction that applies this file: a Job's row needs it
+-- gone (`network-trigger-bodies.sql`).
+--
+-- A Task's History row has no Network, and its amount counts Mainnet only:
+-- `history_task_amount` sums the `mainnet` Transactions of the Task's charged
+-- events and leaves out every event whose `network` is `preprod`. An event
+-- with a transaction and no `network` is from before the Networks were split,
+-- so it is Mainnet's. A JOB Notification's `network` chooses the schema of
+-- its Job the same way (`scope_notification_to_workspace_membership`).
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
@@ -16,14 +37,14 @@
 -- after it.
 --
 -- The guard refuses unless each function below is in `shared` with the body
--- the migrations create, by digest. So a second run refuses too. That only
--- schema names differ from those bodies is not checked by any code: it was
--- compared once for this text, and every later change to a body is reviewed
--- against its migration before its digest is updated.
+-- the migrations create, by digest, and unless every function of `shared` is
+-- one of them. So a second run refuses too. No code checks how a body here
+-- differs from its migration's: it was compared once for this text, and every
+-- later change to a body is reviewed against its migration before its digest
+-- is updated.
 --
--- Not here: functions that need the row's Network (ticket 19 part 2; the split
--- script lists them as waiting) and the functions on Network tables, which
--- each Network schema holds a copy of (`network-trigger-bodies.sql`).
+-- Not here: the functions on Network tables, which each Network schema holds
+-- a copy of (`network-trigger-bodies.sql`).
 
 DO $guard$
 DECLARE
@@ -32,6 +53,7 @@ DECLARE
   settings CONSTANT text[] := ARRAY[current_setting('search_path'), current_setting('quote_all_identifiers')];
   problem text;
   changed text;
+  checked oid[] := '{}';
   fn record;
 BEGIN
   SELECT string_agg(name, ', ' ORDER BY name) INTO problem
@@ -50,13 +72,10 @@ BEGIN
   -- Cost and rows are `real`: as numeric their text does not follow the
   -- session's `extra_float_digits`.
   FOR fn IN
-    SELECT 'shared.' || listed.signature AS signature, listed.digest, p.proname, p.prokind,
+    SELECT 'shared.' || listed.signature AS signature, listed.digest, p.oid, p.proname, p.prokind,
       md5(concat_ws(E'\n', p.prosrc, l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,
         pg_get_function_arguments(p.oid), pg_get_function_result(p.oid),
         p.proparallel, p.procost::numeric, p.prorows::numeric, p.proleakproof, p.prosupport)) AS found
-    -- A function replaced below without a line here is not compared with its
-    -- migration. This guard cannot find one: `shared` also holds functions
-    -- this file does not replace (the split script's waiting list).
     FROM (VALUES
       ('calendar_access_cleanup_on_member_delete()', '610ee6273e89a19af3a5042f6b0b8b74'),
       ('calendar_membership_fence_on_member_insert()', 'c2ca047a096a082a27d72111a9cfa533'),
@@ -77,7 +96,9 @@ BEGIN
       ('enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)', '144218e45d23e3b7f16abb58b5ce55c9'),
       ('erase_calendar_outbox_for_workspace_delete()', '60e1e659b70377e7f16288d70324523c'),
       ('history_bucket_slug_from_metadata(jsonb)', 'f75544f0226a41435b455199e227c325'),
+      ('history_image_amount(uuid)', '059422996e8b87360346cba91ca9acfc'),
       ('history_slugify(text)', '14f4c248f71f03bcf140f7c6625205a1'),
+      ('history_task_amount(text)', '9a2b49e0572932a3cca251bd9578db25'),
       ('invalidate_calendar_for_contact_change()', '58b978046028054c43c59a0efe3d68a2'),
       ('invalidate_calendar_for_marketing_strategy_change()', '2ce1e533a94eac55bc51b35dc4f2101d'),
       ('invalidate_calendar_for_marketing_strategy_file_change()', '9f10c01ae614215169be6cb1b54ecd68'),
@@ -93,12 +114,19 @@ BEGIN
       ('project_default_identifier(text,uuid)', '815ad18acc7c9b59e821eae2068489b3'),
       ('project_set_identifier()', '51ebc5342f951bae9afa844890a270bd'),
       ('reject_soko_bot_admin_action_mutation()', '391039c4aa764e7bc57591bb963aa590'),
+      ('scope_notification_to_workspace_membership()', '606434feaf153d46b34d0266a80adde4'),
       ('social_post_quote_before_delete()', '5c033f342f04a15fd5a5f434745fcf28'),
+      ('sync_history_from_project_image_asset()', '6e11ad6fccf619d83759a52d014beb5d'),
+      ('sync_history_from_project_image_job_charge()', '7da342df7a6d5eb53167f83d383bb23a'),
+      ('sync_history_from_task()', '26c084aef7d754d5ab83b9a69425103a'),
+      ('sync_history_from_task_event()', '5bfe3f2659b2a6d2487d15fd61f05e61'),
       ('task_alias_old_number()', 'ef2b3f591be26eb257c3aa14b06dad68'),
       ('task_assign_number()', 'c7ed9b511a18321323c9fd36f80fdb75'),
       ('task_subtask_follow_parent()', '302228a69d5f1ab1d421c913d722976a'),
       ('task_subtask_guard()', '20887f6150174f6d679c7f8323693869'),
-      ('task_tag_revision()', '584d8ba0c0719e4fdbf87f6cfad055ce')
+      ('task_tag_revision()', '584d8ba0c0719e4fdbf87f6cfad055ce'),
+      ('upsert_history_image_asset(uuid)', 'cdcd9f77622953f2f069399c7b75998d'),
+      ('upsert_history_task(text)', '0b33ec27d24e9a7a4780524b6cf03734')
     ) AS listed(signature, digest)
     LEFT JOIN pg_proc p ON p.oid = to_regprocedure('shared.' || listed.signature)
     LEFT JOIN pg_language l ON l.oid = p.prolang
@@ -107,6 +135,7 @@ BEGIN
     IF fn.prokind IS DISTINCT FROM 'f' THEN
       RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing function: %', fn.signature;
     END IF;
+    checked := checked || fn.oid;
 
     -- A trigger keeps the function it was created with, so a function of this
     -- name left outside `shared` would go on running the old body.
@@ -123,8 +152,19 @@ BEGIN
       changed := concat_ws(', ', changed, format('%s (digest now %s)', fn.signature, fn.found));
     END IF;
   END LOOP;
+  -- This file replaces every function of `shared`, so each must have had its
+  -- digest compared above: one without a line there would be replaced
+  -- whatever a migration made of it.
+  SELECT string_agg(p.oid::regprocedure::text, ', ' ORDER BY p.oid::regprocedure::text) INTO problem
+  FROM pg_proc p
+  WHERE p.pronamespace = 'shared'::regnamespace AND p.oid <> ALL (checked)
+    AND NOT EXISTS (SELECT FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');
+  IF problem IS NOT NULL THEN
+    RAISE EXCEPTION 'no digest for %: add its line to the guard of % and its body below. If a trigger or CHECK on a Network table runs it, add it to networkFunctions in packages/database/prisma/network-tables.json and to network-trigger-bodies.sql instead',
+      problem, file;
+  END IF;
   IF changed IS NOT NULL THEN
-    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %, check by eye that only schema names differ from the migration''s body, then update its digest there',
+    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %: copy the migration''s new body, put the schema names in again and keep every difference the file''s header lists (the Network a body reads, filters by or writes, and the History conflict targets). Check by eye that nothing else differs from the migration''s body, then update its digest there',
       changed, file;
   END IF;
   PERFORM set_config('search_path', settings[1], true), set_config('quote_all_identifiers', settings[2], true);
@@ -759,6 +799,27 @@ AS $function$
   );
 $function$;
 
+CREATE OR REPLACE FUNCTION shared.history_image_amount(job_id uuid)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT GREATEST(
+    COALESCE(j."chargedCents", 0)
+      - COALESCE(
+          (
+            SELECT t."amount"
+            FROM mainnet."Transaction" AS t
+            WHERE t."id" = j."refundTransactionId"
+          ),
+          0
+        ),
+    0
+  )::BIGINT
+  FROM shared."project_image_job" AS j
+  WHERE j."id" = job_id;
+$function$;
+
 CREATE OR REPLACE FUNCTION shared.history_slugify(value text)
  RETURNS text
  LANGUAGE sql
@@ -773,6 +834,19 @@ AS $function$
     ),
     ''
   );
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.history_task_amount(task_id text)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT COALESCE(SUM(t."amount" * -1), 0)::BIGINT
+  FROM shared."taskEvent" AS e
+  JOIN mainnet."Transaction" AS t ON t."id" = e."transactionId"
+  WHERE e."taskId" = task_id
+    AND t."amount" < 0
+    AND e."network" IS DISTINCT FROM 'preprod';
 $function$;
 
 CREATE OR REPLACE FUNCTION shared.invalidate_calendar_for_contact_change()
@@ -1327,6 +1401,60 @@ BEGIN
 END;
 $function$;
 
+CREATE OR REPLACE FUNCTION shared.scope_notification_to_workspace_membership()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF NEW."workspaceId" IS NULL THEN
+    IF NEW.kind = 'TASK' THEN
+      SELECT "workspaceId" INTO NEW."workspaceId"
+      FROM shared."task"
+      WHERE id = NEW."referenceId";
+    ELSIF NEW.kind = 'JOB' THEN
+      -- The Notification's Network names the Job's schema. A row without one
+      -- is from before the Networks were split, so its Job is Mainnet's.
+      IF NEW."network" = 'preprod' THEN
+        SELECT "workspaceId" INTO NEW."workspaceId"
+        FROM preprod."Job"
+        WHERE id = NEW."referenceId";
+      ELSE
+        SELECT "workspaceId" INTO NEW."workspaceId"
+        FROM mainnet."Job"
+        WHERE id = NEW."referenceId";
+      END IF;
+    ELSIF NEW.kind = 'CHAT' THEN
+      SELECT "workspace".id INTO NEW."workspaceId"
+      FROM shared."chat_room", shared."chat_room_user_member", shared."workspace", shared."member"
+      WHERE "chat_room".id::TEXT = NEW."referenceId"
+        AND "chat_room"."organizationId" = "workspace"."organizationId"
+        AND "chat_room_user_member"."roomId" = "chat_room".id
+        AND "chat_room_user_member"."userId" = NEW."userId"
+        AND "chat_room_user_member".access = 'member'
+        AND "member"."userId" = NEW."userId"
+        AND "member"."organizationId" = "chat_room"."organizationId";
+    ELSIF NEW.kind = 'SYSTEM' AND NEW.metadata IS NOT NULL THEN
+      BEGIN
+        NEW."workspaceId" := (NEW.metadata::JSONB->>'workspaceId')::UUID;
+      EXCEPTION WHEN OTHERS THEN
+        NEW."workspaceId" := NULL;
+      END;
+    END IF;
+
+    IF NEW."workspaceId" IS NULL THEN
+      NEW."organizationId" := NULL;
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  SELECT "organizationId" INTO NEW."organizationId"
+  FROM shared."workspace"
+  WHERE id = NEW."workspaceId";
+
+  RETURN NEW;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION shared.social_post_quote_before_delete()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -1345,6 +1473,80 @@ BEGIN
       AND "publishedExternalId" IS NULL
       AND "status" <> 'PUBLISHED';
     RETURN OLD;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.sync_history_from_project_image_asset()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'IMAGE'::shared."HistoryKind"
+      AND "entityId" = OLD."id"::TEXT;
+    RETURN OLD;
+  END IF;
+
+  PERFORM shared.upsert_history_image_asset(NEW."id");
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.sync_history_from_project_image_job_charge()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  owned_asset_id UUID;
+BEGIN
+  SELECT "id" INTO owned_asset_id
+  FROM shared."project_image_asset"
+  WHERE "jobId" = NEW."id";
+
+  IF owned_asset_id IS NOT NULL THEN
+    PERFORM shared.upsert_history_image_asset(owned_asset_id);
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.sync_history_from_task()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'TASK'::shared."HistoryKind"
+      AND "entityId" = OLD."id";
+    RETURN OLD;
+  END IF;
+
+  PERFORM shared.upsert_history_task(NEW."id");
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.sync_history_from_task_event()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    PERFORM shared.upsert_history_task(OLD."taskId");
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    PERFORM shared.upsert_history_task(NEW."taskId");
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
 END;
 $function$;
 
@@ -1488,5 +1690,184 @@ BEGIN
     NEW."tagClassificationAvailableAt" := CURRENT_TIMESTAMP;
   END IF;
   RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.upsert_history_image_asset(asset_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  source RECORD;
+  spend BIGINT;
+BEGIN
+  SELECT
+    a."id",
+    a."jobId",
+    a."projectId",
+    a."workspaceId",
+    a."prompt",
+    a."model",
+    a."createdAt",
+    j."requestedByUserId",
+    w."organizationId"
+  INTO source
+  FROM shared."project_image_asset" AS a
+  JOIN shared."project_image_job" AS j ON j."id" = a."jobId"
+  LEFT JOIN shared."workspace" AS w ON w."id" = a."workspaceId"
+  WHERE a."id" = asset_id;
+
+  IF NOT FOUND THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'IMAGE'::shared."HistoryKind"
+      AND "entityId" = asset_id::TEXT;
+    RETURN;
+  END IF;
+
+  spend := shared.history_image_amount(source."jobId");
+
+  INSERT INTO shared."history" (
+    "id",
+    "kind",
+    "entityId",
+    "userId",
+    "workspaceId",
+    "organizationId",
+    "title",
+    "description",
+    "status",
+    "sortAt",
+    "amount",
+    "projectId",
+    "agentId",
+    "coworkerId",
+    "sokoBotId",
+    "bucketSlug",
+    "archivedAt"
+  )
+  VALUES (
+    gen_random_uuid()::TEXT,
+    'IMAGE'::shared."HistoryKind",
+    source."id"::TEXT,
+    source."requestedByUserId",
+    source."workspaceId",
+    source."organizationId",
+    -- The prompt is the only thing that tells these rows apart, so it is the
+    -- title. Bounded because a prompt may be four thousand characters and a feed
+    -- row is one line.
+    left(source."prompt", 200),
+    -- `<provider endpoint> · <credits> credits`, in that order and with that
+    -- separator, because the Core history route parses the endpoint back out of
+    -- it to resolve the model's display label from the live studio catalog. SQL
+    -- cannot see those labels — they come from a provider API read in
+    -- TypeScript — and freezing one into the row would leave it wrong the moment
+    -- fal renamed the model. The endpoint is also what the feed's text search
+    -- matches on, and it stays true for a model fal has since withdrawn.
+    --
+    -- Integer division is exact: the credits contract rounds every charge up to
+    -- a whole credit, and the API returns the authoritative decimal.
+    source."model" || ' · ' || (spend / 10000000000)::TEXT || ' credits',
+    'active',
+    source."createdAt",
+    spend,
+    source."projectId",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+  )
+  ON CONFLICT ("kind", "entityId") WHERE "network" IS NULL DO UPDATE
+  SET
+    "userId" = EXCLUDED."userId",
+    "workspaceId" = EXCLUDED."workspaceId",
+    "organizationId" = EXCLUDED."organizationId",
+    "title" = EXCLUDED."title",
+    "description" = EXCLUDED."description",
+    "status" = EXCLUDED."status",
+    "sortAt" = EXCLUDED."sortAt",
+    "amount" = EXCLUDED."amount",
+    "projectId" = EXCLUDED."projectId",
+    "agentId" = EXCLUDED."agentId",
+    "coworkerId" = EXCLUDED."coworkerId",
+    "sokoBotId" = EXCLUDED."sokoBotId",
+    "bucketSlug" = EXCLUDED."bucketSlug",
+    "archivedAt" = EXCLUDED."archivedAt";
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.upsert_history_task(task_id text)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  source_task shared."task"%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO source_task
+  FROM shared."task"
+  WHERE "id" = task_id;
+
+  IF NOT FOUND THEN
+    DELETE FROM shared."history"
+    WHERE "kind" = 'TASK'::shared."HistoryKind"
+      AND "entityId" = task_id;
+    RETURN;
+  END IF;
+
+  INSERT INTO shared."history" (
+    "id",
+    "kind",
+    "entityId",
+    "userId",
+    "workspaceId",
+    "organizationId",
+    "title",
+    "description",
+    "status",
+    "sortAt",
+    "amount",
+    "projectId",
+    "agentId",
+    "coworkerId",
+    "sokoBotId",
+    "bucketSlug",
+    "archivedAt"
+  )
+  VALUES (
+    gen_random_uuid()::TEXT,
+    'TASK'::shared."HistoryKind",
+    source_task."id",
+    source_task."ownerId",
+    source_task."workspaceId",
+    source_task."organizationId",
+    source_task."name",
+    source_task."description",
+    source_task."status"::TEXT,
+    source_task."createdAt",
+    shared.history_task_amount(source_task."id"),
+    source_task."projectId",
+    NULL,
+    source_task."assigneeId",
+    source_task."assigneeSokoBotId",
+    NULL,
+    source_task."archivedAt"
+  )
+  ON CONFLICT ("kind", "entityId") WHERE "network" IS NULL DO UPDATE
+  SET
+    "userId" = EXCLUDED."userId",
+    "workspaceId" = EXCLUDED."workspaceId",
+    "organizationId" = EXCLUDED."organizationId",
+    "title" = EXCLUDED."title",
+    "description" = EXCLUDED."description",
+    "status" = EXCLUDED."status",
+    "sortAt" = EXCLUDED."sortAt",
+    "amount" = EXCLUDED."amount",
+    "projectId" = EXCLUDED."projectId",
+    "agentId" = EXCLUDED."agentId",
+    "coworkerId" = EXCLUDED."coworkerId",
+    "sokoBotId" = EXCLUDED."sokoBotId",
+    "bucketSlug" = EXCLUDED."bucketSlug",
+    "archivedAt" = EXCLUDED."archivedAt";
 END;
 $function$;

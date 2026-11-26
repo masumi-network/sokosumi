@@ -2,15 +2,17 @@
  * `packages/database/prisma/network-layout/network-trigger-bodies.sql`: the
  * bodies of the functions on Network tables, one copy per Network from one
  * template. On the split layout each copy must reach its own Network's tables
- * and the shared ones, and never the other Network's: every test here renames
- * the other Network's schema away before it fires the triggers, so PostgreSQL
- * refuses a body that names it. The other Network also holds rows with the
- * same ids and other values, so a copy that read them would show.
+ * and the shared ones, and never the other Network's. Two kinds of test:
+ * - one copy alone: the other Network's schema is renamed away before the
+ *   triggers fire, so PostgreSQL refuses a body that names it. The other
+ *   Network also holds rows with the same ids and other values, so a copy
+ *   that read them would show;
+ * - both copies: both schemas stay, one Job id is on both Networks, and each
+ *   Network's History row must survive what the other one writes.
  *
  * The rows under test are written with `session_replication_role = replica`,
  * which skips foreign keys, and with the triggers under test set to fire
- * anyway. So no test needs a Task: creating one fires a trigger on a shared
- * table that still waits for the row's Network (ticket 19 part 2).
+ * anyway. So no test needs user, Workspace or Agent rows.
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -261,9 +263,8 @@ describe.runIf(ON_POSTGRES)("Network trigger bodies", () => {
         });
       });
 
-      // Both Networks still share one History row per Job id (the template's
-      // header): this proves where each copy reads and writes, not that the
-      // two rows are kept apart.
+      // Where each copy reads and writes. That the two Networks' rows stay
+      // apart is the test below, with neither schema renamed away.
       it("keeps a Job's shared History row from its own tables", async () => {
         const [job, charge, event, purchase, input] = [
           randomUUID(),
@@ -273,7 +274,7 @@ describe.runIf(ON_POSTGRES)("Network trigger bodies", () => {
           randomUUID(),
         ];
         const history = `SELECT title, status, amount::int FROM shared.history
-          WHERE kind = 'JOB' AND "entityId" = $1`;
+          WHERE kind = 'JOB' AND "entityId" = $1 AND network = '${network}'`;
 
         const rows = await firing(
           {
@@ -382,5 +383,101 @@ describe.runIf(ON_POSTGRES)("Network trigger bodies", () => {
         });
       });
     });
+
+    // One Job id on both Networks, with another status, amount and
+    // Workspace on each. `acting` writes; `resting`'s row must stay.
+    it.each([
+      ["mainnet", "preprod"],
+      ["preprod", "mainnet"],
+    ])(
+      "keeps %s's History row of a Job apart from %s's row of the same id",
+      async (acting, resting) => {
+        const [job, charge, event] = [randomUUID(), randomUUID(), randomUUID()];
+        const workspaces = { [acting]: randomUUID(), [resting]: randomUUID() };
+        const history = `SELECT network, title, status, amount::int, "workspaceId"
+        FROM shared.history WHERE kind = 'JOB' AND "entityId" = $1 ORDER BY network`;
+
+        const seen = await rolledBack(async (db) => {
+          await db.query("SET LOCAL session_replication_role = replica");
+          for (const schema of [acting, resting]) {
+            for (const [table, trigger] of [
+              ["Job", "history_job_sync"],
+              ["jobEvent", "history_job_event_sync"],
+              ["Transaction", "history_transaction_sync"],
+            ]) {
+              await db.query(
+                `ALTER TABLE ${schema}."${table}" ENABLE ALWAYS TRIGGER ${trigger}`,
+              );
+            }
+          }
+          const rows: unknown[] = [];
+          const after = async (sql: string, values: unknown[]) => {
+            await db.query(sql, values);
+            rows.push((await db.query(history, [job])).rows);
+          };
+          // A paid Job without a purchase: its status follows `payByTime`.
+          const insertJob = (schema: string, payBy: string) =>
+            after(
+              `INSERT INTO ${schema}."Job" (id, "updatedAt", "agentId", "agentJobId", "jobType",
+                 "workspaceId", name, "transactionId", "blockchainIdentifier", "payByTime",
+                 "submitResultTime", "unlockTime", "externalDisputeUnlockTime", "sellerVkey",
+                 "identifierFromPurchaser")
+               VALUES ($1, now(), 'agent', $1::text, 'PAID', $2, $3, $4, $1::text,
+                 now() + $5::interval, now() + interval '2 days', now() + interval '3 days',
+                 now() + interval '4 days', 'vkey', 'purchaser')`,
+              [job, workspaces[schema], schema, charge, payBy],
+            );
+          for (const [schema, cents] of [
+            [resting, 900],
+            [acting, 700],
+          ]) {
+            await db.query(
+              `INSERT INTO ${schema}."Transaction" (id, "updatedAt", amount)
+             VALUES ($1, now(), -$2::bigint)`,
+              [charge, cents],
+            );
+          }
+          await insertJob(resting, "-1 day");
+          await insertJob(acting, "1 day");
+          await after(
+            `INSERT INTO ${acting}."jobEvent" (id, "updatedAt", "jobId", status)
+           VALUES ($1, now(), $2, 'COMPLETED')`,
+            [event, job],
+          );
+          await after(
+            `UPDATE ${acting}."Transaction" SET amount = -800 WHERE id = $1`,
+            [charge],
+          );
+          // The Job's own delete, then the delete its sync functions make when
+          // they no longer find the Job.
+          await after(`DELETE FROM ${acting}."Job" WHERE id = $1`, [job]);
+          await after(`DELETE FROM ${acting}."jobEvent" WHERE id = $1`, [
+            event,
+          ]);
+          return rows;
+        });
+
+        const row = (network: string, status: string, amount: number) => ({
+          network,
+          title: network,
+          status,
+          amount,
+          workspaceId: workspaces[network],
+        });
+        const rested = row(resting, "payment_failed", 900);
+        const both = (amount: number) =>
+          [row(acting, "payment_pending", amount), rested].sort((a, b) =>
+            a.network.localeCompare(b.network),
+          );
+        expect(seen).toEqual([
+          [rested],
+          both(700),
+          both(700),
+          both(800),
+          [rested],
+          [rested],
+        ]);
+      },
+    );
   });
 });
