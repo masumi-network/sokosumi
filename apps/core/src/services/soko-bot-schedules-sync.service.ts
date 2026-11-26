@@ -11,6 +11,7 @@ import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
+import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
   inheritedScheduleRoute,
@@ -30,7 +31,6 @@ import {
   isPlatformTurnFailure,
   MAX_CONSECUTIVE_SCHEDULE_FAILURES,
 } from "@/services/soko-bot-schedule.service";
-
 import { buildScheduledSystemBeat } from "@/services/soko-bot-scheduled-beat.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
@@ -215,9 +215,13 @@ export function scheduleRunPrompt(schedule: {
     : schedule.jobId
       ? ` It watches Job ${schedule.jobId}; Core removes it once that Job finishes.`
       : "";
+  // Only a brief that says when to stop lets the run end its schedule; a
+  // weekly report once deleted itself on a guess (Codex rounds 13 and 15).
   const lifecycle = schedule.runOnce
     ? "It runs once; Core removes it after this run."
-    : `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). When its purpose is done, remove it with delete_schedule and scheduleId ${schedule.id}.`;
+    : briefAsksToEnd(schedule.prompt)
+      ? `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). The brief below says when to end it; only then remove it with delete_schedule and scheduleId ${schedule.id}.`
+      : `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}) and keeps running: only the owner ends it. Never delete or switch it off; if it looks done or outdated, say so and let the owner decide.`;
   return `[Schedule "${schedule.name}" (scheduleId ${schedule.id}). ${lifecycle}${watches}]\n\n${schedule.prompt}`;
 }
 

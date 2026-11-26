@@ -559,9 +559,19 @@ describe("SokoBotSchedulesSyncService", () => {
     });
   });
 
-  it("tells a run which schedule it is and how to end it", () => {
+  it("tells a run which schedule it is, and that only its brief may end it", () => {
+    // Recurring work keeps its schedule: only the owner ends it.
     expect(scheduleRunPrompt(dueSchedule)).toBe(
-      `[Schedule "Hourly review" (scheduleId ${dueSchedule.id}). It repeats (cron "0 * * * * *", UTC). When its purpose is done, remove it with delete_schedule and scheduleId ${dueSchedule.id}.]\n\nReview active work`,
+      `[Schedule "Hourly review" (scheduleId ${dueSchedule.id}). It repeats (cron "0 * * * * *", UTC) and keeps running: only the owner ends it. Never delete or switch it off; if it looks done or outdated, say so and let the owner decide.]\n\nReview active work`,
+    );
+    // A brief that says when to stop is the one case the run removes it.
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        prompt: "Check SOK-12. Delete this schedule once Mira is done.",
+      }),
+    ).toContain(
+      `The brief below says when to end it; only then remove it with delete_schedule and scheduleId ${dueSchedule.id}.`,
     );
     expect(
       scheduleRunPrompt({ ...dueSchedule, runOnce: true, taskId: "task-9" }),
