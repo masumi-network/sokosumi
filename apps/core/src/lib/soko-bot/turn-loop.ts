@@ -20,7 +20,10 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
-import { turnRunModel } from "@/lib/soko-bot/turn-model";
+import {
+  turnReasoningEffortOptions,
+  turnRunModel,
+} from "@/lib/soko-bot/turn-model";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   ACTION_LABELS,
@@ -33,6 +36,7 @@ import { claimsAction } from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
+import { fitToolResult } from "./tool-result-fit";
 import { modelContextBlock } from "./turn-model-context";
 import type { TurnPart } from "./turn-parts";
 
@@ -44,6 +48,32 @@ import type { TurnPart } from "./turn-parts";
 
 /** Upper bound on model steps in one 15-minute turn. */
 export const SOKO_BOT_MAX_STEPS = 40;
+
+/**
+ * Input tokens one turn may spend before it stops and answers from what it
+ * has. Set above the largest turns of the week to 2026-11-25 (owner chat
+ * 1.35M, Cuso event 4.0M, background run 2.6M, assistant schedule p99 264k),
+ * so only a runaway loop meets one.
+ */
+export const SOKO_BOT_INPUT_TOKEN_BUDGETS = {
+  chat: 3_000_000,
+  event: 5_000_000,
+  scheduled: 1_500_000,
+  cmoScheduled: 5_000_000,
+  background: 8_000_000,
+} as const;
+
+export function sokoBotInputTokenBudget(turn: {
+  source: string;
+  cmo: boolean;
+  background: boolean;
+}): number {
+  const budgets = SOKO_BOT_INPUT_TOKEN_BUDGETS;
+  if (turn.background) return budgets.background;
+  if (turn.source === "CHAT") return budgets.chat;
+  if (turn.source === "EVENT") return budgets.event;
+  return turn.cmo ? budgets.cmoScheduled : budgets.scheduled;
+}
 
 /** Longer turns get steps in proportion: an hour's turn has 160. */
 export function sokoBotMaxSteps(durationMs: number): number {
@@ -270,6 +300,20 @@ export interface PreparedTurn {
   meetingPrep: boolean;
   /** Briefs the runtime runs side by side before the message (turn-parts). */
   parts: readonly TurnPart[];
+  /** Provider options for how hard the model thinks on this turn. */
+  reasoningEffort: ReturnType<typeof turnReasoningEffortOptions>;
+}
+
+/**
+ * Only a person's own chat message starts a background run
+ * (`startBackgroundRun` refuses the rest). Offered on Core-started turns, it
+ * was called and refused 36 times in the week to 2026-11-25.
+ */
+function mayStartBackgroundRun(turn: {
+  source: string | null;
+  chainDepth: number;
+}): boolean {
+  return turn.source === "CHAT" && turn.chainDepth === 0;
 }
 
 /** Sandbox tools that only read the open web, so Core can run them itself. */
@@ -316,13 +360,19 @@ export async function prepareTurn(
   // A runtime without a sandbox cannot run those tools; the model should not
   // be offered what nothing will execute. Read-only web tools need no
   // sandbox: the in-process runtime runs them itself.
-  const capabilities = options.sandbox
-    ? authorized.grant.capabilities
-    : authorized.grant.capabilities.filter(
-        (capability) =>
-          !isSokoBotSandboxCapability(capability) ||
-          (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
-      );
+  const capabilities = (
+    options.sandbox
+      ? authorized.grant.capabilities
+      : authorized.grant.capabilities.filter(
+          (capability) =>
+            !isSokoBotSandboxCapability(capability) ||
+            (options.web === true && IN_PROCESS_WEB_TOOLS.has(capability)),
+        )
+  ).filter(
+    (capability) =>
+      capability !== "start_background_run" ||
+      mayStartBackgroundRun(authorized.turn),
+  );
   const requiresActionProof = capabilities.some((capability) =>
     ACTION_CAPABILITIES.has(capability),
   );
@@ -378,6 +428,11 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep: authorized.meetingPrep === true,
     parts,
+    reasoningEffort: turnReasoningEffortOptions({
+      version,
+      model: turnRunModel(version, authorized.turn.modelId),
+      complexity: authorized.complexity,
+    }),
   };
 }
 
@@ -496,9 +551,12 @@ export async function runTurnTool(input: {
     capability,
   );
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
-  return ACTION_CAPABILITIES.has(capability) || input.cite === false
-    ? result
-    : { evidenceToolCallId: callId, result };
+  // A script reads the whole result; the model reads one that fits.
+  if (input.cite === false) return result;
+  const fitted = fitToolResult(capability, result);
+  return ACTION_CAPABILITIES.has(capability)
+    ? fitted
+    : { evidenceToolCallId: callId, result: fitted };
 }
 
 /** The changes this turn's receipts confirm, as the answer names them. */

@@ -139,6 +139,7 @@ export async function generateNewsletterDraft(
     try {
       // Like project-memory text generation, drafting has no credit debit. Newsletter sends remain free too.
       const result = await generateText({
+        telemetry: { functionId: "newsletter-draft" },
         model,
         system,
         prompt: attempt

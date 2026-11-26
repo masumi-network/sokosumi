@@ -16,7 +16,6 @@ const FUNCTION_ROLES = {
   "cmo-month-writer": "agent",
   "cmo-strategy-step": "agent",
   "soko-bot-judge": "judge",
-  "soko-bot-search": "search",
 } as const satisfies Record<string, ModelCallRole>;
 
 /** Tags a call for `telemetry`, so its record carries the right role. */

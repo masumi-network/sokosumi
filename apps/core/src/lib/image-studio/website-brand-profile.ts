@@ -67,6 +67,7 @@ export async function suggestWebsiteBrandProfile(
     if (!(await allowWebsiteSuggestion("profile", workspaceId))) return {};
 
     const { output } = await generateText({
+      telemetry: { functionId: "website-brand-profile" },
       model: WEBSITE_RESEARCH_MODEL,
       providerOptions: { gateway: { only: ["mistral"] } },
       instructions: [
@@ -112,6 +113,7 @@ export async function suggestWebsiteOffers(
   try {
     if (!(await allowWebsiteSuggestion("offers", workspaceId))) return [];
     const { output } = await generateText({
+      telemetry: { functionId: "website-offers" },
       model: WEBSITE_RESEARCH_MODEL,
       providerOptions: { gateway: { only: ["mistral"] } },
       instructions: [

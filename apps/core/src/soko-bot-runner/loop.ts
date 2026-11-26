@@ -12,6 +12,8 @@ import {
 import { endedByTool, toolEndedTurn } from "../lib/soko-bot/turn-parts";
 import { compactHistory } from "./history";
 import {
+  FOREGROUND_REPORT_RESERVE_MS,
+  FOREGROUND_TIME_UP_PROMPT,
   isFinalReport,
   isIdleRound,
   KEEP_GOING_PROMPT,
@@ -29,6 +31,8 @@ export interface TurnLoopInput {
   message: string;
   tools: ToolSet;
   maxSteps: number;
+  /** Input tokens the turn may spend across all its model calls; none from an older Core. */
+  inputTokenBudget?: number;
   background: boolean;
   /** Epoch ms by which the turn must have answered. */
   deadline: number;
@@ -36,6 +40,10 @@ export interface TurnLoopInput {
   /** Told each step's reasoning summary as the step ends, when it has one. */
   onReasoning?: (summary: string) => Promise<void>;
   now?: () => number;
+}
+
+interface StepUsage {
+  usage: { inputTokens?: number | undefined };
 }
 
 export interface TurnLoopResult {
@@ -57,8 +65,21 @@ export async function runTurnLoop(
       input.stopped,
       AbortSignal.timeout(Math.max(1_000, input.deadline - now())),
     ]);
-  const reportAt = input.deadline - REPORT_RESERVE_MS;
-  const timeUp = () => input.background && now() >= reportAt;
+  const reportAt =
+    input.deadline -
+    (input.background
+      ? REPORT_RESERVE_MS
+      : Math.min(
+          FOREGROUND_REPORT_RESERVE_MS,
+          Math.max(0, input.deadline - now()) / 5,
+        ));
+  const timeUp = () => now() >= reportAt;
+  const tokenBudget = input.inputTokenBudget ?? Number.POSITIVE_INFINITY;
+  let tokensUsed = 0;
+  const inputTokensOf = (steps: readonly StepUsage[]) =>
+    steps.reduce((sum, step) => sum + (step.usage.inputTokens ?? 0), 0);
+  const overBudget = ({ steps }: { steps: readonly StepUsage[] }) =>
+    tokensUsed + inputTokensOf(steps) >= tokenBudget;
   let messages: ModelMessage[] = [{ role: "user", content: input.message }];
   let stepsLeft = input.maxSteps;
   let text = "";
@@ -70,7 +91,7 @@ export async function runTurnLoop(
       system: input.system,
       messages: compactHistory(messages) ?? messages,
       tools: input.tools,
-      stopWhen: [stepCountIs(stepsLeft), timeUp, endedByTool],
+      stopWhen: [stepCountIs(stepsLeft), timeUp, overBudget, endedByTool],
       prepareStep: ({ messages: current }) => {
         const compacted = compactHistory(current);
         return compacted ? { messages: compacted } : {};
@@ -86,6 +107,7 @@ export async function runTurnLoop(
       maxRetries: 1,
     });
     stepsLeft -= result.steps.length;
+    tokensUsed += inputTokensOf(result.steps);
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
     const ended = toolEndedTurn(result.steps);
@@ -94,11 +116,7 @@ export async function runTurnLoop(
       result.text ||
       (result.steps.findLast((step) => step.text.trim())?.text ?? "");
     finishReason = result.finishReason;
-    idleRounds = isIdleRound(
-      result.steps.flatMap((step) =>
-        step.toolCalls.map((call) => call.toolName),
-      ),
-    )
+    idleRounds = isIdleRound(result.steps.flatMap((step) => step.toolCalls))
       ? idleRounds + 1
       : 0;
     // Every step's messages: `response.messages` holds the last step's alone,
@@ -110,21 +128,29 @@ export async function runTurnLoop(
       idleRounds < MAX_IDLE_ROUNDS &&
       round < MAX_KEEP_GOING_ROUNDS &&
       stepsLeft > 0 &&
+      tokensUsed < tokenBudget &&
       reportAt - now() > MIN_ROUND_TIME_MS;
     if (!keepGoing) break;
     messages.push({ role: "user", content: KEEP_GOING_PROMPT });
   }
-  if (
-    input.background &&
-    !isFinalReport(text) &&
-    idleRounds < MAX_IDLE_ROUNDS
-  ) {
+  // A turn that ran out of steps, time or tokens while still calling tools
+  // has no answer yet: one call without tools writes it.
+  const cutOff = stepsLeft <= 0 || timeUp() || tokensUsed >= tokenBudget;
+  const needsReport = input.background
+    ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
+    : cutOff && (finishReason === "tool-calls" || !text.trim());
+  if (needsReport) {
     const result = await streamModelCall({
       model: input.model,
       system: input.system,
       messages: [
         ...(compactHistory(messages) ?? messages),
-        { role: "user", content: TIME_UP_PROMPT },
+        {
+          role: "user",
+          content: input.background
+            ? TIME_UP_PROMPT
+            : FOREGROUND_TIME_UP_PROMPT,
+        },
       ],
       tools: input.tools,
       toolChoice: "none",

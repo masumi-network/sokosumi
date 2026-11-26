@@ -311,6 +311,23 @@ describe("dreaming", () => {
     expect(await dream()).toEqual({ lines: [], skip: true });
   });
 
+  it("sleeps when only scheduled and inbox turns ran, last night's dream included", async () => {
+    turnFindManyMock.mockResolvedValue([
+      turn({ source: "SCHEDULE", userMessage: "Dreaming." }),
+      turn({ source: "INGEST", userMessage: "## Mail" }),
+    ]);
+    expect(await dream()).toEqual({ lines: [], skip: true });
+  });
+
+  it.each([
+    ["a chat", { source: "CHAT" }],
+    ["owner feedback", { source: "EVENT", ownerFeedback: 1 }],
+    ["a failed turn", { source: "SCHEDULE", status: "FAILED" }],
+  ])("dreams after %s", async (_label, overrides) => {
+    turnFindManyMock.mockResolvedValue([turn(overrides)]);
+    expect((await dream()).skip).toBe(false);
+  });
+
   it("looks back to the last dream, at most a week", async () => {
     scheduleRunFindFirstMock.mockResolvedValue({
       scheduledFor: new Date("2026-10-31T03:00:00.000Z"),

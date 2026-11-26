@@ -3,7 +3,11 @@ import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { runTurnLoop } from "./loop";
-import { REPORT_RESERVE_MS, TIME_UP_PROMPT } from "./rounds";
+import {
+  FOREGROUND_TIME_UP_PROMPT,
+  REPORT_RESERVE_MS,
+  TIME_UP_PROMPT,
+} from "./rounds";
 
 const MINUTE = 60_000;
 const usage = {
@@ -349,6 +353,51 @@ describe("runTurnLoop", () => {
     expect(result.text).toBe("Done.");
     // One paragraph per summary part, not run together.
     expect(told).toEqual(["Thought 1.\n\nNext.", "Thought 2.\n\nNext."]);
+  });
+
+  it("answers a chat turn that ran out of steps mid-work, in one call without tools", async () => {
+    const clock = { now: 0 };
+    const { model, calls } = tirelessModel(clock);
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Fill the table.",
+      tools,
+      maxSteps: 3,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => clock.now,
+    });
+
+    expect(calls).toHaveLength(4);
+    expect(calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(calls.at(-1)?.lastUser).toBe(FOREGROUND_TIME_UP_PROMPT);
+    expect(result.text).toContain("filled 12 of 30 rows");
+  });
+
+  it("stops a run at its token budget and reports", async () => {
+    const clock = { now: 0 };
+    const { model, calls } = tirelessModel(clock);
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Fill the table.",
+      tools,
+      maxSteps: 500,
+      inputTokenBudget: 25,
+      background: true,
+      deadline: 600 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => clock.now,
+    });
+
+    // 10 input tokens a step: the third step passes 25, then the report.
+    expect(calls).toHaveLength(4);
+    expect(calls.at(-1)?.lastUser).toBe(TIME_UP_PROMPT);
+    expect(result.text).toBe("filled 12 of 30 rows; 18 left.");
   });
 
   it("ends on the step whose tool said so, without a closing step", async () => {

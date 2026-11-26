@@ -800,8 +800,8 @@ describe("InProcessSokoBotRuntime", () => {
       streamModelCallMock.mock.calls[0][0].providerOptions.gateway
         .inferenceRegion,
     ).toEqual({ scope: "zone", geoRegion: "eu" });
-    expect(streamModelCallMock.mock.calls[0][0].prepareStep).toBe(
-      (await import("./evaluation-dispatch")).prepareEvaluationStep,
+    expect(streamModelCallMock.mock.calls[0][0].prepareStep).toEqual(
+      expect.any(Function),
     );
   });
 

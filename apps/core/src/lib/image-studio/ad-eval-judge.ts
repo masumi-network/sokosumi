@@ -127,6 +127,7 @@ export async function judgeAdImage(
   const startedAt = Date.now();
   const result = await generateText({
     ...request,
+    telemetry: { functionId: "ad-eval-judge" },
     providerOptions: {
       gateway: {
         ...request.providerOptions.gateway,

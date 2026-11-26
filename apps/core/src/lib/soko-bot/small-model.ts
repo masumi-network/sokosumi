@@ -11,6 +11,8 @@ const TIMEOUT_MS = 25_000;
 
 /** One structured answer from the small EU model, with what it cost. */
 export async function askSmallModel<T>(input: {
+  /** What the call is for, as `soko_bot_model_call.label` records it. */
+  label: string;
   purpose: AiGatewayPurpose;
   system: string;
   prompt: string;
@@ -24,6 +26,7 @@ export async function askSmallModel<T>(input: {
   });
   const result = await generateText({
     ...request,
+    telemetry: { functionId: input.label },
     providerOptions: {
       ...request.providerOptions,
       google: { thinkingConfig: { thinkingLevel: "low" } },

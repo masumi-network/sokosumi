@@ -289,6 +289,7 @@ export async function generateWithContactModel(input: {
   });
   const result = await generateText({
     ...request,
+    telemetry: { functionId: "contact-enrichment" },
     providerOptions: {
       ...request.providerOptions,
       google: { thinkingConfig: { thinkingLevel: "low" } },

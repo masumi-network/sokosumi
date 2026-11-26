@@ -53,6 +53,7 @@ export {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
+  sokoBotMemoryNotKept,
 } from "./memory.js";
 export {
   composeSokoBotIntroduction,

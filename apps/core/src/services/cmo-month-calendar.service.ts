@@ -438,6 +438,7 @@ async function writeSlots(
       try {
         const call = await generateText({
           ...request,
+          telemetry: { functionId: "cmo-month-calendar" },
           providerOptions: {
             ...request.providerOptions,
             openai: { reasoningEffort: "low" },

@@ -250,6 +250,7 @@ export async function summarizeWeek(input: {
   agents: AgentWeek[];
 }): Promise<{ summary: string; costUsd: number }> {
   const { output, costUsd } = await askSmallModel({
+    label: "team-standup-week",
     purpose: "soko-bot",
     system: WEEK_SYSTEM,
     prompt: JSON.stringify({

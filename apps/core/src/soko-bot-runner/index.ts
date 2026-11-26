@@ -36,7 +36,6 @@ import {
   type TurnPart,
   withPartHandOvers,
 } from "../lib/soko-bot/turn-parts";
-import { searchWeb } from "../lib/soko-bot/web-search";
 import {
   citableSources,
   fetchWebPage,
@@ -61,6 +60,8 @@ interface TurnStart {
   deadlineAt: string;
   budgetMs?: number;
   maxSteps: number;
+  /** Input tokens the turn may spend; an older Core sends none. */
+  inputTokenBudget?: number;
   /** A background run: keep working until it reports DONE. */
   background?: boolean;
   /** Briefs to run side by side before the message; an older Core sends none. */
@@ -267,8 +268,6 @@ function buildTools(
     },
     run_subagent: async (input: { task: string }) =>
       runSubagent(input.task, capabilities, gateway, model),
-    web_search: async (input: { query: string }) =>
-      searchWeb(input.query, gateway, gateway(model)),
   };
   const subagentAllowed = new Set<SokoBotCapability>([
     "web_search",
@@ -392,6 +391,8 @@ async function withWorkspaceCopy(
   }
 }
 
+const SUBAGENT_MAX_MS = 5 * 60 * 1_000;
+
 async function runSubagent(
   task: string,
   capabilities: readonly SokoBotCapability[],
@@ -405,6 +406,11 @@ async function runSubagent(
     prompt: task,
     tools: buildTools(capabilities, gateway, model, { forSubagent: true }),
     stopWhen: stepCountIs(12),
+    // A helper must not outlive the turn that asked for it.
+    abortSignal: AbortSignal.any([
+      stopped.signal,
+      AbortSignal.timeout(SUBAGENT_MAX_MS),
+    ]),
   });
   return { findings: result.text || "(no findings)" };
 }
@@ -437,6 +443,7 @@ async function main(): Promise<void> {
     headers: authHeaders,
     fetch: modelFetch,
   });
+  const { inputTokenBudget } = start;
   const budgetMs =
     start.budgetMs ??
     Math.max(30_000, Date.parse(start.deadlineAt) - Date.now() - 20_000);
@@ -462,6 +469,7 @@ async function main(): Promise<void> {
             message: part.message,
             tools: partTools(tools, part),
             maxSteps: TURN_PART_MAX_STEPS,
+            inputTokenBudget,
             background: false,
             deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
             stopped: stopped.signal,
@@ -474,6 +482,7 @@ async function main(): Promise<void> {
       message,
       tools,
       maxSteps: start.maxSteps,
+      inputTokenBudget,
       background: Boolean(start.background),
       deadline,
       stopped: stopped.signal,

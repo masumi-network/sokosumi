@@ -446,6 +446,7 @@ export async function researchCmoIndustry(
     });
     const call = await generateText({
       ...request,
+      telemetry: { functionId: "cmo-industry" },
       providerOptions: {
         ...request.providerOptions,
         openai: { reasoningEffort: input.effort },

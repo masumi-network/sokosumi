@@ -674,57 +674,25 @@ describe("sandbox turn service", () => {
     );
   });
 
-  it("drops zero retention only for the Gateway-run search call", async () => {
-    const { resolveRunnableSokoBotVersion } = await import(
-      "@/services/soko-bot-version.service"
-    );
-    const luna = { model: "openai/gpt-6-luna", inferenceRegion: undefined };
-    for (let call = 0; call < 3; call++)
-      vi.mocked(resolveRunnableSokoBotVersion).mockResolvedValueOnce(
-        luna as never,
-      );
+  it("thinks less on a chat turn Jev read as simple or normal, never on others", async () => {
     fetchMock.mockImplementation(async () => gatewayAnswer());
-    const lunaHeaders = { "ai-language-model-id": "openai/gpt-6-luna" };
-    const search = modelRequest(lunaHeaders);
-    const searchCall = {
-      prompt: [
-        {
-          role: "user",
-          content: [{ type: "text", text: "Search the web for: TOKEN2049" }],
-        },
-      ],
-      tools: [
-        {
-          type: "provider",
-          name: "perplexity_search",
-          id: "gateway.perplexity_search",
-          args: { maxResults: 5 },
-        },
-      ],
-      toolChoice: { type: "tool", toolName: "perplexity_search" },
-    };
-    search.body = JSON.stringify(searchCall);
-    // The same tool with the conversation around it is not a search call.
-    const disguised = modelRequest(lunaHeaders);
-    disguised.body = JSON.stringify({
-      ...searchCall,
-      prompt: [
-        { role: "system", content: "Owner memory: …" },
-        ...searchCall.prompt,
-      ],
+    const authorized = (complexity?: string) => ({
+      turn: { id: claims.turnId, versionId: "v16" },
+      grant: { capabilities: [] },
+      ...(complexity ? { complexity } : {}),
     });
-    await proxySandboxModelCall(claims, search);
-    await proxySandboxModelCall(claims, modelRequest(lunaHeaders));
-    await proxySandboxModelCall(claims, disguised);
-    const [searchBody, turnBody, disguisedBody] = fetchMock.mock.calls.map(
-      ([, init]) => JSON.parse(String(init?.body)),
+    authorizeMock
+      .mockResolvedValueOnce(authorized("SIMPLE"))
+      .mockResolvedValueOnce(authorized("COMPLEX"))
+      .mockResolvedValueOnce(authorized());
+    for (let call = 0; call < 3; call++)
+      await proxySandboxModelCall(claims, modelRequest());
+    const [simple, complex, scheduled] = fetchMock.mock.calls.map(
+      ([, init]) => JSON.parse(String(init?.body)).providerOptions,
     );
-    expect(searchBody.providerOptions.gateway).toEqual({
-      disallowPromptTraining: true,
-    });
-    const both = { zeroDataRetention: true, disallowPromptTraining: true };
-    expect(turnBody.providerOptions.gateway).toEqual(both);
-    expect(disguisedBody.providerOptions.gateway).toEqual(both);
+    expect(simple.openai).toEqual({ reasoningEffort: "low" });
+    expect(complex.openai).toBeUndefined();
+    expect(scheduled.openai).toBeUndefined();
   });
 
   it("marks the turn once the Gateway ran a web search", async () => {

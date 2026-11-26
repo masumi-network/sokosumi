@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import {
+  getSokoBotVersion,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   redactSokoBotSensitiveText,
@@ -61,11 +62,18 @@ import {
   runTurnTool,
   runtimeEvent,
   SokoBotTaintedActionError,
+  sokoBotInputTokenBudget,
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
-import { turnRunModel } from "@/lib/soko-bot/turn-model";
-import { modelUserMessage } from "@/lib/soko-bot/turn-model-context";
+import {
+  turnReasoningEffortOptions,
+  turnRunModel,
+} from "@/lib/soko-bot/turn-model";
+import {
+  modelUserMessage,
+  withReplyLanguage,
+} from "@/lib/soko-bot/turn-model-context";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import {
   type SokoBotSandboxShell,
@@ -158,6 +166,7 @@ export interface SandboxTurnStart
   deadlineAt: string;
   budgetMs: number;
   maxSteps: number;
+  inputTokenBudget: number;
   background: boolean;
   /** The owner's setup commands and allowed keys, when this turn has a shell. */
   shell?: SokoBotSandboxShell;
@@ -168,10 +177,12 @@ export async function startSandboxTurn(
   claims: TurnTokenClaims,
 ): Promise<SandboxTurnStart> {
   let prepared: PreparedTurn;
+  let replyLanguage: string | null;
   try {
-    prepared = await prepareTurn(claims.sessionId, claims.turnId, {
-      sandbox: true,
-    });
+    [prepared, replyLanguage] = await withReplyLanguage(
+      claims.turnId,
+      prepareTurn(claims.sessionId, claims.turnId, { sandbox: true }),
+    );
   } catch (error) {
     throw turnInactive(error);
   }
@@ -188,6 +199,8 @@ export async function startSandboxTurn(
       createdAt: true,
       parentTurnId: true,
       sokoBotId: true,
+      source: true,
+      versionId: true,
     },
   });
   await announceTurn(logFor(claims), stored.userMessage);
@@ -198,7 +211,11 @@ export async function startSandboxTurn(
   } = prepared;
   const shell = await sandboxShellFor(stored.sokoBotId, turn.capabilities);
   const shellNote = shell ? sandboxShellNote(shell) : null;
-  const message = await modelUserMessage(prepared, stored.userMessage);
+  const message = await modelUserMessage(
+    prepared,
+    stored.userMessage,
+    replyLanguage,
+  );
   return {
     ...turn,
     message: shellNote ? `${message}\n\n${shellNote}` : message,
@@ -211,6 +228,11 @@ export async function startSandboxTurn(
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
     ),
+    inputTokenBudget: sokoBotInputTokenBudget({
+      source: stored.source,
+      cmo: getSokoBotVersion(stored.versionId).profile === "cmo",
+      background: Boolean(stored.parentTurnId),
+    }),
     background: Boolean(stored.parentTurnId),
   };
 }
@@ -225,6 +247,17 @@ export async function runSandboxTool(
   input: { capability: string; toolCallId?: string; toolInput: unknown },
 ): Promise<unknown> {
   const { capability } = input;
+  // Search runs in Core, straight against the search API, not as a model call.
+  if (capability === "web_search") {
+    const { runCoreWebTool } = await import("@/lib/soko-bot/core-web-tools");
+    return runCoreWebTool({
+      sessionId: claims.sessionId,
+      turnId: claims.turnId,
+      capability,
+      toolCallId: input.toolCallId ?? `script:${randomUUID()}`,
+      toolInput: input.toolInput,
+    });
+  }
   if (
     !isSokoBotCapability(capability) ||
     isSokoBotSandboxCapability(capability)
@@ -458,52 +491,6 @@ export async function recordSandboxActionResult(
   );
 }
 
-/**
- * The runner's web search, exactly as `searchWeb` sends it: the Gateway's
- * Perplexity tool forced, and one user message that is only the search
- * terms. Perplexity makes no zero-retention commitment, so this call keeps
- * "no prompt training" but not zero retention; anything else — a system
- * prompt, history, another tool — keeps both.
- */
-const MAX_SEARCH_PROMPT_LENGTH = 1_000;
-const gatewaySearchCallSchema = z.object({
-  tools: z.tuple([
-    z.object({
-      type: z.literal("provider"),
-      id: z.literal("gateway.perplexity_search"),
-    }),
-  ]),
-  toolChoice: z.object({
-    type: z.literal("tool"),
-    toolName: z.literal("perplexity_search"),
-  }),
-  prompt: z.tuple([
-    z.object({
-      role: z.literal("user"),
-      content: z.tuple([
-        z.object({
-          type: z.literal("text"),
-          text: z
-            .string()
-            .startsWith("Search the web for: ")
-            .max(MAX_SEARCH_PROMPT_LENGTH),
-        }),
-      ]),
-    }),
-  ]),
-});
-
-function isGatewaySearchCall(payload: Record<string, unknown>): boolean {
-  return gatewaySearchCallSchema.safeParse(payload).success;
-}
-
-function withoutZeroRetention(
-  options: Record<string, unknown>,
-): Record<string, unknown> {
-  const { zeroDataRetention: _dropped, ...rest } = options;
-  return rest;
-}
-
 const UNDICI_TIMEOUT_ERROR_NAMES = new Set([
   "HeadersTimeoutError",
   "TimeoutError",
@@ -614,17 +601,25 @@ export async function proxySandboxModelCall(
     inferenceRegion: version.inferenceRegion,
     purpose,
   });
-  const reasoning = reasoningSummaryOptions(payload.providerOptions);
-  const gateway = isGatewaySearchCall(payload)
-    ? withoutZeroRetention(policy.providerOptions.gateway)
-    : policy.providerOptions.gateway;
+  const summary = reasoningSummaryOptions(payload.providerOptions);
+  const effort = turnReasoningEffortOptions({
+    version,
+    model,
+    complexity: authorized.complexity,
+  });
+  const reasoning = {
+    ...summary,
+    ...(effort.openai
+      ? { openai: { ...summary.openai, ...effort.openai } }
+      : {}),
+  };
   payload.providerOptions = {
-    // The runner may only ask for a reasoning summary; routing, region and
-    // retention stay Core's.
+    // The runner may only ask for a reasoning summary; routing, region,
+    // retention and effort stay Core's.
     ...reasoning,
     // No promptCacheKey or Gateway caching: "auto". Tried on the Personal
     // CRM run, the cache share fell from 43% to 26% and a step cost 3x.
-    gateway,
+    gateway: policy.providerOptions.gateway,
   };
 
   const log = logFor(claims);
