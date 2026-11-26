@@ -157,13 +157,38 @@ describe("versionDelta", () => {
     expect(bar(["PASSED", "PASSED", "PASSED", "ERROR"]).meetsBar).toBe(false);
   });
 
-  it("calls an unscored candidate missing, not a regression", () => {
+  it("calls an unscored candidate incomplete, not a regression", () => {
     const delta = versionDelta(
       report({ "owner-a": ["PASSED", 2, 100] }),
       report({ "owner-a": ["ERROR", 0, null] }),
     );
-    expect(delta.rows[0]).toMatchObject({ candidate: null, regressed: false });
+    expect(delta.rows[0]).toMatchObject({
+      candidate: { status: "INCOMPLETE", runs: 0, unscored: 1 },
+      regressed: false,
+    });
     expect(delta.meetsBar).toBe(false);
+  });
+
+  it("shows each run's own totals: three baseline passes against three candidate errors", () => {
+    const ids = ["owner-a", "owner-b", "owner-c"];
+    const all = (status: string): ParityReport =>
+      report(
+        Object.fromEntries(
+          ids.map((id) => [id, [status, 2, status === "ERROR" ? null : 100]]),
+        ) as Record<string, [string, number, number | null]>,
+      );
+    const delta = versionDelta(all("PASSED"), all("ERROR"), ids);
+    expect(delta.baseline).toMatchObject({ passed: 3, incomplete: 0 });
+    expect(delta.candidate).toMatchObject({ passed: 0, incomplete: 3 });
+    expect(delta.rows.every((row) => !row.regressed)).toBe(true);
+    expect(delta.meetsBar).toBe(false);
+    // A journey the candidate report lacks altogether counts as incomplete too.
+    const partial = versionDelta(
+      all("PASSED"),
+      report({ "owner-a": ["PASSED", 2, 100] }),
+      ids,
+    );
+    expect(partial.candidate).toMatchObject({ passed: 1, incomplete: 2 });
   });
 
   it("fails the bar on a journey that passed on the baseline, even with more passes overall", () => {

@@ -879,14 +879,28 @@ export function journeyRuntime(): { adapter: string; models: string } {
  */
 export async function journeyTokens(turnIds: readonly string[]) {
   const turns = await withDescendants(turnIds);
-  const sum = await prisma.sokoBotModelCall.aggregate({
-    where: { turnId: { in: turns.map((turn) => turn.id) } },
-    _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
-    _count: { _all: true },
-  });
+  const where = { turnId: { in: turns.map((turn) => turn.id) } };
+  const [sum, usageFree] = await Promise.all([
+    prisma.sokoBotModelCall.aggregate({
+      where,
+      _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
+      _count: { _all: true },
+    }),
+    // A model call that answered without reporting usage records 0 tokens:
+    // no measurement, so it can't pull the journey's cost down. (Local
+    // embeddings run in process and have no usage to report.)
+    prisma.sokoBotModelCall.count({
+      where: {
+        ...where,
+        failed: false,
+        inputTokens: 0,
+        role: { not: "embedding" },
+      },
+    }),
+  ]);
   const inputTokens = sum._sum.inputTokens ?? 0;
   // No model call measured is no measurement, not a cheap journey.
-  const measured = sum._count._all > 0 && turns.length > 0;
+  const measured = sum._count._all > 0 && turns.length > 0 && usageFree === 0;
   return {
     inputTokens,
     cachedInputTokens: sum._sum.cacheReadTokens ?? 0,
@@ -952,6 +966,19 @@ export function journeyScore(
     checksPassed: checks.filter((check) => check.pass).length,
     checksTotal: checks.length,
   };
+}
+
+/**
+ * A journey's verdict: its checks and the judge's. A journey with turns and no
+ * judge verdict (the judge failed) is unscored, never a pass.
+ */
+export function journeyStatus(
+  checksPass: boolean,
+  hadTurns: boolean,
+  judge: { verdict: string } | null,
+): "PASSED" | "FAILED" | "ERROR" {
+  if (hadTurns && !judge) return "ERROR";
+  return checksPass && judge?.verdict !== "fail" ? "PASSED" : "FAILED";
 }
 
 async function journeyOutcome(
@@ -1021,8 +1048,21 @@ async function journeyOutcome(
       );
       return null;
     });
-  const passed =
-    checks.every((check) => check.pass) && judge?.verdict.verdict !== "fail";
+  const status = journeyStatus(
+    checks.every((check) => check.pass),
+    turnIds.length > 0,
+    judge?.verdict ?? null,
+  );
+  if (status === "ERROR")
+    return {
+      status,
+      checks,
+      output: { journey: journey.id, score, steps: state.steps },
+      error:
+        "The judge was unavailable, so the journey is unscored: neither a pass nor a regression",
+      turnIds,
+    };
+  const passed = status === "PASSED";
   const totals = {
     turns: turnIds.length,
     toolCalls: state.steps.reduce(

@@ -31,6 +31,7 @@ export interface DeltaRow {
 
 export interface VersionDelta {
   rows: DeltaRow[];
+  /** Each run on its own, over every expected journey (the bar compares pairs). */
   baseline: Totals;
   candidate: Totals;
   /** Every part of the benchmark bar holds. */
@@ -60,7 +61,7 @@ export function scoredSide(
   const scored = results.filter(
     (row) => row.status === "PASSED" || row.status === "FAILED",
   );
-  if (!scored.length) return null;
+  if (!results.length) return null;
   const outputs = scored.map(
     (result) =>
       (result.output ?? {}) as {
@@ -100,7 +101,7 @@ export function scoredSide(
       outputs.reduce(
         (sum, output) => sum + (output.score?.stepsPassed ?? 0),
         0,
-      ) / scored.length,
+      ) / Math.max(scored.length, 1),
     inputTokensPerTurn:
       measured && tokenTurns ? Math.round(inputTokens / tokenTurns) : null,
     inputTokens,
@@ -234,14 +235,25 @@ export function versionDelta(
       regressed: before?.status === "PASSED" && after?.status === "FAILED",
     };
   });
-  // Totals over the journeys both runs scored, so a missing one can't help.
+  // The bar's totals: over the journeys both runs scored, so a missing one can't help.
   const shared = rows.filter((row) => row.baseline && row.candidate);
   const base = totals(shared.map((row) => left.get(row.caseId) ?? null));
   const cand = totals(shared.map((row) => right.get(row.caseId) ?? null));
+  // What each run did on its own, over every journey either run or the set
+  // expects: one side's errors must not hide the other side's passes.
+  const expected = [...new Set([...ids, ...required])];
+  const shown = (side: typeof left) => {
+    const own = totals(expected.map((id) => side.get(id) ?? null));
+    return {
+      ...own,
+      incomplete:
+        own.incomplete + expected.filter((id) => !side.get(id)).length,
+    };
+  };
   return {
     rows,
-    baseline: base,
-    candidate: cand,
+    baseline: shown(left),
+    candidate: shown(right),
     meetsBar:
       shared.length === ids.length &&
       required.every((id) => shared.some((row) => row.caseId === id)) &&

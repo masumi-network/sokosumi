@@ -15,6 +15,7 @@ import {
 import {
   countRetries,
   journeyScore,
+  journeyStatus,
   packetTurnIds,
   type StepRecord,
 } from "./journey-runner";
@@ -170,6 +171,17 @@ describe("made images and what a draft carries", () => {
       ),
     ).toEqual({ total: 2, made: 1 });
     expect(attachedMadeMedia(null, [mine])).toEqual({ total: 0, made: 0 });
+  });
+});
+
+describe("a journey's verdict", () => {
+  it("is unscored when the judge was unavailable, never a pass", () => {
+    expect(journeyStatus(true, true, null)).toBe("ERROR");
+    expect(journeyStatus(true, true, { verdict: "pass" })).toBe("PASSED");
+    expect(journeyStatus(true, true, { verdict: "fail" })).toBe("FAILED");
+    expect(journeyStatus(false, true, { verdict: "pass" })).toBe("FAILED");
+    // No turn to judge: the failed checks decide.
+    expect(journeyStatus(false, false, null)).toBe("FAILED");
   });
 });
 

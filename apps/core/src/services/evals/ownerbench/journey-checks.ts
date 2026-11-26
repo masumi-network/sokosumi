@@ -1073,8 +1073,7 @@ async function publishedUntouchedCheck(
       !after ||
       after.status !== "PUBLISHED" ||
       after.text !== before.text ||
-      mediaPathnames(after.media).join("\n") !==
-        [...before.pathnames].sort().join("\n")
+      !samePathnames(after.media, before.pathnames)
     );
   });
   return {
@@ -1086,15 +1085,20 @@ async function publishedUntouchedCheck(
   };
 }
 
-/** The pathnames a post's media holds, sorted: comparable however jsonb orders the keys. */
+/**
+ * The pathnames a post's media holds, in its order: comparable however jsonb
+ * orders an attachment's keys, while a reordering of the attachments shows.
+ */
 export function mediaPathnames(media: unknown): string[] {
-  return (Array.isArray(media) ? media : [])
-    .flatMap((ref) =>
-      ref && typeof ref === "object" && "pathname" in ref
-        ? [String(ref.pathname)]
-        : [],
-    )
-    .sort();
+  return (Array.isArray(media) ? media : []).flatMap((ref) =>
+    ref && typeof ref === "object" && "pathname" in ref
+      ? [String(ref.pathname)]
+      : [],
+  );
+}
+
+function samePathnames(media: unknown, before: readonly string[]): boolean {
+  return mediaPathnames(media).join("\n") === before.join("\n");
 }
 
 /** Problems with the target picture post: replaced on the same post, the rest left as they were. */
@@ -1114,11 +1118,7 @@ export function pictureProblems(
     problems.push("no picture made in this journey on it");
   const changed = seeded.others.filter((before) => {
     const other = others.find((row) => row.id === before.postId);
-    return (
-      !other ||
-      mediaPathnames(other.media).join("\n") !==
-        [...before.pathnames].sort().join("\n")
-    );
+    return !other || !samePathnames(other.media, before.pathnames);
   });
   if (changed.length)
     problems.push(`${changed.length} other picture(s) changed`);

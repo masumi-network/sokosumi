@@ -21,6 +21,7 @@ import {
   claimedRunState,
   foregroundTurnId,
   freshConversationCheck,
+  journeyTokens,
   routingFailures,
   withDescendants,
 } from "./journey-runner";
@@ -476,6 +477,13 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     expect(await routingFailures([root.id])).toEqual({ calls: 1, failed: 0 });
     await call(child.id, true);
     expect(await routingFailures([root.id])).toEqual({ calls: 2, failed: 1 });
+    // The answered pick reported no usage: the journey's tokens are unmeasured.
+    expect((await journeyTokens([root.id])).inputTokensPerTurn).toBeNull();
+    await prisma.sokoBotModelCall.updateMany({
+      where: { turnId: root.id, failed: false },
+      data: { inputTokens: 300 },
+    });
+    expect((await journeyTokens([root.id])).inputTokensPerTurn).toBe(150);
     await prisma.sokoBotModelCall.deleteMany({
       where: { turnId: { in: [root.id, child.id] } },
     });
@@ -538,6 +546,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         creatorUserId: userId,
         media: [
           { pathname: "users/fixture/out.png", name: "out.png", kind: "image" },
+          { pathname: "users/fixture/two.png", name: "two.png", kind: "image" },
         ],
       },
       select: { id: true, text: true },
@@ -565,7 +574,10 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         ...context.world,
         coworkers: { ...context.world.coworkers, Mira: coworker.id },
         seededPublished: [
-          { ...published, pathnames: ["users/fixture/out.png"] },
+          {
+            ...published,
+            pathnames: ["users/fixture/out.png", "users/fixture/two.png"],
+          },
         ],
       },
       toolCalls: [
@@ -643,30 +655,28 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     });
     const untouched = () =>
       outcomeCheck({ kind: "publishedUntouched", label: "p" }, graded);
-    // Same attachment, keys in another order: untouched.
-    await prisma.socialPost.update({
-      where: { id: published.id },
-      data: {
-        media: [
-          { kind: "image", pathname: "users/fixture/out.png", name: "out.png" },
-        ],
-      },
-    });
+    const out = { kind: "image", pathname: "users/fixture/out.png" };
+    const two = { kind: "image", pathname: "users/fixture/two.png" };
+    const setMedia = (media: object[], status?: "CANCELED") =>
+      prisma.socialPost.update({
+        where: { id: published.id },
+        data: { media, ...(status ? { status } : {}) },
+      });
+    // Same attachments, keys in another order: untouched.
+    await setMedia([
+      { name: "out.png", ...out },
+      { name: "two.png", ...two },
+    ]);
     expect((await untouched()).pass).toBe(true);
-    await prisma.socialPost.update({
-      where: { id: published.id },
-      data: {
-        media: [{ pathname: "users/fixture/other.png", kind: "image" }],
-      },
-    });
+    // The same two images, reversed: changed.
+    await setMedia([two, out]);
     expect((await untouched()).pass).toBe(false);
-    await prisma.socialPost.update({
-      where: { id: published.id },
-      data: {
-        media: [{ pathname: "users/fixture/out.png", kind: "image" }],
-        status: "CANCELED",
-      },
-    });
+    await setMedia([
+      { pathname: "users/fixture/other.png", kind: "image" },
+      two,
+    ]);
+    expect((await untouched()).pass).toBe(false);
+    await setMedia([out, two], "CANCELED");
     expect(
       (await outcomeCheck({ kind: "publishedUntouched", label: "p" }, graded))
         .pass,
