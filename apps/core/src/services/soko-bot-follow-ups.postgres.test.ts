@@ -32,10 +32,13 @@ vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
 
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
 import { sokoBotEventsSyncService } from "./soko-bot-events-sync.service";
-import { sokoBotRuntimeService } from "./soko-bot-runtime.service";
+import { listSchedules } from "./soko-bot-runtime/schedule-reads";
+import {
+  type AuthorizedSokoBotRuntime,
+  sokoBotRuntimeService,
+} from "./soko-bot-runtime.service";
 import {
   createSokoBotSchedule,
-  listSokoBotSchedules,
   purgeSokoBotSchedules,
   SOKO_BOT_SCHEDULE_RETENTION_MS,
 } from "./soko-bot-schedule.service";
@@ -713,9 +716,15 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         }),
       ).toBe(0);
       // Spent ones are already out of the bot's own list.
-      expect(
-        (await listSokoBotSchedules(botId)).map((schedule) => schedule.name),
-      ).toEqual(["Paused by the owner"]);
+      const listed = (await listSchedules(
+        {
+          turn: { sokoBotId: botId, workspaceId, actingUserId: userId },
+        } as unknown as AuthorizedSokoBotRuntime,
+        {},
+      )) as { schedules: { name: string }[] };
+      expect(listed.schedules.map((schedule) => schedule.name)).toEqual([
+        "Paused by the owner",
+      ]);
 
       // Inside the retention window nothing goes: the Calendar shows the run.
       expect(

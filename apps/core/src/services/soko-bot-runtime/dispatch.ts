@@ -119,6 +119,8 @@ async function executeTool(
     case "stop_background_run":
     case "manage_reminder":
     case "list_schedules":
+    case "save_task_schedule":
+    case "delete_task_schedule":
     case "create_schedule":
     case "update_schedule":
     case "delete_schedule":

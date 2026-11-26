@@ -121,12 +121,15 @@ export function simulatedEvalTool(
 
 function coworkerIdsIn(input: unknown): string[] {
   if (!input || typeof input !== "object") return [];
-  const { coworkerId, coworkerIds } = input as {
+  const { coworkerId, coworkerIds, assigneeCoworkerId } = input as {
     coworkerId?: unknown;
     coworkerIds?: unknown;
+    /** save_task_schedule: the Coworker every run hands work to. */
+    assigneeCoworkerId?: unknown;
   };
   return [
     ...(typeof coworkerId === "string" ? [coworkerId] : []),
+    ...(typeof assigneeCoworkerId === "string" ? [assigneeCoworkerId] : []),
     ...(Array.isArray(coworkerIds)
       ? coworkerIds.filter((id): id is string => typeof id === "string")
       : []),

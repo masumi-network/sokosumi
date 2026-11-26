@@ -44,6 +44,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
   "list_chats",
   "read_chat",
   "post_chat",
@@ -446,13 +448,19 @@ const BACKGROUND_RUN_CAPABILITIES = [
   "stop_background_run",
 ] as const satisfies readonly SokoBotCapability[];
 
-/** Follow-ups the bot sets up for itself; never need owner approval. */
+/**
+ * Follow-ups the bot sets up for itself, and the workspace's Task Schedules
+ * it keeps for the owner. Core asks the owner's own chat for a change to a
+ * Task Schedule someone else made.
+ */
 const SCHEDULE_CAPABILITIES = [
   "wait_for",
   "create_schedule",
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**

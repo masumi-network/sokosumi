@@ -449,6 +449,18 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
     );
+  // A built-in rhythm keeps its purpose: Joseph's end-of-day was rewritten
+  // into another job (2026-11-08) and the console went on describing the
+  // built-in. Its time, timezone and on/off change; anything else is a
+  // schedule of its own.
+  if (
+    schedule.systemKey &&
+    ((input.name !== undefined && input.name.trim() !== schedule.name) ||
+      (input.prompt !== undefined && input.prompt.trim() !== schedule.prompt))
+  )
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
+    );
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
@@ -754,36 +766,11 @@ export async function deleteSokoBotSchedule(
   const schedule = await findScheduleForUser(userId, ref, transaction);
   if (schedule.systemKey) {
     throw new SokoBotScheduleValidationError(
-      `"${schedule.name}" is a built-in rhythm; pause it instead of deleting it`,
+      `"${schedule.name}" is a built-in rhythm: it can be paused (update_schedule with enabled false), not deleted. Pause it and tell the owner it is paused and can be turned back on.`,
     );
   }
   await db.sokoBotSchedule.delete({ where: { id: schedule.id } });
   return { id: schedule.id, name: schedule.name };
-}
-
-/** Bot-facing view: what runs, when, and what it will be asked. */
-export function listSokoBotSchedules(sokoBotId: string) {
-  return prisma.sokoBotSchedule.findMany({
-    // A one-time schedule that already ran is history, not a follow-up.
-    where: {
-      sokoBotId,
-      NOT: { runOnce: true, enabled: false, lastRunAt: { not: null } },
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      timezone: true,
-      cronExpression: true,
-      runOnce: true,
-      prompt: true,
-      nextRunAt: true,
-      lastRunAt: true,
-      taskId: true,
-      jobId: true,
-    },
-  });
 }
 
 /** How long a disabled schedule and a settled run stay visible. */

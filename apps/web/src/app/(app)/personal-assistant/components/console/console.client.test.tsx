@@ -1,6 +1,7 @@
 import {
   createEmptySokoBotMemory,
   renderSokoBotMemory,
+  SOKO_BOT_SYSTEM_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import {
   act,
@@ -424,6 +425,49 @@ describe("SokoBotConsole", () => {
     const row = screen.getByText("Dreaming").closest("li");
     expect(row).toHaveTextContent("Schedules.disabled");
     expect(row).not.toHaveTextContent("Schedules.nextRun");
+  });
+
+  it("describes a built-in by its catalogue line, and a rewritten one by what it does now", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    const schedule = {
+      systemKey: "end-of-day",
+      cronExpression: "0 18 * * 1-5",
+      timezone: "UTC",
+      enabled: true,
+      nextRunAt: "2030-01-02T18:00:00.000Z",
+      lastRunAt: null,
+      consecutiveFailures: 0,
+    };
+    const builtIn = SOKO_BOT_SYSTEM_SCHEDULES.find(
+      (entry) => entry.key === "end-of-day",
+    );
+    state.bot.schedules = [
+      {
+        ...schedule,
+        id: "s1",
+        name: builtIn?.name ?? "",
+        prompt: "Long built-in brief",
+      },
+      {
+        ...schedule,
+        id: "s2",
+        name: "End of day: CodePat runs + merged PRs",
+        prompt: "List today's CodePat runs and merged PRs.",
+      },
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const kept = screen.getByText(builtIn?.name ?? "").closest("li");
+    expect(kept).toHaveTextContent(builtIn?.description ?? "");
+    expect(kept).toHaveTextContent("Schedules.builtIn");
+    const rewritten = screen
+      .getByText("End of day: CodePat runs + merged PRs")
+      .closest("li");
+    expect(rewritten).toHaveTextContent(
+      "List today's CodePat runs and merged PRs.",
+    );
+    expect(rewritten).not.toHaveTextContent("Schedules.builtIn");
   });
 
   it("lands a chat card's schedule link on its row: scrolled to, focused and marked", () => {

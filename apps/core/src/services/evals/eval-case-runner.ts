@@ -94,6 +94,7 @@ import {
   resetEvalLaneForSokoBot,
   seedEvalXDms,
 } from "./eval-lanes.service";
+import { isSchedulesCase, prepareSchedulesCase } from "./eval-schedules";
 import { seoEvalChecks } from "./eval-seo-checks";
 import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
 import { pollStandupCase, startStandupCase } from "./eval-standup";
@@ -288,6 +289,8 @@ async function startScenario(
     });
   if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
     await prepareSokoBotCompetitorCase(lane);
+  if (bot === "soko-bot" && isSchedulesCase(scenario.id))
+    await prepareSchedulesCase(lane, scenario.id);
   if (bot === "soko-bot" && isA2aScenario(scenario))
     state = { ...state, ...(await prepareA2aCase(lane, scenario)) };
   if (seoCase) {

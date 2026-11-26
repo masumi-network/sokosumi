@@ -774,6 +774,42 @@ export const sokoBotReadChatInputSchema = z.object({
   before: z.string().datetime().optional(),
 });
 
+export const sokoBotListSchedulesInputSchema = z
+  .object({
+    /** `workspace` adds Task Schedules and other bots' schedules. */
+    scope: z.enum(["mine", "workspace"]).optional(),
+    query: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
+/**
+ * A Task Schedule (the Schedules page): each run creates a Task for its
+ * assignee (a Coworker or a Soko Bot). Without scheduleId it creates one;
+ * with it, it changes only the fields given. At most one assignee.
+ */
+export const sokoBotSaveTaskScheduleInputSchema = z
+  .object({
+    scheduleId: z.string().uuid().optional(),
+    name: z.string().trim().min(1).max(160).optional(),
+    /** The brief each run's Task gets. */
+    brief: z.string().trim().max(20_000).nullable().optional(),
+    projectId: z.string().uuid().nullable().optional(),
+    assigneeCoworkerId: z.string().min(1).nullable().optional(),
+    assigneeSokoBotId: z.string().uuid().nullable().optional(),
+    /** Five-field cron in `timezone`, e.g. "0 9 * * 1-5". */
+    cron: z.string().trim().min(1).max(120).optional(),
+    timezone: z.string().trim().min(1).max(100).optional(),
+    /** Last day it may run (YYYY-MM-DD), or null to run on. */
+    endsOn: z.string().date().nullable().optional(),
+    endsAfterRuns: z.number().int().min(1).max(10_000).nullable().optional(),
+    state: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
+  })
+  .strict();
+
+export const sokoBotDeleteTaskScheduleInputSchema = z
+  .object({ scheduleId: z.string().uuid() })
+  .strict();
+
 export const sokoBotSearchInboxInputSchema = z.object({
   /** Free-text search (sender, subject, words). Provider search syntax works (e.g. Gmail `from:x newer_than:2d`). */
   query: z.string().max(500).optional(),
@@ -1851,7 +1887,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   provide_job_input: sokoBotProvideJobInputSchema,
   read_memory: emptyInputSchema,
   update_memory: sokoBotMemoryUpdateInputSchema,
-  list_schedules: emptyInputSchema,
+  list_schedules: sokoBotListSchedulesInputSchema,
+  save_task_schedule: sokoBotSaveTaskScheduleInputSchema,
+  delete_task_schedule: sokoBotDeleteTaskScheduleInputSchema,
   create_schedule: sokoBotCreateScheduleInputSchema,
   update_schedule: sokoBotUpdateScheduleInputSchema,
   manage_reminder: sokoBotManageReminderInputSchema,
@@ -2182,11 +2220,15 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_memory:
     "Replace bounded canonical memory file with durable working context.",
   list_schedules:
-    "List your follow-up schedules: recurring (cron) ones and one-time ones (`runOnce`), with when each runs next.",
+    "List schedules with who created each, when, which bot runs it, the last run and its result, and youCanChange. Default: yours. scope workspace: also the workspace's Task Schedules and other bots' schedules the member may see; query narrows by name or prompt. Change only schedules with youCanChange; when askOwnerFirst or createdBySomeoneElse is set, ask the owner and change it on their yes. For the rest, propose the change.",
   create_schedule:
     "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). `timezone` is the zone the owner names; when they name none, use `actor.timezone` from the context packet without asking, name that zone in your reply, and say they can ask for another (then update_schedule). Ask only when the packet has no zone. Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check, and pass taskId or jobId when the schedule only watches that work: Core deletes it once the work finishes. To act when delegated work completes, give create_task, assign_task or hire_agent a followUp instead of a schedule. A run that ends by posting in a chat (post_chat) must not read the web or run bash first: Core refuses posting after that. Have it read its sources through a connected app with read_integration_tool (GitHub for pull requests, for example) and make any graphic as SVG with upload_file. When the job needs something you lack (an app to connect, being added to a room), set it up anyway where you can and tell the owner exactly what to do; never decline the job for it.",
   update_schedule:
-    "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
+    "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it. A built-in rhythm changes only its time, timezone and on/off, never its name or prompt, and is never deleted: for another job, create a schedule of its own and pause the rhythm if it should stop.",
+  save_task_schedule:
+    "Create or change a Task Schedule (the Schedules page): each run creates a Task with the brief for its assignee, a Coworker (find_coworkers) or a Soko Bot; people cannot be assignees. Recurring work a Coworker does belongs here, not in your own schedule. Without scheduleId: create (name, brief, cron and timezone needed). With it: change only what you pass; state PAUSED, ACTIVE or ENDED pauses, resumes or ends it. Runs with the owner's rights; changing one someone else made needs the owner's yes in their own chat.",
+  delete_task_schedule:
+    "Delete a Task Schedule by scheduleId from list_schedules (scope workspace). Tasks it already made stay. One someone else made needs the owner's yes in their own chat.",
   delete_schedule:
     "Remove a follow-up schedule once its work is done or the owner no longer wants it; a run of a schedule may always remove its own. Address it by scheduleId or scheduleName exactly as list_schedules returned it. One-time schedules remove themselves after they ran.",
   list_announcements:

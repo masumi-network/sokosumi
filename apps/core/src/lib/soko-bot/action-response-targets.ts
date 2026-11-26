@@ -61,6 +61,8 @@ export const ACTION_LABELS: Record<string, string> = {
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
+  save_task_schedule: "Saved Task Schedule",
+  delete_task_schedule: "Deleted Task Schedule",
   update_memory: "Updated memory",
   hire_agent: "Hired agent",
   provide_job_input: "Submitted job input",

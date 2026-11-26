@@ -128,6 +128,11 @@ describe("Soko Bot route capability ceilings", () => {
       }
   });
 
+  it("never writes or removes a Task Schedule after reading a page or running a shell", () => {
+    for (const write of ["save_task_schedule", "delete_task_schedule"])
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(write);
+  });
+
   it("creates and changes ad campaigns only on MANAGE_WORK, and never from a page's instructions", () => {
     for (const write of ADS_WRITES) {
       for (const route of SOKO_BOT_ROUTES)
