@@ -139,9 +139,13 @@ export function holdoutProblems(raw: unknown, index: number): string[] {
  * with no content to find passes any reply long enough, a promise included.
  */
 export function outcomeProblems(outcome: JourneyOutcome): string[] {
-  if (outcome.kind === "delivered" && !outcome.textMatches?.length)
+  if (
+    outcome.kind === "delivered" &&
+    !outcome.textMatches?.length &&
+    !outcome.facts?.length
+  )
     return [
-      `delivered "${outcome.label}" must say what content it needs (textMatches)`,
+      `delivered "${outcome.label}" must say what content it needs (textMatches or facts)`,
     ];
   return [];
 }

@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { readMessageResultSnapshots } from "@/helpers/chat-result-metadata";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
@@ -1359,24 +1360,42 @@ export async function deliveredTexts(
 ): Promise<{ source: string; text: string }[]> {
   const since = context.stepStartedAt;
   const turnIds = await deliveringTurnIds(context);
-  const deliveries = await prisma.sokoBotDelivery.findMany({
-    where: {
-      turnId: { in: turnIds },
-      status: { in: ["PERSISTED", "PUBLISHED"] },
-      messageId: { not: null },
-    },
-    select: { messageId: true },
-  });
+  // Both ways a turn speaks: its final reply's delivery, and what it posted
+  // with post_chat (the receipt names the message).
+  const [deliveries, posts] = await Promise.all([
+    prisma.sokoBotDelivery.findMany({
+      where: {
+        turnId: { in: turnIds },
+        status: { in: ["PERSISTED", "PUBLISHED"] },
+        messageId: { not: null },
+      },
+      select: { messageId: true },
+    }),
+    prisma.sokoBotToolCall.findMany({
+      where: {
+        turnId: { in: turnIds },
+        capability: "post_chat",
+        status: "COMPLETED",
+        targetId: { not: null },
+      },
+      select: { targetId: true },
+    }),
+  ]);
   const [messages, files] = await Promise.all([
     prisma.chatRoomMessage.findMany({
       where: {
-        id: { in: deliveries.flatMap((delivery) => delivery.messageId ?? []) },
+        id: {
+          in: [
+            ...deliveries.flatMap((delivery) => delivery.messageId ?? []),
+            ...posts.flatMap((post) => post.targetId ?? []),
+          ],
+        },
         deletedAt: null,
         createdAt: { gte: since },
         room: { userMembers: { some: { userId: context.lane.userId } } },
       },
       orderBy: { createdAt: "asc" },
-      select: { content: true },
+      select: { content: true, metadata: true },
     }),
     prisma.fileResource.findMany({
       where: {
@@ -1396,11 +1415,18 @@ export async function deliveredTexts(
     await indexedTexts(files.map((file) => file.id)),
   ).map((file, index) => ({ ...file, id: files[index]?.id ?? "" }));
   return messages.map((message) => {
+    // A file the message itself resolves: its id in a link, or a file card
+    // in the message's results. A bare file name is no reference.
+    const cards = readMessageResultSnapshots(message.metadata).flatMap(
+      (snapshot) =>
+        snapshot.data.state === "available" && snapshot.data.kind === "file"
+          ? [snapshot.data.id]
+          : [],
+    );
     const linked = saved.filter(
       (file) =>
         file.text !== null &&
-        (message.content.includes(file.id) ||
-          message.content.includes(file.name)),
+        (message.content.includes(file.id) || cards.includes(file.id)),
     );
     return {
       source: linked.length
@@ -1413,25 +1439,67 @@ export async function deliveredTexts(
   });
 }
 
+/**
+ * What a report says about each item, clause by clause. A clause is a line,
+ * a bullet, a sentence or a part of one joined by a comma or "and", so
+ * "invoicing is stuck, the webinar is done" pairs each item with its own
+ * word. An item passes when a clause names it with its own status and none
+ * names it with another item's status instead.
+ */
+export function reportedFacts(
+  text: string,
+  facts: readonly { item: string; status: string }[],
+): { wrong: string[] } {
+  const clauses = text
+    .split(
+      /\n|[.;!?](?=\s|$)|,\s|\s+(?:and|but|while|whereas)\s+|\s[-–•]\s|^[-•*]\s/im,
+    )
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  const has = (clause: string, pattern: string) =>
+    new RegExp(pattern, "i").test(clause);
+  const wrong = facts.flatMap((fact) => {
+    const naming = clauses.filter((clause) => has(clause, fact.item));
+    const right = naming.some((clause) => has(clause, fact.status));
+    const contradicted = naming.some(
+      (clause) =>
+        !has(clause, fact.status) &&
+        facts.some((other) => other !== fact && has(clause, other.status)),
+    );
+    return right && !contradicted ? [] : [fact.item];
+  });
+  return { wrong };
+}
+
 async function deliveredCheck(
   outcome: Extract<JourneyOutcome, { kind: "delivered" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
   const minLength = outcome.minLength ?? 40;
   const delivered = await deliveredTexts(context);
-  const good = delivered.find(
+  const graded = delivered.map((entry) => ({
+    ...entry,
+    wrong: reportedFacts(entry.text, outcome.facts ?? []).wrong,
+  }));
+  const good = graded.find(
     (entry) =>
       entry.text.trim().length >= minLength &&
       matchesAll(entry.text, outcome.textMatches).pass &&
-      !matchesAny(entry.text, outcome.textAvoids),
+      !matchesAny(entry.text, outcome.textAvoids) &&
+      entry.wrong.length === 0,
   );
+  const closest = graded.toSorted((a, b) => a.wrong.length - b.wrong.length)[0];
   return {
     label: outcome.label,
     pass: Boolean(good),
     actual: good
       ? `delivered as ${good.source}`
-      : delivered.length
-        ? `${delivered.length} message(s) to the owner, none with every part of the report`
+      : closest
+        ? `${delivered.length} message(s) to the owner, none with every part right${
+            closest.wrong.length
+              ? `: missing or wrong /${closest.wrong.join("/, /")}/`
+              : ""
+          }`
         : "nothing reached the owner in this step",
   };
 }

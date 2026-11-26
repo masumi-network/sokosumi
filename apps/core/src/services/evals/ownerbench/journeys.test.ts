@@ -10,6 +10,7 @@ import {
   madeImages,
   nextWeekdayKey,
   pictureProblems,
+  reportedFacts,
   savedFileTexts,
   urlsIn,
 } from "./journey-checks";
@@ -49,7 +50,7 @@ describe("owner journeys", () => {
     );
     expect(problems).toEqual([]);
     expect(outcomeProblems({ kind: "delivered", label: "report" })).toEqual([
-      'delivered "report" must say what content it needs (textMatches)',
+      'delivered "report" must say what content it needs (textMatches or facts)',
     ]);
   });
 
@@ -184,6 +185,53 @@ describe("a fired Task Schedule", () => {
     ).toEqual({
       error: "The owner's schedule is gone",
     });
+  });
+});
+
+describe("reportedFacts on the Monday report", () => {
+  const facts = OWNER_JOURNEYS.find(
+    (journey) => journey.id === "owner-weekly-report-schedule",
+  )!
+    .steps.flatMap((step) => step.outcomes ?? [])
+    .flatMap((outcome) =>
+      outcome.kind === "delivered" ? (outcome.facts ?? []) : [],
+    );
+  const wrong = (text: string) => reportedFacts(text, facts).wrong;
+
+  it("passes each Task with its own status, a later check-in included", () => {
+    expect(facts).toHaveLength(3);
+    expect(
+      wrong(
+        "Last week Mira finished Compare EU invoicing tools. Draft the partner FAQ is stuck; Pick the webinar date waits on you. I'll check again tomorrow.",
+      ),
+    ).toEqual([]);
+    expect(
+      wrong(
+        "- Done: Compare EU invoicing tools\n- Stuck for 9 days: Draft the partner FAQ\n- Needs your answer: Pick the webinar date",
+      ),
+    ).toEqual([]);
+  });
+
+  it("fails every Task reported with the wrong status, or one of them", () => {
+    expect(
+      wrong(
+        "The partner FAQ is finished, invoicing waits on you and the webinar is stuck.",
+      ),
+    ).toEqual(facts.map((fact) => fact.item));
+    expect(wrong("Invoicing is stuck, the webinar is done.")).toEqual(
+      facts.map((fact) => fact.item),
+    );
+    expect(
+      wrong(
+        "Mira finished the invoicing comparison. The partner FAQ is done. The webinar date waits on you.",
+      ),
+    ).toEqual([facts[1]!.item]);
+    // A promise that names the Tasks reports nothing about them.
+    expect(
+      wrong(
+        "I will check the invoicing and webinar tasks and send the report tomorrow",
+      ),
+    ).toEqual(facts.map((fact) => fact.item));
   });
 });
 

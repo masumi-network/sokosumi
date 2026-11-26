@@ -1138,14 +1138,18 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       ).toEqual({ taskId: releasedId, comment: "Here is the note." });
       // A wake counts only when it carries exactly that answer's event.
       const since = new Date(Date.now() - 1_000);
-      const wake = async (entityId: string, eventId: string) => {
+      const wake = async (
+        entityId: string,
+        eventId: string,
+        status: "COMPLETED" | "FAILED" = "COMPLETED",
+      ) => {
         const turn = await prisma.sokoBotTurn.create({
           data: {
             sokoBotId: botId,
             workspaceId,
             requestedByUserId: userId,
             source: "EVENT",
-            status: "COMPLETED",
+            status,
             clientTurnId: `lab:fixture:${randomUUID()}`,
             userMessage: "A Task changed",
             capabilityNames: [],
@@ -1168,10 +1172,24 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect(
         await wakeCheck(botId, since, "CodePat", answerEventId),
       ).toMatchObject({ pass: false, actual: "0 wake(s) by that answer" });
-      await wake(releasedId!, answerEventId);
+      // The answer's wake failed, then its follow-up retry got through: one wake.
+      await wake(releasedId!, answerEventId, "FAILED");
+      await wake(releasedId!, `${answerEventId}:follow-up-retry`);
       expect(
         await wakeCheck(botId, since, "CodePat", answerEventId),
-      ).toMatchObject({ label: "Woken once by CodePat's answer", pass: true });
+      ).toMatchObject({
+        label: "Woken once by CodePat's answer",
+        pass: true,
+        actual: "1 wake(s) by that answer, after 1 failed attempt(s)",
+      });
+      // A second wake by the same answer that also got through is a duplicate.
+      await wake(releasedId!, `${answerEventId}:duplicate`);
+      expect(
+        await wakeCheck(botId, since, "CodePat", answerEventId),
+      ).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("2 wake(s)"),
+      });
       // A released Task that is not the Coworker's is the product's failure.
       expect(
         await answeredTaskId(memo, randomUUID(), "Mira", async () => undefined),
@@ -1213,7 +1231,21 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
       const stepStartedAt = new Date();
       /** A bot turn of the step posting `content` to the owner; `traced`: woken by the released Task. */
-      const postToOwner = async (content: string, traced = true) => {
+      const postToOwner = async (
+        content: string,
+        traced = true,
+        {
+          via = "final",
+          metadata,
+          finalReply,
+        }: {
+          /** The final reply's delivery, or a post_chat receipt. */
+          via?: "final" | "post_chat";
+          metadata?: object;
+          /** With post_chat: the turn's own short final reply. */
+          finalReply?: string;
+        } = {},
+      ) => {
         const turn = await prisma.sokoBotTurn.create({
           data: {
             sokoBotId: botId,
@@ -1239,9 +1271,45 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
             },
           });
         const message = await prisma.chatRoomMessage.create({
-          data: { roomId: room.id, senderSokoBotId: botId, content },
+          data: {
+            roomId: room.id,
+            senderSokoBotId: botId,
+            content,
+            ...(metadata ? { metadata } : {}),
+          },
           select: { id: true },
         });
+        if (via === "post_chat") {
+          await prisma.sokoBotToolCall.create({
+            data: {
+              turnId: turn.id,
+              toolCallId: randomUUID(),
+              capability: "post_chat",
+              inputHash: randomUUID(),
+              status: "COMPLETED",
+              targetId: message.id,
+            },
+          });
+          if (finalReply) {
+            const final = await prisma.chatRoomMessage.create({
+              data: {
+                roomId: room.id,
+                senderSokoBotId: botId,
+                content: finalReply,
+              },
+              select: { id: true },
+            });
+            await prisma.sokoBotDelivery.create({
+              data: {
+                turnId: turn.id,
+                roomId: room.id,
+                messageId: final.id,
+                status: "PERSISTED",
+              },
+            });
+          }
+          return;
+        }
         await prisma.sokoBotDelivery.create({
           data: {
             turnId: turn.id,
@@ -1252,6 +1320,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         });
       };
       const clearPosts = async () => {
+        await prisma.sokoBotToolCall.deleteMany({
+          where: { turn: { sokoBotId: botId } },
+        });
         await prisma.sokoBotDelivery.deleteMany({ where: { roomId: room.id } });
         await prisma.chatRoomMessage.deleteMany({ where: { roomId: room.id } });
         await prisma.sokoBotEventInbox.deleteMany({ where: { botId } });
@@ -1302,6 +1373,16 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           true,
         ],
         ["not from this run", report, false],
+        [
+          "every status wrong",
+          "The partner FAQ is finished, invoicing waits on you and the webinar is stuck.",
+          true,
+        ],
+        [
+          "one status wrong",
+          "Mira finished Compare EU invoicing tools. The partner FAQ is done. Pick the webinar date waits on you.",
+          true,
+        ],
       ] as const) {
         await postToOwner(content, traced);
         expect(await outcomeCheck(delivered, step), why).toMatchObject({
@@ -1309,6 +1390,84 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         });
         await clearPosts();
       }
+      // A saved report the message only names was never shared.
+      const savedReport = await prisma.fileResource.create({
+        data: {
+          workspaceId,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceScope: "USER",
+          sourceId: `users/${userId}/${randomUUID()}/weekly-result.md`,
+          displayName: "weekly-result.md",
+          normalizedName: "weekly-result.md",
+          mimeType: "text/markdown",
+          lifecycle: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      const withSavedReport = {
+        ...step,
+        toolCalls: [
+          ...step.toolCalls,
+          {
+            capability: "upload_file",
+            status: "COMPLETED",
+            input: { filename: "weekly-result.md", content: report },
+            result: {
+              id: savedReport.id,
+              filename: "weekly-result.md",
+              size: 1,
+            },
+          },
+        ],
+      };
+      await postToOwner(
+        "I could not attach weekly-result.md. I have nothing to share with you yet.",
+      );
+      expect(await outcomeCheck(delivered, withSavedReport)).toMatchObject({
+        pass: false,
+      });
+      await clearPosts();
+      // The same file as a result card on the message: shared.
+      await postToOwner("Here is your weekly report.", true, {
+        metadata: {
+          result_preview_snapshots: [
+            {
+              workspaceId,
+              reference: { kind: "file", id: savedReport.id },
+              data: {
+                id: savedReport.id,
+                state: "available",
+                capturedAt: new Date().toISOString(),
+                kind: "file",
+                title: "weekly-result.md",
+                status: null,
+                sourceHref: `/drive/files/${savedReport.id}`,
+              },
+            },
+          ],
+        },
+      });
+      expect(await outcomeCheck(delivered, withSavedReport)).toMatchObject({
+        pass: true,
+        actual:
+          'delivered as a message to the owner linking "weekly-result.md"',
+      });
+      await clearPosts();
+      // post_chat posted the full report; the final reply only says so.
+      await postToOwner(report, true, {
+        via: "post_chat",
+        finalReply: "I posted your report.",
+      });
+      expect(await outcomeCheck(delivered, step)).toMatchObject({
+        pass: true,
+        actual: "delivered as a message to the owner",
+      });
+      await clearPosts();
+      // A correct report may also say when it looks again.
+      await postToOwner(`${report} I'll check again tomorrow.`);
+      expect(await outcomeCheck(delivered, step)).toMatchObject({ pass: true });
+      await clearPosts();
+      await prisma.fileResource.deleteMany({ where: { id: savedReport.id } });
       // A message sent before the step is an earlier case's, not this run's.
       await postToOwner(report);
       expect(

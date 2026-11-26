@@ -527,8 +527,8 @@ async function stepSettled(
 ): Promise<boolean> {
   if (awaits === "wake") {
     await wakeOnDelegatedWork(botId);
-    if ((await answerWakes(botId, since, memo.answerEvent?.[0])) === 0)
-      return false;
+    const wakes = await answerWakes(botId, since, memo.answerEvent?.[0]);
+    if (wakes.succeeded + wakes.failed === 0) return false;
   }
   if (awaits === "schedule") {
     const run = await claimedRunState(memo, botId);
@@ -718,14 +718,14 @@ export async function wakeCheck(
   coworker: string,
   answerEventId: string | undefined,
 ): Promise<ScenarioCheck> {
-  const wakes = answerEventId
-    ? await answerWakes(botId, since, answerEventId)
-    : 0;
+  const wakes = await answerWakes(botId, since, answerEventId);
   return {
     label: `Woken once by ${coworker}'s answer`,
-    pass: wakes === 1,
+    pass: wakes.succeeded === 1,
     actual: answerEventId
-      ? `${wakes} wake(s) by that answer`
+      ? `${wakes.succeeded} wake(s) by that answer${
+          wakes.failed ? `, after ${wakes.failed} failed attempt(s)` : ""
+        }`
       : "no answer delivered",
   };
 }
@@ -739,16 +739,22 @@ async function answerWakes(
   botId: string,
   since: Date,
   answerEventId: string | undefined,
-): Promise<number> {
-  if (!answerEventId) return 0;
-  return prisma.sokoBotTurn.count({
+): Promise<{ succeeded: number; failed: number }> {
+  if (!answerEventId) return { succeeded: 0, failed: 0 };
+  const turns = await prisma.sokoBotTurn.findMany({
     where: {
       sokoBotId: botId,
       source: "EVENT",
       createdAt: { gte: since },
       eventInbox: { some: { eventId: { startsWith: answerEventId } } },
     },
+    select: { status: true },
   });
+  // A failed attempt and its follow-up retry are one wake that got through.
+  const failed = turns.filter((turn) =>
+    ["FAILED", "CANCELLED"].includes(turn.status),
+  ).length;
+  return { succeeded: turns.length - failed, failed };
 }
 
 async function finishStep(

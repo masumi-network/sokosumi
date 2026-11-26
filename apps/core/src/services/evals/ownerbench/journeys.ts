@@ -191,8 +191,14 @@ export type JourneyOutcome =
       label: string;
       /** Every pattern must match the delivered text. */
       textMatches?: string[];
-      /** No pattern may match it (a promise of later work is no delivery). */
+      /** No pattern may match it. */
       textAvoids?: string[];
+      /**
+       * What the report must say about each item, clause by clause: some
+       * clause names it (`item`) with its own `status`, and no clause names
+       * it with another item's status instead.
+       */
+      facts?: { item: string; status: string }[];
       /** At least this many characters (default 40). */
       minLength?: number;
     }
@@ -808,11 +814,22 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           {
             kind: "delivered",
             label: "The run delivers a report from the real board",
-            // Only a board read knows these: what was finished, what is
-            // stuck, what waits on the owner. A promise to report is no report.
-            textMatches: ["invoicing", "partner faq|faq", "webinar"],
-            textAvoids: [
-              "\\b(i will|i'll|i am going to|i'm going to) (check|look|pull|prepare|compile|send)\\b.*\\b(tomorrow|later|soon)\\b",
+            // Only a board read knows these, each with what happened to it.
+            facts: [
+              {
+                item: "invoicing",
+                status: "finish|done|complet|wrapped up|closed|delivered",
+              },
+              {
+                item: "partner faq|\\bfaq\\b",
+                status:
+                  "stuck|block|stall|idle|no progress|not moved|hasn't moved|untouched|9 days|nine days",
+              },
+              {
+                item: "webinar",
+                status:
+                  "wait|on you\\b|your (answer|input|decision|pick|choice|reply)|needs? you|for you to",
+              },
             ],
           },
         ],
