@@ -161,6 +161,25 @@ describe("GET /notifications", () => {
     expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
+  it("answers the same whether or not a row has a Network", async () => {
+    const bodies: string[] = [];
+    for (const network of [null, "mainnet"]) {
+      notificationFindManyMock
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([createNotificationRow({ network })]);
+      notificationCountMock.mockResolvedValue(1);
+      const response = await createApp().request("http://localhost/");
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      // The clock, not the row.
+      body.meta.timestamp = null;
+      bodies.push(JSON.stringify(body));
+    }
+    expect(bodies[1]).toBe(bodies[0]);
+    expect(bodies[0]).not.toContain("network");
+  });
+
   it("applies kind and isRead filters", async () => {
     const app = createApp();
     const response = await app.request(

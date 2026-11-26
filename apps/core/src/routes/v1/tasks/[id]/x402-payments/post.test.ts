@@ -645,6 +645,7 @@ describe("POST /{id}/x402-payments", () => {
           taskId: TASK_ID,
           cents: CENTS_FOR_DEMAND,
           transactionId: "txn_1",
+          network: "mainnet",
           sokoBotId: SOKO_BOT_CONTEXT.sokoBotId,
         },
       });
@@ -2001,6 +2002,7 @@ describe("POST /{id}/x402-payments", () => {
           taskId: TASK_ID,
           cents: CENTS_FOR_DEMAND,
           transactionId: "txn_1",
+          network: "mainnet",
           coworkerId: COWORKER_ID,
         },
       });

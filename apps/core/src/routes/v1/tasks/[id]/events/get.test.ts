@@ -267,6 +267,29 @@ describe("GET /tasks/{id}/events", () => {
     });
   });
 
+  it("answers the same whether or not an event has a Network", async () => {
+    const bodies: string[] = [];
+    for (const network of [null, "mainnet"]) {
+      taskEventFindManyMock.mockResolvedValue([
+        {
+          ...makeEvent({ id: "evt_1", createdAt: "2026-01-01T00:00:00.000Z" }),
+          network,
+        },
+      ]);
+      taskEventCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+      const response = await createApp().request(
+        "http://localhost/tsk_123/events",
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      // The clock, not the row.
+      body.meta.timestamp = null;
+      bodies.push(JSON.stringify(body));
+    }
+    expect(bodies[1]).toBe(bodies[0]);
+    expect(bodies[0]).not.toContain("network");
+  });
+
   it("returns null latestCommentId when there are no comments", async () => {
     taskEventFindManyMock.mockResolvedValue([
       makeEvent({ id: "evt_1", createdAt: "2026-01-01T00:00:00.000Z" }),

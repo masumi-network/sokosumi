@@ -182,6 +182,24 @@ describe("GET /history", () => {
     expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
+  it("answers the same whether or not a row has a Network", async () => {
+    const bodies: string[] = [];
+    for (const network of [null, "mainnet"]) {
+      historyFindManyMock.mockResolvedValue([
+        { ...createHistoryRow(), network },
+      ]);
+      historyCountMock.mockResolvedValue(1);
+      const response = await createApp().request("http://localhost/");
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      // The clock, not the row.
+      body.meta.timestamp = null;
+      bodies.push(JSON.stringify(body));
+    }
+    expect(bodies[1]).toBe(bodies[0]);
+    expect(bodies[0]).not.toContain("network");
+  });
+
   it("uses workspace scope without user filter when scope=workspace", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?scope=workspace");
