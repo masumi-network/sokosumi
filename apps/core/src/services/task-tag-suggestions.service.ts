@@ -5,6 +5,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { z } from "@hono/zod-openapi";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import pTimeout from "p-timeout";
 import {
   classifyTaskTags,
@@ -346,7 +347,8 @@ export async function suggestTaskTags(
     const result = await pTimeout(
       classifyTaskTags(
         normalize(input.name),
-        normalize(input.description) || null,
+        // Redact first: the request line is found by its line start, which normalize flattens.
+        normalize(hideSeoAuditRequest(input.description)) || null,
         signal,
         catalog,
       ),
