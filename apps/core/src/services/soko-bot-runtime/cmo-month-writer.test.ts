@@ -69,6 +69,15 @@ vi.mock("@/services/cmo-plan-review.service", () => ({
   cmoDraftProblems: m.draftProblems,
 }));
 vi.mock("./cmo", () => ({ chargeCheck: m.chargeCheck }));
+// No site captured and no industry research yet.
+vi.mock("@/services/cmo-site-pages.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-site-pages.service")>()),
+  readCmoSitePages: async () => null,
+}));
+vi.mock("@/services/cmo-industry.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-industry.service")>()),
+  readCmoIndustry: async () => null,
+}));
 vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: m.getSocialPost,
 }));
@@ -806,7 +815,11 @@ describe("writeCmoMonthPieces on cmo-v20", () => {
     ).toEqual(["p2", "p1"]);
   });
 
-  it("writes as before when the points call fails", async () => {
+  it("writes as before when the points call fails, and says it went on without them", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "The month writer went on without one of its inputs",
+    );
     const pieces = [piece("p1")];
     m.readCmoProduction
       .mockResolvedValueOnce({
@@ -829,6 +842,7 @@ describe("writeCmoMonthPieces on cmo-v20", () => {
       });
     const result = await writeCmoMonthPieces(runtime() as never, input, v17);
     expect(result).toMatchObject({ written: 1, refused: [] });
+    expect(warnings[0]?.event).toMatchObject({ writerInput: "points" });
   });
 });
 

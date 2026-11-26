@@ -2,7 +2,7 @@ import {
   SOKO_BOT_SYSTEM_SCHEDULES,
   sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const {
   computeNextRunMock,
@@ -95,12 +95,16 @@ import {
   SokoBotRetryableStartError,
 } from "@/services/soko-bot-control-plane.service";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
-import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
+import {
+  isPlatformTurnFailure,
+  MAX_CONSECUTIVE_SCHEDULE_FAILURES,
+} from "@/services/soko-bot-schedule.service";
 import {
   SokoBotSchedulesSyncService,
   scheduleRunPrompt,
   sokoBotScheduleClientTurnId,
 } from "@/services/soko-bot-schedules-sync.service";
+import { expectCoreLog } from "@/test/core-log";
 
 function continueFor(maxChecks: number) {
   let checks = 0;
@@ -166,6 +170,34 @@ describe("sokoBotScheduleClientTurnId", () => {
     expect(
       sokoBotScheduleClientTurnId(dueSchedule.id, scheduledFor),
     ).not.toContain("attempt");
+  });
+});
+
+/** The alert a schedule that switched itself off raises, naming it. */
+function expectScheduleDisabledAlert() {
+  const alerts = expectCoreLog(
+    "error",
+    "A Soko Bot schedule switched itself off",
+  );
+  onTestFinished(() => {
+    expect(alerts[0]?.event).toMatchObject({
+      schedule: { id: dueSchedule.id, systemKey: dueSchedule.systemKey },
+    });
+  });
+}
+
+describe("isPlatformTurnFailure", () => {
+  it("names provider, gateway and runtime failures, never the schedule's own", () => {
+    for (const kind of [
+      "GatewayInternalServerError",
+      "AI_RetryError",
+      "busy",
+      "start_aborted",
+      "runtime_start_failed",
+    ])
+      expect(isPlatformTurnFailure(kind)).toBe(true);
+    for (const kind of [null, "validation", "action_failed", "not_found"])
+      expect(isPlatformTurnFailure(kind)).toBe(false);
   });
 });
 
@@ -619,6 +651,7 @@ describe("SokoBotSchedulesSyncService", () => {
   });
 
   it("atomically disables after reclaimed duplicate terminal failure exhausts budget", async () => {
+    expectScheduleDisabledAlert();
     const expired = expiredClaimedRun({
       schedule: {
         ...dueSchedule,
@@ -649,6 +682,38 @@ describe("SokoBotSchedulesSyncService", () => {
       },
     });
   });
+
+  it.each([
+    "GatewayInternalServerError",
+    "AI_StreamProviderError",
+    "turn_deadline_exceeded",
+    "runtime_stream_interrupted",
+  ])(
+    "does not count a turn the platform failed (%s) toward switching the schedule off",
+    async (errorKind) => {
+      runFindFirstMock.mockResolvedValue(
+        expiredClaimedRun({
+          schedule: {
+            ...dueSchedule,
+            consecutiveFailures: MAX_CONSECUTIVE_SCHEDULE_FAILURES - 1,
+          },
+        }),
+      );
+      dueScheduleFindFirstMock.mockResolvedValue(null);
+      startTurnMock.mockResolvedValue({
+        turnId: "turn_failed",
+        status: "FAILED",
+        errorKind,
+      });
+
+      const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+
+      expect(result).toMatchObject({ failed: 1 });
+      expect(scheduleUpdateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not account a reclaimed duplicate when terminal settlement CAS loses", async () => {
     runFindFirstMock.mockResolvedValue(expiredClaimedRun());
@@ -943,7 +1008,7 @@ describe("SokoBotSchedulesSyncService", () => {
     expect(reconcileTurnMock).not.toHaveBeenCalled();
   });
 
-  it("dead-letters a busy occurrence after its bounded retry budget", async () => {
+  it("dead-letters a busy occurrence after its bounded retry budget, without counting it against the schedule", async () => {
     runFindFirstMock.mockResolvedValue(expiredClaimedRun({ attempt: 4 }));
     dueScheduleFindFirstMock.mockResolvedValue(null);
     startTurnMock.mockRejectedValue(new SokoBotBusyError("Bot busy"));
@@ -975,10 +1040,7 @@ describe("SokoBotSchedulesSyncService", () => {
         }),
       }),
     );
-    expect(scheduleUpdateMock).toHaveBeenCalledWith({
-      where: { id: dueSchedule.id },
-      data: { consecutiveFailures: { increment: 1 } },
-    });
+    expect(scheduleUpdateMock).not.toHaveBeenCalled();
   });
 
   it("backs off a transient Eve failure without counting schedule failure", async () => {
@@ -1153,6 +1215,7 @@ describe("SokoBotSchedulesSyncService", () => {
   });
 
   it("disables the schedule after MAX_CONSECUTIVE_SCHEDULE_FAILURES start failures", async () => {
+    expectScheduleDisabledAlert();
     expect(MAX_CONSECUTIVE_SCHEDULE_FAILURES).toBe(5);
     runFindFirstMock.mockResolvedValue(
       expiredClaimedRun({
@@ -1190,6 +1253,7 @@ describe("SokoBotSchedulesSyncService", () => {
   });
 
   it("disables a due schedule already at the failure budget instead of claiming a new run", async () => {
+    expectScheduleDisabledAlert();
     runFindFirstMock.mockResolvedValue(null);
     dueScheduleFindFirstMock.mockResolvedValue({
       ...dueSchedule,
