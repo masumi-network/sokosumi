@@ -42,6 +42,10 @@ import {
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  CHANGE_THEN_DRAFTS_CASE_ID,
+  cmoChangeThenDraftsChecks,
+} from "./eval-cmo-change-then-drafts";
+import {
   COMPETITOR_ADS_CASE_ID,
   COMPETITOR_LANDING_PAGE_CASE_ID,
   competitorAdChecks,
@@ -444,6 +448,12 @@ async function pollScenario(
   }
   if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID) {
     const extra = await sokoBotCompetitorChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CHANGE_THEN_DRAFTS_CASE_ID) {
+    const extra = await cmoChangeThenDraftsChecks(lane, context.startedAt);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

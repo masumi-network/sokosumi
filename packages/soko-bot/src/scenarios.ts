@@ -126,6 +126,11 @@ export interface SokoBotScenario {
     tools?: string[];
     /** At least one of these tools must be called. */
     anyTools?: string[];
+    /**
+     * Saved work, not attempts: at least this many completed calls of each
+     * tool. A turn that ends after its first step saves none of the rest.
+     */
+    minCalls?: Record<string, number>;
     /** None of these may be called. */
     forbiddenTools?: string[];
     /** Each of these skills must be read in full (read_writing_skill or read_skill). */
@@ -1465,6 +1470,30 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-change-then-drafts",
+    title: "Changes the strategy, then does the rest of the request",
+    intent:
+      "A chat that asks for a strategy change and more work gets both in one turn: saving the change never ends the turn before the rest is done.",
+    prompt:
+      "Post on LinkedIn only once a week from now on. Then prepare three draft X posts about our product for me to review.",
+    rubric:
+      "Cuso saves the LinkedIn change to the strategy (save_strategy, or write_strategy with the change, whose save_strategy calls succeed) and, in the same turn, creates three separate draft X posts with create_social_post, each its own point about the product from the Brand Brain, none published or scheduled. His answer says both are done, in plain words. Stopping after the strategy change, fewer than three drafts, publishing, or claiming drafts no create_social_post returned fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      anyTools: ["save_strategy", "write_strategy"],
+      // Core also reads what was saved (eval-cmo-change-then-drafts.ts):
+      // three different X drafts on his Project, none scheduled, LinkedIn weekly.
+      minCalls: { save_strategy: 1, create_social_post: 3 },
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "create_task",
+        "hire_agent",
+        "publish_social_post",
+        "schedule_social_post",
+      ],
+    },
+  },
+  {
     id: "cmo-change-reply-plain",
     title: "Answers a change in the owner's words, without repeating his card",
     intent:
@@ -2396,6 +2425,16 @@ export function evaluateScenario(
         used.length > 0
           ? `called ${list(used)}`
           : `none called — used ${list(tools)}`,
+    });
+  }
+  for (const [tool, least] of Object.entries(expect.minCalls ?? {})) {
+    const done = turn.toolCalls.filter(
+      (call) => call.capability === tool && call.status === "COMPLETED",
+    ).length;
+    checks.push({
+      label: `Completes ${tool} at least ${least} time${least === 1 ? "" : "s"}`,
+      pass: done >= least,
+      actual: `${done} completed`,
     });
   }
   if (expect.readsSkills?.length) {

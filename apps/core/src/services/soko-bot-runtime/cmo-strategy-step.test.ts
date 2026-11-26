@@ -4,6 +4,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import { chooseTurnModel } from "@/lib/soko-bot/turn-model";
+import { toolEndedTurn } from "@/lib/soko-bot/turn-parts";
 import {
   CMO_STRATEGY_BRIEF_MARK,
   cmoChangeKind,
@@ -13,8 +14,10 @@ import {
 } from "@/services/marketing-strategy.service";
 import {
   cmoFitStrategy,
+  cmoStepDecision,
   cmoStrategyChangeBrief,
   cmoStrategyRepairPrompt,
+  cmoStrategyStepAnswer,
   cmoStrategyStepSystem,
   withStrategyFix,
 } from "./cmo-strategy-step";
@@ -78,6 +81,93 @@ describe("Core's strategy step", () => {
     const brief = cmoStrategyChangeBrief("NMKR", "LinkedIn once a week");
     expect(brief).toContain("The owner asked: LinkedIn once a week");
     expect(brief).toContain("Leave out every field and entry you keep");
+  });
+});
+
+describe("steps in one turn", () => {
+  const now = 1_000_000;
+  const start = (step: number, change: string | null, at = now - 1_000) => ({
+    step,
+    change,
+    at,
+  });
+
+  it("starts the first step", () => {
+    expect(cmoStepDecision([], new Set(), "LinkedIn weekly", now)).toEqual({
+      kind: "start",
+      step: 1,
+    });
+  });
+
+  it("starts a second change once the first ended (Neon round 1)", () => {
+    expect(
+      cmoStepDecision(
+        [start(1, "LinkedIn weekly")],
+        new Set([1]),
+        "Add TikTok",
+        now,
+      ),
+    ).toEqual({ kind: "start", step: 2 });
+  });
+
+  it("waits for the same request while it writes, and refuses another", () => {
+    const starts = [start(1, "LinkedIn weekly")];
+    expect(cmoStepDecision(starts, new Set(), "LinkedIn weekly", now)).toEqual({
+      kind: "wait",
+      step: 1,
+    });
+    expect(cmoStepDecision(starts, new Set(), "Add TikTok", now)).toEqual({
+      kind: "busy",
+    });
+  });
+
+  it("reads a finished step's answer when the same request comes again", () => {
+    expect(cmoStepDecision([start(1, null)], new Set([1]), null, now)).toEqual({
+      kind: "done",
+      step: 1,
+    });
+  });
+
+  it("lets a step that died without an end give way", () => {
+    expect(
+      cmoStepDecision(
+        [start(1, "LinkedIn weekly", now - 7 * 60_000)],
+        new Set(),
+        "Add TikTok",
+        now,
+      ),
+    ).toEqual({ kind: "start", step: 2 });
+  });
+});
+
+describe("what write_strategy answers", () => {
+  const saved = {
+    state: "saved" as const,
+    versionId: "v1",
+    toOwner: "LinkedIn now posts once a week.",
+    fixed: 1,
+    left: [],
+  };
+  const ends = (strategyTurn: boolean) =>
+    toolEndedTurn([
+      {
+        toolResults: [{ output: cmoStrategyStepAnswer(saved, strategyTurn) }],
+      },
+    ]);
+
+  it("ends a strategy turn with the owner's sentence", () => {
+    expect(ends(true)).toContain("LinkedIn now posts once a week.");
+  });
+
+  it("lets a chat go on to the rest of the owner's request", () => {
+    expect(ends(false)).toBeUndefined();
+    expect(cmoStrategyStepAnswer(saved, false)).toMatchObject({
+      toOwner: "LinkedIn now posts once a week.",
+      next: expect.stringContaining("Do the rest"),
+    });
+    expect(
+      cmoStrategyStepAnswer({ state: "failed", reason: "x" }, false),
+    ).toMatchObject({ next: expect.stringContaining("rest of the owner") });
   });
 });
 

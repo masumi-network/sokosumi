@@ -937,6 +937,46 @@ describe("CMO scenarios", () => {
   });
 });
 
+describe("a strategy change with more work", () => {
+  const scenario = CMO_SCENARIOS.find(
+    (entry) => entry.id === "cmo-change-then-drafts",
+  );
+  const turn = (drafts: number) => ({
+    status: "COMPLETED",
+    route: "MANAGE_WORK",
+    finalAnswer: "LinkedIn is weekly now, and three X drafts wait for you.",
+    toolCalls: [
+      { capability: "write_strategy", status: "COMPLETED", result: {} },
+      { capability: "save_strategy", status: "COMPLETED", result: {} },
+      ...Array.from({ length: drafts }, () => ({
+        capability: "create_social_post",
+        status: "COMPLETED",
+        result: {},
+      })),
+    ],
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+
+  it("fails a turn that ends after the strategy change", () => {
+    if (!scenario) throw new Error("missing scenario");
+    const failed = evaluateScenario(scenario, turn(0)).checks.filter(
+      (check) => !check.pass,
+    );
+    expect(failed.map((check) => check.label)).toEqual([
+      "Completes create_social_post at least 3 times",
+    ]);
+  });
+
+  it("passes the change and three saved drafts", () => {
+    if (!scenario) throw new Error("missing scenario");
+    expect(
+      evaluateScenario(scenario, turn(3)).checks.filter((check) => !check.pass),
+    ).toEqual([]);
+  });
+});
+
 describe("Brand Brain research", () => {
   it("looks for the brand's own story, prices on shop pages, and keeps sister brands out of competitors", async () => {
     const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
