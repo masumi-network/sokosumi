@@ -26,8 +26,11 @@ export function SeoRunDiff({
   const format = useSeoResultFormatter();
   const view = seoRunDiffView(diff);
   const title = t("runDiff.title", {
-    // The UTC day, as the runs row names its days.
-    day: format.dateTime(diff.from, { dateStyle: "medium", timeZone: "UTC" }),
+    // The UTC day, as the runs row names its days. The workspace reaches the page as JSON, so the date is a string.
+    day: format.dateTime(new Date(diff.from), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    }),
   });
   return (
     <section

@@ -96,6 +96,13 @@ it.each(["market", "rulebook", "pages"] as const)(
   },
 );
 
+it("names the day of the earlier check when the date arrives as JSON text", () => {
+  show(diff({ from: "2026-11-21T18:46:23.491Z" as unknown as Date }));
+  expect(
+    screen.getByRole("heading", { name: "Since the check on Nov 21, 2026" }),
+  ).toBeTruthy();
+});
+
 it("names the page and the device of a ranking move, and counts the moves it does not list", () => {
   const move = (device: "mobile" | null, from: number, to: number) => ({
     keyword: "pricing",
