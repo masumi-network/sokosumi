@@ -20,6 +20,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "edit_ad_campaign",
   "delete_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
+  "find_investors",
   "generate_image",
   "generate_video",
   "generate_talking_video",

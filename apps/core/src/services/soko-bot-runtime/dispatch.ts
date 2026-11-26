@@ -139,6 +139,9 @@ async function executeTool(
     case "find_people":
     case "enrich_contact":
     case "export_contacts_to_table":
+    case "fundraising_pipeline":
+    case "investor_warm_paths":
+    case "find_investors":
     case "create_project":
     case "update_project":
     case "refresh_context":
@@ -233,4 +236,7 @@ async function executeTool(
     case "run_mcp_tool":
       return dispatchMcpTools(input, authorized);
   }
+  throw new SokoBotRuntimeValidationError(
+    `No Core handler for tool: ${input.capability}`,
+  );
 }

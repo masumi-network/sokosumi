@@ -7,6 +7,7 @@ import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
+import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
 
@@ -664,6 +665,7 @@ vi.mock("@/lib/db/transaction", () => ({
           findUnique: transactionToolCallFindUniqueMock,
           findFirst: transactionToolCallFindFirstMock,
           update: transactionToolCallUpdateMock,
+          updateMany: toolCallUpdateManyMock,
           upsert: vi.fn().mockResolvedValue({}),
         },
         project: { findFirst: transactionProjectFindFirstMock },
@@ -818,6 +820,7 @@ import {
 import * as scheduleService from "@/services/soko-bot-schedule.service";
 import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
+import { FUNDRAISING_CAPABILITIES } from "./fundraising";
 
 const SCOPE = {
   userId: "user_1",
@@ -1001,6 +1004,103 @@ describe("SokoBotRuntimeService authorization", () => {
       id: DECISION_ID,
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
+    });
+  });
+
+  describe("Core tool dispatch", () => {
+    function serviceForDispatch() {
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      const service = new SokoBotRuntimeService();
+      service["requireMutationAuthority"] = vi
+        .fn()
+        .mockResolvedValue(undefined);
+      service.authorize = vi.fn().mockResolvedValue({
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+        toolCallLimit: 10,
+      });
+      return service;
+    }
+
+    it.each(FUNDRAISING_CAPABILITIES)(
+      "returns and records the %s handler result",
+      async (capability) => {
+        const service = serviceForDispatch();
+        const result = { found: 10 };
+        const handler = vi.fn().mockResolvedValue(result);
+        service["executeFundraisingTool"] = handler;
+        const call = {
+          ...SCOPE,
+          capability,
+          toolCallId: "research",
+          input: {},
+        };
+
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        expect(handler).toHaveBeenCalledWith(call, expect.anything());
+        expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "COMPLETED", result }),
+          }),
+        );
+      },
+    );
+
+    it.each([
+      { capability: "find_investors", input: {}, paid: true },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId, research: true },
+        paid: true,
+      },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId },
+        paid: false,
+      },
+    ] as const)(
+      "handles an interrupted $capability call according to its cost (paid=$paid)",
+      async ({ capability, input, paid }) => {
+        const service = serviceForDispatch();
+        const call = { ...SCOPE, capability, toolCallId: "interrupted", input };
+        toolCallFindUniqueMock.mockResolvedValue({
+          id: "receipt",
+          ...call,
+          inputHash: actionInputHash(input),
+          status: "PENDING",
+        });
+        const handler = vi.fn().mockResolvedValue({ paths: [] });
+        service["executeFundraisingTool"] = handler;
+        if (paid) {
+          await expect(service.executeTool(call)).rejects.toThrow(
+            SokoBotRuntimeConflictError,
+          );
+          expect(handler).not.toHaveBeenCalled();
+        } else {
+          await expect(service.executeTool(call)).resolves.toEqual({
+            paths: [],
+          });
+          expect(handler).toHaveBeenCalledOnce();
+        }
+      },
+    );
+
+    it("fails a tool without a Core handler instead of recording an empty success", async () => {
+      const service = serviceForDispatch();
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "workspace_read",
+          toolCallId: "misrouted",
+          input: { path: "brief.md" },
+        }),
+      ).rejects.toThrow(SokoBotRuntimeValidationError);
+      expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
     });
   });
 
