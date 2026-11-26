@@ -47,6 +47,17 @@ function fixture(t: TestContext, response: unknown = { data: [] }) {
 
 const API = ["--api-url", "https://fixture.invalid"];
 
+test("agents input-schema reads the form and never starts a Job (SOKD-466)", async (t) => {
+  const body = { data: { input_data: [{ id: "file", type: "file" }] } };
+  const f = fixture(t, body);
+  await runCli([...API, "agents", "input-schema", "agent-1"], f.deps);
+  assert.deepEqual(
+    f.calls.map((call) => `${call.method} ${new URL(call.url).pathname}`),
+    ["GET /v1/agents/agent-1/input-schema"],
+  );
+  assert.deepEqual(JSON.parse(f.output.join("")), body);
+});
+
 for (const [command, resource] of [
   ["events", "events"],
   ["files", "files"],

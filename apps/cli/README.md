@@ -129,6 +129,7 @@ Headless:
 ```bash
 pnpm --filter @masumi_network/sokosumi sokosumi -- discover --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- agents list --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- agents input-schema AGENT_ID
 pnpm --filter @masumi_network/sokosumi sokosumi -- agents hire AGENT_ID --input-json '{"query":"hello"}' --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- coworkers list --json
 pnpm --filter @masumi_network/sokosumi sokosumi -- tasks list --json
