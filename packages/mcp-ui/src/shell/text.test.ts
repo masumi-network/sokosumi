@@ -3,6 +3,7 @@ import {
   formatDateTime,
   formatDay,
   isMessageKey,
+  isOverdue,
   isUnderBase,
   t,
 } from "./text.ts";
@@ -60,14 +61,14 @@ describe("isMessageKey", () => {
 });
 
 describe("formatDay", () => {
-  it("formats a calendar day in the host's locale, whatever its time zone", () => {
+  it("formats a calendar day as Web does, in the host's locale, whatever its time zone", () => {
     expect(
       formatDay("2026-11-28", {
         locale: "en-US",
         timeZone: "Pacific/Honolulu",
       }),
-    ).toBe("Nov 28, 2026");
-    expect(formatDay("2026-11-28", { locale: "de-DE" })).toBe("28.11.2026");
+    ).toBe("Nov 28");
+    expect(formatDay("2026-11-28", { locale: "de-DE" })).toBe("28. Nov.");
   });
 
   it("falls back for an unknown locale and returns an invalid day as written", () => {
@@ -75,6 +76,24 @@ describe("formatDay", () => {
       formatDay("2026-11-28", { locale: "not a locale" }),
     ).not.toThrow();
     expect(formatDay("someday", {})).toBe("someday");
+  });
+});
+
+describe("isOverdue", () => {
+  const now = new Date("2026-11-27T23:30:00Z");
+
+  it("is past its due day in the host's time zone and not finished", () => {
+    expect(isOverdue("2026-11-26", "READY", now, "Europe/Berlin")).toBe(true);
+    expect(isOverdue("2026-11-27", "READY", now, "America/New_York")).toBe(
+      false,
+    );
+    // Already the 28th in Berlin.
+    expect(isOverdue("2026-11-27", "READY", now, "Europe/Berlin")).toBe(true);
+  });
+
+  it("never presses on finished work, as on Web", () => {
+    expect(isOverdue("2026-11-01", "COMPLETED", now)).toBe(false);
+    expect(isOverdue("2026-11-01", "CANCELED", now)).toBe(false);
   });
 });
 

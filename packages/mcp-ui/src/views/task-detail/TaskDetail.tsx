@@ -1,18 +1,23 @@
-import { useId, useState } from "react";
+import { Bot, Building2, ChevronDown } from "lucide-react";
+import { type ReactNode, useId, useState } from "react";
 import { z } from "zod";
+import { Markdown } from "../../shell/Markdown.tsx";
 import type { ViewContext } from "../../shell/Shell.tsx";
 import {
   formatDateTime,
   formatDay,
   isMessageKey,
+  type MessageKey,
   t,
 } from "../../shell/text.ts";
 import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
 import {
-  AssigneeBadge,
+  Avatar,
+  DueDate,
   Party,
+  PriorityIcon,
   partyName,
-  statusWord,
+  TaskStatus,
   taskWebUrl,
 } from "../task.tsx";
 
@@ -23,6 +28,7 @@ const DetailTask = z.object({
   name: z.string(),
   description: z.string().nullish(),
   status: z.string(),
+  priority: z.string().nullish(),
   dueOn: z.string().nullish(),
   assignee: Party,
   workspace: z
@@ -122,21 +128,28 @@ export function TaskDetail({
 
   const url = taskWebUrl(task.id, context.webBaseUrl);
   const assignee = partyName(task.assignee);
-  const heading = [task.identifier, statusWord(task.status)]
-    .filter(Boolean)
-    .join(" · ");
-  const meta = [
-    task.dueOn && t("task.due", { date: formatDay(task.dueOn, context) }),
-    task.workspace?.organization?.name,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const workspace = task.workspace?.organization?.name;
+  const priorityKey = `task.priority.${task.priority}`;
+  const openLink = (link: string) =>
+    app.openLink({ url: link }).catch((error: unknown) =>
+      app.sendLog({
+        level: "warning",
+        data: `ui/open-link failed: ${String(error)}`,
+      }),
+    );
 
   return (
-    <article className="flex flex-col gap-5">
+    <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
         <div className="flex min-h-5 items-center justify-between gap-4">
-          <p className="text-muted-foreground text-xs">{heading}</p>
+          <p className="flex min-w-0 items-center gap-2 text-sm">
+            {task.identifier && (
+              <span className="text-muted-foreground shrink-0 tabular-nums">
+                {task.identifier}
+              </span>
+            )}
+            <TaskStatus status={task.status} />
+          </p>
           {refresh && (
             <QuietButton
               className="-my-3 -mr-3"
@@ -148,40 +161,73 @@ export function TaskDetail({
             </QuietButton>
           )}
         </div>
-        <div className="flex items-start gap-3">
-          <h1 className="min-w-0 flex-1 text-base font-semibold tracking-tight break-words">
-            {task.name}
-          </h1>
-          {assignee && <AssigneeBadge name={assignee} />}
-        </div>
-        {meta && <p className="text-muted-foreground text-xs">{meta}</p>}
+        <h1 className="text-xl leading-tight font-semibold tracking-tight break-words">
+          {task.name}
+        </h1>
+        <p role="status" className="text-muted-foreground text-xs empty:hidden">
+          {refreshing === "failed" ? t("view.refreshFailed") : ""}
+        </p>
       </header>
-      <p role="status" className="text-muted-foreground text-xs empty:hidden">
-        {refreshing === "failed" ? t("view.refreshFailed") : ""}
-      </p>
 
-      {task.description?.trim() ? (
-        <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-          {task.description.trim()}
-        </p>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          {t("taskDetail.noDescription")}
-        </p>
-      )}
+      <Section title={t("taskDetail.description")}>
+        {task.description?.trim() ? (
+          <Markdown
+            text={task.description}
+            webBaseUrl={context.webBaseUrl}
+            onOpenLink={openLink}
+          />
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            {t("taskDetail.noDescription")}
+          </p>
+        )}
+      </Section>
+
+      <Section title={t("taskDetail.properties")}>
+        <div className="flex flex-col gap-1">
+          {task.priority && isMessageKey(priorityKey) && (
+            <Property
+              label="taskDetail.priority"
+              value={t(priorityKey)}
+              icon={<PriorityIcon priority={task.priority} />}
+            />
+          )}
+          <Property
+            label="taskDetail.assignee"
+            value={assignee ?? t("task.unassigned")}
+            icon={<Avatar name={assignee} />}
+          />
+          {task.dueOn && (
+            <Property
+              label="taskDetail.due"
+              value={formatDay(task.dueOn, context)}
+            >
+              <DueDate
+                dueOn={task.dueOn}
+                status={task.status}
+                context={context}
+                className="gap-2 text-sm [&>svg]:mx-0.5 [&>svg]:size-4"
+              />
+            </Property>
+          )}
+          {workspace && (
+            <Property
+              label="taskDetail.workspace"
+              value={workspace}
+              icon={
+                <Building2
+                  aria-hidden="true"
+                  className="text-muted-foreground size-4"
+                />
+              }
+            />
+          )}
+        </div>
+      </Section>
 
       {url && (
         <div>
-          <PrimaryButton
-            onClick={() =>
-              app.openLink({ url }).catch((error: unknown) =>
-                app.sendLog({
-                  level: "warning",
-                  data: `ui/open-link failed: ${String(error)}`,
-                }),
-              )
-            }
-          >
+          <PrimaryButton onClick={() => openLink(url)}>
             {WAITS_ON_PERSON.has(task.status)
               ? t("task.review")
               : t("task.open")}
@@ -194,8 +240,50 @@ export function TaskDetail({
         onToggle={() => setTimelineOpen(!timelineOpen)}
         items={timelineOf(task)}
         context={context}
+        onOpenLink={openLink}
       />
-    </article>
+    </div>
+  );
+}
+
+/** Web's Task page section: a quiet `text-xs` title over its content. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Web's `PropertyRow` (task-metadata.tsx): an icon in a 20px slot and the
+ * value; the label is the row's accessible name, as on Web.
+ */
+function Property({
+  label,
+  value,
+  icon,
+  children,
+}: {
+  label: MessageKey;
+  value: string;
+  icon?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={`${t(label)}: ${value}`}
+      className="flex h-8 min-w-0 items-center gap-2 text-sm"
+    >
+      {icon && (
+        <span className="flex size-5 shrink-0 items-center justify-center">
+          {icon}
+        </span>
+      )}
+      {children ?? <span className="truncate">{value}</span>}
+    </div>
   );
 }
 
@@ -204,30 +292,30 @@ function TimelineSection({
   onToggle,
   items,
   context,
+  onOpenLink,
 }: {
   open: boolean;
   onToggle: () => void;
   items: TimelineItem[];
   context: ViewContext;
+  onOpenLink: (url: string) => void;
 }) {
   const bodyId = useId();
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium">
+    <section className="-mt-3 flex flex-col gap-1">
+      <h2 className="text-muted-foreground text-xs font-medium">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={bodyId}
           onClick={onToggle}
-          className="hover:bg-accent focus-visible:outline-ring -mx-3 flex min-h-11 w-[calc(100%+1.5rem)] items-center justify-between rounded-md px-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2"
+          className="hover:text-foreground focus-visible:outline-ring -mx-2 flex min-h-11 items-center gap-1 rounded-md px-2 text-left focus-visible:outline-2"
         >
           {t("taskDetail.timeline")}
-          <span
+          <ChevronDown
             aria-hidden="true"
-            className="text-muted-foreground text-xs font-normal"
-          >
-            {open ? t("taskDetail.hide") : t("taskDetail.show")}
-          </span>
+            className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+          />
         </button>
       </h2>
       <div id={bodyId} hidden={!open}>
@@ -245,6 +333,7 @@ function TimelineSection({
                 key={`${item.kind}-${item.id}`}
                 item={item}
                 context={context}
+                onOpenLink={onOpenLink}
               />
             ))}
           </ol>
@@ -257,29 +346,45 @@ function TimelineSection({
 function TimelineEntry({
   item,
   context,
+  onOpenLink,
 }: {
   item: TimelineItem;
   context: ViewContext;
+  onOpenLink: (url: string) => void;
 }) {
-  const when = formatDateTime(item.at, context);
-  const meta = (
-    item.kind === "comment" ? [item.who, when] : [t("taskDetail.job"), when]
-  )
-    .filter(Boolean)
-    .join(" · ");
+  const who = item.kind === "comment" ? item.who : t("taskDetail.job");
   return (
-    <li className="flex flex-col gap-0.5">
-      <p className="text-muted-foreground text-xs">{meta}</p>
+    <li className="flex gap-3">
       {item.kind === "comment" ? (
-        <p className="text-sm break-words whitespace-pre-wrap">{item.text}</p>
+        <Avatar name={item.who} className="mt-0.5 size-6 text-2xs" />
       ) : (
-        <p className="text-sm break-words">
-          {item.name}
-          {item.status && (
-            <span className="text-muted-foreground">{` · ${item.status}`}</span>
-          )}
-        </p>
+        <span className="bg-muted mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full">
+          <Bot aria-hidden="true" className="text-muted-foreground size-3.5" />
+        </span>
       )}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="text-xs">
+          {who && <span className="font-medium">{who}</span>}
+          <span className="text-muted-foreground">
+            {who ? " · " : ""}
+            {formatDateTime(item.at, context)}
+          </span>
+        </p>
+        {item.kind === "comment" ? (
+          <Markdown
+            text={item.text}
+            webBaseUrl={context.webBaseUrl}
+            onOpenLink={onOpenLink}
+          />
+        ) : (
+          <p className="text-sm break-words">
+            {item.name}
+            {item.status && (
+              <span className="text-muted-foreground">{` · ${item.status}`}</span>
+            )}
+          </p>
+        )}
+      </div>
     </li>
   );
 }

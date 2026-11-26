@@ -56,8 +56,8 @@ export function formatNumber(value: number, locale?: string): string {
 }
 
 /**
- * A calendar day (`YYYY-MM-DD`, such as a due date) in the host's locale.
- * It has no time zone, so it is read and shown in UTC.
+ * A calendar day (`YYYY-MM-DD`, such as a due date) in the host's locale, as
+ * Web shows it ("Nov 28"). It has no time zone, so it is read and shown in UTC.
  */
 export function formatDay(day: string, host: HostLocale): string {
   const date = new Date(`${day}T00:00:00Z`);
@@ -65,7 +65,8 @@ export function formatDay(day: string, host: HostLocale): string {
     return day;
   }
   const options: Intl.DateTimeFormatOptions = {
-    dateStyle: "medium",
+    month: "short",
+    day: "numeric",
     timeZone: "UTC",
   };
   try {
@@ -73,6 +74,26 @@ export function formatDay(day: string, host: HostLocale): string {
   } catch {
     return new Intl.DateTimeFormat(undefined, options).format(date);
   }
+}
+
+/**
+ * Past its due day in the reader's time zone and not finished on purpose
+ * (Web's `isTaskOverdue`).
+ */
+export function isOverdue(
+  dueOn: string,
+  status: string,
+  now: Date,
+  timeZone?: string,
+): boolean {
+  if (status === "COMPLETED" || status === "CANCELED") return false;
+  let today: string;
+  try {
+    today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(now);
+  } catch {
+    today = new Intl.DateTimeFormat("en-CA").format(now);
+  }
+  return dueOn < today;
 }
 
 /**
