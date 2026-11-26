@@ -2295,6 +2295,15 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /drive/tasks": {
     argv: [...API, "drive", "tasks", "--query", "scope=me"],
   },
+  "POST /drive/files/combine-pdf": {
+    argv: [
+      ...API,
+      "drive",
+      "combine-pdf",
+      "--input-json",
+      '{"pathnames":["drive/users/u-1/a.pdf","drive/users/u-1/b.pdf"],"filename":"Pack"}',
+    ],
+  },
   "POST /drive/tasks/copy": {
     argv: [
       ...API,

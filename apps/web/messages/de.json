@@ -10842,6 +10842,7 @@
         "bulkClear": "Auswahl aufheben",
         "bulkDelete": "Löschen",
         "bulkMove": "Verschieben",
+        "bulkCombinePdf": "PDFs zusammenführen",
         "bulkShare": "Teilen",
         "bulkDeleteTitle": "{count, plural, one {# Datei} other {# Dateien}} löschen?",
         "bulkDeleteDescription": "Sie werden für alle in diesem Dateibereich entfernt. Das kann nicht rückgängig gemacht werden.",
@@ -11155,6 +11156,22 @@
           "saved": "Einstellungen gespeichert",
           "saveFailed": "Einstellungen konnten nicht gespeichert werden"
         }
+      },
+      "CombinePdf": {
+        "title": "{count, plural, one {# PDF} other {# PDFs}} zusammenführen",
+        "description": "Die Seiten folgen dieser Reihenfolge. Das neue PDF wird im Ordner der ersten Datei gespeichert; die Originale bleiben unverändert.",
+        "moveUp": "{name} nach oben",
+        "moveDown": "{name} nach unten",
+        "nameLabel": "Name des neuen PDFs",
+        "defaultName": "Zusammengeführt",
+        "cancel": "Abbrechen",
+        "combine": "Zusammenführen",
+        "combined": "{name} gespeichert ({pages, plural, one {# Seite} other {# Seiten}})",
+        "open": "Öffnen",
+        "duplicate": "{name} gibt es in diesem Ordner schon. Wähle einen anderen Namen.",
+        "tooLarge": "Diese Dateien sind zusammen größer als 50 MB. Führe weniger auf einmal zusammen.",
+        "unreadable": "{name} konnte nicht als PDF gelesen werden. Die Datei ist vielleicht beschädigt oder passwortgeschützt. Es wurde nichts gespeichert.",
+        "failed": "PDFs konnten nicht zusammengeführt werden. Versuche es erneut."
       },
       "Crop": {
         "open": "Für Social zuschneiden",

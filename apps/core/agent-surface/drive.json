@@ -36,6 +36,10 @@
       "cli": "drive delete-folder",
       "mcp": "drive_delete_folder"
     },
+    "POST /drive/files/combine-pdf": {
+      "cli": "drive combine-pdf",
+      "mcp": "drive_combine_pdf"
+    },
     "PATCH /drive/files/move": {
       "cli": "drive move",
       "mcp": "drive_move"

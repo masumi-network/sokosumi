@@ -1735,6 +1735,11 @@ export const CLI_COMMAND_CATALOG = [
     operation: "GET /drive/tasks",
   },
   {
+    command: "drive combine-pdf",
+    usage: "--input-json JSON",
+    operation: "POST /drive/files/combine-pdf",
+  },
+  {
     command: "drive copy-task-file",
     usage: "--input-json JSON",
     operation: "POST /drive/tasks/copy",

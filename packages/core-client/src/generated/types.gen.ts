@@ -9693,6 +9693,34 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             costUsd?: number;
             floorAlertAt?: string;
         };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -10044,6 +10072,34 @@ export type MarketingStrategyRequest = {
             error?: string;
             costUsd?: number;
             floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
         };
         patched?: Array<{
             id: string;
@@ -11820,6 +11876,8 @@ export type SocialPost = {
         videoOfTalking?: boolean;
         story?: string;
         claim?: string;
+        applyOpId?: string;
+        applyCreateOpId?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -15612,6 +15670,34 @@ export type CmoPlan = {
         error?: string;
         costUsd?: number;
         floorAlertAt?: string;
+    };
+    applyLog?: {
+        baseVersionId: string;
+        baseUpdatedAt: string;
+        state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+        startedAt: string;
+        updatedAt: string;
+        endedAt?: string;
+        ops?: Array<{
+            opId: string;
+            entryId: string;
+            kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+            postId: string | null;
+            prior: {
+                status: string;
+                scheduledAt: string | null;
+                text: string;
+                planning: string | null;
+                socialConnectionId: string | null;
+                revision: number;
+            } | null;
+            state: 'intent' | 'done' | 'refused';
+            reason?: string;
+            after?: {
+                revision: number | null;
+                postId: string | null;
+            };
+        }>;
     };
     patched?: Array<{
         id: string;
@@ -46828,6 +46914,176 @@ export type PatchDriveFilesMoveResponses = {
 };
 
 export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
+
+export type PostDriveFilesCombinePdfData = {
+    body: {
+        pathnames: Array<string>;
+        filename: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/combine-pdf';
+};
+
+export type PostDriveFilesCombinePdfErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - a file with that name already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - a source is not a PDF
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesCombinePdfError = PostDriveFilesCombinePdfErrors[keyof PostDriveFilesCombinePdfErrors];
+
+export type PostDriveFilesCombinePdfResponses = {
+    /**
+     * Combined PDF saved
+     */
+    201: {
+        data: {
+            resourceId: string;
+            name: string;
+            pathname: string;
+            pageCount: number;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFilesCombinePdfResponse = PostDriveFilesCombinePdfResponses[keyof PostDriveFilesCombinePdfResponses];
 
 export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;

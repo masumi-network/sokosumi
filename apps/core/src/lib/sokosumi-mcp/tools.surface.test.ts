@@ -892,6 +892,12 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   drive_google_sheet: { id: "file-1", scope: "me" },
   drive_refresh_google_sheet: { id: "file-1", scope: "me" },
   drive_tasks: { scope: "me", taskId: "task-1" },
+  drive_combine_pdf: {
+    body: {
+      pathnames: ["drive/users/u-1/a.pdf", "drive/users/u-1/b.pdf"],
+      filename: "Pack",
+    },
+  },
   drive_copy_task_file: { body: { scope: "me", taskFileId: "task-file-1" } },
   drive_labels: { scope: "me", kind: "TAG" },
   drive_create_label: {

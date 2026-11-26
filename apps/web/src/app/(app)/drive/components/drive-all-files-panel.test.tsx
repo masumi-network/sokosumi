@@ -429,6 +429,37 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     });
   });
 
+  it("offers Combine PDFs only when every selected file is an uploaded PDF", async () => {
+    const user = userEvent.setup();
+    api.fetchFileSearchPage.mockResolvedValueOnce({
+      items: [
+        makeFile("res_a", "a.pdf"),
+        makeFile("res_b", "b.pdf"),
+        makeFile("res_c", "c.png", { mimeType: "image/png" }),
+      ],
+      search: makeMeta({ windowCount: 3 }),
+    });
+
+    renderPanel();
+
+    for (const name of ["a.pdf", "b.pdf"])
+      await user.click(
+        await screen.findByRole("checkbox", {
+          name: `selectFile:{"name":"${name}"}`,
+        }),
+      );
+    expect(
+      screen.getByRole("button", { name: "bulkCombinePdf" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: 'selectFile:{"name":"c.png"}' }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "bulkCombinePdf" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables Load more while page one refreshes and does not cancel an in-flight refresh on an interleaved click", async () => {
     const file1 = makeFile("res_1", "page1.pdf");
     const refreshedFile = makeFile("res_2", "refreshed.pdf");

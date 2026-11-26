@@ -2212,6 +2212,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "List the Task output files in a Drive. Filter by `projectId`, `taskId` or `assigneeId`; page with `cursor`.",
   },
   {
+    name: "drive_combine_pdf",
+    operation: "POST /drive/files/combine-pdf",
+    description:
+      "Combine 2-20 PDFs from one Drive (`body.pathnames` from drive_files, in page order) into a new PDF named `body.filename`, saved beside the first. The sources stay. A source that is not a readable PDF fails the whole call and nothing is saved.",
+  },
+  {
     name: "drive_copy_task_file",
     operation: "POST /drive/tasks/copy",
     description:

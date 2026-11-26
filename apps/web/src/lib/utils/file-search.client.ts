@@ -22,6 +22,7 @@ import {
   patchDriveLabelsById,
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
+  postDriveFilesCombinePdf,
   postDriveLabels,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   putDriveShares,
@@ -335,6 +336,30 @@ export async function deleteDriveUploads(
     ),
   );
   return pathnames.filter((_, index) => results[index].status === "rejected");
+}
+
+/** Core refused a combine: `status` says why, `message` names the file. */
+export class DriveCombinePdfError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "DriveCombinePdfError";
+  }
+}
+
+/** Saves the PDFs, pages in this order, as one new PDF beside the first. */
+export async function combineDrivePdfs(body: {
+  pathnames: string[];
+  filename: string;
+}) {
+  const { data, error, response } = await postDriveFilesCombinePdf({
+    client: getBrowserCoreClient(),
+    body,
+  });
+  if (data) return data.data;
+  throw new DriveCombinePdfError(response?.status ?? 0, error?.message ?? "");
 }
 
 /** One Drive file (catalog id) or folder (path in the store). */
