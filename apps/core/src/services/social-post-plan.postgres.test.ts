@@ -18,6 +18,7 @@ vi.mock("@/services/x-subscription-tier.service", () => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { planMarketingStrategyPosts } from "@/services/marketing-strategy.service";
 import {
   createPlannedSocialPost,
   createSocialPost,
@@ -396,6 +397,119 @@ describe.runIf(enabled)("an owner's change on Social posts", () => {
     expect(after.media).toEqual(before.media);
     expect(after.revision).toBe(before.revision);
     expect(after.planning).toMatchObject({ script: "Start a one-week trial" });
+  });
+
+  it("drops a copy's old recording even when the post itself has none, and says what it was (Codex)", async () => {
+    const world = await seed();
+    const talking = {
+      ...planning,
+      format: "talking_video",
+      script: "Start a one-week trial",
+    };
+    const made = await planned(world, "op-create", talking);
+    const copy = await planned(world, "op-copy", {
+      ...talking,
+      id: "entry-1-linkedin",
+      videoOf: "entry-1",
+    });
+    await prisma.socialPost.update({
+      where: { id: copy.id },
+      data: {
+        status: "SCHEDULED",
+        text: "Our trial, in a minute",
+        media: [
+          {
+            pathname: "drive/users/plan/talk.mp4",
+            fileUrl: "https://example.test/talk.mp4",
+            name: "talk.mp4",
+            size: 1000,
+            mimeType: "video/mp4",
+            kind: "video",
+          },
+        ],
+      },
+    });
+    const before = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: copy.id },
+    });
+    const rescripted = await planSocialPost({
+      ...world.scope,
+      postId: made.id,
+      revision: made.revision,
+      planning: { ...talking, script: "Start a one-month trial" },
+      applyOpId: "op-script",
+    });
+    const after = await prisma.socialPost.findUniqueOrThrow({
+      where: { id: copy.id },
+    });
+    expect(after.media).toEqual([]);
+    expect(after.status).toBe("DRAFT");
+    expect(after.planning).toMatchObject({ script: "Start a one-month trial" });
+    expect(rescripted.copies).toEqual([
+      {
+        postId: copy.id,
+        prior: {
+          status: "SCHEDULED",
+          media: before.media,
+          planning: before.planning,
+          revision: before.revision,
+        },
+        revision: after.revision,
+      },
+    ]);
+  });
+
+  it("returns the Instagram post an op made on a retry, never its TikTok copy (Codex)", async () => {
+    const world = await seed();
+    const reel = {
+      id: "entry-reel",
+      title: "Launch reel",
+      format: "reel",
+      alsoOn: ["tiktok"],
+    };
+    const made = await createPlannedSocialPost({
+      ...world.scope,
+      marketingStrategyId: world.versionId,
+      provider: "instagram",
+      socialConnectionId: null,
+      plannedAt: new Date(Date.now() + 4 * 86_400_000),
+      timezone: "UTC",
+      planning: reel,
+      applyOpId: "op-reel",
+    });
+    await prisma.$transaction((tx) =>
+      planMarketingStrategyPosts(tx, {
+        version: { id: world.versionId, projectId: world.scope.projectId },
+        workspaceId: world.scope.workspaceId,
+        entries: [
+          {
+            ...reel,
+            channel: "instagram",
+            date: "2026-12-03",
+            time: "09:00",
+            status: "draft",
+          },
+        ],
+        creator: { userId: world.scope.userId },
+      }),
+    );
+    const tiktok = await prisma.socialPost.findFirstOrThrow({
+      where: { projectId: world.scope.projectId, provider: "tiktok" },
+    });
+    expect(tiktok.planning).not.toHaveProperty("applyCreateOpId");
+    expect(tiktok.planning).not.toHaveProperty("applyOpId");
+    const again = await createPlannedSocialPost({
+      ...world.scope,
+      marketingStrategyId: world.versionId,
+      provider: "instagram",
+      socialConnectionId: null,
+      plannedAt: new Date(Date.now() + 4 * 86_400_000),
+      timezone: "UTC",
+      planning: reel,
+      applyOpId: "op-reel",
+    });
+    expect(again.id).toBe(made.id);
+    expect(again.provider).toBe("instagram");
   });
 
   it("never plans a post that went out", async () => {

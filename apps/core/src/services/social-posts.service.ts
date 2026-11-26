@@ -2259,6 +2259,7 @@ export async function createPlannedSocialPost(
     const made = await tx.socialPost.findFirst({
       where: {
         projectId: input.projectId,
+        provider: input.provider,
         planning: { path: ["applyCreateOpId"], equals: input.applyOpId },
       },
       include: socialPostInclude,
@@ -2319,14 +2320,15 @@ const UNWRITE = {
  * - an unwritten post's placeholder follows the new plan;
  * - a rewrite takes a written post back to an unwritten draft at its time;
  * - a talking video that now speaks other words (or with another presenter
- *   or voice) loses its recording, and so do the copies made from it on
- *   other networks, so production records it again; other plan changes keep
- *   it.
- * The op that made the post stays on its plan.
+ *   or voice) loses its recording, and so does each copy of it on other
+ *   networks that still holds one, even when the post itself has none left,
+ *   so production records it again; other plan changes keep it.
+ * The op that made the post stays on its plan. The copies it changed come
+ * back with what they were, so the change can be taken back.
  */
 export async function planSocialPost(
   input: PlanSocialPostInput,
-): Promise<SocialPostSummary> {
+): Promise<PlannedSocialPost> {
   return serializableTransaction(async (tx) => {
     await requireScopedProject(input, { client: tx });
     const post = await requireScopedPost(input, tx);
@@ -2337,9 +2339,9 @@ export async function planSocialPost(
     // A post without a plan holds the words someone wrote.
     const written = !stored || postWritten(post, stored);
     const rewrite = Boolean(input.rewrite) && written;
-    const spoken =
-      spokenChanged(stored, input.planning) &&
-      parseSocialPostMedia(post.media, post.id).length > 0;
+    const spoken = spokenChanged(stored, input.planning);
+    const recorded =
+      spoken && parseSocialPostMedia(post.media, post.id).length > 0;
     const planned = await writeWithRevision(
       input,
       input.revision,
@@ -2352,33 +2354,51 @@ export async function planSocialPost(
         ...(!written || rewrite
           ? { text: placeholderText(input.planning, post.provider) }
           : {}),
-        ...(rewrite || spoken ? UNWRITE : {}),
-        ...(spoken ? { media: [] } : {}),
+        ...(rewrite || recorded ? UNWRITE : {}),
+        ...(recorded ? { media: [] } : {}),
       },
       tx,
     );
-    if (spoken && stored && post.marketingStrategyId)
-      await dropCopiedRecordings(
-        tx,
-        post.marketingStrategyId,
-        stored.id,
-        input.planning,
-      );
-    return mapSocialPost(planned);
+    const copies =
+      spoken && stored && post.marketingStrategyId
+        ? await respeakCopies(
+            tx,
+            post.marketingStrategyId,
+            stored.id,
+            input.planning,
+          )
+        : [];
+    return { ...mapSocialPost(planned), copies };
   }, "Project changed while planning a Social post");
 }
 
+/** A copy a plan write changed: what it was, and its revision after. */
+export interface ChangedSocialPostCopy {
+  postId: string;
+  prior: {
+    status: SocialPostStatus;
+    media: Prisma.JsonValue;
+    planning: Prisma.JsonValue;
+    revision: number;
+  };
+  revision: number;
+}
+
+export type PlannedSocialPost = SocialPostSummary & {
+  copies: ChangedSocialPostCopy[];
+};
+
 /**
- * A talking video's copies carry its recording: they lose it with it and
- * speak the new words. Only its own month's copies: entry ids repeat from
- * month to month.
+ * A talking video's copies speak its words: they take the new ones, and a
+ * copy holding a recording of the old ones loses it. Only its own month's
+ * copies: entry ids repeat from month to month.
  */
-async function dropCopiedRecordings(
+async function respeakCopies(
   tx: Prisma.TransactionClient,
   marketingStrategyId: string,
   entryId: string,
   spoken: Pick<SocialPostPlanning, "script" | "presenter" | "voice">,
-): Promise<void> {
+): Promise<ChangedSocialPostCopy[]> {
   const copies = await tx.socialPost.findMany({
     where: {
       marketingStrategyId,
@@ -2386,15 +2406,22 @@ async function dropCopiedRecordings(
       status: { in: [...EDITABLE_STATUSES] },
       leaseToken: null,
     },
-    select: { id: true, planning: true },
+    select: {
+      id: true,
+      status: true,
+      media: true,
+      planning: true,
+      revision: true,
+    },
   });
+  const changed: ChangedSocialPostCopy[] = [];
   for (const copy of copies) {
     const planning = socialPostPlanningSchema.safeParse(copy.planning).data;
-    await tx.socialPost.updateMany({
-      where: { id: copy.id },
+    const recorded = parseSocialPostMedia(copy.media, copy.id).length > 0;
+    const written = await tx.socialPost.updateMany({
+      where: { id: copy.id, revision: copy.revision },
       data: {
-        ...UNWRITE,
-        media: [],
+        ...(recorded ? { ...UNWRITE, media: [] } : {}),
         planning: jsonInput({
           ...planning,
           script: spoken.script,
@@ -2404,7 +2431,15 @@ async function dropCopiedRecordings(
         revision: { increment: 1 },
       },
     });
+    if (written.count === 0) continue;
+    const { id, revision, ...prior } = copy;
+    changed.push({
+      postId: id,
+      prior: { ...prior, revision },
+      revision: revision + 1,
+    });
   }
+  return changed;
 }
 
 export async function approveSocialPost(

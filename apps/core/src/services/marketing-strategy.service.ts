@@ -756,6 +756,9 @@ export async function planMarketingStrategyPosts(
           channel: target.channel,
           format: target.format,
           alsoOn: undefined,
+          // The marks of the owner's change ops belong to the post they made.
+          applyOpId: undefined,
+          applyCreateOpId: undefined,
           videoOf: planning.id,
           videoOfTalking: isCmoShapedVideoFormat(target.channel, target.format)
             ? isCmoTalkingFormat(provider, planning.format ?? entry.format)
