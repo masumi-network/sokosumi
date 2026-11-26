@@ -722,6 +722,42 @@ export interface SocialPostCheck {
   waitsForBatch?: true;
 }
 
+/**
+ * The month's other posts as `id:revision`, read before a post's words are
+ * checked and again in the save's transaction: two edits checked at once
+ * each passed against the other's old words and both saved "April release."
+ * (Codex round 11). Null for a post outside a marketing month.
+ */
+export async function monthSiblingsStamp(
+  input: { postId: string; workspaceId: string },
+  client: Pick<Prisma.TransactionClient, "socialPost"> = prisma,
+): Promise<string | null> {
+  const post = await client.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true },
+  });
+  if (!post?.marketingStrategyId) return null;
+  const siblings = await client.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, revision: true },
+    orderBy: { id: "asc" },
+  });
+  return siblings.map((sibling) => `${sibling.id}:${sibling.revision}`).join();
+}
+
+/** Another post of the month changed between a post's check and its save. */
+export class MonthPostsChangedError extends Error {
+  constructor() {
+    super(
+      "Another post of this month changed while this edit was checked: send it again, and its words are checked against the new ones.",
+    );
+  }
+}
+
 function waitForBatchPost(text: string, costUsd: number): SocialPostCheck {
   return {
     problem: `Wait for another post of this batch: this text says nearly what the post "${firstLine(text)}" says now.`,

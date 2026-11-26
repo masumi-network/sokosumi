@@ -48,6 +48,8 @@ import {
   getSocialPost,
   linkedInOpeningProblem,
   listSocialPosts,
+  MonthPostsChangedError,
+  monthSiblingsStamp,
   ownMessageProblem,
   prepareSocialPostMutationMedia,
   requireMonthPostPicture,
@@ -139,7 +141,11 @@ const EDIT_MIN_MS = 15_000;
 /** A batch edit matched a post of the same batch whose words may still change. */
 class WaitsForBatchPostError extends Error {}
 
-class EditTimedOutError extends Error {}
+class EditTimedOutError extends Error {
+  constructor() {
+    super("Out of time for this call: send these posts again.");
+  }
+}
 
 function beforeDeadline<T>(work: Promise<T>, deadline: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -167,14 +173,16 @@ async function updateSocialPosts(
   input: ExecuteSokoBotToolInput,
   authorized: AuthorizedSokoBotRuntime,
 ) {
+  // From the call's start: a 20-second access read once pushed the answer
+  // past the tool's 115 seconds (Codex round 11).
+  const deadline = Date.now() + BATCH_BUDGET_MS;
   const { projectId, posts } =
     SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_posts.parse(input.input);
   if (new Set(posts.map((post) => post.postId)).size !== posts.length)
     throw new SokoBotRuntimeValidationError(
       "Each post can be in one update_social_posts call once.",
     );
-  await runtime.requireSocialAccess(authorized);
-  const deadline = Date.now() + BATCH_BUDGET_MS;
+  await beforeDeadline(runtime.requireSocialAccess(authorized), deadline);
   const unsaved = new Set(
     posts.flatMap((post) => (post.text === undefined ? [] : [post.postId])),
   );
@@ -183,10 +191,16 @@ async function updateSocialPosts(
   const notTried: string[] = [];
   const timedOut: { postId?: string } = {};
   let call = 0;
+  // An edit whose month changed under it is checked once more, then refused.
+  const changedOnce = new Set<string>();
   await withSocialPostBatch(unsaved, async () => {
     let round = posts;
     while (round.length > 0) {
-      const waiting: { post: (typeof posts)[number]; problem: string }[] = [];
+      const waiting: {
+        post: (typeof posts)[number];
+        problem: string;
+        onBatch: boolean;
+      }[] = [];
       for (const post of round) {
         if (timedOut.postId || deadline - Date.now() < EDIT_MIN_MS) {
           notTried.push(post.postId);
@@ -213,7 +227,15 @@ async function updateSocialPosts(
         } catch (error) {
           if (error instanceof SokoBotRuntimeAuthorizationError) throw error;
           if (error instanceof WaitsForBatchPostError) {
-            waiting.push({ post, problem: error.message });
+            waiting.push({ post, problem: error.message, onBatch: true });
+            continue;
+          }
+          if (
+            error instanceof MonthPostsChangedError &&
+            !changedOnce.has(post.postId)
+          ) {
+            changedOnce.add(post.postId);
+            waiting.push({ post, problem: error.message, onBatch: false });
             continue;
           }
           // The edit may still commit: nothing after it is checked against
@@ -233,8 +255,12 @@ async function updateSocialPosts(
         notTried.push(...waiting.map(({ post }) => post.postId));
         break;
       }
-      // No edit settled this round: the waiting posts wait on each other.
-      if (waiting.length === round.length) {
+      // No edit settled this round and none is checked again for a change
+      // elsewhere: the waiting posts wait on each other.
+      if (
+        waiting.length === round.length &&
+        waiting.every(({ onBatch }) => onBatch)
+      ) {
         for (const { post, problem } of waiting)
           refused.push({
             postId: post.postId,
@@ -454,6 +480,8 @@ export async function executeSocialTool(
               SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(input.input),
             )
           : { media: undefined, threadParts: undefined };
+      // What the month's other posts were when this edit's words were checked.
+      let checkedAgainst: { postId: string; stamp: string } | null = null;
       if (input.capability === "update_social_post") {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
           input.input,
@@ -467,6 +495,8 @@ export async function executeSocialTool(
             workspaceId,
             text: params.text,
           };
+          const stamp = await monthSiblingsStamp(post);
+          if (stamp !== null) checkedAgainst = { postId: post.postId, stamp };
           const [own, opening] = await Promise.all([
             ownMessageProblem(post),
             cmoMakesVariedMonth(authorized.turn.versionId)
@@ -545,6 +575,16 @@ export async function executeSocialTool(
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
+                // Serializable: an edit that committed after this one's check
+                // is seen here, or this transaction fails and is retried.
+                if (
+                  checkedAgainst &&
+                  (await monthSiblingsStamp(
+                    { postId: checkedAgainst.postId, workspaceId },
+                    tx,
+                  )) !== checkedAgainst.stamp
+                )
+                  throw new MonthPostsChangedError();
                 return updateSocialPost(
                   {
                     ...params,

@@ -305,10 +305,26 @@ vi.mock("@/helpers/data-table", () => ({
 }));
 
 const social = vi.hoisted(() => ({
-  ownMessage: vi.fn(async () => ({
-    problem: null as string | null,
-    costUsd: 0,
-  })),
+  ownMessage: vi.fn(
+    async (_post: {
+      postId: string;
+      workspaceId: string;
+      text: string;
+    }): Promise<{
+      problem: string | null;
+      costUsd: number;
+      waitsForBatch?: true;
+    }> => ({
+      problem: null,
+      costUsd: 0,
+    }),
+  ),
+  stamp: vi.fn(
+    async (_post: {
+      postId: string;
+      workspaceId: string;
+    }): Promise<string | null> => null,
+  ),
   listAccounts: vi.fn(),
   project: vi.fn(),
   listStatistics: vi.fn(),
@@ -395,6 +411,12 @@ vi.mock("@/services/social-posts.service", () => ({
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
   ownMessageProblem: social.ownMessage,
+  monthSiblingsStamp: social.stamp,
+  MonthPostsChangedError: class extends Error {
+    constructor() {
+      super("Another post of this month changed while this edit was checked.");
+    }
+  },
   withSocialPostBatch: (_unsaved: ReadonlySet<string>, run: () => unknown) =>
     run(),
 }));
@@ -8278,6 +8300,125 @@ describe("Soko Bot project social tools", () => {
       });
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  // Codex round 11 (#8277): a 20-second access read made the batch answer at
+  // 120 seconds, after the tool's 115-second timeout.
+  it("counts a slow access read into the batch's deadline", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const owner = social.owner.getMockImplementation();
+      social.owner.mockImplementationOnce(async (...args: unknown[]) => {
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+        return owner?.(...args);
+      });
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      let answered = false;
+      const running = new SokoBotRuntimeService()
+        .executeTool({
+          ...SCOPE,
+          capability: "update_social_posts",
+          toolCallId: "slow-access",
+          input: { projectId, posts: [{ postId, revision: 2, text: "Slow" }] },
+        })
+        .finally(() => {
+          answered = true;
+        });
+
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      expect(answered).toBe(true);
+      await expect(running).resolves.toMatchObject({ stillSaving: postId });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Codex round 11 (#8277): two batches checked at once each passed against
+  // the other's old words, and both saved "April release.".
+  it("saves the same words once when two batches are checked at the same time", async () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b4";
+    const rows = new Map([
+      [postId, { text: "Launch notes.", revision: 2 }],
+      [otherId, { text: "Community update.", revision: 2 }],
+    ]);
+    social.stamp.mockImplementation(async ({ postId: own }) =>
+      [...rows]
+        .filter(([id]) => id !== own)
+        .map(([id, row]) => `${id}:${row.revision}`)
+        .join(),
+    );
+    let checks = 0;
+    const bothChecking = Promise.withResolvers<void>();
+    social.ownMessage.mockImplementation(async ({ postId: own, text }) => {
+      if ((checks += 1) === 2) bothChecking.resolve();
+      if (checks <= 2) await bothChecking.promise;
+      const same = [...rows].find(
+        ([id, row]) => id !== own && row.text === text,
+      );
+      return {
+        problem: same
+          ? `Rewrite the post: it says nearly what the post "${same[1].text}" says.`
+          : null,
+        costUsd: 0,
+      };
+    });
+    social.update.mockImplementation(
+      async (change: { postId: string; text: string }) => {
+        const row = rows.get(change.postId)!;
+        row.text = change.text;
+        row.revision += 1;
+        return { ...post, id: change.postId, revision: row.revision };
+      },
+    );
+    // One transaction at a time, as Serializable makes the second see the first.
+    const run = serializableTransactionMock.getMockImplementation()!;
+    let tail = Promise.resolve();
+    serializableTransactionMock.mockImplementation(
+      (...args: Parameters<typeof run>) => {
+        const next = tail.then(() => run(...args));
+        tail = next.then(
+          () => undefined,
+          () => undefined,
+        );
+        return next;
+      },
+    );
+    const batch = (id: string, key: string) =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: key,
+        input: {
+          projectId,
+          posts: [{ postId: id, revision: 2, text: "April release." }],
+        },
+      });
+
+    try {
+      const results = (await Promise.all([
+        batch(postId, "first"),
+        batch(otherId, "second"),
+      ])) as { saved: unknown[]; refused: { problem: string }[] }[];
+
+      expect(results.flatMap((result) => result.saved)).toHaveLength(1);
+      expect(results.flatMap((result) => result.refused)).toEqual([
+        expect.objectContaining({
+          problem: expect.stringContaining('says nearly what the post "April'),
+        }),
+      ]);
+      expect(
+        [...rows.values()].filter((row) => row.text === "April release."),
+      ).toHaveLength(1);
+    } finally {
+      serializableTransactionMock.mockImplementation(run);
+      social.stamp.mockImplementation(async () => null);
+      social.ownMessage.mockImplementation(async () => ({
+        problem: null,
+        costUsd: 0,
+      }));
+      social.update.mockReset();
     }
   });
 
