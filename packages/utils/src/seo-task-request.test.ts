@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  editSeoTaskProse,
   hasSeoTaskRequest,
   hideSeoAuditRequest,
   removeSeoTaskRequest,
   seoTaskDescription,
   seoTaskRequestPacket,
+  splitSeoTaskRequest,
 } from "./seo-task-request.js";
 import { removeTaskContextAttachmentLinks } from "./task-context-attachment.js";
 
@@ -89,9 +89,12 @@ describe("hideSeoAuditRequest", () => {
   });
 });
 
-describe("editSeoTaskProse", () => {
+describe("splitSeoTaskRequest", () => {
   const linkInPacket = { note: "see [BRIEFING.md](https://x)" };
-  const edit = removeTaskContextAttachmentLinks;
+  const edit = (markdown: string) => {
+    const { prose, join } = splitSeoTaskRequest(markdown);
+    return join(removeTaskContextAttachmentLinks(prose));
+  };
 
   it("edits the prose and keeps the request line byte for byte", () => {
     const description = seoTaskDescription(
@@ -99,13 +102,13 @@ describe("editSeoTaskProse", () => {
       "seo_audit",
       linkInPacket,
     );
-    expect(editSeoTaskProse(description, edit)).toBe(
+    expect(edit(description)).toBe(
       seoTaskDescription("Summary", "seo_audit", linkInPacket),
     );
   });
 
   it("passes text without a request line to the edit whole", () => {
-    expect(editSeoTaskProse("a [BRIEFING.md](https://x) b", edit)).toBe("a  b");
+    expect(edit("a [BRIEFING.md](https://x) b")).toBe("a  b");
   });
 });
 

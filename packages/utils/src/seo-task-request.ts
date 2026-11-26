@@ -106,21 +106,21 @@ export function hideSeoAuditRequest(
 }
 
 /**
- * Runs a text edit on the prose of a description and keeps its request lines
- * (`seo_audit:` / `seo_job:`) byte for byte. The worker parses the line as
- * JSON, so an edit made for prose (such as removing Context links) must not
- * reach inside it. Text without a request line goes through `edit` whole.
+ * A description split into its prose and its request lines (`seo_audit:` /
+ * `seo_job:`), so a prose edit never reaches inside the JSON the worker
+ * parses. Text without a request line is all prose, unchanged. `join` puts
+ * edited prose back in front of the request lines, byte for byte.
  */
-export function editSeoTaskProse(
-  markdown: string,
-  edit: (prose: string) => string,
-): string {
+export function splitSeoTaskRequest(markdown: string): {
+  prose: string;
+  join: (prose: string) => string;
+} {
   const lines = markdown.split(LINE_BREAK);
   const markers: readonly SeoTaskMarker[] = ["seo_audit", "seo_job"];
   const requests = lines.filter((line) => isRequestLine(line, markers));
-  if (requests.length === 0) return edit(markdown);
-  const prose = edit(
-    lines.filter((line) => !requests.includes(line)).join("\n"),
-  );
-  return [prose, requests.join("\n")].filter(Boolean).join("\n\n");
+  if (requests.length === 0) return { prose: markdown, join: (prose) => prose };
+  return {
+    prose: lines.filter((line) => !requests.includes(line)).join("\n"),
+    join: (prose) => [prose, requests.join("\n")].filter(Boolean).join("\n\n"),
+  };
 }
