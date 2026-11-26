@@ -26,13 +26,19 @@ export async function setCmoSeoSuggestionStatus(
     });
     if (!row) throw new CmoNotFoundError("Suggestion not found");
     // A retried request changes nothing: a second done would record a second
-    // change. Done on a verified change asks for a new check and records it.
-    if (row.status === status) return toSuggestion(row);
+    // change. Done on a verified change asks for a new check and records it,
+    // unless a done that won the race was verified since.
+    if (
+      row.status === status ||
+      (attempt > 1 && status === "done" && row.status === "verified")
+    )
+      return toSuggestion(row);
     try {
       return toSuggestion(
         await updateSeoSuggestion({
-          // Only from the status read above: of two requests at once, one writes.
-          where: { id, status: row.status },
+          // Only from the change read above: of two requests at once, one
+          // writes, and a newer done that was verified since is no match.
+          where: { id, status: row.status, doneAt: row.doneAt },
           data: {
             status,
             doneAt: status === "done" ? now : null,

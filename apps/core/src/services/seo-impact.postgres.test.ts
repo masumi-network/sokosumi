@@ -615,7 +615,11 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     // The weekly check found the change on the page.
     await prisma.projectSeoSuggestion.update({
       where: { id },
-      data: { status: "verified", verifiedAt: CHANGED_AT },
+      data: {
+        status: "verified",
+        checkedAt: CHANGED_AT,
+        verifiedAt: CHANGED_AT,
+      },
     });
     const doneAgainAt = new Date(CHANGED_AT.getTime() + DAY_MS);
 
@@ -626,9 +630,60 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
       doneAt: doneAgainAt.toISOString(),
       verifiedAt: null,
     });
+    expect(
+      await prisma.projectSeoSuggestion.findUniqueOrThrow({ where: { id } }),
+    ).toMatchObject({ checkedAt: null, verifiedAt: null });
     expect((await rowsOf(id)).map((row) => row.changedAt)).toEqual([
       CHANGED_AT,
       doneAgainAt,
+    ]);
+  });
+
+  it("keeps a newer verified done when an older done request writes late", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing", {
+      status: "open",
+    });
+    const owner = { userId, projectId };
+    await setCmoSeoSuggestionStatus(owner, id, "done", CHANGED_AT);
+    await prisma.projectSeoSuggestion.update({
+      where: { id },
+      data: { status: "verified", verifiedAt: CHANGED_AT },
+    });
+    const newerAt = new Date(CHANGED_AT.getTime() + DAY_MS);
+    // After the late request read the verified change, another done wins and
+    // the weekly check verifies it.
+    const read = prisma.projectSeoSuggestion.findFirst;
+    const spy = vi
+      .spyOn(prisma.projectSeoSuggestion, "findFirst")
+      .mockImplementationOnce((async (args: Parameters<typeof read>[0]) => {
+        const row = await read(args);
+        await setCmoSeoSuggestionStatus(owner, id, "done", newerAt);
+        await prisma.projectSeoSuggestion.update({
+          where: { id },
+          data: { status: "verified", verifiedAt: newerAt },
+        });
+        return row;
+      }) as typeof read);
+    try {
+      expect(
+        await setCmoSeoSuggestionStatus(
+          owner,
+          id,
+          "done",
+          new Date(newerAt.getTime() + HOUR_MS),
+        ),
+      ).toMatchObject({
+        status: "verified",
+        doneAt: newerAt.toISOString(),
+        verifiedAt: newerAt.toISOString(),
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect((await rowsOf(id)).map((row) => row.changedAt)).toEqual([
+      CHANGED_AT,
+      newerAt,
     ]);
   });
 
