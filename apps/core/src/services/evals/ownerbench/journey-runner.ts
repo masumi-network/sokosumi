@@ -874,15 +874,20 @@ export async function journeyTokens(turnIds: readonly string[]) {
   const sum = await prisma.sokoBotModelCall.aggregate({
     where: { turnId: { in: turns.map((turn) => turn.id) } },
     _sum: { inputTokens: true, cacheReadTokens: true, outputTokens: true },
+    _count: { _all: true },
   });
   const inputTokens = sum._sum.inputTokens ?? 0;
+  // No model call measured is no measurement, not a cheap journey.
+  const measured = sum._count._all > 0 && turns.length > 0;
   return {
     inputTokens,
     cachedInputTokens: sum._sum.cacheReadTokens ?? 0,
     outputTokens: sum._sum.outputTokens ?? 0,
-    inputTokensPerTurn: turns.length
+    /** The turns these tokens belong to, background runs included. */
+    tokenTurns: turns.length,
+    inputTokensPerTurn: measured
       ? Math.round(inputTokens / turns.length)
-      : 0,
+      : null,
   };
 }
 

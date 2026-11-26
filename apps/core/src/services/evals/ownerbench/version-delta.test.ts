@@ -14,8 +14,9 @@ function report(
           output: {
             score: { stepsPassed: steps },
             totals: {
-              turns: 2,
-              ...(tokens === null ? {} : { inputTokensPerTurn: tokens }),
+              tokenTurns: 2,
+              inputTokens: (tokens ?? 0) * 2,
+              inputTokensPerTurn: tokens,
             },
           },
         },
@@ -78,6 +79,34 @@ describe("versionDelta", () => {
       holdout: null,
       meetsBar: false,
     });
+  });
+
+  it("averages all input tokens over all their turns, background runs included", () => {
+    const run = (perTurnA: number) => ({
+      cases: [
+        ["owner-a", 1, perTurnA],
+        ["owner-b", 4, 100],
+      ].map(([caseId, tokenTurns, perTurn]) => ({
+        caseId: String(caseId),
+        results: [
+          {
+            status: "PASSED",
+            output: {
+              score: { stepsPassed: 1 },
+              totals: {
+                tokenTurns,
+                inputTokens: Number(tokenTurns) * Number(perTurn),
+                inputTokensPerTurn: perTurn,
+              },
+            },
+          },
+        ],
+      })),
+    });
+    // 1,000 + 4 × 100 tokens over 5 turns, not the mean of 1,000 and 100.
+    expect(versionDelta(run(1000), run(1000)).baseline.inputTokensPerTurn).toBe(
+      280,
+    );
   });
 
   it("fails the bar on a subset of the dev journeys, both runs agreeing", () => {

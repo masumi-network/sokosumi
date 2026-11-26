@@ -43,13 +43,18 @@ function firstScored(results: ParityReport["cases"][number]["results"]) {
   if (!result) return null;
   const output = (result.output ?? {}) as {
     score?: { stepsPassed?: number };
-    totals?: { inputTokensPerTurn?: number; turns?: number };
+    totals?: {
+      inputTokens?: number;
+      tokenTurns?: number;
+      inputTokensPerTurn?: number | null;
+    };
   };
   return {
     status: result.status,
     stepsPassed: output.score?.stepsPassed ?? 0,
     inputTokensPerTurn: output.totals?.inputTokensPerTurn ?? null,
-    turns: output.totals?.turns ?? 0,
+    inputTokens: output.totals?.inputTokens ?? 0,
+    tokenTurns: output.totals?.tokenTurns ?? 0,
   };
 }
 
@@ -57,20 +62,15 @@ function totals(
   sides: readonly (ReturnType<typeof firstScored> | null)[],
 ): Totals {
   const scored = sides.filter((side) => side !== null);
-  const weighted = scored.filter((side) => side.inputTokensPerTurn !== null);
-  const turns = weighted.reduce((sum, side) => sum + side.turns, 0);
+  const measured = scored.filter((side) => side.inputTokensPerTurn !== null);
+  // All input tokens over the turns they belong to (background runs
+  // included), the same denominator each journey's own figure uses.
+  const turns = measured.reduce((sum, side) => sum + side.tokenTurns, 0);
+  const tokens = measured.reduce((sum, side) => sum + side.inputTokens, 0);
   return {
     passed: scored.filter((side) => side.status === "PASSED").length,
     stepsPassed: scored.reduce((sum, side) => sum + side.stepsPassed, 0),
-    // Weighted by turns, so a long journey counts for its turns.
-    inputTokensPerTurn: turns
-      ? Math.round(
-          weighted.reduce(
-            (sum, side) => sum + (side.inputTokensPerTurn ?? 0) * side.turns,
-            0,
-          ) / turns,
-        )
-      : null,
+    inputTokensPerTurn: turns ? Math.round(tokens / turns) : null,
   };
 }
 

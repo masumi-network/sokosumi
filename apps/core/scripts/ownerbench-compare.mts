@@ -56,8 +56,23 @@ function print(name: string, delta: VersionDelta) {
 }
 
 print("Dev journeys", sets.dev);
-if (sets.holdout) print("Held-out journeys", sets.holdout);
-else console.log("\nNo held-out journeys in both runs: the bar cannot be met.");
+if (sets.holdout) {
+  // Totals and a verdict only: a journey id or wording here would show
+  // builders what the held-out set asks.
+  const { baseline, candidate, rows, meetsBar } = sets.holdout;
+  const regressed = rows.filter((row) => row.regressed).length;
+  console.log(`\n## Held-out journeys (${rows.length}, ids not shown)`);
+  for (const [label, totals] of [
+    ["baseline", baseline],
+    ["candidate", candidate],
+  ] as const)
+    console.log(
+      `${label}: ${totals.passed} passed, ${totals.stepsPassed} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn`,
+    );
+  console.log(`${regressed} journey(s) passed before and fail now`);
+  console.log(meetsBar ? "Bar met on this set." : "Bar NOT met on this set.");
+} else
+  console.log("\nNo held-out journeys in both runs: the bar cannot be met.");
 console.log(
   sets.meetsBar
     ? "\nBenchmark bar met on both sets."
