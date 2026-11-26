@@ -39,9 +39,6 @@ describe("cmo-v26", () => {
       CMO_VIDEO_SHAPES_SKILL,
       CMO_ASKS_BEFORE_CHANGE_SKILL,
     ]);
-    expect(composeSystemPrompt(v26)).toContain(
-      getSokoBotSkill(CMO_ASKS_BEFORE_CHANGE_SKILL).content.trim(),
-    );
     for (const id of ["cmo-v23", "cmo-v24", "cmo-v25"])
       expect(getSokoBotVersion(id).skills).not.toContain(
         CMO_ASKS_BEFORE_CHANGE_SKILL,
@@ -71,5 +68,18 @@ describe("cmo-v26", () => {
     expect(composeTurnPreamble(v26, undefined, turn(["chat"]))).not.toContain(
       skill,
     );
+  });
+
+  it("asks before changing the strategy on owner chat turns only", () => {
+    const skill = getSokoBotSkill(CMO_ASKS_BEFORE_CHANGE_SKILL).content.trim();
+    const turn = (occasions: string[]) => ({ clientTurnId: null, occasions });
+    expect(composeSystemPrompt(v26)).not.toContain(skill);
+    expect(composeTurnPreamble(v26, undefined, turn(["chat"]))).toContain(
+      skill,
+    );
+    for (const automated of ["strategy", "production", "daily", "event"])
+      expect(
+        composeTurnPreamble(v26, undefined, turn([automated])),
+      ).not.toContain(skill);
   });
 });
