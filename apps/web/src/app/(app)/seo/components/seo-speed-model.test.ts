@@ -224,10 +224,16 @@ it("keeps for the research panel the measurements that the speed table does not 
   expect(
     seoSpeedOutsideTable([audited], { rows: [{ devices: [report] }] }),
   ).toEqual([audited]);
-  // A copy of the shown read in another key order is the same read: it is hidden.
-  const copy = Object.fromEntries(
-    Object.entries(audited).reverse(),
-  ) as typeof audited;
+  // A copy of the shown read in another key order, nested objects too, is the same read: it is hidden.
+  const reversed = (value: unknown): unknown =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? Object.fromEntries(
+          Object.entries(value)
+            .reverse()
+            .map(([k, v]) => [k, reversed(v)]),
+        )
+      : value;
+  const copy = reversed(audited) as typeof audited;
   expect(
     seoSpeedOutsideTable([audited], { rows: [{ devices: [copy] }] }),
   ).toEqual([]);
