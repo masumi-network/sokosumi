@@ -181,6 +181,7 @@ describe("SEO first-run setup", () => {
     // Runs of another kind and runs without a request say nothing about this check.
     workspace.runs = [run("audit_full", 3000), run("page_check", null)];
     expect(seoRunProgress(workspace, now)).toEqual({
+      queued: false,
       share: null,
       minutesLeft: null,
       late: false,
@@ -192,6 +193,7 @@ describe("SEO first-run setup", () => {
       run("page_check", 9000),
     );
     expect(seoRunProgress(workspace, now)).toEqual({
+      queued: false,
       share: 0.5,
       minutesLeft: 10,
       late: false,
@@ -200,6 +202,14 @@ describe("SEO first-run setup", () => {
     expect(
       seoRunProgress(workspace, new Date("2026-01-02T11:59:00Z")),
     ).toMatchObject({ share: 0, minutesLeft: 20 });
+    // A check whose Task has not started is queued: the time until its start is unknown, so it has no estimate.
+    workspace.analyses[0].status = "requested";
+    expect(seoRunProgress(workspace, now)).toEqual({
+      queued: true,
+      share: null,
+      minutesLeft: null,
+      late: false,
+    });
   });
 
   it("estimates a full audit from its selected pages and the pages it adds, also after shorter earlier audits", () => {
@@ -224,7 +234,7 @@ describe("SEO first-run setup", () => {
       seconds,
     });
     // One selected page and four added pages: 50 minutes. 10 minutes are gone.
-    const first = { share: 0.2, minutesLeft: 40, late: false };
+    const first = { queued: false, share: 0.2, minutesLeft: 40, late: false };
     expect(seoRunProgress(workspace, now)).toEqual(first);
     // An audit from before the added pages was shorter. It does not shorten the estimate.
     workspace.runs = [run(300), run(400), run(2900)];

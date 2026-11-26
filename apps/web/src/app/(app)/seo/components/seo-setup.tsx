@@ -4,6 +4,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
   ChevronDown,
   CircleAlert,
+  Clock,
   Loader2,
   Play,
   Plus,
@@ -69,15 +70,23 @@ export function SeoCheckRunning({
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       {/* The agent panel announces a running check; this badge is its picture. */}
       <span aria-hidden>
-        <StatusBadge tone="working" live>
-          {t("setup.checkRunningBadge")}
+        {/* A queued check has not started: a still grey dot, not the pulse of work. */}
+        <StatusBadge
+          tone={progress.queued ? "neutral" : "working"}
+          live={!progress.queued}
+        >
+          {progress.queued ? t("runs.queued") : t("setup.checkRunningBadge")}
         </StatusBadge>
       </span>
       <span className="text-muted-foreground text-sm">
         {/* Under a minute, and with a clock that runs behind Core's, the words say "just now". */}
         {now.getTime() - started.getTime() < MINUTE_MS
-          ? t("setup.checkStartedNow")
-          : t("setup.checkStarted", {
+          ? t(
+              progress.queued
+                ? "setup.checkRequestedNow"
+                : "setup.checkStartedNow",
+            )
+          : t(progress.queued ? "setup.checkRequested" : "setup.checkStarted", {
               when: format.relativeTime(started, now),
             })}
         {progress.minutesLeft
@@ -274,7 +283,9 @@ export function SeoSetupCard({
                       model.openAnalysis(run.kind);
                   }}
                 >
-                  {setup.check === "running" ? (
+                  {run?.queued ? (
+                    <Clock />
+                  ) : setup.check === "running" ? (
                     <Loader2 className="animate-spin motion-reduce:animate-pulse" />
                   ) : setup.failed ? (
                     <RotateCw />
@@ -282,11 +293,13 @@ export function SeoSetupCard({
                     <Play />
                   )}
                   {t(
-                    setup.check === "running"
-                      ? "setup.checkRunningBadge"
-                      : full
-                        ? "runFullAudit"
-                        : "runPageCheck",
+                    run?.queued
+                      ? "runs.queued"
+                      : setup.check === "running"
+                        ? "setup.checkRunningBadge"
+                        : full
+                          ? "runFullAudit"
+                          : "runPageCheck",
                   )}
                 </Button>
                 <SeoCheckRunning workspace={model.data} />

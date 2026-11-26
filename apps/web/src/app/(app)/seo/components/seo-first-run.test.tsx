@@ -1155,11 +1155,13 @@ describe("SEO audit first run", () => {
     ];
     finish({ ok: true, value: null });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Core accepted the check and its Task has not started: it waits, and no word says that it runs.
     expect(
-      screen.getByText((text) => text.startsWith(copy.setup.checkStartedNow)),
+      screen.getByText((text) => text.startsWith(copy.setup.checkRequestedNow)),
     ).toBeVisible();
+    expect(screen.queryByText(copy.setup.checkStartedNow)).toBeNull();
     for (const button of screen.getAllByRole("button", {
-      name: copy.setup.checkRunningBadge,
+      name: copy.runs.queued,
     }))
       expect(button).toHaveAttribute("aria-disabled", "true");
   });
