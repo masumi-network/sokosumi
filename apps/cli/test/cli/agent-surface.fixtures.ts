@@ -4,6 +4,8 @@
  * agent-surface.test.ts runs `argv` against a mocked Core and fails unless the
  * run sends that operation. See docs/agents/agent-surface.md.
  */
+import { fileURLToPath } from "node:url";
+
 export interface CliSurfaceFixture {
   readonly argv: readonly string[];
   /** Core's JSON body by request (`"GET /tasks/task-1"`: no `/v1`, no query). Defaults to `CORE`. */
@@ -42,6 +44,12 @@ const CORE: Record<string, unknown> = {
     data: [{ id: "org-1", name: "Org", role: "member" }],
   },
   "GET /users/me/workspaces": { data: { workspaces: [] } },
+  "POST /users/me/files": {
+    data: {
+      uploadUrl: "https://blob.fixture.invalid/users/user-1/package.json",
+      headers: { "Content-Type": "application/json" },
+    },
+  },
   "POST /users/me/workspaces": { data: { id: PERSONAL } },
   "GET /vendors/me": { data: [{ id: "vendor-1", role: "admin" }] },
   "POST /vendors": {
@@ -677,8 +685,8 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "users",
       "file-upload",
       "me",
-      "--input-json",
-      '{"filename":"a.png","contentType":"image/png","size":10}',
+      "--file",
+      fileURLToPath(new URL("../../package.json", import.meta.url)),
     ],
   },
   "GET /users/{id}/coworker-access": {
