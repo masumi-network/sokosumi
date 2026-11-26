@@ -17,37 +17,7 @@ import {
 } from "@/hooks/effects/use-media-query";
 import { cn } from "@/lib/utils";
 
-/** How long a jump into a loading section waits to hand focus on. */
-const FOCUS_HANDOFF_MS = 10_000;
-
-/**
- * A jump into a section that is still loading focuses its fallback heading,
- * which Suspense then swaps for the real one with the same id. Moves focus
- * to the replacement, but only while focus is lost with the removed node:
- * a reader who has moved on keeps their focus.
- */
-function handOffFocus(fallback: HTMLElement) {
-  if (!fallback.closest("[data-agents-section-loading]")) return;
-  const { id } = fallback;
-  const observer = new MutationObserver(() => {
-    if (fallback.isConnected) return;
-    const replacement = document.getElementById(id);
-    if (!replacement) return;
-    stop();
-    const active = document.activeElement;
-    if (!active || active === document.body) {
-      replacement.focus({ preventScroll: true });
-    }
-  });
-  const timer = window.setTimeout(stop, FOCUS_HANDOFF_MS);
-  function stop() {
-    observer.disconnect();
-    window.clearTimeout(timer);
-  }
-  observer.observe(document.body, { childList: true, subtree: true });
-}
-
-/** The section headings' ids, in page order. */
+/** The ids of the sections' stable wrappers (`SectionTarget`), in page order. */
 const AGENTS_SECTION_IDS = [
   "agents-soko-bots",
   "agents-coworkers",
@@ -72,16 +42,16 @@ export function AgentsSectionNav() {
   function jump(event: MouseEvent<HTMLAnchorElement>, id: string) {
     // A native hash jump would push a history entry Next.js cannot restore.
     event.preventDefault();
-    const heading = document.getElementById(id);
-    if (!heading) return;
-    heading.scrollIntoView({
+    const target = document.getElementById(id);
+    if (!target) return;
+    target.scrollIntoView({
       block: "start",
       behavior: matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY)
         ? "auto"
         : "smooth",
     });
-    heading.focus({ preventScroll: true });
-    handOffFocus(heading);
+    // The wrapper outlives the section's fallback, so focus stays on it.
+    target.focus({ preventScroll: true });
     writeAgentsSectionHash(id, AGENTS_SECTION_IDS[0]);
   }
 

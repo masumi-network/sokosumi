@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/messages/en.json";
 
@@ -14,23 +14,85 @@ function renderNav() {
   );
 }
 
+/**
+ * One section as the page renders it: a stable wrapper with the jump id
+ * around a Suspense fallback that later gives way to the content.
+ */
+function mountSection(id: string) {
+  const target = document.createElement("div");
+  target.id = id;
+  target.tabIndex = -1;
+  target.scrollIntoView = vi.fn();
+  const fallback = document.createElement("section");
+  fallback.setAttribute("data-agents-section-loading", "");
+  target.append(fallback);
+  document.body.append(target);
+  return {
+    target,
+    /** Suspense resolves: the fallback is replaced inside the wrapper. */
+    resolve: () =>
+      act(() => {
+        fallback.replaceWith(document.createElement("section"));
+      }),
+  };
+}
+
 describe("AgentsSectionNav", () => {
-  it("jumps to the section heading and focuses it", () => {
-    const heading = document.createElement("h2");
-    heading.id = "agents-marketplace";
-    heading.tabIndex = -1;
-    heading.scrollIntoView = vi.fn();
-    document.body.append(heading);
+  afterEach(() => {
+    for (const id of ["agents-coworkers", "agents-marketplace"]) {
+      document.getElementById(id)?.remove();
+    }
+  });
+
+  it("jumps to the section and focuses its stable wrapper", () => {
+    const marketplace = mountSection("agents-marketplace");
     renderNav();
 
-    const link = screen.getByRole("link", { name: "Marketplace" });
-    const allowed = fireEvent.click(link);
+    const allowed = fireEvent.click(
+      screen.getByRole("link", { name: "Marketplace" }),
+    );
 
     expect(allowed).toBe(false);
-    expect(heading.scrollIntoView).toHaveBeenCalled();
-    expect(document.activeElement).toBe(heading);
+    expect(marketplace.target.scrollIntoView).toHaveBeenCalled();
+    expect(document.activeElement).toBe(marketplace.target);
     expect(window.location.hash).toBe("#agents-marketplace");
-    heading.remove();
+  });
+
+  it("keeps focus on the section when its content streams in after the jump", () => {
+    const marketplace = mountSection("agents-marketplace");
+    renderNav();
+    fireEvent.click(screen.getByRole("link", { name: "Marketplace" }));
+
+    marketplace.resolve();
+
+    expect(document.activeElement).toBe(marketplace.target);
+  });
+
+  it("follows the last of repeated jumps while both sections still load", () => {
+    const coworkers = mountSection("agents-coworkers");
+    const marketplace = mountSection("agents-marketplace");
+    renderNav();
+
+    fireEvent.click(screen.getByRole("link", { name: "Marketplace" }));
+    fireEvent.click(screen.getByRole("link", { name: "Coworkers" }));
+    marketplace.resolve();
+    coworkers.resolve();
+
+    expect(document.activeElement).toBe(coworkers.target);
+  });
+
+  it("never takes focus back after the reader moves on and blurs", () => {
+    const marketplace = mountSection("agents-marketplace");
+    renderNav();
+    fireEvent.click(screen.getByRole("link", { name: "Marketplace" }));
+
+    const other = screen.getByRole("link", { name: "Coworkers" });
+    other.focus();
+    other.blur();
+    expect(document.activeElement).toBe(document.body);
+    marketplace.resolve();
+
+    expect(document.activeElement).toBe(document.body);
   });
 
   it("never lets the browser push a hash entry, even before a section exists", () => {
@@ -44,67 +106,5 @@ describe("AgentsSectionNav", () => {
 
     expect(allowed).toBe(false);
     expect(window.history.length).toBe(before);
-  });
-
-  /** A section still streaming: its fallback heading carries the id. */
-  function mountLoadingSection(id: string) {
-    const section = document.createElement("section");
-    section.setAttribute("data-agents-section-loading", "");
-    const fallback = document.createElement("h2");
-    fallback.id = id;
-    fallback.tabIndex = -1;
-    fallback.scrollIntoView = vi.fn();
-    section.append(fallback);
-    document.body.append(section);
-    return { section, fallback };
-  }
-
-  /** Suspense resolves: the fallback section gives way to the real one. */
-  async function resolveSection(loading: HTMLElement, id: string) {
-    const section = document.createElement("section");
-    const heading = document.createElement("h2");
-    heading.id = id;
-    heading.tabIndex = -1;
-    section.append(heading);
-    await act(async () => {
-      loading.replaceWith(section);
-      await Promise.resolve();
-    });
-    return { section, heading };
-  }
-
-  it("keeps keyboard focus on the section when it streams in after the jump", async () => {
-    const loading = mountLoadingSection("agents-marketplace");
-    renderNav();
-    const link = screen.getByRole("link", { name: "Marketplace" });
-    link.focus();
-
-    fireEvent.click(link);
-    expect(document.activeElement).toBe(loading.fallback);
-
-    const { section, heading } = await resolveSection(
-      loading.section,
-      "agents-marketplace",
-    );
-
-    expect(document.activeElement).toBe(heading);
-    section.remove();
-  });
-
-  it("leaves focus alone when the reader moved on before the section arrived", async () => {
-    const loading = mountLoadingSection("agents-marketplace");
-    renderNav();
-
-    fireEvent.click(screen.getByRole("link", { name: "Marketplace" }));
-    const coworkers = screen.getByRole("link", { name: "Coworkers" });
-    coworkers.focus();
-
-    const { section } = await resolveSection(
-      loading.section,
-      "agents-marketplace",
-    );
-
-    expect(document.activeElement).toBe(coworkers);
-    section.remove();
   });
 });

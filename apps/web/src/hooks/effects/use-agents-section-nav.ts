@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useIsMobile } from "./use-mobile";
 
-/** Marks a section still streaming in; its heading already carries the id. */
+/** Marks a section still streaming in; its stable wrapper already carries the id. */
 const LOADING_SELECTOR = "[data-agents-section-loading]";
 
 /** How long a return keeps re-placing its section while sections stream in. */
@@ -32,7 +32,7 @@ export function writeAgentsSectionHash(id: string, first: string): void {
 
 /**
  * The phone-only section bar on the Agents page. Returns the section the
- * reader is in: the last whose heading passed the bar, or the last one once
+ * reader is in: the last whose top passed the bar, or the last one once
  * the page is scrolled to the end.
  *
  * On a return to the page (Back from a profile, a reload, a shared link),

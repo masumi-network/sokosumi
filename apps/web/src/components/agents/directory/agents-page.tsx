@@ -5,8 +5,6 @@ import type { ReactNode } from "react";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
-import { AGENTS_SECTION_HEADING_CLASS } from "./agents-page-classes";
-
 export function AgentsTag({ children }: { children: ReactNode }) {
   return (
     <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium">
@@ -73,7 +71,10 @@ export function AgentsSection({
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 px-1">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center gap-2">
-            <h2 id={id} tabIndex={-1} className={AGENTS_SECTION_HEADING_CLASS}>
+            <h2
+              id={id}
+              className="text-foreground text-lg font-semibold tracking-tight"
+            >
               {title}
             </h2>
             {tag ? <AgentsTag>{tag}</AgentsTag> : null}

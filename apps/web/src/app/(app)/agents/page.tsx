@@ -26,7 +26,7 @@ import {
 } from "@/components/agents/directory/agents-page";
 import {
   AGENTS_PAGE_CLASS,
-  AGENTS_SECTION_HEADING_CLASS,
+  AGENTS_SECTION_TARGET_CLASS,
 } from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
@@ -218,7 +218,7 @@ async function SokoBotsSection() {
 
   return (
     <AgentsSection
-      id="agents-soko-bots"
+      id="agents-soko-bots-title"
       title={t("sokoBotsTitle")}
       note={t("sokoBotsNote")}
       action={
@@ -315,7 +315,7 @@ async function CoworkersSection() {
 
   return (
     <AgentsSection
-      id="agents-coworkers"
+      id="agents-coworkers-title"
       title={t("coworkersTitle")}
       note={t("coworkersNote")}
     >
@@ -365,7 +365,7 @@ async function MarketplaceSection() {
 
   return (
     <AgentsSection
-      id="agents-marketplace"
+      id="agents-marketplace-title"
       title={t("marketplaceTitle")}
       tag={t("external")}
       note={t("marketplaceNote")}
@@ -382,16 +382,25 @@ async function MarketplaceSection() {
   );
 }
 
-/**
- * Keeps the section's heading id while it streams in, so the phone section
- * bar can jump to it and a return can find it; the marker tells the bar it
- * may still move.
- */
-function SectionFallback({ id, title }: { id: string; title: string }) {
+/** A section's bones while it streams in; the marker tells the bar it may still move. */
+function SectionFallback({
+  titleId,
+  title,
+}: {
+  titleId: string;
+  title: string;
+}) {
   return (
-    <section data-agents-section-loading className="flex flex-col gap-4">
+    <section
+      aria-labelledby={titleId}
+      data-agents-section-loading
+      className="flex flex-col gap-4"
+    >
       <div className="flex flex-col gap-1 px-1">
-        <h2 id={id} tabIndex={-1} className={AGENTS_SECTION_HEADING_CLASS}>
+        <h2
+          id={titleId}
+          className="text-foreground text-lg font-semibold tracking-tight"
+        >
           {title}
         </h2>
         <Skeleton className="h-4 w-64" />
@@ -400,6 +409,39 @@ function SectionFallback({ id, title }: { id: string; title: string }) {
         <TilesSkeleton />
       </div>
     </section>
+  );
+}
+
+/**
+ * One section behind its own Suspense boundary, inside a wrapper that stays
+ * mounted while the fallback gives way to the content. The wrapper carries
+ * the id the phone section bar jumps to and focuses, named by the section's
+ * heading (`<id>-title` in both fallback and content), so focus never sits
+ * on a node Suspense removes.
+ */
+function SectionTarget({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      id={id}
+      tabIndex={-1}
+      role="group"
+      aria-labelledby={`${id}-title`}
+      className={AGENTS_SECTION_TARGET_CLASS}
+    >
+      <Suspense
+        fallback={<SectionFallback titleId={`${id}-title`} title={title} />}
+      >
+        {children}
+      </Suspense>
+    </div>
   );
 }
 
@@ -415,30 +457,15 @@ export default async function AgentsPage() {
       <RefreshPrefetchedPage />
       <h1 className="sr-only">{t("title")}</h1>
       <AgentsSectionNav />
-      <Suspense
-        fallback={
-          <SectionFallback id="agents-soko-bots" title={t("sokoBotsTitle")} />
-        }
-      >
+      <SectionTarget id="agents-soko-bots" title={t("sokoBotsTitle")}>
         <SokoBotsSection />
-      </Suspense>
-      <Suspense
-        fallback={
-          <SectionFallback id="agents-coworkers" title={t("coworkersTitle")} />
-        }
-      >
+      </SectionTarget>
+      <SectionTarget id="agents-coworkers" title={t("coworkersTitle")}>
         <CoworkersSection />
-      </Suspense>
-      <Suspense
-        fallback={
-          <SectionFallback
-            id="agents-marketplace"
-            title={t("marketplaceTitle")}
-          />
-        }
-      >
+      </SectionTarget>
+      <SectionTarget id="agents-marketplace" title={t("marketplaceTitle")}>
         <MarketplaceSection />
-      </Suspense>
+      </SectionTarget>
     </div>
   );
 }

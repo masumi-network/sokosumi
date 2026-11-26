@@ -13,8 +13,10 @@ export const AGENTS_BACK_LINK_CLASS =
   "text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 px-1 text-sm transition-colors";
 
 /**
- * A section heading on the Agents page. Script-focusable: the phone section
- * bar's jumps land on it, below the fixed top bar and the section bar.
+ * The Agents page's stable wrapper around one section, outside its Suspense
+ * boundary. The phone section bar scrolls to it and focuses it, so focus
+ * stays put while the section's fallback gives way to its content. It lands
+ * below the fixed top bar and the section bar.
  */
-export const AGENTS_SECTION_HEADING_CLASS =
-  "text-foreground focus-visible:ring-ring rounded-sm text-lg font-semibold tracking-tight outline-none focus-visible:ring-2 max-md:scroll-mt-[calc(8.75rem+env(safe-area-inset-top))]";
+export const AGENTS_SECTION_TARGET_CLASS =
+  "min-w-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:scroll-mt-[calc(8.75rem+env(safe-area-inset-top))]";
