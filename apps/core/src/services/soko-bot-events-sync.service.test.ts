@@ -65,6 +65,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 }));
 
 import { computeJobStatus } from "@sokosumi/database/helpers";
+import { digestJob } from "@/helpers/job-digest";
 import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 
 import {
@@ -470,21 +471,25 @@ describe("SokoBotEventsSyncService", () => {
       expect(delegationUpdateMock).toHaveBeenCalledOnce();
     });
 
-    it("counts a finished run's read of a hired Agent's Job in the Job's own words", async () => {
-      runTurn.status = "COMPLETED";
-      const doneAt = new Date("2026-10-23T10:00:00Z");
-      // What get_job_status reports for the Job once its Agent completed it.
-      const reported = computeJobStatus({
-        jobType: "FREE",
-        events: [{ status: "COMPLETED", input: null, createdAt: doneAt }],
-      } as never);
-      expect(reported).toBe("completed");
-      toolCallFindFirstMock.mockImplementation(
-        async ({ where }: { where: { result: { equals: string } } }) =>
-          where.result.equals === reported ? { id: "read" } : null,
-      );
-      delegationFindManyMock.mockResolvedValue([
-        {
+    describe("a hired Agent's Job the run read", () => {
+      const at = new Date("2026-10-23T10:00:00Z");
+      type Where = Record<string, unknown>;
+      /** The stored-read filter, applied to one saved get_job_status result. */
+      function matches(where: Where, result: unknown): boolean {
+        if (Array.isArray(where.OR))
+          return where.OR.some((part: Where) => matches(part, result));
+        const filter = where.result as
+          | { path: string[]; equals: string }
+          | undefined;
+        if (!filter) return true;
+        const value = filter.path.reduce<unknown>(
+          (node, key) => (node as Record<string, unknown> | null)?.[key],
+          result,
+        );
+        return value === filter.equals;
+      }
+      function jobDelegation(status: string, eventId: string) {
+        return {
           id: "d1",
           turnId: "run_turn",
           kind: "JOB",
@@ -498,24 +503,76 @@ describe("SokoBotEventsSyncService", () => {
             ownerId: "user_1",
             workspaceId: "ws_1",
             task: null,
-            events: [
-              { id: "job_done", status: "COMPLETED", createdAt: doneAt },
-            ],
+            events: [{ id: eventId, status, createdAt: at }],
           },
           turn: runTurn,
           followUp: "Draft the post from the scan.",
           followUpTurnId: null,
-        },
-      ]);
-      expect((await sync()).woken).toBe(0);
-      expect(toolCallFindFirstMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            capability: "get_job_status",
-            input: { path: ["jobId"], equals: "job_1" },
-          }),
-        }),
-      );
+        };
+      }
+      async function wakesAfterRead(
+        delegation: ReturnType<typeof jobDelegation>,
+        saved: unknown,
+      ) {
+        runTurn.status = "COMPLETED";
+        toolCallFindFirstMock.mockImplementation(
+          async ({ where }: { where: Where }) =>
+            matches(where, saved) ? { id: "read" } : null,
+        );
+        delegationFindManyMock.mockResolvedValue([delegation]);
+        return (await sync()).woken;
+      }
+
+      it("counts a read of a completed Job in the Job's own words", async () => {
+        const status = computeJobStatus({
+          jobType: "FREE",
+          events: [{ status: "COMPLETED", input: null, createdAt: at }],
+        } as never);
+        expect(status).toBe("completed");
+        expect(
+          await wakesAfterRead(jobDelegation("COMPLETED", "done"), { status }),
+        ).toBe(0);
+      });
+
+      it("counts a read of a refunded paid Job", async () => {
+        const status = computeJobStatus({
+          jobType: "PAID",
+          refundedTransactionId: "refund",
+          events: [{ status: "COMPLETED", input: null, createdAt: at }],
+        } as never);
+        expect(status).toBe("refund_resolved");
+        expect(
+          await wakesAfterRead(jobDelegation("COMPLETED", "done"), { status }),
+        ).toBe(0);
+      });
+
+      it("wakes for a second input request the read did not see", async () => {
+        // The read saw the first request, req_1; the Agent then asked again.
+        const saved = digestJob({
+          status: "input_required",
+          input: null,
+          inputSchema: null,
+          result: null,
+          events: [
+            {
+              id: "req_1",
+              status: "AWAITING_INPUT",
+              inputSchema: null,
+              result: null,
+              blobs: [],
+              links: [],
+            },
+          ],
+        } as never);
+        expect(saved.inputRequest?.eventId).toBe("req_1");
+        expect(
+          await wakesAfterRead(jobDelegation("AWAITING_INPUT", "req_2"), saved),
+        ).toBe(1);
+        startTurnMock.mockClear();
+        expect(
+          await wakesAfterRead(jobDelegation("AWAITING_INPUT", "req_1"), saved),
+        ).toBe(0);
+      });
     });
 
     it("does not count a read saved after the change that still returned RUNNING", async () => {

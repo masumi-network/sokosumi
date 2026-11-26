@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import { createError } from "evlog";
 import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
@@ -37,11 +38,54 @@ const FINISHED = new Set(["COMPLETED", "FAILED", "CANCELED"]);
  * A Job's change is its Agent's event status; get_job_status reports the
  * Job's own status (`digestJob`), in other words.
  */
-const JOB_READ_STATUS: Record<string, string> = {
-  COMPLETED: "completed",
-  FAILED: "failed",
-  AWAITING_INPUT: "input_required",
+const JOB_READ_STATUSES: Record<string, readonly string[]> = {
+  // A paid Job settles past its Agent's last word: a result waiting for
+  // payment, a dispute, a refund.
+  COMPLETED: [
+    "completed",
+    "result_pending",
+    "dispute_pending",
+    "dispute_resolved",
+    "refund_pending",
+    "refund_resolved",
+  ],
+  FAILED: [
+    "failed",
+    "payment_failed",
+    "dispute_pending",
+    "dispute_resolved",
+    "refund_pending",
+    "refund_resolved",
+  ],
 };
+
+/**
+ * What the read returned that shows it saw this change. A second input
+ * request reads "input_required" like the first, so only its event id says
+ * which one the read saw.
+ */
+function readSawChange(
+  current: { status: string; eventId: string | null },
+  delegation: { task: unknown },
+): Prisma.SokoBotToolCallWhereInput {
+  if (delegation.task)
+    return { result: { path: ["status"], equals: current.status } };
+  if (current.status === "AWAITING_INPUT")
+    return {
+      result: {
+        path: ["inputRequest", "eventId"],
+        equals: current.eventId ?? "",
+      },
+    };
+  const statuses = JOB_READ_STATUSES[current.status] ?? [
+    current.status.toLowerCase(),
+  ];
+  return {
+    OR: statuses.map((status) => ({
+      result: { path: ["status"], equals: status },
+    })),
+  };
+}
 
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
@@ -210,7 +254,12 @@ export function buildEventMessage(
  */
 async function backgroundRunReadChange(
   runTurnId: string,
-  current: { id: string; status: string; eventAt?: Date | null },
+  current: {
+    id: string;
+    status: string;
+    eventId: string | null;
+    eventAt?: Date | null;
+  },
   delegation: { task: unknown; job: unknown },
 ): Promise<boolean> {
   const field = delegation.task ? "taskId" : "jobId";
@@ -222,12 +271,7 @@ async function backgroundRunReadChange(
       input: { path: [field], equals: current.id },
       // What the read returned decides, not when it ran: one that started
       // before the change and was saved after it still said RUNNING.
-      result: {
-        path: ["status"],
-        equals: delegation.task
-          ? current.status
-          : (JOB_READ_STATUS[current.status] ?? current.status.toLowerCase()),
-      },
+      ...readSawChange(current, delegation),
       ...(current.eventAt ? { updatedAt: { gte: current.eventAt } } : {}),
     },
     select: { id: true },
