@@ -2791,6 +2791,7 @@ export class SokoBotControlPlane {
           : null),
       onDemand:
         version.profile !== "cmo" && readsContextOnDemand(version.skills),
+      offered: capabilities,
       xDms:
         isPersonalSokoBot(bot) &&
         !askedByTeammate &&

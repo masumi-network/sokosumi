@@ -42,6 +42,7 @@ export async function loadPacketMapFacts(input: {
   memoryMarkdown: string;
   privateAudience: boolean;
   xDms: boolean;
+  offered?: readonly string[];
 }): Promise<PacketMapFacts> {
   const board = {
     workspaceId: input.workspaceId,
@@ -90,5 +91,6 @@ export async function loadPacketMapFacts(input: {
     providers: providers.map((provider) => provider.id),
     privateAudience: input.privateAudience,
     xDms: input.xDms && !input.privateAudience,
+    offered: input.offered,
   };
 }

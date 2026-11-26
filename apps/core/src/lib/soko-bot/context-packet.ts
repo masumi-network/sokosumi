@@ -140,6 +140,8 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   onDemand?: boolean;
   /** The map may point at the owner's X direct messages (`x-inbox.ts`). */
   xDms?: boolean;
+  /** The turn's final tools: the map points only at these. */
+  offered?: readonly string[];
 }
 
 const ENDED_ON_CHAIN_JOB_STATUSES = [
@@ -148,7 +150,22 @@ const ENDED_ON_CHAIN_JOB_STATUSES = [
   "FUNDS_OR_DATUM_INVALID",
 ] as const;
 
+/** Refunded, or ended on chain: nothing more will happen on this Job. */
+function jobEnded(job: {
+  refundedTransactionId: string | null;
+  purchase: { onChainStatus: string | null } | null;
+}): boolean {
+  return (
+    job.refundedTransactionId !== null ||
+    (ENDED_ON_CHAIN_JOB_STATUSES as readonly (string | null)[]).includes(
+      job.purchase?.onChainStatus ?? null,
+    )
+  );
+}
+
 const PACKET_JOB_SELECT = {
+  refundedTransactionId: true,
+  purchase: { select: { onChainStatus: true } },
   id: true,
   name: true,
   agentId: true,
@@ -1228,9 +1245,10 @@ export class ContextPacketBuilder {
           agentId: boundedIdentifier(job.agentId),
           jobType: job.jobType,
           projectId: boundedIdentifier(job.projectId),
-          status: latestEvent?.status ?? null,
+          // A refund or an ended payment overrides whatever the Agent said last.
+          status: jobEnded(job) ? "REFUNDED" : (latestEvent?.status ?? null),
           pendingInput:
-            latestEvent?.status === "AWAITING_INPUT"
+            !jobEnded(job) && latestEvent?.status === "AWAITING_INPUT"
               ? {
                   required: true,
                   schema: sanitizeText(
@@ -1296,6 +1314,7 @@ export class ContextPacketBuilder {
           memoryMarkdown: storedMemory,
           privateAudience: askedByKind !== "OWNER",
           xDms: input.xDms ?? false,
+          offered: input.offered,
         })
       : null;
     const fitted = facts

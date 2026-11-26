@@ -3,6 +3,8 @@ import {
   compactItem,
   memorySections,
   messageSources,
+  type PacketMapFacts,
+  packetMap,
   sokoBotPacketKind,
   sokoBotPacketPlan,
 } from "./context-organizer";
@@ -118,5 +120,50 @@ describe("messageSources", () => {
     // A shared room, a teammate, or a version without X DMs: not offered.
     expect(ids(["twitter"], false)).toEqual(["chats"]);
     expect(ids(["gmail"], true)).toEqual(["chats"]);
+  });
+});
+
+describe("packetMap", () => {
+  const packet = {
+    memory: { markdown: "" },
+    tasks: [],
+    projects: [],
+    coworkers: [],
+    agents: [],
+    jobs: [],
+    recentTurns: [],
+    pendingDecisions: [],
+    counts: { tasks: 40, projects: 3 },
+  } as unknown as Parameters<typeof packetMap>[0];
+  const facts = (offered?: string[]): PacketMapFacts => ({
+    plan: sokoBotPacketPlan("schedule", chat("DIRECT_RESPONSE")),
+    openTasks: 12,
+    waitingTasks: 1,
+    finishedThisWeek: 2,
+    memoryBytes: 0,
+    mail: ["gmail"],
+    calendar: [],
+    providers: ["gmail", "twitter"],
+    privateAudience: false,
+    xDms: true,
+    offered,
+  });
+
+  it("points only at tools this turn holds, keeping the counts", () => {
+    const map = packetMap(packet, facts(["list_tasks", "get_task_status"]));
+    expect(map.tasks).toMatchObject({ total: 40, read: expect.any(String) });
+    expect(map.projects).toEqual({ total: 3, shown: 0 });
+    expect(map.mail).toEqual({ connected: ["gmail"] });
+    expect(map.messages).toEqual([]);
+  });
+
+  it("keeps every pointer when the turn holds every tool", () => {
+    const map = packetMap(packet, facts());
+    expect(map.projects).toMatchObject({
+      read: "read_context section projects",
+    });
+    expect(
+      (map.messages as { id: string }[]).map((source) => source.id),
+    ).toEqual(["chats", "x-dms"]);
   });
 });

@@ -210,6 +210,8 @@ function job(id: string, inputSchema = null as string | null) {
     projectId: "project-new",
     updatedAt: NOW,
     transaction: { amount: -30_000_000_000n },
+    refundedTransactionId: null as string | null,
+    purchase: null as { onChainStatus: string | null } | null,
     events: [{ status: "AWAITING_INPUT", inputSchema, createdAt: EARLIER }],
   };
 }
@@ -639,6 +641,31 @@ describe("ContextPacketBuilder", () => {
         }),
       }),
     );
+  });
+
+  it("shows a refunded Job as refunded, never as waiting for input", async () => {
+    // Not open, so only the fill-up read returns them.
+    jobFindManyMock.mockImplementation(
+      async (args: { where?: { id?: { notIn?: string[] } } }) =>
+        args.where?.id?.notIn
+          ? [
+              { ...job("job-refunded"), refundedTransactionId: "tx-refund" },
+              {
+                ...job("job-withdrawn"),
+                purchase: { onChainStatus: "REFUND_WITHDRAWN" },
+              },
+            ]
+          : [],
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    const jobs = result.packet.jobs as {
+      status: string;
+      pendingInput: unknown;
+    }[];
+    expect(jobs.map((shown) => [shown.status, shown.pendingInput])).toEqual([
+      ["REFUNDED", null],
+      ["REFUNDED", null],
+    ]);
   });
 
   it("reads the workspace membership without a user filter for a self-started turn", async () => {

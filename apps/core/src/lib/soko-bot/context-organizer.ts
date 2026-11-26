@@ -247,6 +247,8 @@ export interface PacketMapFacts {
   providers: string[];
   privateAudience: boolean;
   xDms: boolean;
+  /** The turn's final tools; the map points only at these. */
+  offered?: readonly string[];
 }
 
 /**
@@ -291,7 +293,42 @@ export function organizePacket(
 }
 
 /** Every source: how many exist, how many the packet shows, how to read the rest. */
+/** The tools a map hint names (`list_tasks`, `read_context`, …). */
+const toolsNamed = (read: string) =>
+  read.match(/\b[a-z]+(?:_[a-z]+)+\b/g) ?? [];
+
+/**
+ * The map points only at tools this turn holds: an entry whose tools are not
+ * offered keeps its counts and loses its pointer, and a message source the
+ * turn cannot read is left out.
+ */
+function onlyOffered(
+  map: Record<string, unknown>,
+  offered: readonly string[] | undefined,
+): Record<string, unknown> {
+  if (!offered) return map;
+  const usable = (read: unknown) =>
+    typeof read !== "string" ||
+    toolsNamed(read).every((tool) => offered.includes(tool));
+  return Object.fromEntries(
+    Object.entries(map).map(([key, entry]) => {
+      if (Array.isArray(entry))
+        return [key, entry.filter((source) => usable(source.read))];
+      if (!entry || typeof entry !== "object") return [key, entry];
+      const { read, ...rest } = entry as { read?: unknown };
+      return [key, usable(read) ? entry : rest];
+    }),
+  );
+}
+
 export function packetMap(
+  packet: Packet,
+  facts: PacketMapFacts,
+): Record<string, unknown> {
+  return onlyOffered(fullPacketMap(packet, facts), facts.offered);
+}
+
+function fullPacketMap(
   packet: Packet,
   facts: PacketMapFacts,
 ): Record<string, unknown> {
