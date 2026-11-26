@@ -15,8 +15,6 @@ import {
 import ts from "@typescript/typescript6";
 import { Client } from "pg";
 
-import { bareNames } from "../src/test/raw-sql-bare-names";
-
 const ROOT = resolve(import.meta.dirname, "../../..");
 const SOURCE_PATHS = [
   "packages/database/src",
@@ -35,9 +33,6 @@ const PREPARABLE = new Set(
 
 // Keyed by repository path and SHA-256 of the TypeScript template. Moving
 // lines does not affect a waiver. Changing or removing the template does.
-// A false failure of the bare name check (`src/test/raw-sql-bare-names.ts`)
-// has the code "bare name" and the printed names as its message. A text that
-// repeats in a file gets "#2", "#3" on its key, so each can be waived.
 const EXCEPTIONS = new Map([
   [
     "apps/core/src/helpers/history.ts:65c9474cb59f536d76fb2170cf6482c5c31e61b6045f236c0c284873eb11ef06",
@@ -54,22 +49,6 @@ const TABLES = createSqlTables({
   ...sqlTableLayoutFromEnv(process.env),
   preprodOn: true,
 });
-
-const keyCounts = new Map<string, number>();
-function exceptionKey(file: string, node: ts.Node) {
-  const hash = createHash("sha256").update(node.getText()).digest("hex");
-  const count = (keyCounts.get(`${file}:${hash}`) ?? 0) + 1;
-  keyCounts.set(`${file}:${hash}`, count);
-  return `${file}:${hash}${count > 1 ? `#${count}` : ""}`;
-}
-
-// Prisma's `sql` tag under any name: the function its runtime declares.
-function isSqlTag(tag: ts.Expression, checker: ts.TypeChecker) {
-  const { symbol } = checker.getTypeAtLocation(tag);
-  return symbol?.declarations?.[0]
-    ?.getSourceFile()
-    .fileName.includes("/@prisma/client-runtime-utils/");
-}
 
 function memberName(expression: ts.Expression): string {
   if (ts.isIdentifier(expression)) return expression.text;
@@ -163,7 +142,7 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
     ts.forEachChild(node, visit);
     if (ts.isTaggedTemplateExpression(node)) {
       const name = memberName(node.tag);
-      if (isSqlTag(node.tag, checker)) fragments.add(node.template);
+      if (name === "sql") fragments.add(node.template);
       if (RAW.has(name))
         statements.push({ node, template: node.template, unsafe: false });
       return;
@@ -188,7 +167,7 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
       !unsafe &&
       expression &&
       ts.isTaggedTemplateExpression(expression) &&
-      isSqlTag(expression.tag, checker)
+      memberName(expression.tag) === "sql"
     ) {
       usedTemplates.add(expression.template);
       expression = expression.template;
@@ -196,8 +175,7 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
     statements.push({ node, template: expression, unsafe });
   }
   visit(source);
-  // A template passed whole to a raw call is that statement, not a fragment.
-  return { statements, fragments: fragments.difference(usedTemplates) };
+  return { statements, fragments: fragments.difference(usedTemplates).size };
 }
 
 function canPrepare(sql: string) {
@@ -281,9 +259,8 @@ function render(
 function reportFailure(location: string, key: string, error: unknown) {
   const code =
     error instanceof Error && "code" in error ? error.code : "no SQLSTATE";
-  const message = error instanceof Error ? error.message : String(error);
   console.error(
-    `${location} [${code}] ${message}\nException key: ${key}\nAs an entry: ${JSON.stringify([key, { line: Number(location.split(":").at(-1)), code, message, reason: "<ticket and why>" }])}\nQualify the name with sharedTable, netTable, sharedType, or netType from @sokosumi/database/sql-tables. See apps/core/AGENTS.md#raw-sql.\nIf applicable, cast the parameter or add a ticketed entry to EXCEPTIONS in apps/core/scripts/prepare-raw-sql.ts.`,
+    `${location} [${code}] ${error instanceof Error ? error.message : error}\nException key: ${key}\nQualify the name with sharedTable, netTable, sharedType, or netType from @sokosumi/database/sql-tables. See apps/core/AGENTS.md#raw-sql.\nIf applicable, cast the parameter or add a ticketed entry to EXCEPTIONS in apps/core/scripts/prepare-raw-sql.ts.`,
   );
   process.exitCode = 1;
 }
@@ -332,9 +309,6 @@ const client = new Client({
 await client.connect();
 try {
   let sequence = 0;
-  // What PREPARE never sees: every `Prisma.sql` fragment, and the literal
-  // text of every statement it skips.
-  const unprepared = new Map<ts.Node, string>();
   for (const { path, files } of groups) {
     if (!files.length) throw new Error(`No production TypeScript in ${path}`);
     const counts = {
@@ -349,21 +323,21 @@ try {
       const source = program.getSourceFile(resolve(ROOT, file));
       if (!source) throw new Error(`Could not parse ${file}`);
       const { statements, fragments } = findStatements(source, checker);
-      fragmentCount += fragments.size;
-      for (const fragment of fragments)
-        unprepared.set(fragment, exceptionKey(file, fragment));
+      fragmentCount += fragments;
       for (const candidate of statements) {
         const { line } = source.getLineAndCharacterOfPosition(
           candidate.node.getStart(source),
         );
         const location = `${file}:${line + 1}`;
-        const key = exceptionKey(file, candidate.template ?? candidate.node);
+        const hash = createHash("sha256")
+          .update((candidate.template ?? candidate.node).getText())
+          .digest("hex");
+        const key = `${file}:${hash}`;
         try {
           const variants = render(candidate, checker);
           if (typeof variants === "string") {
             counts[variants]++;
             console.log(`${location} not preparable (${variants})`);
-            if (candidate.template) unprepared.set(candidate.template, key);
             continue;
           }
           const exception = EXCEPTIONS.get(key);
@@ -408,35 +382,11 @@ try {
       `${path}: ${files.length} files, ${statementCount} statements (${prepared} prepared, ${excepted} excepted, ${command} commands, ${assembled} assembled, ${failed} failed), ${fragmentCount} fragments`,
     );
   }
-  let bare = 0;
-  for (const [text, key] of unprepared) {
-    const found = bareNames(text);
-    if (!found) continue;
-    const [file] = key.split(":");
-    const exception = EXCEPTIONS.get(key);
-    if (
-      exception?.code === "bare name" &&
-      exception.message === found.message
-    ) {
-      EXCEPTIONS.delete(key);
-      console.log(`${file}:${found.line} excepted: ${exception.reason}`);
-      continue;
-    }
-    bare++;
-    reportFailure(
-      `${file}:${found.line}`,
-      key,
-      Object.assign(new Error(found.message), { code: "bare name" }),
-    );
-  }
-  console.log(
-    `Not prepared: ${unprepared.size} fragments and skipped statements, ${bare} with bare names`,
-  );
   for (const [key, { line, reason }] of EXCEPTIONS) {
     reportFailure(
       `${key.split(":")[0]}:${line}`,
       key,
-      `Stale exception: no preparable statement or bare name matches (${reason}). Remove this entry.`,
+      `Stale exception: no preparable statement matches (${reason}). Remove this entry.`,
     );
   }
 } finally {

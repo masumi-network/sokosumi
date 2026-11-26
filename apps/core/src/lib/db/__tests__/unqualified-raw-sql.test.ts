@@ -33,15 +33,12 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 // False findings: a common table expression named like a table, a statement
 // on a temporary table after its `CREATE`, and prose in a comment or string
 // that happens to read like SQL. These are why it does not fail the build.
-// A bare name in production code fails CI's job `Test Core PostgreSQL split
-// layout` instead (`scripts/prepare-raw-sql.ts`); that job is not a required
-// check, so it turns red and does not block a merge. There PostgreSQL
-// resolves every statement it can prepare, and
-// `src/test/raw-sql-bare-names.ts` reads the `Prisma.sql` fragments and the
-// literal text of the statements and commands it cannot, keywords in any
-// case. This scan stays for what that step does not read: `*RawUnsafe` text
-// built from pieces, tests, `.sql`, `.sh` and `.mjs` files, and code outside
-// its `SOURCE_PATHS`.
+// What does fail: the prepare step of CI's job `Test Core PostgreSQL split
+// layout` (`scripts/prepare-raw-sql.ts`), on a bare table or type name in a
+// complete raw SQL statement under its `SOURCE_PATHS`. SQL built from
+// fragments is not checked by it: a bare name there fails only in a test that
+// runs the statement on the split layout. That job is not a required check
+// today, so it turns red and does not block a merge.
 const KEYWORDS = "FROM|JOIN|INTO|UPDATE|USING|TABLE|TRUNCATE|ONLY|REFERENCES";
 
 /**
@@ -72,12 +69,12 @@ const EXCLUDED: Record<string, string> = {
 };
 
 /**
- * Where a finding of this scan fails the build: nowhere, it only reports.
- * Production raw SQL is checked by the prepare step instead (see above).
- * Should a group be listed here after all: Turbo replays a cached pass of
- * Core's tests when only files outside Core and its dependencies changed
- * (root `scripts/`), so "scripts" also needs those paths in the inputs of
- * Core's test task.
+ * Where a finding fails the build: nowhere yet, the check only reports.
+ * Ticket 17 lists the groups here once their SQL is converted and the false
+ * findings above are dealt with. Turbo replays a cached pass of Core's tests
+ * when only files outside Core and its dependencies changed (root
+ * `scripts/`), so "scripts" also needs those paths in the inputs of Core's
+ * test task.
  */
 const ENFORCED: readonly Group[] = [];
 

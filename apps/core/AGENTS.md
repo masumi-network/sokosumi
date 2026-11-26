@@ -388,11 +388,10 @@ Mainnet and Preprod get one schema each beside `shared`; a Network model is one 
 - Raw SQL names the schema of every table and enum type it uses: `sharedTable("task")`, `netTable(network, "Job")`, `sharedType("TaskStatus")` and `netType(network, "AgentStatus")` from `@sokosumi/database/sql-tables` ([database package rules](../../packages/database/AGENTS.md)). The clients share one pool and the tables leave `public`, so a bare name leans on the search path. New raw SQL uses the helpers.
 - `src/lib/db/prisma.ts` configures the helpers from `DATABASE_SCHEMA_*` and `NETWORK_PREPROD_ENABLED` when it loads, so they name the schemas the clients name.
 - The helpers' name arguments are typed from `packages/database/prisma/network-tables.json`, so a misspelled name, a name of the other side, or a table where an enum goes fails the caller's typecheck. A name held in a variable needs that type too (`SharedTableName`, `NetworkTableName`, `SharedEnumName`, `NetworkEnumName`).
-- CI's job `Test Core PostgreSQL split layout` fails on a bare table or type name in production raw SQL under the paths in `SOURCE_PATHS` ([`scripts/prepare-raw-sql.ts`](scripts/prepare-raw-sql.ts)). The job is not a required check today: a finding turns it red and does not block a merge. It checks in two ways:
-  - **A statement PostgreSQL can prepare** is resolved by it (`PREPARE`), so every name and type in it is checked.
-  - **A `Prisma.sql` fragment, and the literal text of a statement or command that cannot be prepared,** is read by [`src/test/raw-sql-bare-names.ts`](src/test/raw-sql-bare-names.ts): a table keyword in any case followed by one of our table names without a schema, or a cast to one of our enum types without one. Its header lists the correct SQL it fails (a common table expression or temporary table named like a table) and what it does not see (a name after a comma, `CAST(x AS "Type")`, a name in a variable, `*RawUnsafe` text built from pieces).
-  - The failure names file and line and prints the `EXCEPTIONS` entry that waives it. Fix the name with the helpers; waive only correct SQL, with a reason. An entry that matches nothing fails.
-- Test files are not read by that step. `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names in the files it scans, tests included. It is advisory: it fails nothing.
+- `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names. It is advisory: it fails nothing.
+- The prepare step of CI's job `Test Core PostgreSQL split layout` fails on a bare table or type name in a complete raw SQL statement under the paths in `SOURCE_PATHS` ([`scripts/prepare-raw-sql.ts`](scripts/prepare-raw-sql.ts)), which include `apps/core/scripts`. Add a path there when its raw SQL is qualified.
+- That step does not check SQL built from fragments. A bare name there fails only in a test that runs the statement on the split layout.
+- The job is not a required check today: a failure turns it red and does not block a merge.
 
 ### File/Blob Resources
 
