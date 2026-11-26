@@ -4,6 +4,7 @@ import type {
   ProjectImageJob,
   ProjectTalkingVideos,
 } from "@sokosumi/core-client";
+import type { VideoShape } from "@sokosumi/utils";
 import { Download, RotateCcw, Send, VideoOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useRef, useState } from "react";
@@ -13,6 +14,9 @@ import { assetContentUrl } from "@/app/projects/components/image-studio/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useInterval } from "@/hooks/effects/use-interval";
+import { cn } from "@/lib/utils";
+
+import { SHAPE_ASPECT, shapeOf } from "./video-shapes";
 
 export const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
   "PENDING",
@@ -30,12 +34,36 @@ export type TalkingVideoAsset = ProjectTalkingVideos["assets"][number];
  */
 export type Playback = "ready" | "failed" | "retrying" | undefined;
 
-/** The 9:16 frame every state of a video is shown in. */
-function Frame({ image, children }: { image?: string; children?: ReactNode }) {
+/** The frame every state of a video is shown in, in the video's shape. */
+function Frame({
+  image,
+  shape = "9:16",
+  children,
+}: {
+  image?: string;
+  shape?: VideoShape;
+  children?: ReactNode;
+}) {
   return (
-    <div className="bg-background relative aspect-9/16 w-full overflow-hidden rounded-lg border">
+    <div
+      className={cn(
+        "bg-background relative w-full overflow-hidden rounded-lg border",
+        SHAPE_ASPECT[shape],
+      )}
+    >
       {image ? (
-        <img alt="" className="size-full object-cover" src={image} />
+        <img
+          alt=""
+          className={cn(
+            "size-full",
+            // As the edit does it: a widescreen video shows the upright
+            // picture whole, the other shapes crop it from near its top.
+            shape === "16:9"
+              ? "bg-media-ground object-contain"
+              : "object-cover object-top",
+          )}
+          src={image}
+        />
       ) : null}
       {children}
     </div>
@@ -52,8 +80,10 @@ export function StagePreview({
   missingPhoto,
   hookLine,
   captions = true,
+  shape = "9:16",
 }: {
   image?: string;
+  shape?: VideoShape;
   script: string;
   missingPhoto: boolean;
   /** The words on screen over the first seconds. */
@@ -63,7 +93,7 @@ export function StagePreview({
 }) {
   const t = useTranslations("App.TikTokStudio");
   return (
-    <Frame image={image}>
+    <Frame image={image} shape={shape}>
       <span className="bg-popover absolute start-2 top-2 rounded-md border px-2 py-0.5 text-xs font-medium">
         {t("preview")}
       </span>
@@ -77,8 +107,15 @@ export function StagePreview({
           {t("previewNoPhoto")}
         </p>
       ) : !captions ? null : (
-        <p className="bg-scrim text-on-media absolute inset-x-4 bottom-1/3 rounded-md px-3 py-2 text-center text-sm font-semibold">
-          <span className="line-clamp-3">
+        <p
+          className={cn(
+            "bg-scrim text-on-media absolute inset-x-4 rounded-md px-3 py-2 text-center text-sm font-semibold",
+            // Where the video's captions sit: above a vertical feed's own
+            // caption, near the bottom of every other shape.
+            shape === "9:16" ? "bottom-1/3" : "bottom-1/8",
+          )}
+        >
+          <span className={shape === "16:9" ? "line-clamp-2" : "line-clamp-3"}>
             {script || t("captionPlaceholder")}
           </span>
         </p>
@@ -166,7 +203,7 @@ function FinishedVideo({
         tabIndex={-1}
       >
         {playback === "failed" ? (
-          <Frame>
+          <Frame shape={shapeOf(job)}>
             <div
               className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center"
               role="alert"
@@ -191,7 +228,12 @@ function FinishedVideo({
             </div>
           </Frame>
         ) : (
-          <div className="bg-media-ground aspect-9/16 w-full overflow-hidden rounded-lg">
+          <div
+            className={cn(
+              "bg-media-ground w-full overflow-hidden rounded-lg",
+              SHAPE_ASPECT[shapeOf(job)],
+            )}
+          >
             <video
               aria-label={job.prompt}
               className="content-in size-full object-cover"
@@ -296,7 +338,7 @@ export function StageJob({
 
   if (ACTIVE_STATUSES.has(job.status)) {
     return (
-      <Frame image={image}>
+      <Frame image={image} shape={shapeOf(job)}>
         <div className="bg-scrim text-on-media absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center">
           <span className="text-sm font-medium" role="status">
             {job.status === "RUNNING" ? t("making") : t("starting")}
@@ -312,7 +354,7 @@ export function StageJob({
   }
 
   return (
-    <Frame>
+    <Frame shape={shapeOf(job)}>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center">
         <span className="text-sm font-medium">{t("failed")}</span>
         <span className="text-muted-foreground text-xs">{t("failedBody")}</span>

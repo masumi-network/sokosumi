@@ -4711,7 +4711,27 @@
       "slideshowIncludes": "Music and your logo at the end are included.",
       "costDetailShort": "charged only when the video is ready, in about a minute",
       "previewMetaSlideshow": "No voice: music and your lines on screen",
-      "aiLabelHintShort": "This video has a generated voice or music. It is labeled as AI-generated when it is published."
+      "aiLabelHintShort": "This video has a generated voice or music. It is labeled as AI-generated when it is published.",
+      "shapes": {
+        "label": "Shapes",
+        "hint": "You pay for the first shape. Every other shape is cut from the same video, free.",
+        "notForKind": "A website tour is hard to read in a square.",
+        "previewIn": "Preview in",
+        "onStage": "Shapes of this video",
+        "making": "(being cut)",
+        "names": {
+          "9:16": "Vertical",
+          "4:5": "Feed",
+          "1:1": "Square",
+          "16:9": "Widescreen"
+        },
+        "where": {
+          "9:16": "TikTok, Instagram, YouTube",
+          "4:5": "Instagram and Facebook feed",
+          "1:1": "X, LinkedIn, Facebook",
+          "16:9": "YouTube, LinkedIn, X"
+        }
+      }
     },
     "Studio": {
       "back": "Back to project",

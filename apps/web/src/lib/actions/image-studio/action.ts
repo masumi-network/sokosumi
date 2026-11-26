@@ -255,6 +255,7 @@ interface StartTalkingVideoParameters
       | "siteShots"
       | "broll"
       | "music"
+      | "shapes"
       | "idempotencyKey"
     > {
   projectId: string;
@@ -280,6 +281,7 @@ export const startTalkingVideo = withSession<
         siteShots: input.siteShots,
         broll: input.broll,
         music: input.music,
+        ...(input.shapes ? { shapes: input.shapes } : {}),
         idempotencyKey: input.idempotencyKey,
       },
     );
@@ -306,6 +308,7 @@ interface StartShortVideoParameters
       | "hookLine"
       | "languageCode"
       | "pictureAssetIds"
+      | "shapes"
       | "idempotencyKey"
     > {
   projectId: string;
@@ -326,6 +329,7 @@ export const startShortVideo = withSession<
       languageCode: input.languageCode,
       pictureAssetIds: input.pictureAssetIds,
       pictureFileIds: [],
+      ...(input.shapes ? { shapes: input.shapes } : {}),
       idempotencyKey: input.idempotencyKey,
     });
     return { ok: true, job };
