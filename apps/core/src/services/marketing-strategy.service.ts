@@ -21,6 +21,7 @@ import {
   CMO_SHORT_VIDEO_FORMATS,
   cmoShapedVideoTarget,
   cmoShortVideoFormat,
+  isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
   SOCIAL_POST_TEXT_LIMITS,
@@ -696,6 +697,8 @@ export async function planMarketingStrategyPosts(
         // own caption and plan only.
         ...(stored?.videoOf && !copies.has(entry)
           ? {
+              // Core chose the copy's format (its network's shape).
+              format: stored.format,
               // A short video's copy is the same file: its picture plan too.
               visual: stored.visual,
               visualFileIds: stored.visualFileIds,
@@ -707,6 +710,7 @@ export async function planMarketingStrategyPosts(
               languageCode: stored.languageCode,
               alsoOn: undefined,
               videoOf: stored.videoOf,
+              videoOfTalking: stored.videoOfTalking,
             }
           : {}),
       }),
@@ -733,6 +737,9 @@ export async function planMarketingStrategyPosts(
           format: target.format,
           alsoOn: undefined,
           videoOf: planning.id,
+          videoOfTalking: isCmoShapedVideoFormat(target.channel, target.format)
+            ? isCmoTalkingFormat(provider, planning.format ?? entry.format)
+            : undefined,
           draft: undefined,
           socialPostId: undefined,
         };

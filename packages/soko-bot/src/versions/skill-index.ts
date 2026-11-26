@@ -48,6 +48,10 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "writing or changing the marketing strategy or its calendar, or answering why the plan is what it is: pillars, channels, funnel, goals, weeks, pieces.",
     preloadOn: ["strategy"],
   },
+  "cmo-video-shapes": {
+    useWhen:
+      "planning where a talking video or short goes out, or an owner asking for a video on X, in the Instagram or Facebook feed, as a YouTube video or wide on LinkedIn.",
+  },
   "cmo-production-picked": {
     useWhen:
       "making the month's pieces after approval and payment, fixing a piece Core handed back, or writing an ad, article or newsletter issue.",

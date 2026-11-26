@@ -196,6 +196,14 @@ const ACTIVE_STATUSES: ProjectImageJobStatus[] = [
 /** The idempotency key of a shape cut from another job: `video-shape:<source>:<shape>`. */
 const VIDEO_SHAPE_KEY_PREFIX = "video-shape";
 
+/**
+ * Jobs that take a slot: every one but another shape of a delivered video,
+ * which costs nothing and asks no provider.
+ */
+export const NOT_A_VIDEO_SHAPE_JOB = {
+  NOT: { idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` } },
+} satisfies Prisma.ProjectImageJobWhereInput;
+
 const SPEND_WINDOW_MS = 60 * 60 * 1000;
 /** The start of every job key a Cuso's month makes (`cmo-media-maker`). */
 export const CMO_MONTH_JOB_KEY_PREFIX = "cmo-media";
@@ -562,7 +570,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       where: {
         projectId: input.projectId,
         status: { in: ACTIVE_STATUSES },
-        NOT: { idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` } },
+        ...NOT_A_VIDEO_SHAPE_JOB,
       },
     });
     const atOnce = input.forCmoMonth
@@ -3706,7 +3714,8 @@ function videoShapeJobRows(
  * Asks for one more shape of a delivered video, cut from its parts at no
  * cost, as a job of its own (`video-shape:<source>:<shape>`). False when the
  * video cannot be cut again: not delivered, delivered without Core's edit
- * (its words were never timed), or itself a shape of another video.
+ * (its words were never timed), itself a shape of another video, or already
+ * in that shape (then the video itself is the cut).
  */
 export async function requestVideoShape(
   sourceJobId: string,
@@ -3738,13 +3747,16 @@ export async function requestVideoShape(
   )
     return false;
   const talking = readTalkingVideoSettings(job.settings);
-  if (talking.sourceJobId || (!talking.format && talking.words.length === 0))
+  if (
+    talking.sourceJobId ||
+    talking.shape === shape ||
+    (!talking.format && talking.words.length === 0)
+  )
     return false;
-  if (talking.shape !== shape)
-    await prisma.projectImageJob.createMany({
-      data: videoShapeJobRows(job, talking, [shape]),
-      skipDuplicates: true,
-    });
+  await prisma.projectImageJob.createMany({
+    data: videoShapeJobRows(job, talking, [shape]),
+    skipDuplicates: true,
+  });
   return true;
 }
 
@@ -3776,8 +3788,10 @@ async function settleVideoShapeJob(job: {
     if (
       !source ||
       !(LIVE_STATUSES as readonly string[]).includes(source.status)
-    )
+    ) {
       await markImageJobFailed(job.id, "unknown");
+      nudgeCmoMonth(job.id);
+    }
     return;
   }
   const result = await fetchQueueResult({
@@ -3795,6 +3809,8 @@ async function settleVideoShapeJob(job: {
     if (source.pendingMediaUrl)
       await storeMedia(job.id, source.pendingMediaUrl);
     else await markImageJobFailed(job.id, "provider_error", result.message);
+    // Either way the month moves on: with this cut, or with the source.
+    nudgeCmoMonth(job.id);
     return;
   }
   await storeMedia(

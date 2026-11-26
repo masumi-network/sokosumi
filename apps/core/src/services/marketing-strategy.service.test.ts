@@ -285,17 +285,23 @@ describe("a video in other shapes", () => {
     alsoOn: ["tiktok", "instagram_feed", "x", "linkedin_wide"],
   };
 
-  async function plan(versionId: string, existing: unknown[] = []) {
+  async function plan(
+    versionId: string,
+    existing: unknown[] = [],
+    entries: unknown[] = [entry],
+  ) {
     const created: Record<string, unknown>[] = [];
     const canceled: string[] = [];
+    const updated: Record<string, unknown>[] = [];
     const tx = {
       socialPost: {
         findMany: async () => existing,
         update: async (input: {
           where: { id: string };
-          data: { status?: string };
+          data: { status?: string; planning?: Record<string, unknown> };
         }) => {
           if (input.data.status === "CANCELED") canceled.push(input.where.id);
+          else if (input.data.planning) updated.push(input.data.planning);
         },
         createMany: async ({ data }: { data: Record<string, unknown>[] }) => {
           created.push(...data);
@@ -309,7 +315,7 @@ describe("a video in other shapes", () => {
       version: { id: "version-1", projectId: "project-1" },
       workspaceId: "workspace-1",
       creator: { userId: "user-1" },
-      entries: [entry as never],
+      entries: entries as never[],
     });
     return {
       created: created.map((post) => ({
@@ -318,9 +324,58 @@ describe("a video in other shapes", () => {
         id: (post.planning as { id: string }).id,
         videoOf: (post.planning as { videoOf?: string }).videoOf,
       })),
+      talking: created.map(
+        (post) =>
+          (post.planning as { videoOfTalking?: boolean }).videoOfTalking,
+      ),
       canceled,
+      updated,
     };
   }
+
+  it("marks each shape's post with its video's kind: a short's is no talking video", async () => {
+    const { talking } = await plan("flagged");
+    // v1, v1@tiktok (same shape), then the three shaped copies.
+    expect(talking).toEqual([undefined, undefined, false, false, false]);
+  });
+
+  it("keeps a shape's format when the month writes its post", async () => {
+    const copy = {
+      id: "post-feed",
+      status: "DRAFT",
+      provider: "instagram",
+      media: [],
+      planning: {
+        id: "v1@instagram_feed",
+        title: "Roasted this morning",
+        format: "feed_video",
+        videoOf: "v1",
+        videoOfTalking: false,
+      },
+    };
+    const { updated } = await plan(
+      "flagged",
+      [copy],
+      [
+        {
+          id: "v1@instagram_feed",
+          date: "2026-11-30",
+          channel: "instagram",
+          // What a save that mapped the format away would send.
+          format: "reel",
+          title: "Roasted this morning",
+          status: "draft",
+          draft: "Fresh beans, this morning.",
+        },
+      ],
+    );
+    expect(updated[0]).toMatchObject({
+      id: "v1@instagram_feed",
+      format: "feed_video",
+      videoOf: "v1",
+      videoOfTalking: false,
+    });
+  });
 
   it("is posted on each target as its own post, for a version that opts in", async () => {
     const { created } = await plan("flagged");

@@ -16,7 +16,11 @@ import {
   marketingStrategyPlanSchema,
   networkAudiences,
 } from "@sokosumi/soko-bot";
-import { isCmoChannelFormat, isCmoTalkingFormat } from "@sokosumi/utils";
+import {
+  isCmoChannelFormat,
+  isCmoShortVideoFormat,
+  isCmoTalkingFormat,
+} from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
@@ -1941,9 +1945,11 @@ export function patchPlan(
       const next = byId.get(entry.id);
       if (!next) return entry;
       const merged = { ...entry, ...next };
-      // A patch that makes a talking video another format leaves its other
-      // networks out: they belong to the talking video alone.
-      return merged.alsoOn && !isCmoTalkingFormat(merged.channel, merged.format)
+      // A patch that makes a video another format leaves its other networks
+      // out: they belong to a talking video or a short alone.
+      return merged.alsoOn &&
+        !isCmoTalkingFormat(merged.channel, merged.format) &&
+        !isCmoShortVideoFormat(merged.channel, merged.format)
         ? { ...merged, alsoOn: undefined }
         : merged;
     }),

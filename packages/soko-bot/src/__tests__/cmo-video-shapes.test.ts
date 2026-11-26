@@ -1,6 +1,6 @@
 import { CMO_SHAPED_VIDEO_TARGETS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
+import { cmoSaveStrategyInputSchema } from "../cmo.js";
 import {
   CMO_VIDEO_SHAPES_SKILL,
   cmoPostsVideoShapes,
@@ -9,6 +9,7 @@ import {
   CMO_SOKO_BOT_VERSION_IDS,
   getSokoBotVersion,
 } from "../versions/index.js";
+import { SKILL_INDEX } from "../versions/skill-index.js";
 import { getSokoBotSkill } from "../versions/skills.js";
 
 const COPY_ONLY =
@@ -22,6 +23,65 @@ describe("cmo-video-shapes", () => {
     }
     expect(cmoPostsVideoShapes([CMO_VIDEO_SHAPES_SKILL])).toBe(true);
     expect(cmoPostsVideoShapes([])).toBe(false);
+  });
+
+  it("is in the skill index, so an on-demand version lists it by its use", () => {
+    expect(SKILL_INDEX[CMO_VIDEO_SHAPES_SKILL]?.useWhen).toMatch(/video/);
+  });
+
+  it("keeps the shape of a video's other posts when the month writes them", () => {
+    const pieces = (channel: string, format: string, id = `v1@${channel}`) =>
+      cmoSaveStrategyInputSchema.safeParse({
+        part: "pieces",
+        strategy: {
+          calendar: [
+            {
+              id,
+              date: "2026-10-05",
+              channel,
+              title: "One",
+              format,
+              status: "draft",
+            },
+          ],
+        },
+      });
+    for (const [channel, format] of [
+      ["x", "video"],
+      ["instagram", "feed_video"],
+      ["facebook", "feed_video"],
+      ["youtube", "video"],
+      ["linkedin", "wide_video"],
+    ] as const) {
+      const saved = pieces(channel, format);
+      expect(saved.error?.issues, `${channel}/${format}`).toBeUndefined();
+      expect(saved.data?.strategy.calendar?.[0]).toMatchObject({
+        channel,
+        format,
+      });
+    }
+    // A plan's own entry is still mapped: "a YouTube video" is a Short.
+    expect(
+      pieces("youtube", "video", "v2").data?.strategy.calendar?.[0]?.format,
+    ).toBe("short");
+    // Only the month's pieces write a copy; a plan save leaves it to alsoOn.
+    const plan = cmoSaveStrategyInputSchema.safeParse({
+      part: "patch",
+      strategy: {
+        calendar: [
+          {
+            id: "v1@x",
+            date: "2026-10-05",
+            channel: "x",
+            title: "One",
+            format: "video",
+            status: "draft",
+          },
+        ],
+      },
+    });
+    expect(plan.success).toBe(false);
+    expect(plan.error?.issues[0]?.message).toContain("alsoOn");
   });
 
   it("changes no version that does not list it: none sees the copy-only formats", () => {

@@ -19,6 +19,7 @@ import {
   type CmoNetworkRate,
   cmoJargonIn,
   cmoNetworkMonth,
+  cmoShapedVideoTarget,
   cmoShortVideoFormat,
   isCmoShortVideoFormat,
 } from "@sokosumi/utils";
@@ -1480,16 +1481,20 @@ export const CMO_WEEKLY_EXTRA_REVIEWS = 4;
 /**
  * Whether a piece goes out on a network: its own, or one its talking video
  * is also shown on. Counted there too, so a network that takes only video
- * (YouTube) meets its cadence through the month's shared videos.
+ * (YouTube) meets its cadence through the month's shared videos. A shaped
+ * target (`instagram_feed`) goes out on its network (Instagram).
  */
-function goesOutOn(
+export function goesOutOn(
   entry: MarketingStrategyPlan["calendar"][number],
   channel: string,
 ): boolean {
   const key = channel.toLowerCase();
   return (
     entry.channel.toLowerCase() === key ||
-    (entry.alsoOn ?? []).some((network) => network.toLowerCase() === key)
+    (entry.alsoOn ?? []).some((name) => {
+      const network = name.toLowerCase();
+      return (cmoShapedVideoTarget(network)?.channel ?? network) === key;
+    })
   );
 }
 

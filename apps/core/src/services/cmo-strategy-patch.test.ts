@@ -48,4 +48,27 @@ describe("a patch that turns a talking video into another format", () => {
     );
     expect(patched.calendar[0]?.alsoOn).toEqual(video.alsoOn);
   });
+
+  it("keeps a short's other networks when the patch changes its words", () => {
+    const short = {
+      id: "w1-04",
+      date: "2026-11-22",
+      channel: "tiktok",
+      title: "Wool in the rain",
+      format: "video",
+      status: "idea",
+      alsoOn: ["instagram", "youtube", "x"],
+    };
+    const withShort = marketingStrategyPlanSchema.parse({
+      ...plan,
+      calendar: [short],
+    });
+    const { alsoOn: _kept, ...sent } = { ...short, title: "Wool, wet" };
+    const patched = patchPlan(
+      withShort,
+      { calendar: [sent] } as unknown as Parameters<typeof patchPlan>[1],
+      [],
+    );
+    expect(patched.calendar[0]?.alsoOn).toEqual(short.alsoOn);
+  });
 });

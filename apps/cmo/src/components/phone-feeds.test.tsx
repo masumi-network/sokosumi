@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
 import { cmoOverview } from "../test-fixtures/cmo";
-import { PhoneFeeds } from "./phone-feeds";
+import { feedScreens, PhoneFeeds } from "./phone-feeds";
 
 const piece = (id: string, patch: object = {}) => ({
   id,
@@ -88,6 +88,27 @@ it("shows every network a month goes out on, a talking video on each of its netw
   expect(html).toContain("<figcaption>YouTube Shorts");
   expect(html).toContain("<figcaption>TikToks");
   expect(html).not.toContain('class="num"');
+});
+
+it("shows a video's other shapes on their own networks before approval", () => {
+  const screens = feedScreens([
+    piece("sv", {
+      channel: "tiktok",
+      format: "video",
+      alsoOn: ["instagram_feed", "youtube_video"],
+    }),
+  ]);
+  expect(
+    screens.flatMap((screen) =>
+      screen.entries.map((entry) => `${entry.channel}/${entry.format}`),
+    ),
+  ).toEqual(
+    expect.arrayContaining([
+      "tiktok/video",
+      "instagram/feed_video",
+      "youtube/video",
+    ]),
+  );
 });
 
 it("shows one short video on TikTok, Reels and Shorts, each named in its own words", () => {

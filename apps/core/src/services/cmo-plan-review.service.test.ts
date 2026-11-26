@@ -46,9 +46,27 @@ import {
   cmoWeekGaps,
   cmoWithOwnerPace,
   funnelStageProblems,
+  goesOutOn,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
+
+describe("goesOutOn", () => {
+  it("counts a video's other shapes on their networks", () => {
+    const entry = {
+      id: "v1",
+      date: "2026-11-30",
+      channel: "tiktok",
+      format: "video",
+      title: "Roasted this morning",
+      status: "idea",
+      alsoOn: ["instagram_feed", "youtube_video", "x"],
+    } as MarketingStrategyPlan["calendar"][number];
+    for (const network of ["tiktok", "instagram", "youtube", "x"])
+      expect(goesOutOn(entry, network), network).toBe(true);
+    expect(goesOutOn(entry, "linkedin")).toBe(false);
+  });
+});
 
 /**
  * Texts naming one topic say one thing; every other text gets a direction

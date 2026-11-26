@@ -100,6 +100,9 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   createVideoJob,
   createTalkingVideoJob,
   requestVideoShape,
+  NOT_A_VIDEO_SHAPE_JOB: {
+    NOT: { idempotencyKey: { startsWith: "video-shape:" } },
+  },
   videoShapeJobKey: (sourceJobId: string, shape: string) =>
     `video-shape:${sourceJobId}:${shape}`,
   downloadStudioFileReference: async () => ({
@@ -192,6 +195,7 @@ import {
   cmoPickModel,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
+  cmoPieceIsTalking,
   cmoPieceSlides,
   cmoShortPictures,
   cmoShotForPiece,
@@ -1342,6 +1346,7 @@ describe("advanceCmoMedia", () => {
         channel: "x",
         format: "video",
         videoOf: "reel",
+        videoOfTalking: true,
       };
 
       beforeEach(() => {
@@ -1425,7 +1430,38 @@ describe("advanceCmoMedia", () => {
           "asset-vertical",
         );
       });
+
+      it("posts the video itself when Core says it needs no cut", async () => {
+        jobs.findUnique.mockResolvedValue(null);
+        requestVideoShape.mockResolvedValueOnce(false);
+
+        await advanceCmoMedia(context, [linkedin]);
+
+        expect(ensureDriveFile.mock.calls[0]?.[0].assetId).toBe(
+          "asset-vertical",
+        );
+      });
+
+      it("leaves free shape cuts out of the month's job slots", async () => {
+        jobs.findUnique.mockResolvedValue(null);
+
+        await advanceCmoMedia(context, [linkedin]);
+
+        expect(jobCount).toHaveBeenCalledWith({
+          where: expect.objectContaining({
+            NOT: { idempotencyKey: { startsWith: "video-shape:" } },
+          }),
+        });
+      });
     });
+  });
+
+  it("takes a video's other shapes for its source's kind, not its own format", () => {
+    const xVideo = { channel: "x", format: "video" };
+    expect(cmoPieceIsTalking({ ...xVideo, videoOfTalking: true })).toBe(true);
+    // A short's or an animated picture's copy, also before shortFormat is set.
+    expect(cmoPieceIsTalking({ ...xVideo, videoOfTalking: false })).toBe(false);
+    expect(cmoPieceIsTalking(xVideo)).toBe(false);
   });
 
   it("puts a TikTok's one video on its Reel and Short, starting nothing of their own", async () => {

@@ -80,6 +80,7 @@ import {
   createVideoJob,
   DEFAULT_SETTINGS,
   downloadStudioFileReference,
+  NOT_A_VIDEO_SHAPE_JOB,
   requestVideoShape,
   videoShapeJobKey,
 } from "@/services/image-studio-jobs.service";
@@ -262,15 +263,16 @@ export function cmoPieceIsVideo(
 
 /**
  * Whether the piece is a talking video Core makes from its script. A copy
- * in another shape (cmo-video-shapes) is its source's kind: a short's copy
- * carries the short's format, a talking video's none.
+ * in another shape (cmo-video-shapes) is its source's kind, which Core
+ * wrote on it (`videoOfTalking`).
  */
 export function cmoPieceIsTalking(
-  entry: Pick<CmoCalendarEntry, "channel" | "format" | "shortFormat">,
+  entry: Pick<CmoCalendarEntry, "channel" | "format" | "videoOfTalking">,
 ): boolean {
   return (
     isCmoTalkingFormat(entry.channel, entry.format) ||
-    (isCmoShapedVideoFormat(entry.channel, entry.format) && !entry.shortFormat)
+    (isCmoShapedVideoFormat(entry.channel, entry.format) &&
+      entry.videoOfTalking === true)
   );
 }
 
@@ -1533,7 +1535,7 @@ export async function advanceCmoMedia(
       ? LIMITS.CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT
       : LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT) -
     (await prisma.projectImageJob.count({
-      where: { projectId, status: { in: [...LIVE] } },
+      where: { projectId, status: { in: [...LIVE] }, ...NOT_A_VIDEO_SHAPE_JOB },
     }));
   let brandPictures: CmoBrandPicture[] | null = null;
   let styleBrand: StyleBrand | null = null;
