@@ -199,6 +199,20 @@ it("keeps for the research panel the measurements that the speed table does not 
   expect(seoSpeedOutsideTable(audit, table)).toEqual(audit.slice(1));
   expect(seoSpeedOutsideTable(audit, null)).toEqual(audit);
   expect(seoSpeedOutsideTable(undefined, table)).toBeUndefined();
+  // The table shows the page's own read; the audit read went through a redirect and tested another URL.
+  const redirected = seoTestSpeedDevice({
+    pageUrl: "https://example.com/a",
+    testedUrl: "https://example.com/b",
+    device: "mobile",
+  });
+  const own = seoTestSpeedDevice({
+    pageUrl: "https://example.com/a",
+    testedUrl: "https://example.com/a",
+    device: "mobile",
+  });
+  expect(
+    seoSpeedOutsideTable([redirected], { rows: [{ devices: [own] }] }),
+  ).toEqual([redirected]);
 });
 
 it("calls a small change steady and a slower INP worse", () => {

@@ -298,13 +298,15 @@ export function seoVitalTrend(
 
 /**
  * The measurements of an audit that the site speed table does not show. The table shows a page and device
- * once; a measured page that is not in the table keeps its place in the research panel.
+ * once; a measured page that is not in the table keeps its place in the research panel. A read of the same page
+ * and device with another tested URL (a redirect) is another measurement: it stays too.
  */
 export function seoSpeedOutsideTable(
   rows: SeoSpeedDevice[] | undefined,
   table: { rows: { devices: SeoSpeedDevice[] }[] } | null | undefined,
 ) {
-  const key = (row: SeoSpeedDevice) => `${row.device} ${row.pageUrl}`;
+  const key = (row: SeoSpeedDevice) =>
+    `${row.device} ${row.pageUrl} ${row.testedUrl}`;
   const shown = new Set(table?.rows.flatMap(({ devices }) => devices.map(key)));
   return rows?.filter((row) => !shown.has(key(row)));
 }
