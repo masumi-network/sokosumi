@@ -85,6 +85,7 @@ src/services/chat-signals.postgres.test.ts 19  # trigger body
 src/services/cmo-free-hiring.postgres.test.ts 19  # trigger body
 src/services/cmo-month-calendar.postgres.test.ts 30  # the shared client writes Organization, Workspace and reads Soko Bot
 src/services/cmo-seo.postgres.test.ts 19  # trigger body
+src/services/cmo-spend.postgres.test.ts 19  # trigger body
 src/services/cmo-test-copy.postgres.test.ts 19  # trigger body
 src/services/cmo-tester-credits.postgres.test.ts 17  # unqualified raw SQL; its own client names public
 src/services/competitor-check-project.postgres.test.ts 19  # trigger body
