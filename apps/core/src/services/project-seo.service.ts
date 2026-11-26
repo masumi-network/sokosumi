@@ -35,8 +35,11 @@ import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.s
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
-import { loadSeoRankSources } from "./project-seo-rank-sources";
-import { withSeoRankings } from "./project-seo-rankings";
+import {
+  loadSeoRankPoints,
+  loadSeoRankSources,
+} from "./project-seo-rank-sources";
+import { seoRankKeys, withSeoRankings } from "./project-seo-rankings";
 import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
   canConfirmSeoCompetitor,
@@ -723,8 +726,8 @@ export async function getProjectSeoWorkspace(
   };
   const ranked = withSeoRankings(
     monitored,
-    rankSources.rows,
-    rankSources.limited,
+    rankSources,
+    await loadSeoRankPoints(actor, seoRankKeys(monitored), query),
   );
   return brandTerms ? { ...ranked, brandTerms } : ranked;
 }
