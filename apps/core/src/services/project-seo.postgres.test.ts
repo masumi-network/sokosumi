@@ -3455,7 +3455,7 @@ describe.skipIf(!enabled)(
       expect(week?.others).toBeGreaterThan(0);
     });
 
-    it("shows an audit's Search Console snapshot to a colleague for a public Task only, and offers the retry to the requester only", async () => {
+    it("shows an audit's Search Console snapshot, property-wide data included, to a colleague for a public Task only, and offers the retry to the requester only", async () => {
       const organizationId = randomUUID();
       const sharedWorkspaceId = randomUUID();
       const sharedProjectId = randomUUID();
@@ -3559,6 +3559,12 @@ describe.skipIf(!enabled)(
                 ...metrics([page.url]),
                 provider: "search_console",
                 propertyId: "sc-domain:example.test",
+                auditPropertyTotals: {
+                  clicks: 900,
+                  impressions: 9000,
+                  ctr: 0.1,
+                  averagePosition: 7,
+                },
                 auditMeasuredPages: [
                   {
                     pageUrl: page.url,
@@ -3581,15 +3587,37 @@ describe.skipIf(!enabled)(
               ?.map((row) => row.taskId)
               .sort(),
             retry: workspace.auditSearchConsoleRetryTaskIds?.toSorted(),
+            propertyClicks: workspace.auditSearchConsole?.map(
+              (row) => row.propertyTotals?.clicks,
+            ),
           };
         };
         expect(await read(userId)).toEqual({
           snapshots: [audits.PUBLIC, audits.PRIVATE].sort(),
           retry: [audits.PUBLIC, audits.PRIVATE].sort(),
+          propertyClicks: [900, 900],
         });
+        // Property-wide data is shared with the audit Task; the retry stays with the requester.
         expect(await read(otherId)).toEqual({
           snapshots: [audits.PUBLIC],
           retry: [],
+          propertyClicks: [900],
+        });
+        // An archived audit Task leaves the workspace, so its snapshot leaves with it.
+        await prisma.task.update({
+          where: { id: audits.PUBLIC },
+          data: { archivedAt: now },
+        });
+        expect(await read(otherId)).toEqual({
+          snapshots: [],
+          retry: [],
+          propertyClicks: [],
+        });
+        // The retry candidates leave out the archived audit too.
+        expect(await read(userId)).toEqual({
+          snapshots: [audits.PRIVATE],
+          retry: [audits.PRIVATE],
+          propertyClicks: [900],
         });
       } finally {
         await prisma.task.deleteMany({
