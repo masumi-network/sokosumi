@@ -63,7 +63,7 @@ export function useSeoReportFiles(
   );
   const canLoadProperty = Boolean(
     userId &&
-      evidence &&
+      evidence?.requester &&
       !evidence.propertyDataExpired &&
       needsPropertyEvidence(evidence),
   );

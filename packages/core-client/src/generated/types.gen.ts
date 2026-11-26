@@ -12752,6 +12752,7 @@ export type ProjectSeoWorkspace = {
             from: Date;
             to: Date;
         } | null;
+        requester?: true;
         propertyDataExpired?: true;
         propertyTotals?: {
             clicks: number | null;

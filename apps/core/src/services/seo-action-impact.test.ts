@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GSC_STATS_TOOL } from "@/lib/seo/native-statistics";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
@@ -16,6 +16,8 @@ const boundary = vi.hoisted(() => ({
   findFirst: vi.fn(),
   findMany: vi.fn(),
   upsert: vi.fn(),
+  pages: vi.fn(),
+  latest: vi.fn(),
   integration: vi.fn(),
   read: vi.fn(),
 }));
@@ -26,11 +28,17 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: boundary.findFirst,
       findMany: boundary.findMany,
     },
+    projectSeoPage: { findMany: boundary.pages },
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: (run: (tx: unknown) => unknown) =>
-    run({ projectSeoObservation: { upsert: boundary.upsert } }),
+    run({
+      projectSeoObservation: {
+        upsert: boundary.upsert,
+        findFirst: boundary.latest,
+      },
+    }),
 }));
 vi.mock("./seo-connections.service", async (original) => ({
   ...(await original<typeof import("./seo-connections.service")>()),
@@ -70,7 +78,11 @@ function days(from: string, to: string, clicks: number, impressions: number) {
   return rows;
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  boundary.pages.mockResolvedValue([{ id: "page-a" }]);
+});
+afterEach(() => vi.useRealTimers());
 
 describe("withSeoActionImpact", () => {
   const visible = new Set(["audit-task"]);
@@ -118,7 +130,62 @@ describe("withSeoActionImpact", () => {
       projectId: null,
       kind: AUDIT_PAGE_SERIES_KIND,
       sourceTaskId: { in: ["audit-task"] },
+      pageIds: { hasSome: ["page-a"] },
     });
+    // Only audits of a done action's page count toward the limit of audits read.
+    expect(boundary.pages.mock.calls[0][0].where).toEqual({
+      auditId: "audit",
+      projectId: null,
+      url: { in: [pageA, "https://example.test/c"] },
+    });
+  });
+
+  it("finds the rows of an action reported with a fragment on its page address", async () => {
+    boundary.findMany.mockResolvedValue([{ payload: series }]);
+    const [a] = await withSeoActionImpact(
+      actor,
+      [action(`${pageA}#title`)],
+      visible,
+      undefined,
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    expect(a.impact).toMatchObject({ state: "measured" });
+  });
+
+  it("does not join the rows of two addresses Google measured for one page", async () => {
+    // The newer audit measured the www address from 2026-06-01 only. The older one measured the bare address.
+    const moved: AuditPageSeries = {
+      ...series,
+      from: "2026-06-01",
+      pages: [
+        {
+          pageUrl: pageA,
+          measuredUrl: "https://www.example.test/a",
+          days: days("2026-06-01", "2026-07-18", 9, 90),
+        },
+      ],
+    };
+    boundary.findMany.mockResolvedValue([
+      { payload: moved },
+      { payload: series },
+    ]);
+    const [a] = await withSeoActionImpact(
+      actor,
+      [action(pageA)],
+      visible,
+      undefined,
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    // Joined, the before-window would count the bare address and the after-window the www address.
+    expect(a.impact).toMatchObject({ state: "not_measured", before: null });
+  });
+
+  it("narrows the rows to one person's own when the caller names that person", async () => {
+    boundary.findMany.mockResolvedValue([]);
+    await withSeoActionImpact(actor, [action(pageA)], visible, {
+      ownerId: "ada",
+    });
+    expect(boundary.findMany.mock.calls[0][0].where.ownerId).toBe("ada");
   });
 
   it("reads the rows by the audit Tasks the reader may see, not by who requested the audit", async () => {
@@ -210,6 +277,8 @@ describe("collectSeoAuditPageSeries", () => {
       "warn",
       "Could not read every audit page's daily Search Console rows",
     );
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-06T00:00:00Z"));
     measured();
     boundary.integration.mockResolvedValue(account);
     boundary.read.mockImplementation(async (_account, _slug, logical) => {
@@ -275,6 +344,43 @@ describe("collectSeoAuditPageSeries", () => {
           { date: "2026-06-03", clicks: 0, impressions: 0, position: null },
         ],
       },
+    ]);
+  });
+
+  it("keeps a page another collection stored meanwhile and asks for no day Google no longer keeps", async () => {
+    expectCoreLog(
+      "warn",
+      "Could not read every audit page's daily Search Console rows",
+    );
+    // A retry 176 days after the period: 400 days back is past Google's 480 days.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-26T00:00:00Z"));
+    measured();
+    boundary.integration.mockResolvedValue(account);
+    boundary.read.mockImplementation(async (_account, _slug, logical) => {
+      if (JSON.stringify(logical).includes(pageB)) throw new Error("quota");
+      return { rows: [] };
+    });
+    const other = { pageUrl: pageB, measuredUrl: pageB, days: [] };
+    boundary.latest.mockResolvedValue({
+      payload: {
+        propertyId: binding.access.propertyId,
+        from: "2025-08-04",
+        to: "2026-06-03",
+        pages: [other],
+      },
+    });
+
+    await collectSeoAuditPageSeries("task", binding, authorize);
+
+    expect(boundary.read.mock.calls[0][2]).toMatchObject({
+      start_date: "2025-08-04",
+    });
+    const { payload } = boundary.upsert.mock.calls[0][0].update;
+    expect(payload.from).toBe("2025-08-04");
+    expect(payload.pages).toEqual([
+      other,
+      { pageUrl: pageA, measuredUrl: pageA, days: [] },
     ]);
   });
 

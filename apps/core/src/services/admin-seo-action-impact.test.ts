@@ -66,7 +66,8 @@ it("reads each audit as the person whose rows it holds and lists only measured a
       userId: "ada",
     },
     {},
-    { actionImpact: { days: 14 } },
+    // Only Ada's own rows: a colleague's newer audit must not show under her name.
+    { actionImpact: { days: 14, ownerId: "ada" } },
   );
   expect(boundary.workspace.mock.calls[1][0]).toMatchObject({
     owner: { kind: "project", id: PROJECT },

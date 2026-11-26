@@ -58,7 +58,7 @@ async function readItem(
       userId: ownerId,
     },
     {},
-    { actionImpact: { days } },
+    { actionImpact: { days, ownerId } },
   ).catch((error: unknown) => {
     // The person left the workspace, or the audit is archived: they see no impact, so staff see none.
     if (error instanceof HTTPException) return { actions: [] };
@@ -82,7 +82,8 @@ async function readItem(
 /**
  * The before and after of done actions across customers, for staff. Each item
  * is read as the person whose Search Console rows it holds, so staff see what
- * that person sees and nothing that person lost access to.
+ * that person sees and nothing that person lost access to. Only that person's
+ * own rows count, so two people of one SEO collection do not show each other's numbers.
  */
 export async function listAdminSeoActionImpact({
   days,

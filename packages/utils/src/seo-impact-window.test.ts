@@ -4,6 +4,7 @@ import {
   seoActionImpact,
   seoImpactAnchor,
   seoImpactPercent,
+  seoImpactSettledDay,
   seoImpactTotals,
   seoImpactWindows,
 } from "./seo-impact-window.js";
@@ -213,5 +214,14 @@ describe("seoActionImpact", () => {
       before: { from: "2026-05-13", to: "2026-06-09", clicks: 84 },
       after: { from: "2026-06-11", to: "2026-07-08", clicks: 81 },
     });
+  });
+});
+
+describe("seoImpactSettledDay", () => {
+  it("counts back 3 calendar days across the change to summer time", () => {
+    // 00:30 in Los Angeles on 2026-03-11. The clocks went forward on 2026-03-08, so 72 hours back is 2026-03-07.
+    expect(seoImpactSettledDay(new Date("2026-03-11T07:30:00Z"))).toBe(
+      "2026-03-08",
+    );
   });
 });

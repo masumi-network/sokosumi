@@ -498,7 +498,7 @@ export async function getProjectSeoWorkspace(
     includePrivateReviews?: boolean;
     includeAuditPerformance?: boolean;
     /** The caller's window length. The audit performance read brings the default one. */
-    actionImpact?: { days?: number };
+    actionImpact?: { days?: number; ownerId?: string };
   } = {},
 ) {
   await requireSeoOwner(actor);

@@ -49164,6 +49164,12 @@ export const ProjectSeoWorkspaceSchema = {
                             'to'
                         ]
                     },
+                    requester: {
+                        type: 'boolean',
+                        enum: [
+                            true
+                        ]
+                    },
                     propertyDataExpired: {
                         type: 'boolean',
                         enum: [

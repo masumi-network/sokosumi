@@ -20,6 +20,7 @@ const colleague = {
 } as SeoActor;
 const snapshot = {
   sourceTaskId: "public-audit",
+  ownerId: "requester",
   payload: {
     provider: "search_console",
     propertyId: "sc-domain:example.test",
@@ -34,6 +35,12 @@ const snapshot = {
     metrics: [
       { key: "clicks", label: "Clicks", unit: "count", value: 12, points: [] },
     ],
+    auditPropertyTotals: {
+      clicks: 900,
+      impressions: 9000,
+      ctr: 0.1,
+      averagePosition: 7,
+    },
     auditMeasuredPages: [
       {
         pageUrl: "https://example.test/a",
@@ -55,6 +62,16 @@ it("gives a colleague the snapshot of an audit Task they may see, and no retry o
     { taskId: "public-audit", clicks: 12 },
   ]);
   expect(summary.auditSearchConsoleRetryTaskIds).toEqual([]);
+  // Property-wide totals go past the audit's pages. The requester agreed to them for their own report only.
+  expect(summary.auditSearchConsole[0]).not.toHaveProperty("propertyTotals");
+  expect(summary.auditSearchConsole[0]).not.toHaveProperty("requester");
+  const own = await readAuditPerformanceSummaries(
+    { ...colleague, userId: "requester" },
+    ["public-audit"],
+  );
+  expect(own.auditSearchConsole).toMatchObject([
+    { requester: true, propertyTotals: { clicks: 900 } },
+  ]);
   // The Task list is the whole access rule: no requester filter narrows it further.
   expect(db.observations.mock.calls[0][0].where).toEqual({
     auditId: "audit",

@@ -32,6 +32,8 @@ function totals(data: NativeSeoMetrics, previous = false) {
  * It follows its audit Task: the caller passes only Tasks the reader may see, so a member reads
  * the snapshot of a public audit a colleague requested. `retryCandidates` stay the reader's own
  * audits, because a retry reads Google through the reader's own connection.
+ * Property-wide totals, page discovery and submitted sitemaps go past the audit's pages, and
+ * the requester agreed to them for their own report only, so a colleague does not get them.
  */
 export async function readAuditPerformanceSummaries(
   actor: SeoActor,
@@ -49,10 +51,11 @@ export async function readAuditPerformanceSummaries(
       source: "search_console",
       sourceTaskId: { in: taskIds },
     },
-    select: { sourceTaskId: true, payload: true },
+    select: { sourceTaskId: true, ownerId: true, payload: true },
   });
   const withDiscovery = observations.flatMap((row) =>
     row.sourceTaskId &&
+    row.ownerId === actor.userId &&
     nativeSeoMetricsSchema.safeParse(row.payload).data?.auditDiscovery
       ? [row.sourceTaskId]
       : [],
@@ -73,10 +76,12 @@ export async function readAuditPerformanceSummaries(
       data.auditDiscovery?.status !== "unavailable"
     )
       retry.delete(row.sourceTaskId);
+    const requester = row.ownerId === actor.userId;
     const earlier = data.metrics.find((metric) => metric.previous)?.previous;
     return [
       {
         taskId: row.sourceTaskId,
+        ...(requester && { requester }),
         propertyId: data.propertyId,
         ...(!withinSearchConsoleRetention(data.from) && {
           propertyDataExpired: true as const,
@@ -99,13 +104,14 @@ export async function readAuditPerformanceSummaries(
           evidence,
         })),
         coverage: data.coverage,
-        ...(data.auditDiscovery && {
-          discovery: auditDiscoveryResult(
-            data.auditDiscovery,
-            data.propertyId,
-            publicRoots.get(row.sourceTaskId) ?? [],
-          ),
-        }),
+        ...(requester &&
+          data.auditDiscovery && {
+            discovery: auditDiscoveryResult(
+              data.auditDiscovery,
+              data.propertyId,
+              publicRoots.get(row.sourceTaskId) ?? [],
+            ),
+          }),
         ...((data.searchType ?? "web") === "web" &&
           data.countries &&
           data.pageUrls.length > 0 &&
@@ -119,12 +125,14 @@ export async function readAuditPerformanceSummaries(
           }),
         ...(data.auditClickHistory && { history: data.auditClickHistory }),
         ...totals(data),
-        ...(data.auditPageDiscovery && {
-          pageDiscovery: data.auditPageDiscovery,
-        }),
-        ...(data.auditPropertyTotals && {
-          propertyTotals: data.auditPropertyTotals,
-        }),
+        ...(requester &&
+          data.auditPageDiscovery && {
+            pageDiscovery: data.auditPageDiscovery,
+          }),
+        ...(requester &&
+          data.auditPropertyTotals && {
+            propertyTotals: data.auditPropertyTotals,
+          }),
         previous: earlier
           ? { from: earlier.from, to: earlier.to, ...totals(data, true) }
           : null,

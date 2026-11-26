@@ -109,9 +109,8 @@ export function seoImpactWindows(
 
 /** The last day Search Console has settled, in its own calendar. */
 export function seoImpactSettledDay(now: Date): string {
-  return SEARCH_CONSOLE_DAY.format(
-    new Date(now.getTime() - SEO_IMPACT_SETTLE_DAYS * DAY_MS),
-  );
+  // Whole calendar days, not 72 hours: a clock change makes one of these days 23 or 25 hours long.
+  return shiftDay(SEARCH_CONSOLE_DAY.format(now), -SEO_IMPACT_SETTLE_DAYS);
 }
 
 /**

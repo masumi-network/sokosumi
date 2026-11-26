@@ -75,6 +75,7 @@ function openRuns(
   eligible: string[] = [],
   marketFile?: string,
   expired = false,
+  colleague = false,
 ) {
   const data = seoTestWorkspace();
   data.observations = [
@@ -136,6 +137,7 @@ function openRuns(
     data.auditSearchConsole = [
       {
         taskId: "newer",
+        ...(!colleague && { requester: true }),
         ...(expired && { propertyDataExpired: true }),
         propertyId: "sc-domain:example.com",
         from: new Date("2026-10-01"),
@@ -397,6 +399,21 @@ describe("SEO report file versions", () => {
     expect(
       dialog.getByRole("link", { name: "https://example.com/shop" }),
     ).toBeVisible();
+  });
+
+  it("offers no property load to a colleague, who cannot read Google for the requester", async () => {
+    getTaskById.mockImplementation(async (id: string) => task(id, []));
+    const user = openRuns(false, true, [], undefined, false, true);
+    await openConsole(user);
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(
+      dialog.getByRole("row", { name: "Search clicks 0 1" }),
+    ).toBeVisible();
+    expect(
+      dialog.queryByRole("button", {
+        name: "Load property totals and page insights",
+      }),
+    ).toBeNull();
   });
 
   it("keeps saved results readable when property recovery has expired", async () => {

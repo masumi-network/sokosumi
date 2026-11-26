@@ -5,6 +5,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
+  GSC_RETENTION_DAYS,
   GSC_STATS_TOOL,
   gscSearchAnalyticsArguments,
   type NativeStatisticsQuery,
@@ -55,15 +56,21 @@ export async function collectSeoAuditPageSeries(
   authorize: (tx: Prisma.TransactionClient) => Promise<void>,
 ) {
   const { actor, access } = binding;
+  const observedAt = new Date();
+  // Google returns no rows for a day it no longer keeps. Such a day must not be stored as a day without traffic.
   const period = {
     from: new Date(
-      Date.parse(`${binding.period.to}T00:00:00Z`) -
-        (AUDIT_PAGE_SERIES_DAYS - 1) * DAY_MS,
+      Math.max(
+        Date.parse(`${binding.period.to}T00:00:00Z`) -
+          (AUDIT_PAGE_SERIES_DAYS - 1) * DAY_MS,
+        observedAt.getTime() - (GSC_RETENTION_DAYS - 1) * DAY_MS,
+      ),
     )
       .toISOString()
       .slice(0, 10),
     to: binding.period.to,
   };
+  if (period.from > period.to) return;
   const where = {
     ...seoOwnerWhere(actor),
     ownerId: actor.userId,
@@ -98,7 +105,6 @@ export async function collectSeoAuditPageSeries(
     connectionVersion(integration) !== access.connectionVersion
   )
     return;
-  const observedAt = new Date();
   const reads = await Promise.allSettled(
     measured.map(async (page) => {
       const query: NativeStatisticsQuery = {
@@ -162,19 +168,28 @@ export async function collectSeoAuditPageSeries(
       },
     );
   if (!pages.size) return;
-  const payload: AuditPageSeries = {
-    propertyId: access.propertyId,
-    ...period,
-    pages: [...pages.values()],
-  };
-  const row = {
-    payload: jsonInput(payload),
-    artifactHash: sha256(JSON.stringify(payload)),
-    observedAt,
-  };
   const sourceKey = auditPageSeriesKey(taskId);
   await serializableTransaction(async (tx) => {
     await authorize(tx);
+    // Another collection of this audit can have stored a page since the read above. Its page is kept.
+    const latest = await tx.projectSeoObservation.findFirst({
+      where: { ...where, kind: AUDIT_PAGE_SERIES_KIND },
+      select: { payload: true },
+    });
+    const kept =
+      auditPageSeriesSchema
+        .safeParse(latest?.payload)
+        .data?.pages.filter((page) => !pages.has(page.pageUrl)) ?? [];
+    const payload: AuditPageSeries = {
+      propertyId: access.propertyId,
+      ...period,
+      pages: [...kept, ...pages.values()],
+    };
+    const row = {
+      payload: jsonInput(payload),
+      artifactHash: sha256(JSON.stringify(payload)),
+      observedAt,
+    };
     await tx.projectSeoObservation.upsert({
       where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
       create: {
