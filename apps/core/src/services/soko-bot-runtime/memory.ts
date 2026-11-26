@@ -4,8 +4,10 @@ import {
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
   parseSokoBotMemory,
   renderSokoBotMemory,
+  sanitizeSokoBotMemoryMarkdown,
   sokoBotMemoryNotKept,
 } from "@sokosumi/soko-bot";
+import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { TOOL_RESULT_SHORTENED_EVENT } from "@/lib/soko-bot/tool-result-fit";
@@ -18,6 +20,30 @@ import { type RuntimeOperations } from "./operations";
 
 export function hashMemory(markdown: string): string {
   return createHash("sha256").update(markdown).digest("hex");
+}
+
+/**
+ * The bot's memory as read_memory returns it: the newest revision, or the
+ * one a replayed read pinned. A replay rereads it, because the stored result
+ * is cut at 16 KB and would hand the model a preview without the document.
+ */
+export async function readMemory(
+  sokoBotId: string,
+  revisionId?: string,
+): Promise<{
+  id: string;
+  version: number;
+  hash: string;
+  markdown: string;
+} | null> {
+  const revision = await prisma.sokoBotMemoryRevision.findFirst({
+    where: { sokoBotId, ...(revisionId ? { id: revisionId } : {}) },
+    orderBy: { version: "desc" },
+    select: { id: true, version: true, hash: true, markdown: true },
+  });
+  if (!revision) return null;
+  const markdown = sanitizeSokoBotMemoryMarkdown(revision.markdown);
+  return { ...revision, markdown, hash: hashMemory(markdown) };
 }
 
 /**

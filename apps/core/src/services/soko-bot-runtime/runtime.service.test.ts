@@ -71,6 +71,7 @@ const {
   transactionMemoryRevisionFindUniqueMock,
   transactionSnapshotFindUniqueMock,
   transactionToolCallFindManyMock,
+  memoryRevisionFindFirstMock,
   transactionProjectFindFirstMock,
   transactionDecisionCreateMock,
   transactionDecisionFindFirstMock,
@@ -216,6 +217,7 @@ const {
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
   transactionSnapshotFindUniqueMock: vi.fn(),
   transactionToolCallFindManyMock: vi.fn(),
+  memoryRevisionFindFirstMock: vi.fn(),
   transactionProjectFindFirstMock: vi.fn(),
   transactionDecisionCreateMock: vi.fn(),
   transactionDecisionFindFirstMock: vi.fn(),
@@ -520,6 +522,7 @@ vi.mock("@/lib/db/database-now", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBotMemoryRevision: { findFirst: memoryRevisionFindFirstMock },
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     fileResource: {
@@ -4792,6 +4795,78 @@ describe("SokoBotRuntimeService memory updates", () => {
     await write();
     expect(transactionMemoryRevisionCreateMock).toHaveBeenCalledOnce();
     transactionSnapshotFindUniqueMock.mockResolvedValue(null);
+  });
+
+  it("rereads the pinned revision whole when a read_memory call is replayed", async () => {
+    const titles = [
+      "Active goals",
+      "Decisions",
+      "Preferences",
+      "Follow-ups",
+      "Blockers",
+    ];
+    const lastEntry = "Never publish before the owner approves.";
+    const stored = [
+      "# Soko Bot memory",
+      ...titles.map((title, section) =>
+        [
+          `## ${title}`,
+          ...Array.from({ length: 12 }, (_, index) =>
+            section === 4 && index === 11
+              ? `- ${lastEntry}`
+              : `- ${title} ${index}: ${'say "yes" at C:\\share, '.repeat(10)}`,
+          ),
+        ].join("\n"),
+      ),
+      "",
+    ].join("\n\n");
+    const revisionId = "01960001-0001-7001-8001-000000000031";
+    const firstRead = {
+      id: revisionId,
+      version: 3,
+      hash: "hash_3",
+      markdown: stored,
+    };
+    expect(Buffer.byteLength(stored, "utf8")).toBeLessThanOrEqual(16_384);
+    // What the first read left on its row: the bounded audit copy.
+    const auditCopy = (
+      await import("@/lib/soko-bot/persisted-value")
+    ).persistedToolResult(firstRead) as Record<string, unknown>;
+    expect(auditCopy.markdown).toBeUndefined();
+    const turn = await turnFindUniqueMock();
+    turnFindUniqueMock.mockResolvedValue({
+      ...turn,
+      capabilityNames: ["read_memory", "update_memory"],
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256").update(canonicalJson({})).digest("hex"),
+      capability: "read_memory",
+      status: "COMPLETED",
+      result: auditCopy,
+      toolCallId: "call_read",
+      turnId: SCOPE.turnId,
+    });
+    memoryRevisionFindFirstMock.mockResolvedValue({
+      id: revisionId,
+      version: 3,
+      hash: "hash_3",
+      markdown: stored,
+    });
+
+    const replayed = (await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_memory",
+      toolCallId: "call_read",
+      input: {},
+    })) as { markdown: string };
+
+    expect(memoryRevisionFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sokoBotId: SCOPE.sokoBotId, id: revisionId },
+      }),
+    );
+    expect(replayed.markdown).toContain(lastEntry);
+    expect(replayed.markdown.length).toBeGreaterThan(14_000);
   });
 
   it("keeps optimistic conflict when another turn changed memory", async () => {

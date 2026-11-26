@@ -1,10 +1,8 @@
 import {
   renderWritingSkill,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
-  sanitizeSokoBotMemoryMarkdown,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
-import prisma from "@/lib/db/prisma";
 import { readSocialProfile } from "@/lib/social-profile";
 import {
   RuntimeEventLog,
@@ -25,7 +23,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
-import { hashMemory } from "./memory";
+import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
 
 export async function dispatchSocialTools(
@@ -83,17 +81,7 @@ export async function dispatchSocialTools(
       return runtime.executeAdsTool(input, authorized);
 
     case "read_memory":
-      return prisma.sokoBotMemoryRevision
-        .findFirst({
-          where: { sokoBotId: authorized.turn.sokoBotId },
-          orderBy: { version: "desc" },
-          select: { id: true, version: true, hash: true, markdown: true },
-        })
-        .then((revision) => {
-          if (!revision) return null;
-          const markdown = sanitizeSokoBotMemoryMarkdown(revision.markdown);
-          return { ...revision, markdown, hash: hashMemory(markdown) };
-        });
+      return readMemory(authorized.turn.sokoBotId);
 
     case "list_social_comments": {
       const { projectId } = await runtime.socialCommentScopeOf(authorized);
