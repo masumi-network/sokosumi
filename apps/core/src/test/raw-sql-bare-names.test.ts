@@ -1,7 +1,7 @@
 import ts from "@typescript/typescript6";
 import { describe, expect, it } from "vitest";
 
-import { bareNames, type SqlText } from "./raw-sql-bare-names";
+import { bareNames } from "./raw-sql-bare-names";
 
 /** The finding in the first string or template of `code`. */
 function found(code: string) {
@@ -11,7 +11,7 @@ function found(code: string) {
     ts.ScriptTarget.Latest,
     true,
   );
-  let text: SqlText | undefined;
+  let text: ts.Node | undefined;
   function visit(node: ts.Node) {
     if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node))
       text ??= node;
@@ -42,6 +42,8 @@ describe("bare names in raw SQL that PREPARE does not see", () => {
     ['Prisma.sql`${value}::"TaskStatus"`', '::"TaskStatus"'],
     ['Prisma.sql`${value}::"AgentStatus"[]`', '::"AgentStatus"'],
     ["Prisma.sql`'it''s' = ${a} AND EXISTS (SELECT 1 FROM task)`", "FROM task"],
+    ['tx.$executeRawUnsafe("-- cleanup\\nTRUNCATE task")', "TRUNCATE task"],
+    ["Prisma.sql`x is_distinct FROM task`", "FROM task"],
   ])("finds the bare name in %s", (code, message) => {
     expect(found(code)).toEqual({ line: 1, message });
   });
@@ -85,6 +87,13 @@ describe("bare names in raw SQL that PREPARE does not see", () => {
     ).toEqual({ line: 5, message: 'JOIN "Job"' });
   });
 
+  it("keeps line and text after a character that changes length in lowercase", () => {
+    expect(found("Prisma.sql`SELECT 1 AS İİ\nFROM task\nWHERE true`")).toEqual({
+      line: 2,
+      message: "FROM task",
+    });
+  });
+
   it("keeps the line when a one-line string has an escaped newline", () => {
     expect(found('tx.$queryRawUnsafe("SELECT 1\\nFROM task")')).toEqual({
       line: 1,
@@ -103,6 +112,21 @@ describe("bare names in raw SQL that PREPARE does not see", () => {
       "a temporary table after its CREATE",
       "tx.$executeRaw`INSERT INTO workspace SELECT 1`",
       "INTO workspace",
+    ],
+    [
+      "a quoted identifier that reads like a table reference",
+      'Prisma.sql`SELECT 1 AS "from task count"`',
+      "from task",
+    ],
+    [
+      "an escape string with a backslash-escaped quote",
+      "Prisma.sql`SELECT E'it\\\\'s from task today'`",
+      "from task",
+    ],
+    [
+      "prose in a nested block comment",
+      "Prisma.sql`/* outer /* inner */ from task */ SELECT 1`",
+      "from task",
     ],
   ])("gives one message for %s", (_what, code, message) => {
     expect(found(code)?.message).toBe(message);

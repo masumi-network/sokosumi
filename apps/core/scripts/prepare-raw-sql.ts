@@ -2,7 +2,7 @@
 // database. PREPARE analyzes statements without executing them.
 import { createHash } from "node:crypto";
 import { globSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import {
   createSqlTables,
@@ -15,7 +15,7 @@ import {
 import ts from "@typescript/typescript6";
 import { Client } from "pg";
 
-import { bareNames, type SqlText } from "../src/test/raw-sql-bare-names";
+import { bareNames } from "../src/test/raw-sql-bare-names";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
 const SOURCE_PATHS = [
@@ -36,7 +36,8 @@ const PREPARABLE = new Set(
 // Keyed by repository path and SHA-256 of the TypeScript template. Moving
 // lines does not affect a waiver. Changing or removing the template does.
 // A false failure of the bare name check (`src/test/raw-sql-bare-names.ts`)
-// has the code "bare name" and the printed names as its message.
+// has the code "bare name" and the printed names as its message. A text that
+// repeats in a file gets "#2", "#3" on its key, so each can be waived.
 const EXCEPTIONS = new Map([
   [
     "apps/core/src/helpers/history.ts:65c9474cb59f536d76fb2170cf6482c5c31e61b6045f236c0c284873eb11ef06",
@@ -53,6 +54,22 @@ const TABLES = createSqlTables({
   ...sqlTableLayoutFromEnv(process.env),
   preprodOn: true,
 });
+
+const keyCounts = new Map<string, number>();
+function exceptionKey(file: string, node: ts.Node) {
+  const hash = createHash("sha256").update(node.getText()).digest("hex");
+  const count = (keyCounts.get(`${file}:${hash}`) ?? 0) + 1;
+  keyCounts.set(`${file}:${hash}`, count);
+  return `${file}:${hash}${count > 1 ? `#${count}` : ""}`;
+}
+
+// Prisma's `sql` tag under any name: the function its runtime declares.
+function isSqlTag(tag: ts.Expression, checker: ts.TypeChecker) {
+  const { symbol } = checker.getTypeAtLocation(tag);
+  return symbol?.declarations?.[0]
+    ?.getSourceFile()
+    .fileName.includes("/@prisma/client-runtime-utils/");
+}
 
 function memberName(expression: ts.Expression): string {
   if (ts.isIdentifier(expression)) return expression.text;
@@ -146,12 +163,7 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
     ts.forEachChild(node, visit);
     if (ts.isTaggedTemplateExpression(node)) {
       const name = memberName(node.tag);
-      // Prisma's tag returns its `Sql`; another tag named `sql` does not.
-      if (
-        name === "sql" &&
-        checker.getTypeAtLocation(node).symbol?.name === "Sql"
-      )
-        fragments.add(node.template);
+      if (isSqlTag(node.tag, checker)) fragments.add(node.template);
       if (RAW.has(name))
         statements.push({ node, template: node.template, unsafe: false });
       return;
@@ -176,7 +188,7 @@ function findStatements(source: ts.SourceFile, checker: ts.TypeChecker) {
       !unsafe &&
       expression &&
       ts.isTaggedTemplateExpression(expression) &&
-      memberName(expression.tag) === "sql"
+      isSqlTag(expression.tag, checker)
     ) {
       usedTemplates.add(expression.template);
       expression = expression.template;
@@ -322,7 +334,7 @@ try {
   let sequence = 0;
   // What PREPARE never sees: every `Prisma.sql` fragment, and the literal
   // text of every statement it skips.
-  const unprepared = new Set<SqlText>();
+  const unprepared = new Map<ts.Node, string>();
   for (const { path, files } of groups) {
     if (!files.length) throw new Error(`No production TypeScript in ${path}`);
     const counts = {
@@ -338,28 +350,20 @@ try {
       if (!source) throw new Error(`Could not parse ${file}`);
       const { statements, fragments } = findStatements(source, checker);
       fragmentCount += fragments.size;
-      for (const fragment of fragments) unprepared.add(fragment);
+      for (const fragment of fragments)
+        unprepared.set(fragment, exceptionKey(file, fragment));
       for (const candidate of statements) {
         const { line } = source.getLineAndCharacterOfPosition(
           candidate.node.getStart(source),
         );
         const location = `${file}:${line + 1}`;
-        const hash = createHash("sha256")
-          .update((candidate.template ?? candidate.node).getText())
-          .digest("hex");
-        const key = `${file}:${hash}`;
+        const key = exceptionKey(file, candidate.template ?? candidate.node);
         try {
           const variants = render(candidate, checker);
           if (typeof variants === "string") {
             counts[variants]++;
             console.log(`${location} not preparable (${variants})`);
-            const { template } = candidate;
-            if (
-              template &&
-              (ts.isStringLiteralLike(template) ||
-                ts.isTemplateExpression(template))
-            )
-              unprepared.add(template);
+            if (candidate.template) unprepared.set(candidate.template, key);
             continue;
           }
           const exception = EXCEPTIONS.get(key);
@@ -405,12 +409,10 @@ try {
     );
   }
   let bare = 0;
-  for (const text of unprepared) {
+  for (const [text, key] of unprepared) {
     const found = bareNames(text);
     if (!found) continue;
-    const file = relative(ROOT, text.getSourceFile().fileName);
-    const hash = createHash("sha256").update(text.getText()).digest("hex");
-    const key = `${file}:${hash}`;
+    const [file] = key.split(":");
     const exception = EXCEPTIONS.get(key);
     if (
       exception?.code === "bare name" &&
@@ -428,7 +430,7 @@ try {
     );
   }
   console.log(
-    `Not prepared: ${unprepared.size} fragments and skipped statements read, ${bare} with bare names`,
+    `Not prepared: ${unprepared.size} fragments and skipped statements, ${bare} with bare names`,
   );
   for (const [key, { line, reason }] of EXCEPTIONS) {
     reportFailure(

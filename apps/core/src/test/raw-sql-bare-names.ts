@@ -15,19 +15,22 @@ import tables from "../../../../packages/database/prisma/network-tables.json" wi
  * A finding is a keyword that takes a table, in any case, followed by the SQL
  * name of one of our tables (`network-tables.json`) with no schema before it,
  * or a cast to one of our enum types with no schema (`::"TaskStatus"`). A
- * quoted name must match exactly; a bare one folds to lowercase, as in
+ * quoted name must match exactly; a bare one matches in any case, as in
  * PostgreSQL. Comments and strings of the SQL are not read, and neither is a
  * `${…}` hole.
  *
  * False failures (waive them in `EXCEPTIONS` of the script): a common table
  * expression or a temporary table named like one of our tables; `EXTRACT`,
  * `TRIM` or `SUBSTRING(… FROM x)` where `x` is a bare column named like a
- * table.
+ * table; a quoted identifier that reads like a table reference
+ * (`AS "from task count"`); such text after a backslash-escaped quote in an
+ * `E''` string, or in a nested block comment.
  * Not seen: a name after a comma (`FROM a, b`), after `LOCK` without `TABLE`,
- * `ANALYZE`, `VACUUM`, `COPY` or `ON`; `CAST(… AS "Type")`; a name split
- * across pieces or held in a variable; a fragment imported from outside
- * `SOURCE_PATHS`; all `*RawUnsafe` text built from pieces; a stored string
- * passed to `Prisma.raw`; a quoted name in a string with escaped quotes.
+ * `ANALYZE`, `VACUUM`, `COPY`, `ON`, `LIKE` or `INHERIT`; `CAST(… AS "Type")`;
+ * a name split across pieces or held in a variable; a fragment imported from
+ * outside `SOURCE_PATHS`; all `*RawUnsafe` text built from pieces; any text
+ * passed to `Prisma.raw`; a quoted name in a string with escaped quotes; a
+ * name after a quoted identifier that holds `--` or an opening block comment.
  */
 const names = [
   ...Object.values(tables.network),
@@ -36,24 +39,24 @@ const names = [
 ];
 const unquoted = names.filter((name) => name === name.toLowerCase());
 const BARE = new RegExp(
-  `(?<!(?:temp|temporary|distinct)\\s+)\\b(?:from|join|into|update|using|table|truncate|only|references)\\s+(?:if\\s+(?:not\\s+)?exists\\s+)?(?:"(?:${names.join("|")})"|(?:${unquoted.join("|")}))(?![\\w$"]|\\s*\\.)|::\\s*"(?:${Object.keys($Enums).join("|")})"(?!\\s*\\.)`,
+  `(?i:(?<!\\b(?:temp|temporary|distinct)\\s+)\\b(?:from|join|into|update|using|table|truncate|only|references)\\s+(?:if\\s+(?:not\\s+)?exists\\s+)?)(?:"(?:${names.join("|")})"|(?i:${unquoted.join("|")}))(?![\\w$"]|\\s*\\.)|::\\s*"(?:${Object.keys($Enums).join("|")})"(?!\\s*\\.)`,
   "g",
 );
 /**
- * Line and block comments, single-quoted and dollar-quoted strings, and an
- * escaped line break or tab of the TypeScript source.
+ * Line comments (to a line break, escaped or not), block comments,
+ * single-quoted and dollar-quoted strings, and an escaped line break or tab
+ * of the TypeScript source.
  */
 const NOT_SQL =
-  /--[^\n]*|\/\*[\s\S]*?\*\/|'(?:''|[^'])*'|\$(\w*)\$[\s\S]*?\$\1\$|\\[nrt]/g;
+  /--[^\n]*?(?=\\n|\n|$)|\/\*[\s\S]*?\*\/|'(?:''|[^'])*'|\$(\w*)\$[\s\S]*?\$\1\$|\\[nrt]/g;
 const blank = (text: string) => text.replace(/[^\n]/g, " ");
-
-export type SqlText = ts.StringLiteralLike | ts.TemplateExpression;
 
 /**
  * The bare names in one SQL text: the line of the first, and all of them as
  * the message a waiver must repeat.
  */
-export function bareNames(text: SqlText) {
+export function bareNames(text: ts.Node) {
+  if (!ts.isStringLiteralLike(text) && !ts.isTemplateExpression(text)) return;
   const source = text.getSourceFile();
   const start = text.getStart(source) + 1;
   // The source as written, so every offset is a place in the file.
@@ -68,11 +71,7 @@ export function bareNames(text: SqlText) {
     sql = sql.slice(0, from) + blank(sql.slice(from, to)) + sql.slice(to);
   }
   sql = sql.replace(NOT_SQL, blank);
-  // Everything outside double quotes in lowercase, as PostgreSQL reads it.
-  const folded = sql.replace(/"[^"]*"|[^"]+/g, (part) =>
-    part.startsWith('"') ? part : part.toLowerCase(),
-  );
-  const found = [...folded.matchAll(BARE)];
+  const found = [...sql.matchAll(BARE)];
   const [first] = found;
   if (!first) return;
   return {
@@ -80,10 +79,6 @@ export function bareNames(text: SqlText) {
       source.getLineAndCharacterOfPosition(
         start + first.index + first[0].length - 1,
       ).line + 1,
-    message: found
-      .map(({ 0: match, index }) =>
-        sql.slice(index, index + match.length).replace(/\s+/g, " "),
-      )
-      .join(", "),
+    message: found.map(([match]) => match.replace(/\s+/g, " ")).join(", "),
   };
 }
