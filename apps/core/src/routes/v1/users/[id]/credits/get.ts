@@ -1,5 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -14,6 +16,18 @@ import {
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
 import { creditsResponseSchema } from "@/schemas/user.schema";
+
+async function requirePersonalWorkspace(userId: string): Promise<void> {
+  const personal = await prisma.workspace.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!personal)
+    throw notFound(
+      "This person has no personal workspace. Pass an organization workspace's slug as `X-Organization-Slug` (CLI `--organization-slug`, MCP `workspace`); `GET /workspaces` lists them.",
+      { kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING },
+    );
+}
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -104,6 +118,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
 
     const organizationId =
       userContext.userId === resolvedUserId ? userContext.organizationId : null;
+    // Never report a personal balance for a workspace the person doesn't have
+    // (SOKD-473): someone who only has organization workspaces must name one.
+    if (!organizationId) await requirePersonalWorkspace(resolvedUserId);
     const referenceId = organizationId ?? resolvedUserId;
 
     const payload = await buildCreditsPayload({

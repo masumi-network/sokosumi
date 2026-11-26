@@ -72,9 +72,10 @@ export const designMdWriteSchema = z
         example: "# DESIGN.md\n\nBrand guidelines…",
         description: "DESIGN.md markdown to store, or null to clear it",
       }),
-    extractionId: z.string().nullable().openapi({
+    extractionId: z.string().nullable().default(null).openapi({
       example: "12345",
-      description: "Extraction id of the generated DESIGN.md, when known",
+      description:
+        "Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.",
     }),
   })
   .openapi("DesignMdWrite");
@@ -123,9 +124,10 @@ export const adHocDesignMdWriteSchema = z
         example: "# DESIGN.md\n\nBrand guidelines…",
         description: "DESIGN.md markdown to store",
       }),
-    extractionId: z.string().nullable().openapi({
+    extractionId: z.string().nullable().default(null).openapi({
       example: "12345",
-      description: "Extraction id of the generated DESIGN.md, when known",
+      description:
+        "Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.",
     }),
   })
   .openapi("AdHocDesignMdWrite");

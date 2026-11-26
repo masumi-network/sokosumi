@@ -863,7 +863,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "users_update",
     operation: "PATCH /users/{id}",
     description:
-      "Change the signed-in user's first and last name. Pass id `me` and `body.firstName`, `body.lastName`.",
+      "Change the signed-in user's display name (`body.name`, the name members see) and/or first and last name (`body.firstName` with `body.lastName`). Pass id `me`.",
     destructive: true,
   },
   {
