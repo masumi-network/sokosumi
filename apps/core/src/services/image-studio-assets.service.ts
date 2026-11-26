@@ -8,6 +8,7 @@ import {
   convertCentsToCredits,
   MAX_STUDIO_BATCH_IMAGES,
   type ShortVideoFormat,
+  type VideoShape,
 } from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
@@ -568,6 +569,8 @@ export interface JobView {
     broll: boolean;
     music: boolean;
     format: ShortVideoFormat | null;
+    shape: VideoShape;
+    sourceJobId: string | null;
   };
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
@@ -658,8 +661,17 @@ export async function listJobs(
 }
 
 function talkingVideoView(settings: unknown): JobView["talkingVideo"] {
-  const { voice, presenterId, languageCode, siteShots, broll, music, format } =
-    readTalkingVideoSettings(settings);
+  const {
+    voice,
+    presenterId,
+    languageCode,
+    siteShots,
+    broll,
+    music,
+    format,
+    shape,
+    sourceJobId,
+  } = readTalkingVideoSettings(settings);
   return {
     voice,
     presenterId,
@@ -668,6 +680,8 @@ function talkingVideoView(settings: unknown): JobView["talkingVideo"] {
     broll,
     music,
     format,
+    shape,
+    sourceJobId,
   };
 }
 

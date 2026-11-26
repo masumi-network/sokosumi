@@ -91,6 +91,12 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { DraftResult } from "../components/app/draft-post";
 import { AGENT_NAME } from "../lib/agent";
+import {
+  analyticsConsent,
+  CONSENT_COOKIE,
+  GA_SESSION_COOKIE,
+  gaIds,
+} from "../lib/analytics";
 import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import type { ChatTable, ChatWork } from "../lib/chat-work";
@@ -1221,6 +1227,25 @@ export async function connectMeasurement(
  * page, which shows the confirming state (`step=subscribed`) until the
  * payment is in; its back link leads to the plans without that marker.
  */
+/**
+ * The GA4 ids a checkout carries so Core reports the paid order: only with
+ * analytics consent (the same rule the tag follows) and no GPC signal.
+ */
+async function checkoutAnalytics() {
+  const [store, requestHeaders] = await Promise.all([cookies(), headers()]);
+  const consent = analyticsConsent(
+    store.get(CONSENT_COOKIE)?.value,
+    requestHeaders.get("x-vercel-ip-country"),
+  );
+  if (consent !== "granted" || requestHeaders.get("sec-gpc") === "1") {
+    return undefined;
+  }
+  return (
+    gaIds(store.get("_ga")?.value, store.get(GA_SESSION_COOKIE)?.value) ??
+    undefined
+  );
+}
+
 export async function startPlanCheckout(
   projectId: string,
   interval: CmoSubscriptionPlan["interval"],
@@ -1240,6 +1265,7 @@ export async function startPlanCheckout(
       }),
       // Back without paying: the plans again, not the confirming state.
       backUrl: await callbackUrl("/", { project: projectId }),
+      analytics: await checkoutAnalytics(),
     },
   });
   if (!data) {
@@ -1262,7 +1288,10 @@ export async function startTopUp(
   const { data, error } = await startCmoTopUpForProject({
     ...core,
     path: { projectId },
-    body: { returnUrl: await callbackUrl("/", { project: projectId }) },
+    body: {
+      returnUrl: await callbackUrl("/", { project: projectId }),
+      analytics: await checkoutAnalytics(),
+    },
   });
   if (!data) {
     return {

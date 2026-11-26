@@ -33,6 +33,14 @@ export const TURN_PART_MAX_STEPS = 12;
 export const TURN_PART_MAX_MS = 5 * 60 * 1_000;
 
 /**
+ * A part's message after the turn's preamble (the packet and persona that a
+ * version with a cached system prompt sends in the first message instead).
+ */
+export function partMessage(preamble: string, part: TurnPart): string {
+  return preamble ? `${preamble}\n\n${part.message}` : part.message;
+}
+
+/**
  * Runs every part at once and returns the turn's message with their
  * hand-overs, in the parts' order. A failed part is said so, never fatal:
  * the turn's own message covers what it left open.

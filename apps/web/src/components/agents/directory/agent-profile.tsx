@@ -7,7 +7,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import { AgentsPageHeader, AgentsSection } from "./agents-page";
-import { AGENTS_CARD_CLASS, AGENTS_PAGE_CLASS } from "./agents-page-classes";
+import {
+  AGENTS_BACK_LINK_CLASS,
+  AGENTS_CARD_CLASS,
+  AGENTS_PAGE_CLASS,
+} from "./agents-page-classes";
 
 export interface AgentProfileSection {
   id: "what" | "work" | "settings" | "about";
@@ -36,9 +40,6 @@ interface AgentProfileProps {
   sections: (AgentProfileSection | null | false)[];
 }
 
-const BACK_LINK_CLASS =
-  "text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 px-1 text-sm transition-colors";
-
 /**
  * One profile for every kind of agent, drawn like the Agents page: the same
  * header, then What it does, Recent work, Settings and About as sections.
@@ -60,7 +61,7 @@ export function AgentProfile({
   return (
     <article className={AGENTS_PAGE_CLASS}>
       <div className="flex flex-col gap-4">
-        <BackLink href="/agents" className={BACK_LINK_CLASS}>
+        <BackLink href="/agents" className={AGENTS_BACK_LINK_CLASS}>
           <ArrowLeft aria-hidden className="size-4" />
           {backLabel}
         </BackLink>

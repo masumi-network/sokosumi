@@ -84,6 +84,7 @@ export async function writeTalkingVideoScripts(options: {
     await loadStudioBrand(options.projectId),
   );
   const { output } = await generateText({
+    telemetry: { functionId: "talking-video-script" },
     ...sokoBotModelRequest({ role: "agent", model: SCRIPT_MODEL }),
     system: options.format ? shortScriptSystem(options.format) : SYSTEM,
     prompt: JSON.stringify({
@@ -148,6 +149,7 @@ export async function writeTalkingVideoBrollPrompt(
 ): Promise<string | null> {
   try {
     const { output } = await generateText({
+      telemetry: { functionId: "talking-video-broll" },
       ...sokoBotModelRequest({ role: "agent", model: SCRIPT_MODEL }),
       system: BROLL_SYSTEM,
       prompt: JSON.stringify({ script }),
@@ -174,6 +176,7 @@ export async function writeTalkingVideoHookLine(options: {
 }): Promise<string | null> {
   try {
     const { output } = await generateText({
+      telemetry: { functionId: "talking-video-hook" },
       ...sokoBotModelRequest({ role: "agent", model: SCRIPT_MODEL }),
       system: HOOK_LINE_SYSTEM,
       prompt: JSON.stringify({

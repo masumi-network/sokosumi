@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import { createError } from "evlog";
 import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
@@ -32,6 +33,59 @@ const TASK_WAKE_STATUSES = new Set([
 ]);
 const JOB_WAKE_STATUSES = new Set(["COMPLETED", "FAILED", "AWAITING_INPUT"]);
 const FINISHED = new Set(["COMPLETED", "FAILED", "CANCELED"]);
+
+/**
+ * A Job's change is its Agent's event status; get_job_status reports the
+ * Job's own status (`digestJob`), in other words.
+ */
+const JOB_READ_STATUSES: Record<string, readonly string[]> = {
+  // A paid Job settles past its Agent's last word: a result waiting for
+  // payment, a dispute, a refund.
+  COMPLETED: [
+    "completed",
+    "result_pending",
+    "dispute_pending",
+    "dispute_resolved",
+    "refund_pending",
+    "refund_resolved",
+  ],
+  FAILED: [
+    "failed",
+    "payment_failed",
+    "dispute_pending",
+    "dispute_resolved",
+    "refund_pending",
+    "refund_resolved",
+  ],
+};
+
+/**
+ * What the read returned that shows it saw this change. A second input
+ * request reads "input_required" like the first, so only its event id says
+ * which one the read saw.
+ */
+function readSawChange(
+  current: { status: string; eventId: string | null },
+  delegation: { task: unknown },
+): Prisma.SokoBotToolCallWhereInput {
+  if (delegation.task)
+    return { result: { path: ["status"], equals: current.status } };
+  if (current.status === "AWAITING_INPUT")
+    return {
+      result: {
+        path: ["inputRequest", "eventId"],
+        equals: current.eventId ?? "",
+      },
+    };
+  const statuses = JOB_READ_STATUSES[current.status] ?? [
+    current.status.toLowerCase(),
+  ];
+  return {
+    OR: statuses.map((status) => ({
+      result: { path: ["status"], equals: status },
+    })),
+  };
+}
 
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
@@ -193,6 +247,38 @@ export function buildEventMessage(
   ].join("\n");
 }
 
+/**
+ * Whether the background run that delegated this work read its latest change
+ * itself before it ended. A read counts when it finished after the change:
+ * one that started a moment before still returned it.
+ */
+async function backgroundRunReadChange(
+  runTurnId: string,
+  current: {
+    id: string;
+    status: string;
+    eventId: string | null;
+    eventAt?: Date | null;
+  },
+  delegation: { task: unknown; job: unknown },
+): Promise<boolean> {
+  const field = delegation.task ? "taskId" : "jobId";
+  const read = await prisma.sokoBotToolCall.findFirst({
+    where: {
+      turnId: runTurnId,
+      capability: delegation.task ? "get_task_status" : "get_job_status",
+      status: "COMPLETED",
+      input: { path: [field], equals: current.id },
+      // What the read returned decides, not when it ran: one that started
+      // before the change and was saved after it still said RUNNING.
+      ...readSawChange(current, delegation),
+      ...(current.eventAt ? { updatedAt: { gte: current.eventAt } } : {}),
+    },
+    select: { id: true },
+  });
+  return read !== null;
+}
+
 function pendingFollowUp(delegation: {
   followUp: string | null;
   followUpTurnId: string | null;
@@ -258,6 +344,7 @@ export class SokoBotEventsSyncService {
         take: BATCH_SIZE,
         select: {
           id: true,
+          turnId: true,
           kind: true,
           lastSeenStatus: true,
           lastSeenEventId: true,
@@ -383,17 +470,31 @@ export class SokoBotEventsSyncService {
       byBot.set(workKey, work);
       // A background run follows the Tasks and Jobs it started itself; an
       // event turn beside it would act on the same result without its plan.
-      if (
-        delegation.turn.parentTurnId &&
-        BACKGROUND_RUN_ACTIVE_STATUSES.has(delegation.turn.status)
-      ) {
-        work.baselines.push({
-          delegationId: delegation.id,
-          status: current.status,
-          eventId: current.eventId,
-          eventAt: current.eventAt ?? scan.createdAt,
-        });
-        continue;
+      // The change stays unseen meanwhile: a run that fails before reading it
+      // must not lose it, nor the follow-up waiting on it.
+      if (delegation.turn.parentTurnId) {
+        if (BACKGROUND_RUN_ACTIVE_STATUSES.has(delegation.turn.status))
+          continue;
+        // The owner stopped the run: its plan stops with it. A run that
+        // finished and read the change handled it. A failed run did neither,
+        // even if it read the result, so the follow-up wakes the bot.
+        if (
+          delegation.turn.status === "CANCELLED" ||
+          (delegation.turn.status === "COMPLETED" &&
+            (await backgroundRunReadChange(
+              delegation.turnId,
+              current,
+              delegation,
+            )))
+        ) {
+          work.baselines.push({
+            delegationId: delegation.id,
+            status: current.status,
+            eventId: current.eventId,
+            eventAt: current.eventAt ?? scan.createdAt,
+          });
+          continue;
+        }
       }
       if (
         (!delegation.lastSeenEventAt &&
@@ -496,8 +597,11 @@ export class SokoBotEventsSyncService {
       const wake = delegation.task
         ? TASK_WAKE_STATUSES.has(current.status)
         : JOB_WAKE_STATUSES.has(current.status);
+      // An ended run's change is new to it even on the first look: the run
+      // kept it unseen while it worked.
       if (
         (delegation.lastSeenStatus === null &&
+          !delegation.turn.parentTurnId &&
           (current.status === "COMPLETED" || current.status === "CANCELED")) ||
         current.byThisBot ||
         !wake

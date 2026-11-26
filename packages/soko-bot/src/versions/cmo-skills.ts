@@ -8,6 +8,7 @@ import {
 import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { CMO_PLAYBOOKS } from "./cmo-playbooks-skill.js";
 import { productionWithStyles } from "./cmo-production-styles.js";
 import {
   EVERY_NETWORK_STRATEGY_SKILL,
@@ -43,6 +44,8 @@ import {
 import { CMO_INDUSTRY, cmoV21Strategy } from "./cmo-v21-skills.js";
 import { cmoV22Strategy } from "./cmo-v22-skills.js";
 import { CMO_CONTEXT_ON_DEMAND } from "./cmo-v23-skills.js";
+import { CMO_TOOL_HIGHLIGHTS } from "./cmo-v24-skills.js";
+import { CMO_STRATEGY_STEP } from "./cmo-v25-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -762,4 +765,7 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   CMO_SITE_PAGES,
   CMO_INDUSTRY,
   CMO_CONTEXT_ON_DEMAND,
+  CMO_STRATEGY_STEP,
+  CMO_PLAYBOOKS,
+  CMO_TOOL_HIGHLIGHTS,
 ];

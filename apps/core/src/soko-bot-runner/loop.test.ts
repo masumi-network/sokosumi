@@ -2,8 +2,13 @@ import { simulateReadableStream, tool } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { turnTokenBudget } from "../lib/soko-bot/turn-budget";
 import { runTurnLoop } from "./loop";
-import { REPORT_RESERVE_MS, TIME_UP_PROMPT } from "./rounds";
+import {
+  FOREGROUND_TIME_UP_PROMPT,
+  REPORT_RESERVE_MS,
+  TIME_UP_PROMPT,
+} from "./rounds";
 
 const MINUTE = 60_000;
 const usage = {
@@ -351,6 +356,165 @@ describe("runTurnLoop", () => {
     expect(told).toEqual(["Thought 1.\n\nNext.", "Thought 2.\n\nNext."]);
   });
 
+  it("answers a chat turn that ran out of steps mid-work, in one call without tools", async () => {
+    const clock = { now: 0 };
+    const { model, calls } = tirelessModel(clock);
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Fill the table.",
+      tools,
+      maxSteps: 3,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => clock.now,
+    });
+
+    expect(calls).toHaveLength(4);
+    expect(calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(calls.at(-1)?.lastUser).toBe(FOREGROUND_TIME_UP_PROMPT);
+    expect(result.text).toContain("filled 12 of 30 rows");
+  });
+
+  it("stops a run at its token budget and reports", async () => {
+    const clock = { now: 0 };
+    const { model, calls } = tirelessModel(clock);
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Fill the table.",
+      tools,
+      maxSteps: 500,
+      budget: turnTokenBudget(25, 10),
+      background: true,
+      deadline: 600 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => clock.now,
+    });
+
+    // 10 input tokens a step: a third would pass 25, so two run, then the report.
+    expect(calls).toHaveLength(3);
+    expect(calls.at(-1)?.lastUser).toBe(TIME_UP_PROMPT);
+    expect(result.text).toBe("filled 12 of 30 rows; 18 left.");
+  });
+
+  it("shares one budget between a turn's parts and its main loop, and still reports", async () => {
+    const clock = { now: 0 };
+    const budget = turnTokenBudget(45, 10);
+    const part = tirelessModel(clock);
+    const main = tirelessModel(clock);
+    const loop = (model: typeof part.model, maxSteps: number) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps,
+        budget,
+        background: false,
+        deadline: 600 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await loop(part.model, 4);
+    expect(budget.used).toBeGreaterThanOrEqual(40);
+    const result = await loop(main.model, 500);
+
+    // The parts spent the allowance: the main loop only writes its answer.
+    expect(main.calls).toHaveLength(1);
+    expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(result.text).toContain("filled 12 of 30 rows");
+  });
+
+  it.each([
+    // Codex rounds 8 and 13: limit 25 with two parts; limit 10 with three.
+    [25, 2],
+    [10, 3],
+  ])(
+    "admits %i tokens' worth of work across %i parts at once, and the turn alone writes the one wrap-up",
+    async (limit, parts) => {
+      const clock = { now: 0 };
+      const budget = turnTokenBudget(limit, 10);
+      const models = Array.from({ length: parts }, () => tirelessModel(clock));
+      const main = tirelessModel(clock);
+      const loop = (model: typeof main.model, part: boolean) =>
+        runTurnLoop({
+          model,
+          system: "You are a bot.",
+          message: "Work.",
+          tools,
+          maxSteps: 500,
+          budget,
+          part,
+          background: false,
+          deadline: 600 * MINUTE,
+          stopped: new AbortController().signal,
+          now: () => clock.now,
+        });
+
+      const handOvers = await Promise.all(
+        models.map(({ model }) => loop(model, true)),
+      );
+      const result = await loop(main.model, false);
+
+      const all = [...models.flatMap(({ calls }) => calls), ...main.calls];
+      const wrapUps = all.filter(
+        (call) => (call.toolChoice as { type?: string })?.type === "none",
+      );
+      // One wrap-up, the turn's; a part out of budget makes no call.
+      expect(wrapUps).toHaveLength(1);
+      expect(main.calls).toEqual([wrapUps[0]]);
+      expect(
+        handOvers.filter((handOver) =>
+          handOver.text.includes("This part stopped before it finished"),
+        ).length,
+      ).toBeGreaterThan(0);
+      expect(result.text).toContain("filled 12 of 30 rows");
+      // Within the allowance plus the one reserved wrap-up step.
+      expect(budget.used).toBeLessThanOrEqual(limit + 10);
+      expect(budget.reserved).toBe(0);
+    },
+  );
+
+  it("lets parts that reach their step ceiling hand back without a report of their own", async () => {
+    // Codex round 16: three parts at 12 steps each, 10 tokens a step, on a
+    // 370-token allowance made three part reports and the turn's fourth.
+    const clock = { now: 0 };
+    const budget = turnTokenBudget(370, 10);
+    const models = Array.from({ length: 3 }, () => tirelessModel(clock));
+    const main = tirelessModel(clock);
+    const loop = (model: typeof main.model, part: boolean, maxSteps: number) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps,
+        budget,
+        part,
+        background: false,
+        deadline: 6_000 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await Promise.all(models.map(({ model }) => loop(model, true, 12)));
+    await loop(main.model, false, 500);
+
+    const wrapUps = [
+      ...models.flatMap(({ calls }) => calls),
+      ...main.calls,
+    ].filter((call) => (call.toolChoice as { type?: string })?.type === "none");
+    expect(wrapUps).toHaveLength(1);
+    expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    // 36 part steps, the turn's own steps up to the limit, one wrap-up.
+    expect(budget.used).toBeLessThanOrEqual(370 + 10);
+  });
+
   it("ends on the step whose tool said so, without a closing step", async () => {
     const clock = { now: 0 };
     const model = new MockLanguageModelV3({
@@ -389,5 +553,220 @@ describe("runTurnLoop", () => {
 
     expect(model.doStreamCalls).toHaveLength(1);
     expect(JSON.parse(result.text).message).toBe("Scheduling for everyone");
+  });
+
+  it("offers the full save tool on the round after a short-form call", async () => {
+    const offered: string[][] = [];
+    const keys: unknown[] = [];
+    const saved: unknown[] = [];
+    const stream = (
+      content: Answer["content"],
+      finish: "stop" | "tool-calls",
+    ) =>
+      streamOf({
+        content,
+        finishReason: { unified: finish, raw: finish },
+        warnings: [],
+        usage,
+      });
+    const model = new MockLanguageModelV3({
+      doStream: async ({ tools: sent, prompt, providerOptions }) => {
+        const schema = sent?.find((t) => t.name === "save_strategy") as
+          | { inputSchema: { properties?: Record<string, unknown> } }
+          | undefined;
+        offered.push(Object.keys(schema?.inputSchema.properties ?? {}));
+        keys.push(providerOptions?.openai?.promptCacheKey);
+        const results = prompt.filter((m) => m.role === "tool").length;
+        if (results === 0)
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "short",
+                toolName: "save_strategy",
+                input: JSON.stringify({ shortForm: true, what: "move a post" }),
+              },
+            ],
+            "tool-calls",
+          );
+        if (results === 1)
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "full",
+                toolName: "save_strategy",
+                input: JSON.stringify({ part: "pieces" }),
+              },
+            ],
+            "tool-calls",
+          );
+        return stream([{ type: "text", text: "Moved it." }], "stop");
+      },
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are Cuso.",
+      message: "Move Friday's post to Monday.",
+      tools: {
+        save_strategy: tool({
+          inputSchema: z.object({ part: z.string() }),
+          execute: async (input: unknown) => {
+            saved.push(input);
+            return { saved: true };
+          },
+        }),
+      },
+      maxSteps: 10,
+      background: false,
+      deadline: Date.now() + 10 * MINUTE,
+      stopped: new AbortController().signal,
+      shortForms: ["save_strategy"],
+      cacheKey: "cmo-v24:short",
+      fullCacheKey: "cmo-v24:full",
+    });
+
+    expect(result.text).toBe("Moved it.");
+    expect(offered[0]).toEqual(["shortForm", "what"]);
+    expect(offered.slice(1).every((keys) => keys.includes("part"))).toBe(true);
+    // Each tool set has its own prefix, so its own cache key.
+    expect(keys[0]).toBe("cmo-v24:short");
+    expect(keys.slice(1).every((key) => key === "cmo-v24:full")).toBe(true);
+    expect(saved).toEqual([
+      { shortForm: true, what: "move a post" },
+      { part: "pieces" },
+    ]);
+  });
+
+  it.each([
+    ["tokens", { inputTokenBudget: 10, advanceMs: 0 }],
+    ["time", { inputTokenBudget: undefined, advanceMs: 9 * MINUTE }],
+  ])(
+    "gives a short-form call that spends the last %s no second round, and still answers",
+    async (_limit, edge) => {
+      const clock = { now: 0 };
+      const calls: { toolChoice: unknown; keys: string[] }[] = [];
+      const model = new MockLanguageModelV3({
+        doStream: async ({ tools: sent, toolChoice }) => {
+          const schema = sent?.find((t) => t.name === "save_strategy") as
+            | { inputSchema: { properties?: Record<string, unknown> } }
+            | undefined;
+          calls.push({
+            toolChoice,
+            keys: Object.keys(schema?.inputSchema.properties ?? {}),
+          });
+          clock.now += edge.advanceMs;
+          return streamOf(
+            toolChoice?.type === "none"
+              ? {
+                  content: [{ type: "text", text: "I'll save it next." }],
+                  finishReason: { unified: "stop", raw: "stop" },
+                  warnings: [],
+                  usage,
+                }
+              : {
+                  content: [
+                    {
+                      type: "tool-call",
+                      toolCallId: "short",
+                      toolName: "save_strategy",
+                      input: JSON.stringify({ shortForm: true, what: "x" }),
+                    },
+                  ],
+                  finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                  warnings: [],
+                  usage,
+                },
+          );
+        },
+      });
+
+      const result = await runTurnLoop({
+        model,
+        system: "You are Cuso.",
+        message: "Move Friday's post to Monday.",
+        tools: {
+          save_strategy: tool({
+            inputSchema: z.object({ part: z.string() }),
+            execute: async () => ({ saved: false }),
+          }),
+        },
+        maxSteps: 10,
+        budget:
+          edge.inputTokenBudget === undefined
+            ? undefined
+            : turnTokenBudget(edge.inputTokenBudget, 1),
+        background: false,
+        deadline: 10 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+        shortForms: ["save_strategy"],
+      });
+
+      expect(calls).toHaveLength(2);
+      expect(calls[0]?.keys).toEqual(["shortForm", "what"]);
+      expect(calls[1]?.toolChoice).toEqual({ type: "none" });
+      expect(result.text).toBe("I'll save it next.");
+    },
+  );
+
+  it("keeps a skill read early in a long turn whole, so its last rule still reaches the model", async () => {
+    const skill = `# Strategy\n${"rule ".repeat(10_000)}LAST RULE: never post on Sundays.`;
+    const prompts: string[] = [];
+    let step = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async ({ prompt }) => {
+        prompts.push(JSON.stringify(prompt));
+        step += 1;
+        const call = (toolName: string, input: object) =>
+          streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: `c${step}`,
+                toolName,
+                input: JSON.stringify(input),
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        if (step === 1) return call("read_skill", { skill: "cmo-strategy" });
+        if (step <= 24) return call("work", {});
+        return streamOf({
+          content: [{ type: "text", text: "No Sunday posts." }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+
+    await runTurnLoop({
+      model,
+      system: "You are Cuso.",
+      message: "Plan the week.",
+      tools: {
+        read_skill: tool({
+          inputSchema: z.object({ skill: z.string() }),
+          execute: async () => ({ content: skill }),
+        }),
+        work: tool({
+          inputSchema: z.object({}),
+          execute: async () => ({ rows: "x".repeat(5_000) }),
+        }),
+      },
+      maxSteps: 40,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    const last = prompts.at(-1) ?? "";
+    expect(last).toContain("LAST RULE: never post on Sundays.");
+    expect(last).toContain("shortened to save room");
   });
 });

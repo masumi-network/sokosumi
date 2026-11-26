@@ -569,9 +569,10 @@ describe("several failing jobs in one request", () => {
       "Could not reconcile an image job",
       2,
     );
-    jobFindManyMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: "job-a" }, { id: "job-b" }]);
+    jobFindManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      { id: "job-a", idempotencyKey: "key-a" },
+      { id: "job-b", idempotencyKey: "key-b" },
+    ]);
     jobFindUniqueMock.mockImplementation(
       ({ where }: { where: { id: string } }) =>
         Promise.reject(prismaError(where.id === "job-a" ? "P2024" : "P2034")),

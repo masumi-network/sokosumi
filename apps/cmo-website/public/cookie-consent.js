@@ -1,5 +1,7 @@
 (() => {
   const KEY = "cmo-cookie-consent-v1";
+  // Shared with app.cmo.xyz, so one choice covers both hosts.
+  const COOKIE = "cmo_consent";
   const MAX_AGE = 180 * 24 * 60 * 60 * 1000;
   const tagId = document.currentScript?.dataset.analytics;
   const privacyUrl = "https://www.cmo.xyz/privacy#cookies-and-similar-storage";
@@ -8,7 +10,22 @@
   let opener;
   let loaded = false;
 
+  function sharedChoice() {
+    const value = document.cookie.split(";").map((part) => part.trim())
+      .find((part) => part.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
+    return value === "granted" ? "accepted" : value === "denied" ? "rejected" : null;
+  }
+
+  function writeSharedChoice(choice) {
+    const domain = /(^|\.)cmo\.xyz$/.test(location.hostname) ? "; domain=.cmo.xyz" : "";
+    const value = choice === "accepted" ? "granted" : "denied";
+    const maxAge = choice === "accepted" ? MAX_AGE / 1000 : 400 * 24 * 60 * 60;
+    document.cookie = `${COOKIE}=${value}; Max-Age=${maxAge}; path=/; SameSite=Lax; Secure${domain}`;
+  }
+
   function readChoice() {
+    const shared = sharedChoice();
+    if (shared) return shared;
     try {
       const saved = JSON.parse(localStorage.getItem(KEY));
       if (saved?.choice === "rejected") return "rejected";
@@ -62,6 +79,7 @@
   function saveChoice(choice) {
     if (gpc) choice = "rejected";
     try { localStorage.setItem(KEY, JSON.stringify({ choice, at: Date.now() })); } catch {}
+    writeSharedChoice(choice);
     panel?.remove();
     panel = null;
     opener?.focus();
@@ -108,6 +126,8 @@
     button.addEventListener("click", () => { opener = button; showChoices(); });
   }
   const choice = readChoice();
+  // Choices saved before the shared cookie existed reach the app too.
+  if (choice && !sharedChoice()) writeSharedChoice(choice);
   if (gpc || choice === "rejected") {
     clearAnalyticsCookies();
   } else if (choice === "accepted") {

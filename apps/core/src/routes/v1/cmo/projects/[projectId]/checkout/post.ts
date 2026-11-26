@@ -5,6 +5,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
 import {
+  cmoCheckoutAnalyticsSchema,
   cmoProjectParamsSchema,
   cmoSubscriptionPlanSchema,
 } from "@/schemas/cmo.schema";
@@ -34,6 +35,7 @@ const route = createRoute({
               .describe(
                 "Where Polar's back link leads without paying: no success marker.",
               ),
+            analytics: cmoCheckoutAnalyticsSchema,
           }),
         },
       },

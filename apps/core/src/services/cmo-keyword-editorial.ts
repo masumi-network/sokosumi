@@ -70,6 +70,7 @@ export async function askCmoEditor(
   };
   try {
     const reply = await generateText({
+      telemetry: { functionId: "cmo-keyword-editorial" },
       model: aiGateway("cmo")(model),
       maxRetries: 0,
       maxOutputTokens: 900,

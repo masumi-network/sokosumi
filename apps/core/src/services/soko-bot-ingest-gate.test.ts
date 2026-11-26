@@ -16,7 +16,9 @@ const {
   logEmitMock,
   reconcileTurnMock,
   sweepMock,
+  idleMock,
 } = vi.hoisted(() => ({
+  idleMock: vi.fn(),
   sweepMock: vi.fn(),
   botFindManyMock: vi.fn(),
   scheduleFindFirstMock: vi.fn(),
@@ -58,6 +60,7 @@ vi.mock("@/services/soko-bot-integration-leaver.service", () => ({
 }));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
+  isIdleSokoBot: idleMock,
 }));
 vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot/mail-triage")>()),
@@ -87,6 +90,7 @@ function tagAll(mail: SokoBotInboxMessage[], tag: MailTriageTag | null) {
 
 function setUp() {
   vi.clearAllMocks();
+  idleMock.mockResolvedValue(false);
   sweepMock.mockResolvedValue(0);
   botFindManyMock.mockResolvedValue([
     {
@@ -127,6 +131,18 @@ function setUp() {
     log,
   }));
 }
+
+describe("soko-bot ingest for a bot nobody chatted with lately", () => {
+  beforeEach(setUp);
+
+  it("reads no mail and starts no turn", async () => {
+    idleMock.mockResolvedValue(true);
+    expect((await run()).skipped).toBe(1);
+    expect(activeIntegrationsMock).not.toHaveBeenCalled();
+    expect(triageMailMock).not.toHaveBeenCalled();
+    expect(startTurnMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("soko-bot ingest when the daily limit is spent", () => {
   beforeEach(setUp);

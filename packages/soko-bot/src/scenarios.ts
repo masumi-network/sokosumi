@@ -105,6 +105,11 @@ export interface SokoBotScenario {
   /** Owner message that starts the turn; empty when a trigger starts it. */
   prompt: string;
   trigger?: SokoBotScenarioTrigger;
+  /**
+   * A Cuso case started as this rhythm's schedule starts it (its message and
+   * packet, source SCHEDULE), so Core reads the turn's kind as in production.
+   */
+  cusoRhythm?: "cmo-daily-run" | "cmo-weekly-review";
   exchange?: SokoBotScenarioExchange;
   /**
    * CLI lab: clear what earlier lab turns made (Tasks, schedules, files) and
@@ -112,6 +117,14 @@ export interface SokoBotScenario {
    */
   setup?: {
     schedules?: { name: string; cronExpression: string; prompt: string }[];
+    /** The owner's X direct messages in the bot's X inbox, as capture keeps them. */
+    xDms?: {
+      from: string;
+      text: string;
+      minutesAgo: number;
+      conversation: string;
+      fromOwner?: boolean;
+    }[];
   };
   /** What a good outcome looks like, for the judge model. */
   rubric: string;
@@ -121,8 +134,15 @@ export interface SokoBotScenario {
     tools?: string[];
     /** At least one of these tools must be called. */
     anyTools?: string[];
+    /**
+     * Saved work, not attempts: at least this many completed calls of each
+     * tool. A turn that ends after its first step saves none of the rest.
+     */
+    minCalls?: Record<string, number>;
     /** None of these may be called. */
     forbiddenTools?: string[];
+    /** Each of these skills must be read in full (read_writing_skill or read_skill). */
+    readsSkills?: string[];
     /**
      * Tools whose failure the scenario sets up (a site that does not load),
      * so a failed call to one is not counted against the bot.
@@ -591,6 +611,151 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       staysSilent: true,
       noDelegations: true,
       answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "x-dm-standup",
+    title: "X messages in the stand-up",
+    setup: {
+      xDms: [
+        {
+          from: "Lena Fox (@lenafox)",
+          conversation: "x-c1",
+          minutesAgo: 200,
+          text: "Hi Robin, loved your talk at the Zurich meetup! Would you join our podcast for an episode in January? Happy to send dates.",
+        },
+        {
+          from: "Gem Alerts (@gemalerts99)",
+          conversation: "x-c2",
+          minutesAgo: 90,
+          text: "100x presale ends tonight. Reply YES for the whitelist link.",
+        },
+        {
+          from: "Sam Lee (@samlee)",
+          conversation: "x-c3",
+          minutesAgo: 300,
+          text: "Thanks again for the intro to Hannah!",
+        },
+        {
+          from: "",
+          conversation: "x-c3",
+          minutesAgo: 250,
+          text: "Anytime, glad it helped.",
+          fromOwner: true,
+        },
+      ],
+    },
+    intent:
+      "The stand-up carries the owner's X direct messages like mail: the one that needs them in a line, the rest as a count, and no reply sent on X.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "standup" },
+    rubric:
+      "Lena Fox's podcast invitation for January is mentioned in an X messages part as something the owner may want to answer (offering to draft a reply is good). The presale promotion is at most counted, never recommended. Sam's thanks, which the owner already answered, is not flagged. Nothing is sent, started or deleted on X, and no X message text is pasted at length. Claiming a reply was sent is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["run_integration_tool", "hire_agent", "send_message"],
+      noDelegations: true,
+      noInventedIds: true,
+      answerMatches: "lena|podcast",
+      answerAvoids: "whitelist link",
+    },
+  },
+  {
+    id: "x-dm-urgent",
+    title: "An urgent X DM between briefings",
+    setup: {
+      xDms: [
+        {
+          from: "Mark Weber (@markw_partners)",
+          conversation: "x-c4",
+          minutesAgo: 20,
+          text: "Robin, the signing with our board is at 17:00 today. I need your OK on the final price of CHF 48,000 by 15:00 or we lose the slot.",
+        },
+        {
+          from: "Growth Tips (@growthtips)",
+          conversation: "x-c5",
+          minutesAgo: 35,
+          text: "Follow back? We share daily growth hacks.",
+        },
+      ],
+    },
+    intent:
+      "An X DM that needs the owner today is flagged right away with what it needs and by when; the bot does not answer on X itself.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "delta" },
+    rubric:
+      "The answer flags Mark Weber's X message: he needs the owner's OK on the final price (CHF 48,000) by 15:00 today for a 17:00 signing. It may offer to draft a reply, but sends nothing on X and does not decide the price for the owner. The follow-back DM is not mentioned or only counted. Answering 'Nothing new worth flagging.' is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["run_integration_tool", "hire_agent", "send_message"],
+      noDelegations: true,
+      answerMatches: "mark|48",
+      answerAvoids: "nothing new worth flagging",
+    },
+  },
+  {
+    id: "x-dm-bulk",
+    title: "Only bulk X DMs",
+    setup: {
+      xDms: [
+        {
+          from: "Gem Alerts (@gemalerts99)",
+          conversation: "x-c6",
+          minutesAgo: 15,
+          text: "Last call: presale closes in 2 hours. Reply YES for access.",
+        },
+        {
+          from: "Giveaway Bot (@giveawaybot)",
+          conversation: "x-c7",
+          minutesAgo: 40,
+          text: "Congrats! You've been selected for our NFT giveaway. Claim within 24h.",
+        },
+        {
+          from: "Growth Tips (@growthtips)",
+          conversation: "x-c8",
+          minutesAgo: 50,
+          text: "gm! Follow back for daily growth hacks.",
+        },
+      ],
+    },
+    intent:
+      "X DMs that are only promotions and spam produce no message and no work.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "delta" },
+    rubric:
+      "Every X message is a promotion, spam or a follow-back request. The correct answer is one short line saying there is nothing (such as 'Nothing new worth flagging.' or 'Nothing to add.'). Recommending any of them, replying on X, or creating work is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "CLARIFY", "MIXED"],
+      forbiddenTools: ["run_integration_tool"],
+      staysSilent: true,
+      noDelegations: true,
+      answerMatches: "nothing (new worth flagging|to add)",
+    },
+  },
+  {
+    id: "x-dm-ask",
+    title: "Any new X DMs?",
+    setup: {
+      xDms: [
+        {
+          from: "Lena Fox (@lenafox)",
+          conversation: "x-c1",
+          minutesAgo: 120,
+          text: "Hi Robin, loved your talk at the Zurich meetup! Would you join our podcast for an episode in January? Happy to send dates.",
+        },
+      ],
+    },
+    intent:
+      "Asked about X direct messages, it reads them through search_inbox and answers, without replying on X.",
+    prompt: "Any new X DMs?",
+    rubric:
+      "The bot looks the messages up (search_inbox) and tells the owner that Lena Fox invited them to her podcast for an episode in January. It may offer to draft a reply. It sends nothing on X and does not claim a reply was sent.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["search_inbox"],
+      forbiddenTools: ["run_integration_tool", "send_message"],
+      noDelegations: true,
+      answerMatches: "lena|podcast",
     },
   },
   {
@@ -1078,6 +1243,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "publish_social_post",
         "schedule_social_post",
         "update_social_post",
+        "update_social_posts",
         "create_social_post",
         "hire_agent",
       ],
@@ -1297,6 +1463,15 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
 export const CMO_PLACEHOLDER_PATTERN =
   "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
 
+/**
+ * Bracket placeholders, but not Markdown links: a page or email draft the
+ * owner pastes elsewhere may link its button ("[Start your trial](https://…)").
+ */
+const CMO_PLACEHOLDER_NOT_LINK_PATTERN = CMO_PLACEHOLDER_PATTERN.replace(
+  "{2,}\\]",
+  "{2,}\\](?!\\()",
+);
+
 /** The chat case whose picture must start as a reference library job. */
 export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
 
@@ -1434,14 +1609,41 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      'Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. When he files a report card (report_update kind request), its title is one short plain sentence to the owner ("LinkedIn is down to one post a week"); a title in internal terms or with two clauses joined by a semicolon fails. He saves only the entries he changes (save_strategy part patch); sending the whole calendar, or asking the owner for the calendar, fails. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.',
+      'Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. When he files a report card (report_update kind request), its title is one short plain sentence to the owner ("LinkedIn is down to one post a week"); a title in internal terms or with two clauses joined by a semicolon fails. He saves only the entries he changes (save_strategy part patch); sending the whole calendar, or asking the owner for the calendar, fails. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. A write_strategy call with the change counts as his save when its save_strategy calls succeed. If no strategy exists yet, saying so is correct.',
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
+      // cmo-v25 hands the change to Core's step, which saves through
+      // save_strategy in the same turn.
+      anyTools: ["save_strategy", "write_strategy"],
       // A save that breaks a hard rule is refused so Cuso fixes it; the
       // rubric still fails a turn that never saves.
       allowFailedTools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
+    id: "cmo-change-then-drafts",
+    title: "Changes the strategy, then does the rest of the request",
+    intent:
+      "A chat that asks for a strategy change and more work gets both in one turn: saving the change never ends the turn before the rest is done.",
+    prompt:
+      "Post on LinkedIn only once a week from now on. Then prepare three draft X posts about our product for me to review.",
+    rubric:
+      "Cuso saves the LinkedIn change to the strategy (save_strategy, or write_strategy with the change, whose save_strategy calls succeed) and, in the same turn, creates three separate draft X posts with create_social_post, each its own point about the product from the Brand Brain, none published or scheduled. His answer says both are done, in plain words. Stopping after the strategy change, fewer than three drafts, publishing, or claiming drafts no create_social_post returned fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      anyTools: ["save_strategy", "write_strategy"],
+      // Core also reads what was saved (eval-cmo-change-then-drafts.ts):
+      // three different X drafts on his Project, none scheduled, LinkedIn weekly.
+      minCalls: { save_strategy: 1, create_social_post: 3 },
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "create_task",
+        "hire_agent",
+        "publish_social_post",
+        "schedule_social_post",
+      ],
     },
   },
   {
@@ -1973,8 +2175,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     title: "Measures last week, not next month's drafts",
     intent:
       "The Monday review reads the week before today: it asks for statistics of exactly those seven days and never treats drafts dated next month as last week's posts.",
-    // Core sends the weekly review rhythm's own prompt and packet.
+    // Started as the weekly review's schedule starts it.
     prompt: "Weekly marketing review (the rhythm's prompt and packet).",
+    cusoRhythm: "cmo-weekly-review",
     rubric:
       "The packet names today and last week's seven days and lists the three X posts published in them, whose statistics X returned this morning (1,840, 960 and 2,310 impressions); four drafts are dated next month. Cuso measures those three posts: list_social_post_statistics (or get_social_post) for last week's range only, and reports only numbers a source returned. He files report_update kind weekly with a verdict (hold is fine with three posts) and changes nothing he cannot justify. Treating next month's drafts as last week, a range outside last week, saying last week's posts have no numbers or blaming the X connection for them, or an invented number fails. Account-level history needs a live connector the eval does not have; noting that it is unavailable is fine.",
     expect: {
@@ -2099,7 +2302,11 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       'The month in the lane has three LinkedIn pieces 22 to 28 days from today: "Reminders that cut no-shows", "Handing a lead to the next rep" and "Insights that show booking volume". Cuso names exactly these three with their days, read from the calendar, and nothing else from other weeks. A title he did not read, a missing one, or a change to the plan fails.',
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
-      forbiddenTools: ["save_strategy", "update_social_post"],
+      forbiddenTools: [
+        "save_strategy",
+        "update_social_post",
+        "update_social_posts",
+      ],
       answerMatches:
         "^(?=[\\s\\S]*no-shows)(?=[\\s\\S]*next rep)(?=[\\s\\S]*booking volume)",
     },
@@ -2151,7 +2358,124 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "read_report",
         "read_competitor_moves",
         "save_strategy",
+        "save_brand_brain",
+        "read_skill",
       ],
+    },
+  },
+  {
+    id: "cmo-landing-page-copy",
+    title: "Reads the landing page skill before writing page copy",
+    intent:
+      "Asked for homepage copy, Cuso reads the landing-page skill and writes one clear promise from the Brand Brain, with no invented proof.",
+    prompt:
+      "Rewrite the top of our homepage: the headline, the line under it and the button. Give me the copy here, I'll put it on the site myself.",
+    rubric:
+      "Cuso read the landing-page skill and answers with finished copy: one headline that says what cal.com does for whom, one supporting line, and a button label that names the action (not 'Learn more' or 'Submit'). Everything comes from the Brand Brain and the site; it invents no customer count, rating, percentage, testimonial or logo. A short reason for the choice is fine. Changing the strategy or calendar, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["landing-page"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-page-review-first-fix",
+    title: "Says what to change first on a page that does not convert",
+    intent:
+      "Asked why the pricing page does not convert, Cuso reads the page-review skill, looks at the real page and answers with a short ordered list in plain words.",
+    prompt:
+      "Lots of people visit our pricing page but few start a trial. What should we change first?",
+    rubric:
+      "Cuso read the page-review skill and looked at cal.com's pricing page (web_fetch or the site pages he has). The answer leads with the one change to make first and why, then at most a few more in order, each tied to something actually on the page. Plain words a founder understands without marketing terms (no 'CRO', 'conversion rate optimization', 'CTA', 'above the fold', 'friction'). It invents no numbers about the page's performance and does not promise a result. Changing the strategy, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["page-review"],
+      allowFailedTools: ["web_fetch"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: `${CMO_PLACEHOLDER_NOT_LINK_PATTERN}|\\bCRO\\b|\\bCTA\\b|above the fold`,
+    },
+  },
+  {
+    id: "cmo-launch-plan",
+    title: "Plans a feature launch from the launch skill",
+    intent:
+      "Asked to plan a launch, Cuso reads the launch-plan skill and says what goes out where and in what order, starting with the owner's own channels.",
+    prompt:
+      "Next Tuesday we launch routing forms: people answer a few questions and get booked with the right teammate. Plan the announcement, what goes out where and when. Don't put anything on the calendar yet.",
+    rubric:
+      "Cuso read the launch-plan skill and answers with a short plan in order: the owner's own channels first (site, email to existing users, their social accounts), launch day itself, and a follow-up after. Each item says what it says and where. It describes routing forms only with what the owner said or what the Brand Brain holds; it invents no numbers, customers or quotes. Plain words. Saving to the strategy or calendar, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["launch-plan"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-trial-welcome-emails",
+    title: "Writes trial welcome emails from the email sequence skill",
+    intent:
+      "Asked for the emails a new Teams trial gets, Cuso reads the email-sequence skill and writes a short sequence with one job per email.",
+    prompt:
+      "Write the emails someone gets after they start the 14-day Teams trial. Just the text here, I'll set them up in our email tool.",
+    rubric:
+      "Cuso read the email-sequence skill and writes a short sequence (about three to five emails) with when each one goes out, a subject line, and a body that does one job and ends with one clear next step. It is about the Teams plan and its 14-day trial from the Brand Brain, in the brand's voice. It invents no numbers, customer names or quotes, uses no fake urgency, and mentions no newsletter. Creating a newsletter issue, changing the strategy, creating a Task or hiring fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      readsSkills: ["email-sequence"],
+      forbiddenTools: [
+        "save_strategy",
+        "create_task",
+        "hire_agent",
+        "create_newsletter_issue",
+      ],
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-short-form-brand-save",
+    title: "Saves a new offer through the short save tool",
+    intent:
+      "On a chat that is not a plan change, save_brand_brain comes in its short form (cmo-v24): Cuso calls it, gets the full tool, and saves the new offer in the same turn.",
+    prompt:
+      "We just launched a free plan for solo founders: one person, unlimited event types, no credit card needed. Please add it to what you know about us.",
+    rubric:
+      "Cuso saves the free plan for solo founders into the Brand Brain with save_brand_brain (the offers, and the pricing section when he changes it), with only what the owner said: one person, unlimited event types, no credit card. On cmo-v24 the first save_brand_brain call may be the short form; the save that counts is the full one after it. He tells the owner in a line that it is saved. Changing the marketing plan or calendar unasked, inventing a price, a limit or a launch date, or claiming a save that did not complete fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE"],
+      tools: ["save_brand_brain"],
+      forbiddenTools: ["save_strategy", "create_task"],
+    },
+  },
+  {
+    id: "cmo-chat-strategy-skill",
+    title: "Reads how he plans before he answers a question about the plan",
+    intent:
+      "A question in chat about why the plan is what it is needs Cuso's strategy skill: on a version that loads skills on demand (cmo-v24) he reads it with read_skill before he answers.",
+    prompt:
+      "Why did you pick these pillars for this month? Would a pillar on customer stories be better than one of them? Don't change anything yet.",
+    rubric:
+      "Cuso explains in plain words why each pillar is in this month's plan, from the saved strategy and what he knows about the business, and says honestly whether a customer-stories pillar would fit and what it would replace, as a suggestion. He changes nothing: any save_strategy call fails. Inventing facts about the business or results, or answering without looking at the saved plan, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      forbiddenTools: ["save_strategy", "save_brand_brain", "create_task"],
+    },
+  },
+  {
+    id: "cmo-daily-run-watch",
+    title: "Runs the day by his daily-run skill",
+    intent:
+      "The daily marketing run starts as its schedule starts it; Cuso keeps the next days right, answers what came in and files his daily report, by the daily-run skill the turn carries (preloaded on cmo-v24).",
+    prompt: "Daily marketing run (the rhythm's prompt and packet).",
+    cusoRhythm: "cmo-daily-run",
+    rubric:
+      "Cuso does the daily run: looks at what is due today and the next days, handles comments or news if there are any, and files one short daily report (report_update) in plain words that says what he did and what the owner should know. He invents no numbers, results or news, and changes nothing the day does not need. Asking the owner what to do instead of running the day, or no report, fails.",
+    expect: {
+      routes: ["MANAGE_WORK"],
+      tools: ["report_update"],
+      allowFailedTools: ["list_integration_tools", "save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
   },
 ];
@@ -2255,6 +2579,35 @@ export function evaluateScenario(
           ? `called ${list(used)}`
           : `none called — used ${list(tools)}`,
     });
+  }
+  for (const [tool, least] of Object.entries(expect.minCalls ?? {})) {
+    const done = turn.toolCalls.filter(
+      (call) => call.capability === tool && call.status === "COMPLETED",
+    ).length;
+    checks.push({
+      label: `Completes ${tool} at least ${least} time${least === 1 ? "" : "s"}`,
+      pass: done >= least,
+      actual: `${done} completed`,
+    });
+  }
+  if (expect.readsSkills?.length) {
+    const read = new Set(
+      turn.toolCalls
+        .filter(
+          (call) =>
+            call.status === "COMPLETED" &&
+            (call.capability === "read_writing_skill" ||
+              call.capability === "read_skill"),
+        )
+        .map((call) => (call.result as { skill?: unknown } | null)?.skill)
+        .filter((skill): skill is string => typeof skill === "string"),
+    );
+    for (const skill of expect.readsSkills)
+      checks.push({
+        label: `Reads skill ${skill}`,
+        pass: read.has(skill),
+        actual: read.has(skill) ? "read" : `not read: read ${list(read)}`,
+      });
   }
   if (expect.forbiddenTools?.length) {
     const violated = expect.forbiddenTools.filter((tool) => tools.has(tool));

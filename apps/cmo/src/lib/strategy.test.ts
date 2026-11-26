@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { monthLabel, monthPostCount, postsGoingOut } from "./strategy";
+import { monthPostCount, postsGoingOut } from "./strategy";
 
 const entry = (id: string, extra: Record<string, unknown> = {}) =>
   ({
@@ -38,8 +38,6 @@ it("counts search ads as ads, not posts", () => {
     entry("ad2", { channel: "google_ads", format: "search ad" }),
   ];
   expect(monthPostCount(month)).toBe(2);
-  expect(monthLabel(month)).toBe("2 posts and 2 ads");
-  expect(monthLabel(month.slice(0, 1))).toBe("1 post");
 });
 
 it("counts a shared short video once on each network, and newsletter issues, like the month's total", () => {

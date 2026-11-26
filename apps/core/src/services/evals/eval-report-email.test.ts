@@ -55,7 +55,7 @@ describe("sendEvalRegressionEmail", () => {
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: ["patrick@example.com", "ops@example.com"],
-        subject: "Evals: 1 case regressed after #6940",
+        subject: "Evals: 1 regressed after #6940",
         tag: "eval-regression",
         idempotencyKey: "eval-regression:run-1",
       }),
@@ -65,12 +65,53 @@ describe("sendEvalRegressionEmail", () => {
       html: string;
     };
     expect(sent.text).toContain(
-      "Ambiguous request (ambiguous-request): 0%, was 100%. Asks a question: no <question>",
+      "Regressed: Ambiguous request (ambiguous-request): 0%, was 100%. Asks a question: no <question>",
     );
     expect(sent.text).toContain(
       "https://app.sokosumi.com/admin/evals/runs/run-1",
     );
     expect(sent.html).toContain("no &lt;question&gt;");
+  });
+
+  it("names costlier cases, with slower ones beside them", async () => {
+    report.cases = [
+      {
+        ...regressed,
+        outcome: "passing",
+        costlier: true,
+        costUsd: 0.42,
+        usualCostUsd: 0.2,
+        slower: true,
+        durationMs: 180_000,
+        usualDurationMs: 60_000,
+      },
+    ];
+    expect(await sendEvalRegressionEmail("run-1")).toBe(true);
+    const sent = sendEmail.mock.calls[0]?.[0] as unknown as {
+      subject: string;
+      text: string;
+    };
+    expect(sent.subject).toBe("Evals: 1 costlier after #6940");
+    expect(sent.text).toContain(
+      "Costlier: Ambiguous request (ambiguous-request): $0.42, usually $0.20.",
+    );
+    expect(sent.text).toContain(
+      "Slower: Ambiguous request (ambiguous-request): 3.0 min, usually 1.0 min.",
+    );
+  });
+
+  it("shows a dash, not 0%, when there is no earlier week to compare with", async () => {
+    report.cases = [{ ...regressed, baselinePassRate: null }];
+    expect(await sendEvalRegressionEmail("run-1")).toBe(true);
+    const sent = sendEmail.mock.calls[0]?.[0] as unknown as { text: string };
+    expect(sent.text).toContain(
+      "Regressed: Ambiguous request (ambiguous-request): 0%, was –.",
+    );
+  });
+
+  it("sends nothing for a slower case alone", async () => {
+    report.cases = [{ ...regressed, outcome: "passing", slower: true }];
+    expect(await sendEvalRegressionEmail("run-1")).toBe(false);
   });
 
   it("sends nothing without a regression", async () => {

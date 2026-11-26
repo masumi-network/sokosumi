@@ -7,8 +7,11 @@
 export const KEEP_GOING_PROMPT =
   "Check the brief against what you have actually finished. If a step of the brief is left, keep working on it now with your tools; do not report yet. Do not look for work the brief did not ask for. When every step is done, or the rest is impossible, write your final report now and start it with DONE:";
 
-/** Most nudges a run gets; the step and time budgets usually end it first. */
-export const MAX_KEEP_GOING_ROUNDS = 40;
+/**
+ * Most nudges a run gets. Each nudged round resends the whole context, so a
+ * run that still has work after eight is better ended with its report.
+ */
+export const MAX_KEEP_GOING_ROUNDS = 8;
 
 /** Stop nudging when less than this is left: the report needs time too. */
 export const MIN_ROUND_TIME_MS = 3 * 60 * 1_000;
@@ -23,6 +26,16 @@ export const REPORT_RESERVE_MS = 5 * 60 * 1_000;
 export const TIME_UP_PROMPT =
   "Your time or step budget is used up; you cannot call tools any more. Write your final report now from what you have: start it with DONE:, say what you finished, link what you made and saved, and name what is left undone so the owner can pick it up.";
 
+/**
+ * A turn that is not a background run stops this long before its deadline
+ * (at most a fifth of its time) and answers from what it has, instead of
+ * being cut off mid-tool with no reply.
+ */
+export const FOREGROUND_REPORT_RESERVE_MS = 60 * 1_000;
+
+export const FOREGROUND_TIME_UP_PROMPT =
+  "Your time or step budget for this turn is used up; you cannot call tools any more. Answer now from what you have: say what you did, what you found, and what is left undone.";
+
 /** "DONE:", also as a heading, in bold or after a check mark. */
 const DONE_PREFIX = /^[\s#>*_\-–—✅✔\uFE0F]*DONE\b[\s*_:–—-]*/iu;
 
@@ -32,14 +45,37 @@ export const MAX_IDLE_ROUNDS = 2;
 const READ_TOOL =
   /^(get|list|read|search|find)_|^(refresh_context|preview_result|read_memory|workspace_read|workspace_list|workspace_search)$/;
 
+/** A shell command that only waits: `sleep 60`, `sleep 5m; sleep 5m`. */
+const SLEEP_ONLY =
+  /^\s*sleep\s+[\d.]+[smhd]?\s*((;|&&)\s*sleep\s+[\d.]+[smhd]?\s*)*;?\s*$/;
+
+export interface RoundToolCall {
+  toolName: string;
+  input: unknown;
+}
+
+function waitsOnly(call: RoundToolCall): boolean {
+  if (call.toolName !== "bash") return false;
+  const command =
+    typeof call.input === "object" &&
+    call.input !== null &&
+    "command" in call.input
+      ? call.input.command
+      : undefined;
+  return typeof command === "string" && SLEEP_ONLY.test(command);
+}
+
 /**
- * A round that only re-read Tasks and Files: the work is done and the model
- * is checking it again. Waiting on a Coworker runs \`bash\` \`sleep\`, so it
- * never counts; a v25 run re-listed the same Tasks for twenty minutes after
- * the review came back because its reply never started with DONE.
+ * A round that only re-read Tasks and Files, or slept: the work is done and
+ * the model is checking it again or waiting. A v25 run re-listed the same
+ * Tasks for twenty minutes after the review came back because its reply never
+ * started with DONE; a wait belongs to wait_for, which wakes the bot when the
+ * work is back.
  */
-export function isIdleRound(toolNames: readonly string[]): boolean {
-  return toolNames.every((name) => READ_TOOL.test(name));
+export function isIdleRound(calls: readonly RoundToolCall[]): boolean {
+  return calls.every(
+    (call) => READ_TOOL.test(call.toolName) || waitsOnly(call),
+  );
 }
 
 /**

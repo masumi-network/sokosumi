@@ -7,7 +7,9 @@ import {
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import { PROJECT_LINE_DATE } from "@/app/projects/constants";
-import { SharedBotsSection } from "@/app/soko-bots/components/shared-bots-section";
+import { CreateSokoBotDialog } from "@/app/soko-bots/components/create-soko-bot-dialog.client";
+import { ManagedBotSections } from "@/app/soko-bots/components/managed-bot-sections";
+import { loadManagedSharedBots } from "@/app/soko-bots/managed-bots";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
@@ -37,6 +39,11 @@ export default async function ProjectBotsPage({
   if (!project || !workspaceLabels.bots || !sharedBots) {
     notFound();
   }
+  const projects = [{ id: project.id, name: project.name }];
+  const bots = await loadManagedSharedBots(
+    sharedBots.filter((bot) => bot.projectId === project.id),
+    projects,
+  );
 
   return (
     <ProjectWorkspaceShell
@@ -62,16 +69,24 @@ export default async function ProjectBotsPage({
       projectName={project.name}
       websiteUrl={project.websiteUrl}
     >
-      <SharedBotsSection
-        bots={sharedBots.filter((bot) => bot.projectId === project.id)}
-        projects={[{ id: project.id, name: project.name }]}
-        canCreatePersonal={false}
-        defaultScope={SokoBotScope.PROJECT}
-        defaultProjectId={project.id}
-        // Core refuses a new bot in a CMO Project; CMO runs its Cuso.
-        canCreate={!project.cmo}
-        title={t("bots.title")}
-      />
+      <div className="flex flex-col gap-12">
+        <ManagedBotSections
+          title={t("bots.title")}
+          action={
+            // Core refuses a new bot in a CMO Project; CMO runs its Cuso.
+            project.cmo ? null : (
+              <CreateSokoBotDialog
+                canCreatePersonal={false}
+                projects={projects}
+                defaultScope={SokoBotScope.PROJECT}
+                defaultProjectId={project.id}
+              />
+            )
+          }
+          bots={bots}
+          emptyText={t("bots.empty")}
+        />
+      </div>
     </ProjectWorkspaceShell>
   );
 }

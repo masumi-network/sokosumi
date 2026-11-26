@@ -1,6 +1,9 @@
 import { AD_WRITING_SKILLS } from "./ads.js";
 import { FOUNDATION_WRITING_SKILLS } from "./foundations.js";
+import { GROWTH_WRITING_SKILLS } from "./growth.js";
 import { LONG_FORM_WRITING_SKILLS } from "./long-form.js";
+import { OUTREACH_WRITING_SKILLS } from "./outreach.js";
+import { PAGE_WRITING_SKILLS } from "./pages.js";
 import { SOCIAL_WRITING_SKILLS } from "./social.js";
 import type { WritingSkill, WritingSkillGroup } from "./types.js";
 
@@ -12,6 +15,7 @@ export const WRITING_SKILL_GROUPS: readonly {
   { key: "social", name: "Social networks" },
   { key: "ads", name: "Ads" },
   { key: "long_form", name: "Email and search" },
+  { key: "playbooks", name: "Pages, outreach and growth" },
 ];
 
 /** Every writing skill, grouped in display order. */
@@ -20,6 +24,9 @@ export const WRITING_SKILLS: readonly WritingSkill[] = [
   ...SOCIAL_WRITING_SKILLS,
   ...AD_WRITING_SKILLS,
   ...LONG_FORM_WRITING_SKILLS,
+  ...PAGE_WRITING_SKILLS,
+  ...OUTREACH_WRITING_SKILLS,
+  ...GROWTH_WRITING_SKILLS,
 ];
 
 /** Every skill a set of channels needs: the foundations they use, then each channel's own. */

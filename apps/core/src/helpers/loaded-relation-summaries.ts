@@ -1,4 +1,5 @@
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
+import { sokoBotFace } from "@/lib/cuso-face";
 export type UserSummaryFields = {
   id: string;
   name: string;
@@ -128,6 +129,7 @@ interface SokoBotLoadedRelation {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
+  versionId: string | null;
   userId: string | null;
   user: UserSummaryFields | null;
 }
@@ -165,7 +167,7 @@ export function sokoBotSummaryFromLoadedRelation(
     id: sokoBot.id,
     name: sokoBot.name,
     avatarSeed: sokoBot.avatarSeed,
-    avatarImageUrl: sokoBot.avatarImageUrl,
+    avatarImageUrl: sokoBotFace(sokoBot).avatarImageUrl,
     owner: isPersonalSokoBot(sokoBot)
       ? userSummaryFromLoadedRelation(
           `${context} sokoBot owner`,

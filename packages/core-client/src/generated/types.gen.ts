@@ -283,6 +283,7 @@ export type AdminOrganizationOption = {
 export type AdminSokoBotList = {
     items: Array<AdminSokoBotListItem>;
     total: number;
+    summary: AdminSokoBotFleetSummary;
 };
 
 export type AdminSokoBotListItem = {
@@ -303,6 +304,7 @@ export type AdminSokoBotListItem = {
     pendingDecisionCount: number;
     scheduleCount: number;
     owner: AdminSokoBotOwner | null;
+    evalLane: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -320,6 +322,14 @@ export type AdminSokoBotOwner = {
     id: string;
     name: string | null;
     email: string;
+};
+
+export type AdminSokoBotFleetSummary = {
+    active: number;
+    activeRecently: number;
+    pendingDecisions: number;
+    attention: Array<AdminSokoBotListItem>;
+    attentionTotal: number;
 };
 
 export type AdminSokoBotQuality = {
@@ -521,6 +531,7 @@ export type AdminCmoSpend = {
     bots: Array<{
         sokoBotId: string;
         businessName: string;
+        evalLane: boolean;
         ownerEmail: string;
         turns: number;
         totalUsd: number;
@@ -579,6 +590,7 @@ export type AdminSokoBotFleetDays = {
         totalTokens: number;
         costUsd: number;
         cmoCostUsd: number;
+        evalCostUsd: number;
     }>;
 };
 
@@ -1761,6 +1773,9 @@ export type EvalRunReport = {
             pending?: number;
             skipped?: number;
         };
+        costlier: number;
+        slower: number;
+        passRate: number | null;
         passed: number;
         scored: number;
         open: number;
@@ -1780,6 +1795,12 @@ export type EvalCaseReport = {
     passRate: number | null;
     baselinePassRate: number | null;
     history: Array<number | null>;
+    costUsd: number | null;
+    usualCostUsd: number | null;
+    costlier: boolean;
+    durationMs: number | null;
+    usualDurationMs: number | null;
+    slower: boolean;
     results: Array<EvalResult>;
 };
 
@@ -6957,6 +6978,8 @@ export type ProjectTalkingVideo = {
     broll: boolean;
     music: boolean;
     format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    shape: '9:16' | '4:5' | '1:1' | '16:9';
+    sourceJobId: string | null;
 };
 
 export type ImageStudioRecentProjects = {
@@ -9607,7 +9630,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         changes?: Array<string>;
         fitted?: Array<string>;
         monthWriter?: {
-            state: 'examples' | 'writing' | 'written';
+            state: 'examples' | 'writing' | 'written' | 'stopped';
             level?: 'steady' | 'active' | 'all_in';
             start?: string;
             attempts?: number;
@@ -9957,7 +9980,7 @@ export type MarketingStrategyRequest = {
         changes?: Array<string>;
         fitted?: Array<string>;
         monthWriter?: {
-            state: 'examples' | 'writing' | 'written';
+            state: 'examples' | 'writing' | 'written' | 'stopped';
             level?: 'steady' | 'active' | 'all_in';
             start?: string;
             attempts?: number;
@@ -12230,6 +12253,7 @@ export type CreateProjectTalkingVideoJobRequest = {
     siteShots?: boolean;
     broll?: boolean;
     music?: boolean;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
@@ -12241,6 +12265,7 @@ export type CreateProjectShortVideoJobRequest = {
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
@@ -15501,7 +15526,7 @@ export type CmoPlan = {
     changes?: Array<string>;
     fitted?: Array<string>;
     monthWriter?: {
-        state: 'examples' | 'writing' | 'written';
+        state: 'examples' | 'writing' | 'written' | 'stopped';
         level?: 'steady' | 'active' | 'all_in';
         start?: string;
         attempts?: number;
@@ -19927,6 +19952,10 @@ export type ListAdminSokoBotsData = {
          * Personal Soko Bots, Cuso (CMO.xyz) bots, or both.
          */
         kind?: 'all' | 'assistant' | 'cmo';
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots';
 };
@@ -20916,6 +20945,10 @@ export type GetAdminCmoSpendData = {
     path?: never;
     query?: {
         days?: number;
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots/cmo-spend';
 };
@@ -94100,6 +94133,13 @@ export type StartCmoPlanCheckoutForProjectData = {
          * Where Polar's back link leads without paying: no success marker.
          */
         backUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;
@@ -96170,6 +96210,13 @@ export type RequestCmoStrategyForProjectResponse = RequestCmoStrategyForProjectR
 export type StartCmoTopUpForProjectData = {
     body?: {
         returnUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;

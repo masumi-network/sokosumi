@@ -150,6 +150,7 @@ async function summarisePage(
 ): Promise<{ summary: string; facts: string[]; costUsd: number }> {
   try {
     const result = await generateText({
+      telemetry: { functionId: "cmo-site-pages" },
       ...sokoBotModelRequest({
         role: "agent",
         model: SUMMARY_MODEL,

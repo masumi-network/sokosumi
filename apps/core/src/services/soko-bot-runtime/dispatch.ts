@@ -24,6 +24,7 @@ import { dispatchTablesTools } from "./dispatch-tables";
 import { dispatchTaskInterestTools } from "./dispatch-task-interest";
 import { dispatchTasksTools } from "./dispatch-tasks";
 import { type RuntimeOperations } from "./operations";
+import { readSkill } from "./read-skill";
 
 export async function executeAuthorizedTool(
   runtime: RuntimeOperations,
@@ -92,6 +93,7 @@ async function executeTool(
     case "get_social_post":
     case "create_social_post":
     case "update_social_post":
+    case "update_social_posts":
     case "schedule_social_post":
     case "cancel_social_post":
     case "publish_social_post":
@@ -117,6 +119,8 @@ async function executeTool(
     case "stop_background_run":
     case "manage_reminder":
     case "list_schedules":
+    case "save_task_schedule":
+    case "delete_task_schedule":
     case "create_schedule":
     case "update_schedule":
     case "delete_schedule":
@@ -138,6 +142,9 @@ async function executeTool(
     case "find_people":
     case "enrich_contact":
     case "export_contacts_to_table":
+    case "fundraising_pipeline":
+    case "investor_warm_paths":
+    case "find_investors":
     case "create_project":
     case "update_project":
     case "refresh_context":
@@ -147,11 +154,14 @@ async function executeTool(
     case "save_strategy":
     case "report_update":
     case "write_month_pieces":
+    case "write_strategy":
     case "evaluate_with_jev":
     case "search_exa":
     case "check_competitors":
     case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
+    case "read_skill":
+      return readSkill(authorized, input.input);
     case "read_calendar":
     case "read_strategy":
     case "read_brand_brain":
@@ -231,4 +241,7 @@ async function executeTool(
     case "run_mcp_tool":
       return dispatchMcpTools(input, authorized);
   }
+  throw new SokoBotRuntimeValidationError(
+    `No Core handler for tool: ${input.capability}`,
+  );
 }

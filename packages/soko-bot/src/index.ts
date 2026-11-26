@@ -53,6 +53,7 @@ export {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
+  sokoBotMemoryNotKept,
 } from "./memory.js";
 export {
   composeSokoBotIntroduction,
@@ -206,6 +207,7 @@ export {
   sokoBotAskCoworkerInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotDeleteFileInputSchema,
+  sokoBotDeleteTaskScheduleInputSchema,
   sokoBotDraftEmailInputSchema,
   sokoBotEvaluateWithJevInputSchema,
   sokoBotGenerateImageInputSchema,
@@ -221,6 +223,7 @@ export {
   sokoBotListIntegrationToolsInputSchema,
   sokoBotListMcpToolsInputSchema,
   sokoBotListRecipientsInputSchema,
+  sokoBotListSchedulesInputSchema,
   sokoBotListSkillsInputSchema,
   sokoBotManageReminderInputSchema,
   sokoBotMemoryUpdateInputSchema,
@@ -235,6 +238,7 @@ export {
   sokoBotRunIntegrationToolInputSchema,
   sokoBotRunMcpToolInputSchema,
   sokoBotSaveEmailAttachmentInputSchema,
+  sokoBotSaveTaskScheduleInputSchema,
   sokoBotScheduleIdInputSchema,
   sokoBotSearchExaInputSchema,
   sokoBotSearchInboxInputSchema,
@@ -246,6 +250,11 @@ export {
   sokoBotUpdateScheduleInputSchema,
   sokoBotUploadFileInputSchema,
 } from "./tool-contracts.js";
+export {
+  CMO_PLAYBOOKS_SKILL,
+  cmoReadsPlaybooks,
+  cmoWritingSkills,
+} from "./versions/cmo-playbooks-skill.js";
 export {
   CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,
@@ -288,21 +297,44 @@ export {
   cmoReadsOnDemand,
 } from "./versions/cmo-v23-skills.js";
 export {
+  CMO_SHORT_FORM_DESCRIPTIONS,
+  CMO_SHORT_FORM_TOOLS,
+  CMO_TOOL_HIGHLIGHTS_SKILL,
+  type CmoShortFormTool,
+  cmoHighlightsTools,
+  cmoShortFormAnswer,
+  cmoShortFormInputSchema,
+  isCmoShortFormCall,
+  isCmoShortFormTool,
+} from "./versions/cmo-v24-skills.js";
+export {
+  CMO_STRATEGY_STEP_SKILL,
+  cmoWritesStrategyStep,
+} from "./versions/cmo-v25-skills.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
   cmoWhatsNew,
   composeSystemPrompt,
+  composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
+  type SokoBotPromptTurn,
   type SokoBotVersion,
   sokoBotIdentity,
   sokoBotToolDescription,
   versionShowsResultCards,
 } from "./versions/index.js";
+export {
+  SKILL_INDEX,
+  type SkillOccasion,
+  splitSkillsForTurn,
+} from "./versions/skill-index.js";
+export { sokoBotReadsXDms, X_DMS_SKILL_ID } from "./versions/x-dms-skills.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,

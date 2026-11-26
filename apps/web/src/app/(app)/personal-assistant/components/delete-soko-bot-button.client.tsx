@@ -18,7 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteSokoBotAction } from "@/lib/actions/soko-bot/action";
-import { SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { useSokoBotTargetId } from "./soko-bot-target";
 
 /**
@@ -46,7 +45,7 @@ export function DeleteSokoBotButton({ botName }: { botName: string | null }) {
       }
       setOpen(false);
       toast.success(t("deleted"));
-      if (botId) router.push(SOKO_BOTS_ROUTE);
+      if (botId) router.push("/agents");
     });
   }
 

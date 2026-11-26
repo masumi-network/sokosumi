@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { pathnameRef, searchRef, routerPrefetchMock } = vi.hoisted(() => ({
-  pathnameRef: { current: "/" },
+  pathnameRef: { current: "/projects" },
   searchRef: { current: "" },
   routerPrefetchMock: vi.fn(),
 }));
@@ -107,7 +107,7 @@ describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
   });
 
@@ -208,7 +208,7 @@ describe("MenuItems", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
     renderMenu(true, true);
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
 
     // `hrefFor` carries the reader's project across, the way Tasks and the
@@ -223,7 +223,7 @@ describe("MenuItems", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
     renderMenu(true, true);
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
 
     expect(screen.getByRole("link", { name: /ads/i })).toHaveAttribute(
@@ -262,7 +262,7 @@ function destinationsUnder(heading: string) {
 describe("MenuItems groups", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
   });
 
@@ -270,7 +270,6 @@ describe("MenuItems groups", () => {
     const { unmount } = renderMenu(true, false);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "home",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -322,19 +321,6 @@ describe("MenuItems groups", () => {
     ).toBeInTheDocument();
   });
 
-  // The wordmark's link to `/` became this row when the Workspace switcher
-  // took the sidebar header.
-  it("puts Home above the scope's row, a plain link to the home page", () => {
-    searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    expect(destinationsUnder("groups.work")[0]).toBe("home");
-    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
-      "href",
-      "/",
-    );
-  });
-
   // The phone keeps Home on the Sokosumi icon in its top bar.
   it("groups the phone sheet the same way, without Home", () => {
     renderMenu(true, true);
@@ -351,7 +337,7 @@ describe("MenuItems groups", () => {
 describe("MenuItems newsletter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
   });
 
@@ -435,7 +421,7 @@ describe("MenuItems current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = false;
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
   });
 
   it("marks exactly the destination the reader is on", () => {
@@ -448,12 +434,6 @@ describe("MenuItems current destination", () => {
     pathnameRef.current = "/tasks/task-1";
     renderMenu();
     expect(markedHrefs()).toEqual(["/tasks"]);
-  });
-
-  it("marks Home on the home page, and only there", () => {
-    pathnameRef.current = "/";
-    renderMenu(true, false);
-    expect(markedHrefs()).toEqual(["/"]);
   });
 
   // A route no destination owns has nothing open.
@@ -583,7 +563,7 @@ describe("MenuItems project scope", () => {
 describe("MenuItems prefetch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathnameRef.current = "/";
+    pathnameRef.current = "/projects";
     searchRef.current = "";
     vi.useFakeTimers();
     return () => {
@@ -629,18 +609,6 @@ describe("MenuItems prefetch", () => {
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       href,
-      expect.objectContaining({ kind: "full" }),
-    );
-  });
-
-  it("loads the Home content on a resting hover from another page", () => {
-    pathnameRef.current = "/tasks";
-    renderMenu(true, false);
-
-    restOn(/^home$/);
-
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
-      "/",
       expect.objectContaining({ kind: "full" }),
     );
   });

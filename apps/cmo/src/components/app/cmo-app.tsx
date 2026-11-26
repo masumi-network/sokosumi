@@ -20,7 +20,7 @@ import { pageLead } from "../../lib/page-lead";
 import {
   productionShare,
   productionSteps,
-  retryWhen,
+  stoppedNote,
   withoutPictureLine,
 } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
@@ -28,7 +28,7 @@ import { buildThread, type ThreadItem } from "../../lib/thread";
 import { monthMade, needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
-import { CusoAvatar, type Pose } from "../cuso";
+import { CusoFace } from "../cuso";
 import { HowIGotHere, Working } from "../cuso-trace";
 import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
@@ -46,7 +46,6 @@ import {
 } from "./cards";
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
-import { cusoMood } from "./cuso-status";
 import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
 import { PageLead } from "./page-lead";
@@ -497,7 +496,7 @@ export function CmoApp({
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
-                  <CusoSays pose="thinking">
+                  <CusoSays>
                     <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
@@ -728,7 +727,6 @@ export function CmoApp({
         view={view}
         onSelect={go}
         needs={needsYou(overview).length}
-        pose={cusoMood(overview).art}
         manyCusos={manyCusos}
         signOut={actions.signOut}
       />
@@ -996,9 +994,7 @@ function ProductionCard({
           : planning
             ? "He plans every post your plan makes, topic by topic, then makes them. This takes a few minutes."
             : production.state === "stuck"
-              ? production.writerFailed
-                ? `${productionSteps(production, month.total)}. Something on our side stopped him. We're fixing it, and he tries again ${retryWhen(production.retryAt, timeZone)}.`
-                : `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
+              ? stoppedNote(production, month.total, timeZone)
               : production.state === "blocked"
                 ? "Something on our side keeps him from starting. He tries again every ten minutes."
                 : notStarted
@@ -1021,15 +1017,13 @@ function ProductionCard({
 
 interface CusoSaysProps {
   at?: string;
-  /** Working shows him thinking; everything else he has already said. */
-  pose?: Pose;
   children: React.ReactNode;
 }
 
-function CusoSays({ at, pose = "done", children }: CusoSaysProps) {
+function CusoSays({ at, children }: CusoSaysProps) {
   return (
     <div className="msg">
-      <CusoAvatar pose={pose} size={36} />
+      <CusoFace size={36} />
       <div className="mbody">
         <MessageMeta author={AGENT_NAME} at={at} />
         {children}

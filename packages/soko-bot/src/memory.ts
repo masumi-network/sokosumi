@@ -464,6 +464,19 @@ export function parseSokoBotMemory(
     throw new Error("Soko Bot memory exceeds byte limit");
   }
 
+  const memory = collectSokoBotMemoryEntries(markdown, options);
+  const secretHandling = options.secretHandling ?? "redact";
+  for (const key of SECTION_KEYS) {
+    memory[key] = normalizeEntries(memory[key], secretHandling);
+  }
+  return memory;
+}
+
+/** Each section's entries as written, before the limits apply. */
+function collectSokoBotMemoryEntries(
+  markdown: string,
+  options: ParseSokoBotMemoryOptions,
+): SokoBotMemory {
   const memory = createEmptySokoBotMemory();
   const titleToKey = new Map(
     SECTION_KEYS.map(
@@ -487,12 +500,33 @@ export function parseSokoBotMemory(
         `Memory section "${heading}" is not one of ${SECTION_KEYS.map((key) => `"## ${SECTION_TITLES[key]}"`).join(", ")}; nothing was saved. Put each entry under one of those headings and save again.`,
       );
   }
-
-  const secretHandling = options.secretHandling ?? "redact";
-  for (const key of SECTION_KEYS) {
-    memory[key] = normalizeEntries(memory[key], secretHandling);
-  }
   return memory;
+}
+
+/**
+ * What saving this memory would lose: entries past a section's limit, and
+ * the first words of entries cut to the entry length. The writer reports
+ * them so the bot can merge or shorten instead of losing them unseen.
+ */
+export function sokoBotMemoryNotKept(markdown: string): string[] {
+  const memory = collectSokoBotMemoryEntries(markdown, {});
+  return SECTION_KEYS.flatMap((key) => {
+    const entries = memory[key]
+      .map((entry) => entry.replaceAll(/\s+/g, " ").trim())
+      .filter(Boolean);
+    return [
+      ...entries
+        .slice(0, SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection)
+        .filter((entry) => entry.length > SOKO_BOT_MEMORY_LIMITS.maxEntryLength)
+        .map(
+          (entry) =>
+            `${SECTION_TITLES[key]}: cut to ${SOKO_BOT_MEMORY_LIMITS.maxEntryLength} characters: "${entry.slice(0, 60)}…"`,
+        ),
+      ...entries
+        .slice(SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection)
+        .map((entry) => `${SECTION_TITLES[key]}: dropped: "${entry}"`),
+    ];
+  });
 }
 
 /** Canonical safe rendering for any persisted or legacy memory value. */

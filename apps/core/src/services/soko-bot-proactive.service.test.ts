@@ -15,7 +15,11 @@ const {
   taskFindManyMock,
   triageMailMock,
   turnCountMock,
+  botFindUniqueMock,
+  turnFindFirstMock,
 } = vi.hoisted(() => ({
+  botFindUniqueMock: vi.fn(),
+  turnFindFirstMock: vi.fn(),
   scheduleCreateMock: vi.fn(),
   scheduleFindManyMock: vi.fn(),
   triageMailMock: vi.fn(),
@@ -34,8 +38,11 @@ vi.mock("@/lib/db/database-now", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    sokoBot: { findUniqueOrThrow: botFindUniqueOrThrowMock },
-    sokoBotTurn: { count: turnCountMock },
+    sokoBot: {
+      findUniqueOrThrow: botFindUniqueOrThrowMock,
+      findUnique: botFindUniqueMock,
+    },
+    sokoBotTurn: { count: turnCountMock, findFirst: turnFindFirstMock },
     sokoBotDelegation: { findMany: delegationFindManyMock },
     sokoBotMemoryRevision: { findFirst: memoryFindFirstMock },
     sokoBotNudge: {
@@ -47,7 +54,12 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: scheduleFindManyMock,
       create: scheduleCreateMock,
     },
+    // No organization: the stand-up has no raise block.
+    workspace: { findUnique: vi.fn().mockResolvedValue(null) },
   },
+}));
+vi.mock("@/services/chat-signal-views.service", () => ({
+  listChatOpenLoops: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -76,9 +88,34 @@ import {
   ensureSystemSchedules,
   findAttentionItems,
   followUpsBlock,
+  isIdleSokoBot,
   localDayStart,
   proactiveGate,
 } from "./soko-bot-proactive.service";
+
+describe("isIdleSokoBot", () => {
+  const now = new Date("2026-11-25T08:00:00.000Z");
+  const daysAgo = (days: number) =>
+    new Date(now.getTime() - days * 24 * 60 * 60 * 1_000);
+
+  it.each([
+    ["no chat for 14 days", daysAgo(90), null, true],
+    ["a chat this fortnight", daysAgo(90), { id: "turn-1" }, false],
+    ["a bot made this fortnight", daysAgo(3), null, false],
+  ])("with %s: %s", async (_label, createdAt, chat, idle) => {
+    botFindUniqueMock.mockResolvedValue({ createdAt });
+    turnFindFirstMock.mockResolvedValue(chat);
+    expect(await isIdleSokoBot("bot-1", now)).toBe(idle);
+    expect(turnFindFirstMock).toHaveBeenLastCalledWith({
+      where: {
+        sokoBotId: "bot-1",
+        source: "CHAT",
+        createdAt: { gte: daysAgo(14) },
+      },
+      select: { id: true },
+    });
+  });
+});
 
 describe("ensureSystemSchedules", () => {
   it("gives a CMO bot the marketing rhythms and the nightly dream instead of the stand-up", async () => {

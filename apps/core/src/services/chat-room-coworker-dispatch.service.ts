@@ -535,6 +535,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     });
 
     const result = streamText({
+      telemetry: { functionId: "coworker-chat-reply" },
       model:
         evalReply !== null
           ? scriptedReplyModel(evalReply)

@@ -5,6 +5,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -20,6 +21,39 @@ const MIN_SCHEDULE_INTERVAL_MS = 60_000;
 export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
 /** Consecutive failed runs after which a schedule switches itself off. */
 export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
+
+/**
+ * Turn failures of the platform (runtime, sandbox, deploy, limit), not the
+ * schedule's. The sandbox supervisor reports a runner that died as
+ * `runner_exited` and a sandbox that never started as `sandbox_launch_failed`.
+ */
+const PLATFORM_TURN_FAILURES: ReadonlySet<string> = new Set([
+  AI_BUDGET_EXCEEDED,
+  "busy",
+  "runner_exited",
+  "runtime_start_ambiguous",
+  "runtime_start_failed",
+  "runtime_stream_interrupted",
+  "runtime_unreachable",
+  "sandbox_launch_failed",
+  "start_aborted",
+  "turn_deadline_exceeded",
+]);
+
+/**
+ * Whether a failed turn says nothing about its schedule: the platform failed
+ * it (a provider or gateway error is stored by its class name, `AI_…` or
+ * `Gateway…`). Such failures do not count toward switching a schedule off,
+ * so an outage cannot turn off every bot's rhythms.
+ */
+export function isPlatformTurnFailure(errorKind: string | null): boolean {
+  if (!errorKind) return false;
+  return (
+    PLATFORM_TURN_FAILURES.has(errorKind) ||
+    errorKind.startsWith("AI_") ||
+    errorKind.startsWith("Gateway")
+  );
+}
 
 export class SokoBotScheduleNotFoundError extends Error {}
 export class SokoBotScheduleValidationError extends Error {}
@@ -415,6 +449,18 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
     );
+  // A built-in rhythm keeps its purpose: Joseph's end-of-day was rewritten
+  // into another job (2026-11-08) and the console went on describing the
+  // built-in. Its time, timezone and on/off change; anything else is a
+  // schedule of its own.
+  if (
+    schedule.systemKey &&
+    ((input.name !== undefined && input.name.trim() !== schedule.name) ||
+      (input.prompt !== undefined && input.prompt.trim() !== schedule.prompt))
+  )
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
+    );
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
@@ -720,36 +766,11 @@ export async function deleteSokoBotSchedule(
   const schedule = await findScheduleForUser(userId, ref, transaction);
   if (schedule.systemKey) {
     throw new SokoBotScheduleValidationError(
-      `"${schedule.name}" is a built-in rhythm; pause it instead of deleting it`,
+      `"${schedule.name}" is a built-in rhythm: it can be paused (update_schedule with enabled false), not deleted. Pause it and tell the owner it is paused and can be turned back on.`,
     );
   }
   await db.sokoBotSchedule.delete({ where: { id: schedule.id } });
   return { id: schedule.id, name: schedule.name };
-}
-
-/** Bot-facing view: what runs, when, and what it will be asked. */
-export function listSokoBotSchedules(sokoBotId: string) {
-  return prisma.sokoBotSchedule.findMany({
-    // A one-time schedule that already ran is history, not a follow-up.
-    where: {
-      sokoBotId,
-      NOT: { runOnce: true, enabled: false, lastRunAt: { not: null } },
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      timezone: true,
-      cronExpression: true,
-      runOnce: true,
-      prompt: true,
-      nextRunAt: true,
-      lastRunAt: true,
-      taskId: true,
-      jobId: true,
-    },
-  });
 }
 
 /** How long a disabled schedule and a settled run stay visible. */

@@ -107,6 +107,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
     model: "google/gemini-3.6-flash",
     inferenceRegion: "eu",
+    skills: [],
   }),
 }));
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
@@ -122,6 +123,7 @@ import {
   failSandboxTurn,
   grantSandboxUpload,
   proxySandboxModelCall,
+  reasoningSummaryOptions,
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
@@ -674,57 +676,25 @@ describe("sandbox turn service", () => {
     );
   });
 
-  it("drops zero retention only for the Gateway-run search call", async () => {
-    const { resolveRunnableSokoBotVersion } = await import(
-      "@/services/soko-bot-version.service"
-    );
-    const luna = { model: "openai/gpt-6-luna", inferenceRegion: undefined };
-    for (let call = 0; call < 3; call++)
-      vi.mocked(resolveRunnableSokoBotVersion).mockResolvedValueOnce(
-        luna as never,
-      );
+  it("thinks less on a chat turn Jev read as simple or normal, never on others", async () => {
     fetchMock.mockImplementation(async () => gatewayAnswer());
-    const lunaHeaders = { "ai-language-model-id": "openai/gpt-6-luna" };
-    const search = modelRequest(lunaHeaders);
-    const searchCall = {
-      prompt: [
-        {
-          role: "user",
-          content: [{ type: "text", text: "Search the web for: TOKEN2049" }],
-        },
-      ],
-      tools: [
-        {
-          type: "provider",
-          name: "perplexity_search",
-          id: "gateway.perplexity_search",
-          args: { maxResults: 5 },
-        },
-      ],
-      toolChoice: { type: "tool", toolName: "perplexity_search" },
-    };
-    search.body = JSON.stringify(searchCall);
-    // The same tool with the conversation around it is not a search call.
-    const disguised = modelRequest(lunaHeaders);
-    disguised.body = JSON.stringify({
-      ...searchCall,
-      prompt: [
-        { role: "system", content: "Owner memory: …" },
-        ...searchCall.prompt,
-      ],
+    const authorized = (complexity?: string) => ({
+      turn: { id: claims.turnId, versionId: "v16" },
+      grant: { capabilities: [] },
+      ...(complexity ? { complexity } : {}),
     });
-    await proxySandboxModelCall(claims, search);
-    await proxySandboxModelCall(claims, modelRequest(lunaHeaders));
-    await proxySandboxModelCall(claims, disguised);
-    const [searchBody, turnBody, disguisedBody] = fetchMock.mock.calls.map(
-      ([, init]) => JSON.parse(String(init?.body)),
+    authorizeMock
+      .mockResolvedValueOnce(authorized("SIMPLE"))
+      .mockResolvedValueOnce(authorized("COMPLEX"))
+      .mockResolvedValueOnce(authorized());
+    for (let call = 0; call < 3; call++)
+      await proxySandboxModelCall(claims, modelRequest());
+    const [simple, complex, scheduled] = fetchMock.mock.calls.map(
+      ([, init]) => JSON.parse(String(init?.body)).providerOptions,
     );
-    expect(searchBody.providerOptions.gateway).toEqual({
-      disallowPromptTraining: true,
-    });
-    const both = { zeroDataRetention: true, disallowPromptTraining: true };
-    expect(turnBody.providerOptions.gateway).toEqual(both);
-    expect(disguisedBody.providerOptions.gateway).toEqual(both);
+    expect(simple.openai).toEqual({ reasoningEffort: "low" });
+    expect(complex.openai).toBeUndefined();
+    expect(scheduled.openai).toBeUndefined();
   });
 
   it("marks the turn once the Gateway ran a web search", async () => {
@@ -902,6 +872,16 @@ describe("sandbox turn service", () => {
     ).rejects.toThrow("Unknown Sokosumi tool");
   });
 
+  it("answers a short-form save without saving, so the runner offers the full tool", async () => {
+    const result = await runSandboxTool(claims, {
+      capability: "save_strategy",
+      toolCallId: "short",
+      toolInput: { shortForm: true, what: "move Friday's post" },
+    });
+    expect(result).toMatchObject({ saved: false });
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
   it("gives a script's read its own call id and the bare result", async () => {
     executeToolMock.mockResolvedValue({ messages: [], nextPageToken: null });
     const result = await runSandboxTool(claims, {
@@ -961,8 +941,16 @@ describe("sandbox turn service", () => {
       source: "CHAT",
       parentTurnId: "parent",
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: null,
+      parentTurn: {
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: "owner",
+        chainDepth: 0,
+      },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -1076,17 +1064,23 @@ describe("sandbox turn service", () => {
       executeToolMock.mockResolvedValue({ ok: true });
     });
 
-    it("lets the owner's request create a post", async () => {
-      await runSandboxTool(claims, {
-        capability: "create_social_post",
-        toolCallId: "c10",
-        toolInput: {},
-      });
-      expect(executeToolMock).toHaveBeenCalledOnce();
-    });
+    it.each([
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const)(
+      "lets the owner's request run %s (draft-state enforced in social.ts)",
+      async (capability) => {
+        await runSandboxTool(claims, {
+          capability,
+          toolCallId: `c10-${capability}`,
+          toolInput: capability === "create_social_post" ? {} : { postId },
+        });
+        expect(executeToolMock).toHaveBeenCalledOnce();
+      },
+    );
 
     it.each([
-      "update_social_post",
       "schedule_social_post",
       "cancel_social_post",
       "publish_social_post",
@@ -1101,7 +1095,11 @@ describe("sandbox turn service", () => {
       expect(executeToolMock).not.toHaveBeenCalled();
     });
 
-    it("keeps a scheduled run from creating posts", async () => {
+    it.each([
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const)("keeps a scheduled run from running %s", async (capability) => {
       turnFindUniqueMock.mockResolvedValue({
         ...ownerTurn,
         source: "SCHEDULE",
@@ -1109,9 +1107,9 @@ describe("sandbox turn service", () => {
       });
       await expect(
         runSandboxTool(claims, {
-          capability: "create_social_post",
-          toolCallId: "c13",
-          toolInput: {},
+          capability,
+          toolCallId: `c13-${capability}`,
+          toolInput: capability === "create_social_post" ? {} : { postId },
         }),
       ).rejects.toThrow("ask the owner in chat");
       expect(executeToolMock).not.toHaveBeenCalled();
@@ -1416,5 +1414,35 @@ describe("sandbox turn service", () => {
         expect(stopSandboxMock).toHaveBeenCalled();
       },
     );
+  });
+});
+
+describe("reasoningSummaryOptions", () => {
+  it("passes a prompt cache key through with the longest cache life, and nothing else", () => {
+    expect(
+      reasoningSummaryOptions(
+        {
+          openai: {
+            reasoningSummary: "auto",
+            promptCacheKey: "cmo-v24:0123456789abcdef",
+            store: true,
+          },
+          gateway: { only: ["openai"] },
+        },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:0123456789abcdef",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      reasoningSummaryOptions(
+        { openai: { promptCacheKey: "anything else" } },
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({});
   });
 });

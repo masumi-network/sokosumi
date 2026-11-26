@@ -144,6 +144,7 @@ src/services/soko-bot-lease-clock.postgres.test.ts 19  # trigger body
 src/services/soko-bot-reconcile-writers.postgres.test.ts 19  # trigger body
 src/services/soko-bot-requester.postgres.test.ts 19  # trigger body
 src/services/soko-bot-runtime/calendar.postgres.test.ts 19  # trigger body
+src/services/soko-bot-runtime/task-schedules.postgres.test.ts 19  # trigger body
 src/services/soko-bot-sandbox-turn-cancellation.postgres.test.ts 19  # trigger body
 src/services/soko-bot-schedule-run-changes.postgres.test.ts 19  # trigger body
 src/services/soko-bot-shared-background-runs.postgres.test.ts 19  # trigger body

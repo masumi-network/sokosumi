@@ -6,6 +6,6 @@
     "node": "26.x"
   },
   "scripts": {
-    "test": "node --test scripts/test-cookie-consent.mjs"
+    "test": "node --test scripts/test-cookie-consent.mjs scripts/test-analytics.mjs"
   }
 }

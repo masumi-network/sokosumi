@@ -43,6 +43,7 @@ async function generateOpenRouterText(
 ): Promise<string | null> {
   try {
     const { text } = await generateText({
+      telemetry: { functionId: "openrouter" },
       ...(options.abortSignal !== undefined
         ? { abortSignal: options.abortSignal }
         : {}),
