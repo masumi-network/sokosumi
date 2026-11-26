@@ -99,7 +99,8 @@ describe("video cards", () => {
       const { frame, safe } = VIDEO_LAYOUTS[shape];
       const html = videoCardHtml({ kind: "title", text: "Hi" }, BRAND, shape);
       expect(html).toContain(`width:${frame.width}px;height:${frame.height}px`);
-      expect(html).toContain(`left:${safe.left}px;top:${safe.top}px`);
+      // Two pixels in, so the card's soft edge stays inside the area too.
+      expect(html).toContain(`left:${safe.left + 2}px;top:${safe.top + 2}px`);
     }
   });
 

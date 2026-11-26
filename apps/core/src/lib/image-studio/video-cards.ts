@@ -137,7 +137,7 @@ export function videoCardHtml(
   return `<!doctype html><html><head><meta charset="utf-8">${fontLink}<style>
 ${fallbackFont}
 html,body{margin:0;width:${frame.width}px;height:${frame.height}px;background:transparent;overflow:hidden}
-.safe{position:absolute;left:${safe.left}px;top:${safe.top}px;width:${safe.right - safe.left}px;height:${safe.bottom - safe.top}px;display:flex;align-items:center;justify-content:center}
+.safe{position:absolute;left:${safe.left + EDGE}px;top:${safe.top + EDGE}px;width:${safe.right - safe.left - 2 * EDGE}px;height:${safe.bottom - safe.top - 2 * EDGE}px;display:flex;align-items:center;justify-content:center}
 .card{--s:1;box-sizing:border-box;max-width:100%;padding:${px(text.card * 0.9)} ${px(text.card)};border-radius:${px(text.card * 0.5)};background:${fill};color:${ink};font-family:${family};text-align:center}
 p{margin:0;overflow-wrap:anywhere}
 .text{font-size:${px(text.card)};font-weight:800;line-height:1.15}
@@ -146,6 +146,12 @@ p{margin:0;overflow-wrap:anywhere}
 .label{display:inline-block;font-size:${px(text.label * 0.6)};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.2em 0.6em;margin-bottom:${px(text.card * 0.4)};border:0.12em solid currentColor;border-radius:0.4em}
 </style></head><body><div class="safe"><div class="card">${body(card)}</div></div></body></html>`;
 }
+
+/**
+ * The card keeps this far inside the safe area, so the anti-aliased edge of
+ * a card as wide as the area does not reach past it.
+ */
+const EDGE = 2;
 
 /** The smallest a card's words may get before it is refused instead. */
 const MIN_CARD_SCALE = 0.4;
