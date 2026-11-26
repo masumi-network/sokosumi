@@ -36,12 +36,15 @@ import {
  * while open, like the controls under it; the top bar's avatar dims like the
  * icons beside it.
  */
+const SIDEBAR_TRIGGER_CLASS = cn(
+  WORKSPACE_SWITCHER_ROW_CLASS,
+  SIDEBAR_CONTROL_INTERACTION_CLASS,
+  "text-foreground press w-full rounded-full transition-[opacity,background-color]",
+);
+
 const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
-  sidebar: cn(
-    WORKSPACE_SWITCHER_ROW_CLASS,
-    SIDEBAR_CONTROL_INTERACTION_CLASS,
-    "text-foreground press w-full rounded-full transition-[opacity,background-color]",
-  ),
+  sidebar: SIDEBAR_TRIGGER_CLASS,
+  drawer: SIDEBAR_TRIGGER_CLASS,
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
     "text-foreground press w-full justify-start transition-opacity hover:opacity-80",
@@ -51,6 +54,7 @@ const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
 /** Under the trigger's own edge: its start in the sidebar, its end at the top bar's right. */
 const MENU_ALIGN: Record<WorkspaceSwitcherPlacement, "start" | "end"> = {
   sidebar: "start",
+  drawer: "start",
   topBar: "end",
 };
 

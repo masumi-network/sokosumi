@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * Where a Workspace switcher trigger sits. CSS decides which one shows; the
  * placement decides what differs between them.
  */
-export type WorkspaceSwitcherPlacement = "sidebar" | "topBar";
+export type WorkspaceSwitcherPlacement = "sidebar" | "drawer" | "topBar";
 
 interface WorkspaceSwitcherPlacementProps {
   placement: WorkspaceSwitcherPlacement;
@@ -44,7 +44,7 @@ export function WorkspaceSwitcherArrows({
     <ChevronsUpDown
       className={cn(
         "text-muted-foreground shrink-0",
-        placement === "sidebar" ? "size-3" : "size-4",
+        placement === "topBar" ? "size-4" : "size-3",
       )}
     />
   );

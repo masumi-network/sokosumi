@@ -32,7 +32,7 @@ export function AppSidebarFallback() {
       className="md:top-16 md:h-[calc(100dvh-4rem)] md:pt-12 md:left-(--app-rail-width) md:group-data-[collapsible=offcanvas]:left-[calc(var(--app-rail-width)-var(--sidebar-width))]"
     >
       <SidebarWorkspaceRow mobile>
-        <WorkspaceSwitcherSkeleton placement="sidebar" />
+        <WorkspaceSwitcherSkeleton placement="drawer" />
       </SidebarWorkspaceRow>
       <GlobalRail mobile />
       <SidebarContent className="min-h-0 w-full flex-1">

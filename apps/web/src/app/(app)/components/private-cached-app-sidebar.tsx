@@ -31,7 +31,7 @@ export default function PrivateCachedAppSidebar({
 }: PrivateCachedAppSidebarProps) {
   return (
     <Sidebar
-      workspaceSwitcher={<WorkspaceSwitcherMenu placement="sidebar" />}
+      workspaceSwitcher={<WorkspaceSwitcherMenu placement="drawer" />}
       newsletterEnabled={newsletterEnabled}
       chatList={
         <Suspense

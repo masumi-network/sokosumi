@@ -84,6 +84,9 @@ function renderChrome(activeOrganizationId: string | null = "org-a") {
       <aside data-testid="sidebar">
         <WorkspaceSwitcherMenu placement="sidebar" />
       </aside>
+      <aside data-testid="drawer">
+        <WorkspaceSwitcherMenu placement="drawer" />
+      </aside>
       <header data-testid="top-bar">
         <WorkspaceSwitcherMenu placement="topBar" />
       </header>
@@ -91,7 +94,7 @@ function renderChrome(activeOrganizationId: string | null = "org-a") {
   );
 }
 
-function trigger(placement: "sidebar" | "top-bar") {
+function trigger(placement: "sidebar" | "drawer" | "top-bar") {
   return within(screen.getByTestId(placement)).getByRole("button");
 }
 
@@ -167,6 +170,17 @@ describe("WorkspaceSwitcherProvider", () => {
     await user.click(trigger(placement));
 
     expect(screen.getByRole("menu")).toHaveAttribute("data-align", align);
+  });
+
+  it("opens only the drawer workspace menu", async () => {
+    const user = userEvent.setup();
+    renderChrome();
+    const drawer = trigger("drawer");
+    const sidebar = trigger("sidebar");
+    await user.click(drawer);
+    expect(drawer).toHaveAttribute("aria-expanded", "true");
+    expect(sidebar).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
   });
 
   it("shows the workspace name in both placements", () => {
