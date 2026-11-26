@@ -45,8 +45,17 @@ export type JourneyOutcome =
       timezone?: string;
       /** Every pattern must match the schedule's prompt (case-insensitive). */
       promptMatches?: string[];
+      /** No pattern may match the schedule's prompt. */
+      promptAvoids?: string[];
       /** How many owner-made schedules the bot may have now. */
       count?: number;
+      /**
+       * `remember`: this is the owner's schedule; later checks compare with
+       * it. `unchanged`: the remembered schedule, still enabled, its cron
+       * and brief as they were (a run must not end or rewrite it).
+       * `edited`: the remembered schedule (same id), enabled, changed.
+       */
+      identity?: "remember" | "unchanged" | "edited";
     }
   | {
       kind: "task";
@@ -332,6 +341,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
               "draft|approv|prepare",
             ],
             count: 1,
+            identity: "remember",
           },
           NEVER_SENT,
         ],
@@ -339,9 +349,19 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
       {
         kind: "schedule_fires",
         expect: {
-          forbiddenTools: ["publish_social_post", "schedule_social_post"],
+          forbiddenTools: [
+            "publish_social_post",
+            "schedule_social_post",
+            "delete_schedule",
+          ],
         },
         outcomes: [
+          {
+            kind: "schedule",
+            label: "The run leaves the owner's daily schedule as it was",
+            count: 1,
+            identity: "unchanged",
+          },
           {
             kind: "task",
             label: "The run hands CodePat a complete brief",
@@ -404,6 +424,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             label: "Same schedule, every day but Friday",
             days: [0, 1, 2, 3, 4, 6],
             count: 1,
+            identity: "edited",
           },
         ],
       },
@@ -588,6 +609,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
               "wait|on me|need",
             ],
             count: 1,
+            identity: "remember",
           },
         ],
       },
@@ -595,8 +617,17 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "schedule_fires",
         expect: {
           anyTools: ["list_tasks", "get_task_status", "list_followed_tasks"],
+          forbiddenTools: ["delete_schedule", "update_schedule"],
           noDelegations: true,
         },
+        outcomes: [
+          {
+            kind: "schedule",
+            label: "The run leaves the owner's schedule as it was",
+            count: 1,
+            identity: "unchanged",
+          },
+        ],
       },
       {
         kind: "owner",
@@ -613,6 +644,9 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             hour: 7,
             minute: 30,
             count: 1,
+            identity: "edited",
+            promptAvoids: ["stuck|block"],
+            promptMatches: ["finish|done|complet", "wait|on me|need"],
           },
         ],
       },

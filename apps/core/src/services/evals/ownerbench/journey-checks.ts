@@ -93,18 +93,51 @@ async function scheduleCheck(
     where: { sokoBotId: context.botId, systemKey: null },
     orderBy: { updatedAt: "desc" },
     select: {
+      id: true,
       cronExpression: true,
       prompt: true,
       timezone: true,
       enabled: true,
     },
   });
-  const latest = schedules[0];
+  const [rememberedId, rememberedCron, rememberedPrompt] =
+    context.memo.schedule ?? [];
+  const compared =
+    outcome.identity === "unchanged" || outcome.identity === "edited";
+  const latest = compared
+    ? schedules.find((schedule) => schedule.id === rememberedId)
+    : schedules[0];
   if (!latest)
-    return { label: outcome.label, pass: false, actual: "no schedule" };
+    return {
+      label: outcome.label,
+      pass: false,
+      actual: compared
+        ? `the owner's schedule ${rememberedId ?? "(none remembered)"} is gone; ${schedules.length} other(s)`
+        : "no schedule",
+    };
+  if (outcome.identity === "remember")
+    context.memo.schedule = [latest.id, latest.cronExpression, latest.prompt];
   const problems: string[] = [];
+  if (!latest.enabled) problems.push("disabled");
   if (outcome.count !== undefined && schedules.length !== outcome.count)
     problems.push(`${schedules.length} schedules`);
+  if (
+    outcome.identity === "unchanged" &&
+    (latest.cronExpression !== rememberedCron ||
+      latest.prompt !== rememberedPrompt)
+  )
+    problems.push("cron or brief changed by the run");
+  if (
+    outcome.identity === "edited" &&
+    latest.cronExpression === rememberedCron &&
+    latest.prompt === rememberedPrompt
+  )
+    problems.push("not changed");
+  const avoided = (outcome.promptAvoids ?? []).filter((pattern) =>
+    new RegExp(pattern, "i").test(latest.prompt),
+  );
+  if (avoided.length)
+    problems.push(`prompt still says /${avoided.join("/, /")}/`);
   if (outcome.days) {
     const days = cronDays(latest.cronExpression);
     if (days.join() !== [...outcome.days].sort().join())
@@ -666,6 +699,16 @@ export function createdTableIds(
 }
 
 /**
+ * Every whole URL in a text, trailing punctuation and a closing slash off,
+ * so a longer path under the right one is a different URL, not a match.
+ */
+export function urlsIn(text: string): string[] {
+  return (text.match(/https?:\/\/[^\s"'<>)\]}]+/g) ?? []).map((url) =>
+    url.replace(/[.,;:!?]+$/, "").replace(/\/$/, ""),
+  );
+}
+
+/**
  * Rows as text, graded against the notes: a good row names one fitting fund
  * with that fund's own partner, deal and source link, and no other row did
  * before it. A known name with someone else's link, or none, is not good.
@@ -695,7 +738,7 @@ export function gradeRows(
     else if (
       !has(row, entry.partner) ||
       !has(row, entry.startup) ||
-      !row.includes(entry.source)
+      !urlsIn(row).includes(entry.source)
     )
       incomplete += 1;
     else {

@@ -8,6 +8,7 @@ import {
   launchDay,
   madeImages,
   nextWeekdayKey,
+  urlsIn,
 } from "./journey-checks";
 import {
   countRetries,
@@ -195,6 +196,25 @@ describe("investor table checks", () => {
         "10 without the fund's own partner, deal and source",
       ],
     });
+  });
+
+  it("fails ten otherwise right rows whose links point under a different path", () => {
+    const rows = fits
+      .slice(0, 10)
+      .map((fit) => row(fit, { source: `${fit.source}/elsewhere` }));
+    expect(gradeRows(rows, outcome).good).toBe(0);
+  });
+
+  it("reads whole URLs out of a row", () => {
+    expect(
+      urlsIn(
+        'see https://a.example/x/y, and (https://b.example/z/). "https://c.example"',
+      ),
+    ).toEqual([
+      "https://a.example/x/y",
+      "https://b.example/z",
+      "https://c.example",
+    ]);
   });
 
   it("fails a row whose partner, deal or link belongs to another fund", () => {

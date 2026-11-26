@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import { type CheckContext, outcomeCheck } from "./journey-checks";
+import { freshConversationCheck } from "./journey-runner";
 import type { JourneyWorld } from "./journey-world";
 import { OWNER_JOURNEYS } from "./journeys";
 
@@ -188,6 +189,110 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     );
     expect(check).toMatchObject({ pass: true });
     expect(check.actual).toContain("3 image(s) made, 1 failed or unfinished");
+  });
+
+  describe("the owner's schedule across a run and an edit", () => {
+    let botId: string;
+    const owned = { kind: "schedule", label: "owner's", count: 1 } as const;
+    const check = (
+      identity: "remember" | "unchanged" | "edited",
+      extra: object = {},
+    ) =>
+      outcomeCheck(
+        { ...owned, identity, ...extra },
+        { ...context, botId, memo: context.memo },
+      );
+    const create = (prompt: string, enabled = true) =>
+      prisma.sokoBotSchedule.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Monday report",
+          timezone: "Europe/Berlin",
+          cronExpression: "0 8 * * 1",
+          prompt,
+          enabled,
+          nextRunAt: new Date(Date.now() + 86_400_000),
+        },
+        select: { id: true },
+      });
+
+    beforeAll(async () => {
+      botId = (
+        await prisma.sokoBot.create({
+          data: { userId, workspaceId },
+          select: { id: true },
+        })
+      ).id;
+    });
+
+    afterAll(async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      await prisma.sokoBot.deleteMany({ where: { id: botId } });
+    });
+
+    it("fails a run that deleted it, and a disabled replacement under a new id", async () => {
+      const original = await create("Report finished, stuck and waiting work.");
+      expect((await check("remember")).pass).toBe(true);
+      expect((await check("unchanged")).pass).toBe(true);
+      await prisma.sokoBotSchedule.delete({ where: { id: original.id } });
+      expect(await check("unchanged")).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("is gone"),
+      });
+      await create("Report finished and waiting work.", false);
+      expect((await check("edited")).pass).toBe(false);
+    });
+
+    it("fails an edit that keeps the dropped clause, passes the same id without it", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      const original = await create("Report finished, stuck and waiting work.");
+      await check("remember");
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { cronExpression: "30 7 * * 1" },
+      });
+      expect(
+        (await check("edited", { promptAvoids: ["stuck"] })).actual,
+      ).toContain("prompt still says /stuck/");
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { prompt: "Report finished and waiting work." },
+      });
+      expect((await check("edited", { promptAvoids: ["stuck"] })).pass).toBe(
+        true,
+      );
+    });
+  });
+
+  it("fails a turn without a context snapshot as no evidence of a fresh start", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: botId,
+        workspaceId,
+        requestedByUserId: userId,
+        source: "CHAT",
+        status: "COMPLETED",
+        clientTurnId: `lab:fixture:${randomUUID()}`,
+        userMessage: "hello",
+        capabilityNames: [],
+        deadlineAt: new Date(Date.now() + 60_000),
+      },
+      select: { id: true },
+    });
+    expect(await freshConversationCheck(turn.id, since)).toMatchObject({
+      pass: false,
+      actual: "no context snapshot",
+    });
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });
 
   it("passes the draft on its two attached made images, not the old logo", async () => {

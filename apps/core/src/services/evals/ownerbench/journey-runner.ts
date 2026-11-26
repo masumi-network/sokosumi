@@ -393,7 +393,7 @@ async function journeyToolCalls(state: JourneyState, current: string[]) {
  * The first turn's context holds no turn from before the journey: an earlier
  * case's launch or video in it measures the bench, not the bot.
  */
-async function freshConversationCheck(
+export async function freshConversationCheck(
   turnId: string,
   journeyStartedAt: Date,
 ): Promise<ScenarioCheck> {
@@ -405,9 +405,10 @@ async function freshConversationCheck(
   const foreign = await prisma.sokoBotTurn.count({
     where: { id: { in: ids }, createdAt: { lt: journeyStartedAt } },
   });
+  // No snapshot is no evidence: it fails rather than passes as fresh.
   return {
     label: "Starts a fresh conversation",
-    pass: foreign === 0,
+    pass: Boolean(snapshot) && foreign === 0,
     actual: snapshot
       ? `${foreign} of ${ids.length} recent turn(s) from before the journey`
       : "no context snapshot",
