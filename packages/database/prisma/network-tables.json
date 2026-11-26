@@ -1,5 +1,5 @@
 {
-  "description": "Which Prisma model lives in the shared schema and which in each Network schema (mainnet and preprod hold the same tables). network and shared map each model to its SQL table; networkJoinTables are the Prisma implicit join tables between Network models; networkEnums are the enum types a Network model uses (every other enum is shared, none is used on both sides); sharedSqlOnly are shared objects no model declares. PublicShare stays shared until its Job rows move to a Network JobShare table. Read by scripts/split-network-layout.sh and checked by src/network-tables.test.ts.",
+  "description": "Which Prisma model lives in the shared schema and which in each Network schema (mainnet and preprod hold the same tables). network and shared map each model to its SQL table; networkJoinTables are the Prisma implicit join tables between Network models; networkEnums are the enum types a Network model uses (every other enum is shared, none is used on both sides); networkFunctions are the functions each Network schema holds its own copy of, by signature: the functions behind triggers and CHECKs on Network tables and the helpers only they call (every other function is shared; their bodies for the new layout are prisma/network-layout/network-trigger-bodies.sql); sharedSqlOnly are shared objects no model declares. PublicShare stays shared until its Job rows move to a Network JobShare table. Read by scripts/split-network-layout.sh; src/network-tables.test.ts checks the models, tables and enums, and the split script checks networkFunctions against the database.",
   "network": {
     "Agent": "Agent",
     "AgentPricing": "AgentPricing",
@@ -51,6 +51,14 @@
     "TaskPaymentClaimStatus",
     "TaskX402PaymentRefundKind",
     "TaskX402PaymentStatus"
+  ],
+  "networkFunctions": [
+    "canonical_credit_cost_unit(text)",
+    "canonicalize_credit_cost_unit_write()",
+    "complete_task_x402_payment_action_snapshot()",
+    "enforce_job_project_workspace_placement()",
+    "normalize_task_x402_payment_replay_key()",
+    "record_task_x402_payment_failure_outcome()"
   ],
   "shared": {
     "Account": "account",

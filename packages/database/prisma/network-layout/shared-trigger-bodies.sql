@@ -21,12 +21,15 @@
 -- compared once for this text, and every later change to a body is reviewed
 -- against its migration before its digest is updated.
 --
--- Not here yet: functions that need the row's Network (ticket 19 part 2) and
--- the functions on Network tables (slice B). The split script lists them.
+-- Not here: functions that need the row's Network (ticket 19 part 2; the split
+-- script lists them as waiting) and the functions on Network tables, which
+-- each Network schema holds a copy of (`network-trigger-bodies.sql`).
 
 DO $guard$
 DECLARE
   file CONSTANT text := 'packages/database/prisma/network-layout/shared-trigger-bodies.sql';
+  -- The digests hold catalog text that these two settings change.
+  settings CONSTANT text[] := ARRAY[current_setting('search_path'), current_setting('quote_all_identifiers')];
   problem text;
   changed text;
   fn record;
@@ -37,56 +40,63 @@ BEGIN
   IF problem IS NOT NULL THEN
     RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing schema: %', problem;
   END IF;
+  PERFORM set_config('search_path', 'pg_catalog', true), set_config('quote_all_identifiers', 'off', true);
 
   -- Every function this file replaces, with the digest of what the migrations
   -- create: body, language, volatility, strictness, security, settings,
-  -- arguments and return type.
+  -- arguments and return type, and what else CREATE OR REPLACE sets again:
+  -- parallel safety, cost, rows, leakproof and the support function. A window
+  -- function is refused below (`prokind`).
   FOR fn IN
     SELECT 'shared.' || listed.signature AS signature, listed.digest, p.proname, p.prokind,
       md5(concat_ws(E'\n', p.prosrc, l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,
-        pg_get_function_arguments(p.oid), pg_get_function_result(p.oid))) AS found
+        pg_get_function_arguments(p.oid), pg_get_function_result(p.oid),
+        p.proparallel, p.procost, p.prorows, p.proleakproof, p.prosupport)) AS found
+    -- A function replaced below without a line here is not compared with its
+    -- migration. This guard cannot find one: `shared` also holds functions
+    -- this file does not replace (the split script's waiting list).
     FROM (VALUES
-      ('calendar_access_cleanup_on_member_delete()', 'cda46a9f8351bb5ddd9240bfe4e16104'),
-      ('calendar_membership_fence_on_member_insert()', 'e04eb2ea4dcac7675c480929cfde2400'),
-      ('cancel_grant_pending_tasks_on_grant_delete()', 'a9650908c8ba0eea08baf904d57b9b17'),
-      ('chat_room_external_discoverability_guard()', '0af6b7343c8c3f37adbf631744c1486b'),
-      ('chat_room_guest_access_external_only()', '5c88513ba3e4ad071986e849628856ac'),
-      ('chat_room_guest_invitation_external_only()', 'b1b29df5c254cbd9b96e9439ee8e8915'),
-      ('chat_room_hard_leave_on_organization_member_delete()', '3b56dfd7b601e195b0064d9b00315376'),
-      ('chat_room_join_shared_soko_bot_rooms_on_member_insert()', '82d484639a0591555d249ba5e18f1b6e'),
-      ('clear_moved_task_workspace_tags()', '72d35ac627d0a563d06cfeb79280c417'),
-      ('contact_search_on_channel_delete()', 'b1f083d33e6e8f31ceca348c09b02e11'),
-      ('contact_search_on_channel_insert()', '3fa79a1e1390d73b4732d0a816c9fa25'),
-      ('contact_search_on_channel_update()', '37fd80aac5cc883e40f674b271c92232'),
-      ('contact_search_on_contact()', '7cf96749aad1a83f0e9e3e1611633478'),
-      ('contact_search_refresh(uuid)', '2bc83984c2355d43b64ae303ed70124f'),
-      ('enforce_task_project_workspace_placement()', '0b393be0388e7379c80498a7ad92afc0'),
-      ('enqueue_calendar_feature_invalidation(uuid,uuid,uuid,uuid,jsonb)', '224ca910f73946ce4c3fecf7f6df0cda'),
-      ('enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)', 'ecc1a3b7f85ccbb49d90a01d43da9fe5'),
-      ('erase_calendar_outbox_for_workspace_delete()', '5e7722871446ef9295776c8790ca97f0'),
-      ('history_bucket_slug_from_metadata(jsonb)', '18abdffd442e8351414cdc45bd4a46c1'),
-      ('history_slugify(text)', 'af3e2fdba0dd4c0035a1ec2707b1f822'),
-      ('invalidate_calendar_for_contact_change()', '08cbbca6bc0a8857c6d802040553a41c'),
-      ('invalidate_calendar_for_marketing_strategy_change()', '0c70ec72540a2c64c204939902b7cbe3'),
-      ('invalidate_calendar_for_marketing_strategy_file_change()', '0bf9801c8e6df38ea752ee818ee9e382'),
-      ('invalidate_calendar_for_newsletter_issue_change()', '80c996261178cc4fe8a33478ce301703'),
-      ('invalidate_calendar_for_project_change()', '7928eb98d043b172a37530ce43a1980a'),
-      ('invalidate_calendar_for_run_change()', '3c356ccff5198ca4d628ad7821e95691'),
-      ('invalidate_calendar_for_social_post_change()', '60ce4c249dfebc8e133f0e8924f87185'),
-      ('invalidate_calendar_for_task_change()', '4cd1a36f63bcbd07e9d426d372b660b7'),
-      ('invalidate_calendar_for_task_schedule_change()', '5672301f9039f53ab2a8c86983fb5b86'),
-      ('invalidate_changed_workspace_tag_offers()', '55b1d8d9da2a248c349cce37112d5295'),
-      ('invalidate_task_workspace_tag_suggestions()', '9cb9e3ad468e0a370e91d1b0c23d533c'),
-      ('project_alias_old_identifier()', 'fd67b7a3552940cfad3a9d220232b016'),
-      ('project_default_identifier(text,uuid)', '504df65d1c34010fcee4c95776c41164'),
-      ('project_set_identifier()', 'bdf7b17618cb1bb08322996dfb1b6192'),
-      ('reject_soko_bot_admin_action_mutation()', '3c6f0c16178c5546b77a657c94066d6f'),
-      ('social_post_quote_before_delete()', '70dbb801f814cf091d8d4981fd005a25'),
-      ('task_alias_old_number()', 'f04ae077c5502637d499b5b9aeb8516c'),
-      ('task_assign_number()', '16fc7cc104d2c62025b93d39ca2b33e7'),
-      ('task_subtask_follow_parent()', '67de815972c35cf7fde7c39a00c954dc'),
-      ('task_subtask_guard()', 'e52d35a63ea8d22d6583b9f1558eed87'),
-      ('task_tag_revision()', 'ec9d3dc55f11518c9ea1958af8d1da88')
+      ('calendar_access_cleanup_on_member_delete()', '610ee6273e89a19af3a5042f6b0b8b74'),
+      ('calendar_membership_fence_on_member_insert()', 'c2ca047a096a082a27d72111a9cfa533'),
+      ('cancel_grant_pending_tasks_on_grant_delete()', '231b79f359d27071239a31453431bf6e'),
+      ('chat_room_external_discoverability_guard()', '40cc7ba7c811b48e5e24234e0bccab2a'),
+      ('chat_room_guest_access_external_only()', '9e2c46452bef6478028d3322be2d4cff'),
+      ('chat_room_guest_invitation_external_only()', '651d2db6e9942d049f6fbe8e41db0097'),
+      ('chat_room_hard_leave_on_organization_member_delete()', '404dd5a01bf6c8003e4b7856eb1d78f1'),
+      ('chat_room_join_shared_soko_bot_rooms_on_member_insert()', 'fff9e2272421c31484d3ee79a413acf1'),
+      ('clear_moved_task_workspace_tags()', '3e7ad8968f66d96c81162698988fcdfe'),
+      ('contact_search_on_channel_delete()', '6969bcfb8b488d9dee99f6bf45ec098e'),
+      ('contact_search_on_channel_insert()', '8ad1fa9f52d8c17c0167155146e43150'),
+      ('contact_search_on_channel_update()', 'fc79f2989bb8ce169fcf110d5a691a47'),
+      ('contact_search_on_contact()', '4301d86f864c5dfa0ffe69adb7fcb6cc'),
+      ('contact_search_refresh(uuid)', 'eb7710bf5a801ae762314a88fc2420b0'),
+      ('enforce_task_project_workspace_placement()', 'f9bb4c7ff2ec5f2cac7930bcfba57530'),
+      ('enqueue_calendar_feature_invalidation(uuid,uuid,uuid,uuid,jsonb)', '4920d8eaf58855d94eb66a97f543ba86'),
+      ('enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)', '144218e45d23e3b7f16abb58b5ce55c9'),
+      ('erase_calendar_outbox_for_workspace_delete()', '60e1e659b70377e7f16288d70324523c'),
+      ('history_bucket_slug_from_metadata(jsonb)', 'f75544f0226a41435b455199e227c325'),
+      ('history_slugify(text)', '14f4c248f71f03bcf140f7c6625205a1'),
+      ('invalidate_calendar_for_contact_change()', '58b978046028054c43c59a0efe3d68a2'),
+      ('invalidate_calendar_for_marketing_strategy_change()', '2ce1e533a94eac55bc51b35dc4f2101d'),
+      ('invalidate_calendar_for_marketing_strategy_file_change()', '9f10c01ae614215169be6cb1b54ecd68'),
+      ('invalidate_calendar_for_newsletter_issue_change()', 'cc99a9c975c485f3c6d3a53abcab2a02'),
+      ('invalidate_calendar_for_project_change()', 'ab0ba2aac368842086d42ed7ed737bc0'),
+      ('invalidate_calendar_for_run_change()', 'bcb93a47e8bae04da1ff74dbd11d49f8'),
+      ('invalidate_calendar_for_social_post_change()', '058da8610fafb5ed853b6cb2839dc46c'),
+      ('invalidate_calendar_for_task_change()', 'cf7c45d12e6c0d08ef0a7e9a7c00597e'),
+      ('invalidate_calendar_for_task_schedule_change()', '608f449fc0ef140cf285ee1239a60406'),
+      ('invalidate_changed_workspace_tag_offers()', '053f53bf8060e1fa9b30688edb6759dd'),
+      ('invalidate_task_workspace_tag_suggestions()', '216f1a4395fb53738ca97c71be7e68dd'),
+      ('project_alias_old_identifier()', 'd3f6e922939239f81b93e4c7c14071cd'),
+      ('project_default_identifier(text,uuid)', '815ad18acc7c9b59e821eae2068489b3'),
+      ('project_set_identifier()', '51ebc5342f951bae9afa844890a270bd'),
+      ('reject_soko_bot_admin_action_mutation()', '391039c4aa764e7bc57591bb963aa590'),
+      ('social_post_quote_before_delete()', '5c033f342f04a15fd5a5f434745fcf28'),
+      ('task_alias_old_number()', 'ef2b3f591be26eb257c3aa14b06dad68'),
+      ('task_assign_number()', 'c7ed9b511a18321323c9fd36f80fdb75'),
+      ('task_subtask_follow_parent()', '302228a69d5f1ab1d421c913d722976a'),
+      ('task_subtask_guard()', '20887f6150174f6d679c7f8323693869'),
+      ('task_tag_revision()', '584d8ba0c0719e4fdbf87f6cfad055ce')
     ) AS listed(signature, digest)
     LEFT JOIN pg_proc p ON p.oid = to_regprocedure('shared.' || listed.signature)
     LEFT JOIN pg_language l ON l.oid = p.prolang
@@ -115,6 +125,7 @@ BEGIN
     RAISE EXCEPTION 'a migration changed this function: %. Update its body in %, check by eye that only schema names differ from the migration''s body, then update its digest there',
       changed, file;
   END IF;
+  PERFORM set_config('search_path', settings[1], true), set_config('quote_all_identifiers', settings[2], true);
 END
 $guard$;
 
