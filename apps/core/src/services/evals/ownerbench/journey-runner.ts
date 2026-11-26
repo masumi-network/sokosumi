@@ -801,10 +801,12 @@ export async function startJourney(
     })) > 0
   )
     return { kind: "busy" };
-  if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
   // Cuso has no full reset: what earlier cases made goes before its setup
   // seeds this journey's world.
-  else await clearEarlierCaseArtifacts(lane);
+  const { blobsPending } =
+    journey.bot === "soko-bot"
+      ? await resetEvalLaneForSokoBot(lane)
+      : await clearEarlierCaseArtifacts(lane);
   const isolatedAt = (await databaseNow()).toISOString();
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
@@ -826,6 +828,8 @@ export async function startJourney(
     )),
     cusoRoomId,
     isolatedAt,
+    // Hidden from the bot already; the next reset tries their blobs again.
+    ...(blobsPending.length ? { blobsPending } : {}),
   };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
   await setEvalCoworkerScript(world.coworkers.CodePat, []);
@@ -1213,6 +1217,7 @@ async function journeyOutcome(
       journey: journey.id,
       level: journey.level,
       runtime: journeyRuntime(),
+      setup: { blobsPending: state.world.blobsPending ?? [] },
       score,
       totals,
       answer: state.steps.at(-1)?.answer ?? null,

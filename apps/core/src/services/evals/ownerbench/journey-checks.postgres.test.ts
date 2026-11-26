@@ -14,7 +14,9 @@ import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
 import {
   clearEarlierCaseArtifacts,
+  type DeleteBlobs,
   type EvalLaneRecord,
+  PENDING_BLOB_PREFIX,
 } from "../eval-lanes.service";
 import {
   type CheckContext,
@@ -1217,6 +1219,72 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         where: { id: { in: [evidence.id, own.id] } },
       });
     });
+
+    it("retries a blob delete, and keeps a failed one hidden and due for the next reset", async () => {
+      const upload = (name: string) =>
+        prisma.fileResource.create({
+          data: {
+            workspaceId,
+            sourceKind: "DRIVE_UPLOAD",
+            sourceScope: "USER",
+            sourceId: `drive/users/${userId}/${randomUUID()}/${name}`,
+            ownerUserId: userId,
+            displayName: name,
+            normalizedName: name.toLowerCase(),
+            mimeType: "application/pdf",
+            lifecycle: "ACTIVE",
+          },
+          select: { id: true, sourceId: true, tombstonedAt: true },
+        });
+      const visible = async (id: string) =>
+        (
+          await prisma.fileResource.findUniqueOrThrow({
+            where: { id },
+            select: { tombstonedAt: true },
+          })
+        ).tombstonedAt === null;
+      const pending = () =>
+        prisma.syncMetadata.findMany({
+          where: {
+            key: { startsWith: `${PENDING_BLOB_PREFIX}${workspaceId}:` },
+          },
+          select: { key: true },
+        });
+      const lane = { workspaceId, cusoProjectId: projectId };
+      // The store fails once, then deletes: the file and its blob are gone.
+      const first = await upload("flaky.pdf");
+      const flaky = vi.fn<DeleteBlobs>();
+      flaky
+        .mockRejectedValueOnce(new Error("store down"))
+        .mockResolvedValue(undefined);
+      expect(await clearEarlierCaseArtifacts(lane, flaky)).toEqual({
+        blobsPending: [],
+      });
+      expect(flaky).toHaveBeenCalledTimes(2);
+      expect(await visible(first.id)).toBe(false);
+      expect(await pending()).toEqual([]);
+      // The store keeps failing: the file is hidden, its blob waits.
+      const second = await upload("stuck.pdf");
+      const down = vi
+        .fn<DeleteBlobs>()
+        .mockRejectedValue(new Error("store down"));
+      expect(await clearEarlierCaseArtifacts(lane, down)).toEqual({
+        blobsPending: [second.sourceId],
+      });
+      expect(down).toHaveBeenCalledTimes(3);
+      expect(await visible(second.id)).toBe(false);
+      expect(await pending()).toHaveLength(1);
+      // The next reset deletes that blob, and nothing waits any more.
+      const back = vi.fn<DeleteBlobs>().mockResolvedValue(undefined);
+      expect(await clearEarlierCaseArtifacts(lane, back)).toEqual({
+        blobsPending: [],
+      });
+      expect(back).toHaveBeenCalledWith([second.sourceId]);
+      expect(await pending()).toEqual([]);
+      await prisma.fileResource.deleteMany({
+        where: { id: { in: [first.id, second.id] } },
+      });
+    }, 15_000);
 
     it("fails a case whose opening packet carries another case's Task", async () => {
       const leaked = await runCase("delegated");

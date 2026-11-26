@@ -60,6 +60,8 @@ export interface JourneyWorld {
    * made before then is an earlier case's, one made after is this journey's.
    */
   isolatedAt?: string;
+  /** Blobs of earlier uploads the clear could not delete yet (their files are hidden). */
+  blobsPending?: string[];
   /** The room the owner, the teammates and the owner's bot share. */
   teammateRoomId?: string;
   /** Cuso's published posts when the journey started. */

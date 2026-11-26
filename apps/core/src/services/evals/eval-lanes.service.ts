@@ -489,7 +489,8 @@ export async function seedEvalXDms(
  */
 export async function clearEarlierCaseArtifacts(
   lane: Pick<EvalLaneRecord, "workspaceId" | "cusoProjectId">,
-): Promise<void> {
+  deleteBlobs?: DeleteBlobs,
+): Promise<{ blobsPending: string[] }> {
   const botMade = {
     workspaceId: lane.workspaceId,
     creatorSokoBotId: { not: null },
@@ -505,7 +506,7 @@ export async function clearEarlierCaseArtifacts(
   await prisma.socialPost.deleteMany({
     where: { projectId: lane.cusoProjectId, creatorSokoBotId: { not: null } },
   });
-  await removeLaneUploads(lane);
+  return removeLaneUploads(lane, deleteBlobs);
 }
 
 /**
@@ -517,7 +518,8 @@ export async function clearEarlierCaseArtifacts(
  */
 export async function removeLaneUploads(
   lane: Pick<EvalLaneRecord, "workspaceId">,
-): Promise<void> {
+  deleteBlobs: DeleteBlobs = deleteFromBlobStore,
+): Promise<{ blobsPending: string[] }> {
   const { workspaceId } = lane;
   const uploads = await prisma.fileResource.findMany({
     where: {
@@ -527,12 +529,8 @@ export async function removeLaneUploads(
     },
     select: { sourceId: true, sourceScope: true },
   });
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  if (uploads.length && token)
-    await del(
-      uploads.map((upload) => upload.sourceId),
-      { token },
-    ).catch(() => undefined);
+  // The catalog entry goes first: the bot can't list or read a file whose
+  // blob is still being deleted.
   for (const upload of uploads)
     await tombstoneDriveUploadResources({
       workspaceId,
@@ -542,11 +540,66 @@ export async function removeLaneUploads(
           : "user",
       pathnames: [upload.sourceId],
     });
+  const pendingKey = `${PENDING_BLOB_PREFIX}${workspaceId}:`;
+  const earlier = await prisma.syncMetadata.findMany({
+    where: { key: { startsWith: pendingKey } },
+    select: { key: true },
+  });
+  const pathnames = [
+    ...new Set([
+      ...earlier.map((row) => row.key.slice(pendingKey.length)),
+      ...uploads.map((upload) => upload.sourceId),
+    ]),
+  ];
+  if (!pathnames.length) return { blobsPending: [] };
+  const deleted = await retried(() => deleteBlobs(pathnames));
+  // A blob still there would be found by a later upload of the same name:
+  // its pathname waits for the next reset to delete it.
+  if (deleted)
+    await prisma.syncMetadata.deleteMany({
+      where: {
+        key: { in: pathnames.map((pathname) => pendingKey + pathname) },
+      },
+    });
+  else
+    for (const pathname of pathnames)
+      await prisma.syncMetadata.upsert({
+        where: { key: pendingKey + pathname },
+        create: { key: pendingKey + pathname, lastSyncedAt: new Date() },
+        update: { lastSyncedAt: new Date() },
+      });
+  return { blobsPending: deleted ? [] : pathnames };
+}
+
+/** Deletes these blobs; resolves when they are gone, rejects when they may not be. */
+export type DeleteBlobs = (pathnames: string[]) => Promise<void>;
+
+/** Where a reset that could not delete a lane's blob keeps its pathname. */
+export const PENDING_BLOB_PREFIX = "eval-lane-blob-pending:";
+
+const deleteFromBlobStore: DeleteBlobs = async (pathnames) => {
+  const token = getEnv().BLOB_READ_WRITE_TOKEN;
+  // Without a store (a local run) there is no blob to leave behind.
+  if (token) await del(pathnames, { token });
+};
+
+/** Up to three tries, 200 ms then 800 ms apart; whether one succeeded. */
+async function retried(work: () => Promise<void>): Promise<boolean> {
+  for (const [attempt, wait] of [200, 800, 0].entries()) {
+    try {
+      await work();
+      return true;
+    } catch {
+      if (attempt < 2)
+        await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+  return false;
 }
 
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
-): Promise<void> {
+): Promise<{ blobsPending: string[] }> {
   const { workspaceId, sokoBotId } = lane;
   await prisma.task.updateMany({
     where: { workspaceId, archivedAt: null },
@@ -563,7 +616,7 @@ export async function resetEvalLaneForSokoBot(
     },
     data: { deletedAt: new Date() },
   });
-  await removeLaneUploads(lane);
+  const uploads = await removeLaneUploads(lane);
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
@@ -573,4 +626,5 @@ export async function resetEvalLaneForSokoBot(
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
   await seedEvalMcpServer(lane);
   await closeA2aWorld(lane);
+  return uploads;
 }
