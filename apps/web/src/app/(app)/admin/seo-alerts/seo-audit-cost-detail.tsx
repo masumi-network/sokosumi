@@ -23,25 +23,25 @@ function DetailTable({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-xs">{title}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full whitespace-nowrap text-left text-xs">
-          <thead className="text-muted-foreground">
-            <tr>
-              {head.map(({ label, numeric }) => (
-                <th
-                  key={label}
-                  className={cn(numeric ? NUMBER_CELL : CELL, "font-medium")}
-                >
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>{children}</tbody>
-        </table>
-      </div>
+    <div className="overflow-x-auto">
+      <table className="w-full whitespace-nowrap text-left text-xs">
+        <caption className="text-muted-foreground caption-top pb-1 text-left">
+          {title}
+        </caption>
+        <thead className="text-muted-foreground">
+          <tr>
+            {head.map(({ label, numeric }) => (
+              <th
+                key={label}
+                className={cn(numeric ? NUMBER_CELL : CELL, "font-medium")}
+              >
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
     </div>
   );
 }
