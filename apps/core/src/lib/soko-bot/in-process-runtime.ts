@@ -13,8 +13,8 @@ import {
   type RuntimeTurnInput,
   type RuntimeTurnRef,
   SOKO_BOT_TOOL_DESCRIPTIONS,
-  SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotRuntime,
+  sokoBotToolInputSchema,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { type ToolSet, tool } from "ai";
@@ -163,7 +163,7 @@ async function runTurn(
         description:
           turn.toolDescriptions[capability] ??
           SOKO_BOT_TOOL_DESCRIPTIONS[capability],
-        inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
+        inputSchema: sokoBotToolInputSchema(capability, turn),
         async execute(
           toolInput: unknown,
           options: { toolCallId: string; abortSignal?: AbortSignal },

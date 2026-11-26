@@ -2645,7 +2645,7 @@ export class SokoBotControlPlane {
           }
         : classification.classification,
     );
-    const routeCapabilities = (
+    const routed = (
       personAsked
         ? SOKO_BOT_CAPABILITIES
         : input.presetRoute?.capabilities
@@ -2661,6 +2661,12 @@ export class SokoBotControlPlane {
           capability,
         ),
     );
+    // Core keeps a planLoop version's plan and shows it to every turn of the
+    // request, so each of them can update it, with or without a sandbox.
+    const routeCapabilities =
+      version.planLoop && !routed.includes("update_plan")
+        ? [...routed, "update_plan" as const]
+        : routed;
     const newsletterAvailable =
       routeCapabilities.some(isSokoBotNewsletterCapability) &&
       (await isNewsletterDraftAvailable({

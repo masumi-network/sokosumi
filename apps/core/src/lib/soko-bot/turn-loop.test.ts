@@ -92,6 +92,23 @@ describe("a version with one fixed tool set", () => {
     expect(asked).toContain("web_fetch");
   });
 
+  it("offers update_plan without a sandbox only where Core keeps the plan", () => {
+    const owner = {
+      grant: { capabilities: ["update_plan", "bash", "create_task"] },
+      turn: { source: "CHAT", chainDepth: 0 },
+    } as never;
+    const v37 = getSokoBotVersion("v37");
+    expect(
+      offeredCapabilities(v37, owner, { sandbox: false, web: true }),
+    ).toEqual(["create_task"]);
+    expect(
+      offeredCapabilities({ ...v37, planLoop: true }, owner, {
+        sandbox: false,
+        web: true,
+      }),
+    ).toEqual(["update_plan", "create_task"]);
+  });
+
   it("keys the cache by system prompt and tools, not by turn", () => {
     const key = promptCacheKey("cmo-v24", "system", ["a", "b"], []);
     expect(promptCacheKey("cmo-v24", "system", ["a", "b"], [])).toBe(key);
