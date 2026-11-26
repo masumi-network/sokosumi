@@ -221,6 +221,7 @@
     "SokoBot": "soko_bot",
     "SokoBotAdminAction": "soko_bot_admin_action",
     "SokoBotAuthoredVersion": "soko_bot_authored_version",
+    "SokoBotAuthoritySpend": "soko_bot_authority_spend",
     "SokoBotContextSnapshot": "soko_bot_context_snapshot",
     "SokoBotDelegation": "soko_bot_delegation",
     "SokoBotDelivery": "soko_bot_delivery",

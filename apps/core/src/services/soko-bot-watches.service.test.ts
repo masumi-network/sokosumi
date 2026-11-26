@@ -705,4 +705,131 @@ describe("syncSokoBotWatches", () => {
       expect(db.sokoBotWatch.create).not.toHaveBeenCalled();
     });
   });
+
+  describe("OwnerAuthority persistence and legacy resume", () => {
+    it("persists OwnerAuthority on registerWatch without clamping to watch.expiresAt", async () => {
+      db.projectImageJob.findUnique.mockResolvedValue({
+        status: "QUEUED",
+        kind: "GENERATE",
+      });
+      await registerWatch(authorized(), {
+        kind: "studio_job",
+        id: "job-1",
+        projectId: "project-1",
+        then: "post it in #Sokosumi",
+      });
+      const createdData = db.sokoBotWatch.create.mock.calls[0][0].data;
+      expect(createdData.authority).toMatchObject({
+        version: 1,
+        grantId: "turn-1",
+        origin: "owner_chat",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        ownerUserId: "user-1",
+        targetScope: { kind: "project", projectId: "project-1" },
+        scope: "owner_writes",
+      });
+      expect(createdData.authority.expiresAt).toBeUndefined();
+    });
+
+    it("resumes legacy authority=null watches and clamps expired persisted watch authority to read-only", async () => {
+      db.projectImageJob.findUnique.mockResolvedValue({
+        status: "SUCCEEDED",
+        kind: "GENERATE",
+      });
+      // Legacy pre-migration row (`authority: null`) resumes with its owner chat tools.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        waiting({ authority: null }),
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[0][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
+
+      // Persisted expired OwnerAuthority degrades to read-only (drops post_chat).
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        waiting({
+          authority: {
+            version: 1,
+            grantId: "turn-1",
+            origin: "owner_chat",
+            sokoBotId: "bot-1",
+            workspaceId: "ws-1",
+            ownerUserId: "user-1",
+            rootTurnId: "turn-1",
+            targetScope: { kind: "project", projectId: "project-1" },
+            scope: "owner_writes",
+            socialMode: "full",
+            stopRule: { mode: "never" },
+            expiresAt: "2026-10-01T00:00:00.000Z",
+          },
+        }),
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[1][0].presetRoute.capabilities).toEqual([
+        "get_image",
+      ]);
+    });
+
+    it("preserves capabilities on Project Cuso watches even when watch.projectId is null and rejects mismatched projectId", async () => {
+      db.sokoBotTurn.findUnique.mockResolvedValue({
+        status: "COMPLETED",
+        finalAnswer: "Draft ready.",
+        backgroundTitle: "Research",
+      });
+      const cusoWatchAuthority = {
+        version: 1,
+        grantId: "turn-cmo",
+        origin: "owner_chat",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        ownerUserId: "user-1",
+        rootTurnId: "turn-cmo",
+        targetScope: { kind: "project", projectId: "project-cmo" },
+        scope: "owner_writes",
+        socialMode: "full",
+        stopRule: { mode: "never" },
+      };
+      const baseWait = waiting({
+        kind: "background_run",
+        targetId: "run-1",
+        projectId: null,
+        authority: cusoWatchAuthority,
+      });
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        {
+          ...baseWait,
+          turn: {
+            ...baseWait.turn,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "project-cmo" },
+          },
+        },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[0][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
+
+      // Mismatched explicit watch.projectId fails closed with zero tools.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        {
+          ...baseWait,
+          id: "watch-mismatch",
+          projectId: "project-other",
+          turn: {
+            ...baseWait.turn,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "project-cmo" },
+          },
+        },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[1][0].presetRoute.capabilities).toEqual(
+        [],
+      );
+    });
+  });
 });

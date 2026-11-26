@@ -1,4 +1,6 @@
+import { sokoBotFollowUpAllowsSchema } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 
 const {
   metadataUpsertMock,
@@ -1193,6 +1195,131 @@ describe("SokoBotEventsSyncService", () => {
       ]);
       await new SokoBotEventsSyncService().syncDelegatedWork(input);
       expect(capabilitiesOfWake()).toBeUndefined();
+    });
+
+    it("preserves follow-up capabilities for matching project-scoped delegations and Project Cuso handoffs, and drops mismatched Projects", async () => {
+      const projectAuthority = {
+        version: 1,
+        grantId: "grant-proj-1",
+        origin: "owner_chat",
+        sokoBotId: "bot_1",
+        workspaceId: "ws_1",
+        ownerUserId: "user_1",
+        rootTurnId: "turn_1",
+        targetScope: { kind: "project", projectId: "proj_1" },
+        scope: "draft_and_workspace",
+        socialMode: "draft_only",
+        stopRule: { mode: "never" },
+      };
+      const base = plannedDelegation("d1", "COMPLETED", draftPlan);
+      // Personal bot delegation scoped to proj_1 on a Task in proj_1 -> keeps drafting/media tools.
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: projectAuthority,
+          task: { ...base.task, projectId: "proj_1" },
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+
+      // Same authority attached to a Task in a different Project -> drops inherited tools.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: projectAuthority,
+          task: { ...base.task, projectId: "proj_other" },
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toBeUndefined();
+
+      // Project Cuso shared bot (`userId: null`, `projectId: "proj_cmo"`) handoff keeps tools.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: {
+            ...projectAuthority,
+            targetScope: { kind: "project", projectId: "proj_cmo" },
+            socialMode: "full",
+          },
+          task: { ...base.task, projectId: null },
+          turn: {
+            ...ownerChat,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "proj_cmo" },
+          },
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+    });
+
+    it("preserves public fractional followUpAllows (e.g. 5.5 credits) through authority derivation and wake preparation", async () => {
+      const publicAllows = sokoBotFollowUpAllowsSchema.parse({
+        images: 2,
+        maxCredits: 5.5,
+      });
+      const derivedAuthority = await deriveDelegationAuthority(
+        {
+          id: "turn_1",
+          sokoBotId: "bot_1",
+          workspaceId: "ws_1",
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: "user_1",
+          actingUserId: "user_1",
+          chainDepth: 0,
+        },
+        { followUpAllows: publicAllows },
+      );
+      expect(derivedAuthority.limits?.maxMediaCredits).toBe(5.5);
+
+      const base = plannedDelegation("d_frac", "COMPLETED", draftPlan);
+      // 1. Persisted authority with fractional 5.5-credit cap wakes cleanly.
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          followUpAllows: publicAllows,
+          authority: derivedAuthority,
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+      expect(startTurnMock.mock.calls[0]![0].message).toContain(
+        "at most 2 images and 5.5 credits on media",
+      );
+
+      // 2. Legacy pre-migration row (`authority: null`) with 5.5 credits also wakes cleanly.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          followUpAllows: publicAllows,
+          authority: null,
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+      expect(startTurnMock.mock.calls[0]![0].message).toContain(
+        "at most 2 images and 5.5 credits on media",
+      );
     });
   });
 

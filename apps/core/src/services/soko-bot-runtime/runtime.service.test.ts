@@ -15435,6 +15435,121 @@ describe("Content Studio image tools", () => {
     });
     expect(images.create).not.toHaveBeenCalled();
   });
+
+  it("retries only the terminal receipt-and-ledger commit after a DB rollback without turning a confirmed refund or queued job into UNKNOWN", async () => {
+    const spendUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const runCase = async (studioStatus: "FAILED" | "QUEUED") => {
+      images.credits.mockReturnValue(5);
+      images.create
+        .mockReset()
+        .mockResolvedValue({ id: `job-${studioStatus}`, status: studioStatus });
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      transactionToolCallFindUniqueMock.mockResolvedValue(null);
+      transactionToolCallCountMock.mockResolvedValue(0);
+      toolCallUpdateManyMock.mockReset().mockResolvedValue({ count: 1 });
+      spendUpdateMany.mockClear();
+      serializableTransactionMock.mockImplementation(async (operation) =>
+        operation({
+          $queryRaw: transactionTurnLockMock,
+          sokoBotTurn: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+          },
+          workspace: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: SCOPE.workspaceId,
+              organizationId: null,
+            }),
+          },
+          sokoBotToolCall: {
+            findUnique: transactionToolCallFindUniqueMock,
+            count: transactionToolCallCountMock,
+            create: transactionToolCallCreateMock,
+            updateMany: toolCallUpdateManyMock,
+          },
+          sokoBotAuthoritySpend: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            findMany: vi.fn().mockResolvedValue([]),
+            upsert: vi.fn().mockResolvedValue({}),
+            updateMany: spendUpdateMany,
+          },
+        }),
+      );
+      // Roll back the terminal commit once, then allow the retry to commit.
+      transactionMock
+        .mockReset()
+        .mockRejectedValueOnce(new Error("simulated DB rollback"))
+        .mockImplementationOnce(async (operation) =>
+          operation({
+            sokoBotToolCall: { updateMany: toolCallUpdateManyMock },
+            sokoBotAuthoritySpend: { updateMany: spendUpdateMany },
+          }),
+        );
+
+      const svc = new SokoBotRuntimeService();
+      svc.authorize = vi.fn().mockResolvedValue(ownerChat);
+      const origCheck = svc["checkImageRequest"].bind(svc);
+      svc["checkImageRequest"] = vi.fn(
+        async (...args: Parameters<typeof origCheck>) => ({
+          ...(await origCheck(...args)),
+          authoritySpend: {
+            sokoBotId: SCOPE.sokoBotId,
+            workspaceId: SCOPE.workspaceId,
+            turnId: SCOPE.turnId,
+            toolCallId: `call-rb-${studioStatus}`,
+            operationKey: null,
+            capability: "generate_image" as const,
+            projectId: request.projectId,
+            images: 1,
+            videos: 0,
+            credits: 5,
+            grants: [
+              {
+                grantId: "grant-rb",
+                images: 1,
+                maxMediaCredits: 5,
+                targetScope: { kind: "workspace" as const },
+              },
+            ],
+          },
+        }),
+      );
+      return svc.executeTool({
+        ...SCOPE,
+        capability: "generate_image",
+        toolCallId: `call-rb-${studioStatus}`,
+        input: request,
+      });
+    };
+
+    const refunded = await runCase("FAILED");
+    expect(refunded).toMatchObject({ status: "FAILED" });
+    expect(images.create).toHaveBeenCalledTimes(1);
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      status: "COMPLETED",
+      disposition: "REJECTED",
+      operationKey: null,
+    });
+    expect(spendUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "RELEASED", operationKey: null },
+      }),
+    );
+
+    const queued = await runCase("QUEUED");
+    expect(queued).toMatchObject({ status: "QUEUED" });
+    expect(images.create).toHaveBeenCalledTimes(1);
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      status: "COMPLETED",
+      disposition: "APPLIED",
+    });
+    expect(spendUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "SETTLED" },
+      }),
+    );
+  });
 });
 
 describe("Content Studio video tools", () => {

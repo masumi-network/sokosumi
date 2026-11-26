@@ -9,7 +9,8 @@ import { calendarMailboxReferences } from "@/lib/soko-bot/calendar-contact-links
 import { urlsIn } from "@/lib/soko-bot/citations";
 
 const PERSISTED_VALUE_MAX_DEPTH = 8;
-const TOOL_RESULT_MAX_BYTES = 16_384;
+/** What a tool call row keeps whole; past it only a preview. */
+export const TOOL_RESULT_MAX_BYTES = 16_384;
 const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 /** Room kept for the addresses of a result too large to store whole. */
 const TRUNCATED_SOURCES_MAX_BYTES = 8_192;

@@ -170,6 +170,7 @@ export type SharedTableName =
   | "soko_bot"
   | "soko_bot_admin_action"
   | "soko_bot_authored_version"
+  | "soko_bot_authority_spend"
   | "soko_bot_context_snapshot"
   | "soko_bot_delegation"
   | "soko_bot_delivery"
