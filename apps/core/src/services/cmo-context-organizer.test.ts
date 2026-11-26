@@ -28,6 +28,7 @@ import {
   cmoShortFormsFor,
   cmoTurnKind,
   organizeCmoContext,
+  organizerJevTimeoutMs,
 } from "./cmo-context-organizer";
 
 const NOW = new Date("2026-12-01T08:00:00Z");
@@ -253,10 +254,45 @@ describe("cmoTurnKind", () => {
   });
 });
 
+describe("organizerJevTimeoutMs", () => {
+  it("waits for the plan's stand-in longer than for Jev", () => {
+    expect(organizerJevTimeoutMs({})).toBe(4_000);
+    expect(
+      organizerJevTimeoutMs({ SOKO_BOT_LOCAL_CHATGPT_PLAN: "1" }),
+    ).toBeGreaterThanOrEqual(30_000);
+  });
+});
+
 describe("organizeCmoContext", () => {
   beforeEach(() => {
     emitted.length = 0;
     scheduleFind.mockReset();
+  });
+
+  it("gives the picker the plan allowance only on plan runs", async () => {
+    const asked: number[] = [];
+    const picker: CmoContextPicker = async ({ timeoutMs }) => {
+      asked.push(timeoutMs);
+      return new Map();
+    };
+    const pick = () =>
+      organizeCmoContext({
+        sources: sources(),
+        turn: chat("What should we post this week?"),
+        now: NOW,
+        picker,
+      });
+    await pick();
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "1");
+    try {
+      await pick();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(asked).toEqual([
+      4_000,
+      organizerJevTimeoutMs({ SOKO_BOT_LOCAL_CHATGPT_PLAN: "1" }),
+    ]);
   });
 
   it("keeps the core small and maps everything stored", async () => {
