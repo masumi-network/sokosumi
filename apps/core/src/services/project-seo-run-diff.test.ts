@@ -119,6 +119,7 @@ describe("withSeoRunDiffs", () => {
       fixedCount: 1,
       stillOpenCount: 1,
       notCheckedAgain: 0,
+      notCheckedBefore: 0,
       numbers: { issues: { from: 2, to: 2 } },
     });
     expect(diff?.new).toEqual([
@@ -156,6 +157,7 @@ describe("withSeoRunDiffs", () => {
         fixedCount: 0,
         stillOpenCount: 0,
         notCheckedAgain: 0,
+        notCheckedBefore: 0,
       });
     },
   );
@@ -207,7 +209,12 @@ describe("withSeoRunDiffs", () => {
       source(8, result([failed({ rowId: "A" })])),
       source(1, result([check("not_checked", { rowId: "A" })])),
     ]);
-    expect(diff).toMatchObject({ comparable: true, newCount: 0 });
+    expect(diff).toMatchObject({
+      comparable: true,
+      newCount: 0,
+      new: [],
+      notCheckedBefore: 1,
+    });
   });
 
   it("counts a rule that fails on mobile and on desktop as one issue, as the issue count does", () => {

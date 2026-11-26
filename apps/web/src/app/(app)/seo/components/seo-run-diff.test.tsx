@@ -26,6 +26,7 @@ const diff = (patch: Partial<ProjectSeoRunDiff>): ProjectSeoRunDiff => ({
   stillOpen: [],
   stillOpenCount: 0,
   notCheckedAgain: 0,
+  notCheckedBefore: 0,
   numbers: { issues: { from: null, to: null }, moves: [], moveCount: 0 },
   ...patch,
 });
@@ -51,6 +52,7 @@ it("lists new, fixed and still open issues under headings that carry the full co
       stillOpen: [issue("C")],
       stillOpenCount: 1,
       notCheckedAgain: 2,
+      notCheckedBefore: 1,
       numbers: { issues: { from: 3, to: 10 }, moves: [], moveCount: 0 },
     }),
   );
@@ -74,6 +76,9 @@ it("lists new, fixed and still open issues under headings that carry the full co
   expect(screen.getByText("Open issues: 3 before, 10 now")).toBeInTheDocument();
   expect(
     screen.getByText(/^2 earlier issues were not checked again/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/^1 open issue was not checked before/),
   ).toBeInTheDocument();
 });
 

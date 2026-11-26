@@ -14690,6 +14690,7 @@
         "none": "Keine",
         "more": "und {count, number} weitere",
         "notCheckedAgain": "{count, plural, one {# früheres Problem wurde nicht erneut geprüft. Es zählt weder als behoben noch als offen.} other {# frühere Probleme wurden nicht erneut geprüft. Sie zählen weder als behoben noch als offen.}}",
+        "notCheckedBefore": "{count, plural, one {# offenes Problem wurde vorher nicht geprüft. Es zählt nicht als neu.} other {# offene Probleme wurden vorher nicht geprüft. Sie zählen nicht als neu.}}",
         "moves": "Ranking-Bewegungen ({count, number})",
         "notComparable": {
           "title": "Nicht mit der Prüfung davor verglichen",

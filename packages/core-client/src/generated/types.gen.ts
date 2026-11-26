@@ -13589,6 +13589,7 @@ export type ProjectSeoRunDiff = {
     }>;
     stillOpenCount: number;
     notCheckedAgain: number;
+    notCheckedBefore: number;
     numbers: {
         issues: {
             from: number | null;

@@ -14690,6 +14690,7 @@
         "none": "None",
         "more": "and {count, number} more",
         "notCheckedAgain": "{count, plural, one {# earlier issue was not checked again. It counts as neither fixed nor open.} other {# earlier issues were not checked again. They count as neither fixed nor open.}}",
+        "notCheckedBefore": "{count, plural, one {# open issue was not checked before. It does not count as new.} other {# open issues were not checked before. They do not count as new.}}",
         "moves": "Ranking moves ({count, number})",
         "notComparable": {
           "title": "Not compared with the check before",

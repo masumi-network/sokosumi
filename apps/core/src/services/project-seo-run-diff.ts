@@ -97,11 +97,13 @@ export function compareSeoRuns(
   const added: Issue[] = [],
     fixed: Issue[] = [],
     stillOpen: Issue[] = [];
-  let notCheckedAgain = 0;
+  let notCheckedAgain = 0,
+    notCheckedBefore = 0;
   if (!reason) {
     for (const [key, issue] of after.open) {
       if (before.open.has(key)) stillOpen.push(issue);
       else if (before.passed.has(key)) added.push(issue);
+      else notCheckedBefore += 1;
     }
     for (const [key, issue] of before.open) {
       if (after.open.has(key)) continue;
@@ -134,6 +136,7 @@ export function compareSeoRuns(
     stillOpen: list(stillOpen),
     stillOpenCount: stillOpen.length,
     notCheckedAgain,
+    notCheckedBefore,
     moves,
   };
 }

@@ -53926,6 +53926,10 @@ export const ProjectSeoRunDiffSchema = {
             type: 'integer',
             minimum: 0
         },
+        notCheckedBefore: {
+            type: 'integer',
+            minimum: 0
+        },
         numbers: {
             type: 'object',
             properties: {
@@ -54025,6 +54029,7 @@ export const ProjectSeoRunDiffSchema = {
         'stillOpen',
         'stillOpenCount',
         'notCheckedAgain',
+        'notCheckedBefore',
         'numbers'
     ]
 } as const;

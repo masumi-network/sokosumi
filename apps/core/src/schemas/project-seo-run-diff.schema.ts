@@ -36,6 +36,8 @@ export const seoRunDiffSchema = z
     stillOpenCount: count,
     /** Issues of the earlier check that the later check did not read again. They are not fixed. */
     notCheckedAgain: count,
+    /** Issues of the later check whose rule the earlier check did not read. They are not new. */
+    notCheckedBefore: count,
     numbers: z.object({
       /** The issue count of each check, as the runs row shows it. */
       issues: z.object({ from: issueCount, to: issueCount }),

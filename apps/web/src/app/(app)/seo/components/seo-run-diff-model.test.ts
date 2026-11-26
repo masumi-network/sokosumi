@@ -22,6 +22,7 @@ function diff(patch: Partial<ProjectSeoRunDiff> = {}): ProjectSeoRunDiff {
     stillOpen: [],
     stillOpenCount: 0,
     notCheckedAgain: 0,
+    notCheckedBefore: 0,
     numbers: { issues: { from: 0, to: 0 }, moves: [], moveCount: 0 },
     ...patch,
   };
