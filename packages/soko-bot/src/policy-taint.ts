@@ -83,9 +83,12 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
  * Social tools a tainted turn may still use on work the owner asked for:
  * creating a new post (which waits for a person's approval) and editing
  * unapproved drafts (`DRAFT` or `NEEDS_APPROVAL`; Core refuses tainted edits
- * to `SCHEDULED` or other posts). Rescheduling, cancelling or publishing a
- * post stay refused (see the outward list): a script in the turn can call
- * these tools too, and an approved post must not change under it.
+ * to `SCHEDULED` or other posts). `isTaintBlocked` checks this list before
+ * `SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES`, while `update_social_post` and
+ * `update_social_posts` intentionally stay in the outward set below so
+ * delegated follow-up grants (which exclude outward capabilities) never
+ * inherit existing-post edits. Rescheduling, cancelling or publishing a post
+ * stay refused everywhere.
  */
 export const SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES = [
   "create_social_post",
@@ -97,6 +100,8 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "run_integration_tool",
   "post_chat",
   "open_direct_chat",
+  "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",

@@ -32,7 +32,10 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { getSokoBotVersion } from "@sokosumi/soko-bot";
+import {
+  getSokoBotVersion,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { expectCoreLogWhys } from "@/test/core-log";
 import { withPromptCache } from "./stream-model-call";
 import {
@@ -456,6 +459,33 @@ describe("isOwnerDirected and isTaintBlocked", () => {
       "add_newsletter_subscriber",
     ] as const) {
       expect(await isTaintBlocked("turn-direct", blocked)).toBe(true);
+    }
+
+    // Delegated EVENT turns (even under an owner CHAT parent) must stay
+    // blocked on social edits, and both social edit tools stay in
+    // SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES so delegated follow-up grants
+    // never inherit them (while create_social_post remains inheritable).
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "update_social_post",
+    );
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "update_social_posts",
+    );
+    expect(
+      SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+    ).not.toContain("create_social_post");
+
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      source: "EVENT",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat },
+    });
+    for (const blocked of [
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(await isTaintBlocked("event-child-of-chat", blocked)).toBe(true);
     }
 
     // Background child of an INGEST turn must remain blocked on every tainted write
