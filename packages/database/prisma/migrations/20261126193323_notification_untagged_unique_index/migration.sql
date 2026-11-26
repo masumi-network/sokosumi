@@ -4,9 +4,9 @@
 -- index. Every later production deploy stops with P3009 until a human recovers.
 -- First check pg_stat_activity for a still-running CREATE INDEX targeting this
 -- index. Once the build has stopped and the cause is fixed, run
--- DROP INDEX CONCURRENTLY IF EXISTS "notification_network_dedupe_key" on DATABASE_URL_UNPOOLED,
--- then pnpm exec prisma migrate resolve --rolled-back 20261126140532_notification_network_unique_index
+-- DROP INDEX CONCURRENTLY IF EXISTS "notification_untagged_dedupe_key" on DATABASE_URL_UNPOOLED,
+-- then pnpm exec prisma migrate resolve --rolled-back 20261126193323_notification_untagged_unique_index
 -- on the same direct URL and deploy again. The old keys stay until cutover.
 
-CREATE UNIQUE INDEX CONCURRENTLY "notification_network_dedupe_key"
-  ON "notification" ("network", "userId", "kind", "referenceId", "eventId", "messageKey");
+CREATE UNIQUE INDEX CONCURRENTLY "notification_untagged_dedupe_key"
+  ON "notification" ("userId", "kind", "referenceId", "eventId", "messageKey") WHERE "network" IS NULL;
