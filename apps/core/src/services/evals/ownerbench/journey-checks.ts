@@ -2,7 +2,7 @@ import type { ScenarioCheck } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import type { JourneyWorld } from "./journey-world";
-import type { JourneyOutcome, OwnerJourney } from "./journeys";
+import type { FixtureInvestor, JourneyOutcome, OwnerJourney } from "./journeys";
 
 const ZONE = "Europe/Berlin";
 const DOW_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -232,13 +232,21 @@ async function imagesCheck(
 function imageJobs(context: CheckContext, since: Date) {
   return prisma.projectImageJob.findMany({
     where: { workspaceId: context.lane.workspaceId, createdAt: { gte: since } },
-    select: { id: true, prompt: true, status: true, assetId: true },
+    select: {
+      id: true,
+      prompt: true,
+      status: true,
+      asset: { select: { id: true } },
+    },
   });
 }
 
 /** An image the owner can see: the job succeeded and kept its picture. */
-function isMade(job: { status: string; assetId: string | null }): boolean {
-  return job.status === "SUCCEEDED" && job.assetId !== null;
+function isMade(job: {
+  status: string;
+  asset: { id: string } | null;
+}): boolean {
+  return job.status === "SUCCEEDED" && job.asset !== null;
 }
 
 /**
@@ -269,7 +277,11 @@ function jobSuffix(jobId: string): string {
  * job not copied into Files yet.
  */
 export function madeImages(
-  jobs: readonly { id: string; status: string; assetId: string | null }[],
+  jobs: readonly {
+    id: string;
+    status: string;
+    asset: { id: string } | null;
+  }[],
   files: readonly { displayName: string }[],
 ): number {
   const uncopied = jobs
@@ -654,41 +666,48 @@ export function createdTableIds(
 }
 
 /**
- * Rows as text: how many name a different allowed entry and carry a link,
- * and what is wrong with the rest.
+ * Rows as text, graded against the notes: a good row names one fitting fund
+ * with that fund's own partner, deal and source link, and no other row did
+ * before it. A known name with someone else's link, or none, is not good.
  */
 export function gradeRows(
   rows: readonly string[],
   outcome: {
     minRows: number;
-    allowed?: readonly string[];
-    excluded?: readonly string[];
+    allowed: readonly FixtureInvestor[];
+    excluded: readonly FixtureInvestor[];
   },
 ): { rows: number; good: number; problems: string[] } {
   const seen = new Set<string>();
   let good = 0;
-  let unsourced = 0;
+  let incomplete = 0;
   let unknown = 0;
   let repeated = 0;
   const excluded = new Set<string>();
+  const has = (row: string, value: string) =>
+    row.toLowerCase().includes(value.toLowerCase());
   for (const row of rows) {
-    const lower = row.toLowerCase();
-    for (const name of outcome.excluded ?? [])
-      if (lower.includes(name.toLowerCase())) excluded.add(name);
-    const named = outcome.allowed
-      ? outcome.allowed.find((name) => lower.includes(name.toLowerCase()))
-      : row;
-    if (!named) unknown += 1;
-    else if (seen.has(named)) repeated += 1;
-    else if (!/https?:\/\//.test(row)) unsourced += 1;
+    for (const misfit of outcome.excluded)
+      if (has(row, misfit.fund)) excluded.add(misfit.fund);
+    const entry = outcome.allowed.find((fit) => has(row, fit.fund));
+    if (!entry) unknown += 1;
+    else if (seen.has(entry.fund)) repeated += 1;
+    else if (
+      !has(row, entry.partner) ||
+      !has(row, entry.startup) ||
+      !row.includes(entry.source)
+    )
+      incomplete += 1;
     else {
-      seen.add(named);
+      seen.add(entry.fund);
       good += 1;
     }
   }
   const problems = [
     ...(good < outcome.minRows ? [`needs ${outcome.minRows}`] : []),
-    ...(unsourced ? [`${unsourced} without a source link`] : []),
+    ...(incomplete
+      ? [`${incomplete} without the fund's own partner, deal and source`]
+      : []),
     ...(repeated ? [`${repeated} repeated`] : []),
     ...(unknown ? [`${unknown} not from the notes`] : []),
     ...(excluded.size ? [`includes ${[...excluded].join(", ")}`] : []),

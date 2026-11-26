@@ -507,35 +507,22 @@ async function seedFridayAndLinkedInPosts(
   return fridays;
 }
 
-const PARTNERS = [
-  "Mara Lind",
-  "Jonas Aalto",
-  "Ines Duarte",
-  "Pieter Smit",
-  "Clara Novak",
-  "Emil Berg",
-  "Sofia Ricci",
-  "Lukas Brandt",
-  "Nora Haugen",
-  "Kai Tamm",
-  "Lea Vogel",
-  "Tomas Silva",
-];
-
 /** The owner's research notes: every fitting investor, then the two misfits. */
 export function investorNotes(): string {
-  const fits = INVESTOR_FIXTURE.fits.map((fund, index) => {
-    const slug = fund.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    return `- **${fund}** (Europe, seed). Partner: ${PARTNERS[index]}. Recent deal: led the seed round of an AI-agent startup (Agentic${index + 1}) in ${["March", "May", "July", "September"][index % 4]} 2026. Source: https://example.com/notes/${slug}`;
-  });
+  const months = ["March", "May", "July", "September"];
+  const fits = INVESTOR_FIXTURE.fits.map(
+    (fit, index) =>
+      `- **${fit.fund}** (Europe, seed). Partner: ${fit.partner}. Recent deal: led the seed round of ${fit.startup}, an AI-agent startup, in ${months[index % months.length]} 2026. Source: ${fit.source}`,
+  );
+  const [bayline, ironforge] = INVESTOR_FIXTURE.misfits;
   return [
     "# Seed investor notes",
     "",
     "Collected for our seed round. All rounds below are from the last 12 months.",
     "",
     ...fits,
-    "- **Bayline Capital** (San Francisco, Series B only). Partner: Dana West. Recent deal: Series B of an AI-agent company. Source: https://example.com/notes/bayline-capital",
-    "- **Ironforge Growth** (Munich, growth stage, no seed). Partner: Felix Kern. Recent deal: growth round of an AI-agent platform. Source: https://example.com/notes/ironforge-growth",
+    `- **${bayline?.fund}** (San Francisco, Series B only). Partner: ${bayline?.partner}. Recent deal: Series B of ${bayline?.startup}. Source: ${bayline?.source}`,
+    `- **${ironforge?.fund}** (Munich, growth stage, no seed). Partner: ${ironforge?.partner}. Recent deal: growth round of ${ironforge?.startup}. Source: ${ironforge?.source}`,
     "",
   ].join("\n");
 }

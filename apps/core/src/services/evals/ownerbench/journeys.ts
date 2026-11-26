@@ -140,14 +140,15 @@ export type JourneyOutcome =
   | {
       /**
        * A table this journey's create_table made (never another table): at
-       * least `minRows` rows, each naming a different one of `allowed` and
-       * carrying a source link, none naming `excluded`.
+       * least `minRows` rows, each naming a different `allowed` entry with
+       * its own partner, deal and source link together, none naming an
+       * `excluded` fund.
        */
       kind: "table";
       label: string;
       minRows: number;
-      allowed?: readonly string[];
-      excluded?: readonly string[];
+      allowed: readonly FixtureInvestor[];
+      excluded: readonly FixtureInvestor[];
     }
   | {
       kind: "newsletterDraft";
@@ -214,23 +215,47 @@ export type JourneyPrepare =
  * The investor journey's fixed research source: 12 fitting investors and 2
  * that do not fit, all fictional, so the result is checkable and repeatable.
  */
-export const INVESTOR_FIXTURE = {
+export interface FixtureInvestor {
+  fund: string;
+  partner: string;
+  /** The AI-agent startup whose round the fund led: the deal. */
+  startup: string;
+  source: string;
+}
+
+function investor(fund: string, partner: string, startup: string) {
+  const slug = fund.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return {
+    fund,
+    partner,
+    startup,
+    source: `https://example.com/notes/${slug}`,
+  };
+}
+
+export const INVESTOR_FIXTURE: {
+  fits: readonly FixtureInvestor[];
+  misfits: readonly FixtureInvestor[];
+} = {
   fits: [
-    "Northlight Ventures",
-    "Fjordline Capital",
-    "Kestrel Seed",
-    "Alder & Pine",
-    "Brightwater VC",
-    "Lumen Point",
-    "Harbor Nine",
-    "Cobalt Field",
-    "Vantage Moss",
-    "Tallinn Forge",
-    "Rhine Arc",
-    "Sable Peak",
+    investor("Northlight Ventures", "Mara Lind", "Quillstack"),
+    investor("Fjordline Capital", "Jonas Aalto", "Tidework"),
+    investor("Kestrel Seed", "Ines Duarte", "Parlayo"),
+    investor("Alder & Pine", "Pieter Smit", "Loomline"),
+    investor("Brightwater VC", "Clara Novak", "Ferrograph"),
+    investor("Lumen Point", "Emil Berg", "Mosaic Desk"),
+    investor("Harbor Nine", "Sofia Ricci", "Briskwell"),
+    investor("Cobalt Field", "Lukas Brandt", "Cartwheel AI"),
+    investor("Vantage Moss", "Nora Haugen", "Haldenwerk"),
+    investor("Tallinn Forge", "Kai Tamm", "Orbit Ops"),
+    investor("Rhine Arc", "Lea Vogel", "Tesselate"),
+    investor("Sable Peak", "Tomas Silva", "Wrenly"),
   ],
-  misfits: ["Bayline Capital", "Ironforge Growth"],
-} as const;
+  misfits: [
+    investor("Bayline Capital", "Dana West", "Pallas Agents"),
+    investor("Ironforge Growth", "Felix Kern", "Gridmind"),
+  ],
+};
 
 export interface OwnerJourney {
   id: string;

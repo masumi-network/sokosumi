@@ -16,7 +16,11 @@ import {
   type StepRecord,
 } from "./journey-runner";
 import { investorNotes } from "./journey-world";
-import { INVESTOR_FIXTURE, OWNER_JOURNEYS } from "./journeys";
+import {
+  type FixtureInvestor,
+  INVESTOR_FIXTURE,
+  OWNER_JOURNEYS,
+} from "./journeys";
 
 describe("owner journeys", () => {
   it("has unique ids and starts each with the owner", () => {
@@ -96,7 +100,11 @@ describe("launchDay", () => {
 });
 
 describe("made images and what a draft carries", () => {
-  const made = (id: string) => ({ id, status: "SUCCEEDED", assetId: "a" });
+  const made = (id: string) => ({
+    id,
+    status: "SUCCEEDED",
+    asset: { id: "a" },
+  });
   const svg = (name: string) => ({
     sourceId: `orgs/o/${name}`,
     displayName: name,
@@ -154,14 +162,18 @@ describe("investor table checks", () => {
     allowed: INVESTOR_FIXTURE.fits,
     excluded: INVESTOR_FIXTURE.misfits,
   };
-  const row = (fund: string, link = true) =>
+  const fits = INVESTOR_FIXTURE.fits;
+  const row = (fit: FixtureInvestor, override: Partial<FixtureInvestor> = {}) =>
     JSON.stringify({
-      fund,
-      source: link ? "https://example.com/notes/x" : "",
+      fund: fit.fund,
+      partner: fit.partner,
+      deal: `Seed round of ${fit.startup}`,
+      source: fit.source,
+      ...override,
     });
 
-  it("passes ten different sourced fitting investors", () => {
-    const rows = INVESTOR_FIXTURE.fits.slice(0, 10).map((fund) => row(fund));
+  it("passes ten different fitting investors, each with its own partner, deal and source", () => {
+    const rows = fits.slice(0, 10).map((fit) => row(fit));
     expect(gradeRows(rows, outcome)).toEqual({
       rows: 10,
       good: 10,
@@ -169,17 +181,42 @@ describe("investor table checks", () => {
     });
   });
 
-  it("counts repeats, missing links, misfits and invented rows against it", () => {
+  it("fails ten known names sharing one unrelated link with no partner or deal", () => {
+    const rows = fits
+      .slice(0, 10)
+      .map((fit) =>
+        JSON.stringify({ fund: fit.fund, source: "https://example.org/list" }),
+      );
+    expect(gradeRows(rows, outcome)).toEqual({
+      rows: 10,
+      good: 0,
+      problems: [
+        "needs 10",
+        "10 without the fund's own partner, deal and source",
+      ],
+    });
+  });
+
+  it("fails a row whose partner, deal or link belongs to another fund", () => {
+    const [first, second] = fits as [FixtureInvestor, FixtureInvestor];
+    for (const field of ["partner", "deal", "source"] as const) {
+      const swapped =
+        field === "deal"
+          ? row(first).replace(first.startup, second.startup)
+          : row(first, { [field]: second[field] });
+      expect(gradeRows([swapped], outcome).good, field).toBe(0);
+    }
+  });
+
+  it("counts repeats, misfits and invented rows against it", () => {
     const rows = [
-      ...INVESTOR_FIXTURE.fits.slice(0, 8).map((fund) => row(fund)),
-      row(INVESTOR_FIXTURE.fits[0]),
-      row(INVESTOR_FIXTURE.fits[8], false),
-      row("Bayline Capital"),
-      row("Made Up Ventures"),
+      ...fits.slice(0, 8).map((fit) => row(fit)),
+      row(fits[0] as FixtureInvestor),
+      row(INVESTOR_FIXTURE.misfits[0] as FixtureInvestor),
+      JSON.stringify({ fund: "Made Up Ventures" }),
     ];
     expect(gradeRows(rows, outcome).problems).toEqual([
       "needs 10",
-      "1 without a source link",
       "1 repeated",
       "2 not from the notes",
       "includes Bayline Capital",
@@ -210,8 +247,8 @@ describe("investor table checks", () => {
 
   it("puts every fitting and misfit investor in the notes", () => {
     const notes = investorNotes();
-    for (const fund of [...INVESTOR_FIXTURE.fits, ...INVESTOR_FIXTURE.misfits])
-      expect(notes).toContain(fund);
+    for (const entry of [...INVESTOR_FIXTURE.fits, ...INVESTOR_FIXTURE.misfits])
+      for (const value of Object.values(entry)) expect(notes).toContain(value);
   });
 });
 

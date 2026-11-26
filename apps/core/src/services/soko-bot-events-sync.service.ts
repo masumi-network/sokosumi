@@ -413,6 +413,14 @@ export class SokoBotEventsSyncService {
         },
       });
     const delegations = await readPage(input.sokoBotId ? null : scan.cursorId);
+    // A scoped scan has no cursor to resume from: it reads every page.
+    if (input.sokoBotId) {
+      let page = delegations;
+      while (page.length === BATCH_SIZE) {
+        page = await readPage(page.at(-1)?.id);
+        delegations.push(...page);
+      }
+    }
     result.scanned = delegations.length;
 
     const byBot = new Map<string, BotWork>();
