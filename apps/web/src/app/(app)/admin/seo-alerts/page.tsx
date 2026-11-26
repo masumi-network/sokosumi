@@ -10,8 +10,12 @@ import {
   SEGMENTED_CONTROL_CLASS_NAME,
   SEGMENTED_CONTROL_ITEM_CLASS_NAME,
 } from "@/components/ui/segmented-control-classes";
-import { readAdminSeoAlerts } from "@/lib/services/admin-seo-alerts.service";
+import {
+  readAdminSeoActionImpact,
+  readAdminSeoAlerts,
+} from "@/lib/services/admin-seo-alerts.service";
 import { cn } from "@/lib/utils";
+import { SeoActionImpactList } from "./seo-action-impact-list";
 import { SeoAuditBilling } from "./seo-audit-billing";
 
 function Reference({
@@ -51,9 +55,18 @@ function workspaceHref(row: {
 
 export const instant = false;
 const periods = ["7", "30", "90", "all"] as const;
-function listHref(period: string, page = 1, view?: "billing" | "connections") {
+/** The impact tab's window lengths. Core accepts any whole number of days between its two limits. */
+const impactWindows = [7, 14, 28, 90] as const;
+const DEFAULT_IMPACT_WINDOW = 28;
+function listHref(
+  period: string,
+  page = 1,
+  view?: "billing" | "connections" | "impact",
+  days?: number,
+) {
   const query = new URLSearchParams({ period });
   if (view) query.set("view", view);
+  if (view === "impact" && days) query.set("days", String(days));
   if (page > 1) query.set("page", String(page));
   return `/admin/seo-alerts?${query}`;
 }
@@ -67,11 +80,18 @@ const SEGMENT_CLASS = cn(
 export default async function AdminSeoAlertsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; page?: string; view?: string }>;
+  searchParams: Promise<{
+    period?: string;
+    page?: string;
+    view?: string;
+    days?: string;
+  }>;
 }) {
   const params = await searchParams;
   const view =
-    params.view === "billing" || params.view === "connections"
+    params.view === "billing" ||
+    params.view === "connections" ||
+    params.view === "impact"
       ? params.view
       : undefined;
   const connections = view === "connections";
@@ -83,20 +103,30 @@ export default async function AdminSeoAlertsPage({
     requestedPage <= 1_000_000
       ? requestedPage
       : 1;
-  const [alerts, t, format] = await Promise.all([
+  const days =
+    impactWindows.find((value) => String(value) === params.days) ??
+    DEFAULT_IMPACT_WINDOW;
+  const [alerts, impact, t, format] = await Promise.all([
     readAdminSeoAlerts({
       period,
       page,
-      ...(view && { view }),
+      // The impact tab needs the other tabs' counts only, not a page of their rows.
+      ...(view && { view: view === "impact" ? "counts" : view }),
     }),
+    view === "impact" ? readAdminSeoActionImpact({ days, page }) : null,
     getTranslations("App.Admin.SeoAlerts"),
     getFormatter(),
   ]);
-  const total = connections
-    ? alerts.connectionTotal
-    : view === "billing"
-      ? alerts.billingTotal
-      : alerts.total;
+  const total = impact
+    ? 0
+    : connections
+      ? alerts.connectionTotal
+      : view === "billing"
+        ? alerts.billingTotal
+        : alerts.total;
+  const pageSize = impact ? impact.pageSize : alerts.pageSize;
+  // The impact list is not counted. Core tells whether a later page exists.
+  const hasNext = impact ? impact.hasNext : page * pageSize < total;
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-2">
       <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
@@ -125,8 +155,31 @@ export default async function AdminSeoAlertsPage({
         >
           {t("billingTab", { count: alerts.billingTotal ?? 0 })}
         </Link>
+        <Link
+          href={listHref(period, 1, "impact")}
+          aria-current={impact ? "page" : undefined}
+          data-state={impact ? "on" : "off"}
+          className={SEGMENT_CLASS}
+        >
+          {t("impactTab")}
+        </Link>
       </nav>
-      {!connections && (
+      {impact && (
+        <nav aria-label={t("impactWindow")} className={SEGMENTS_CLASS}>
+          {impactWindows.map((value) => (
+            <Link
+              key={value}
+              href={listHref(period, 1, "impact", value)}
+              aria-current={days === value ? "page" : undefined}
+              data-state={days === value ? "on" : "off"}
+              className={SEGMENT_CLASS}
+            >
+              {t("days", { days: value })}
+            </Link>
+          ))}
+        </nav>
+      )}
+      {!connections && !impact && (
         <nav aria-label={t("period")} className={SEGMENTS_CLASS}>
           {periods.map((value) => (
             <Link
@@ -141,7 +194,19 @@ export default async function AdminSeoAlertsPage({
           ))}
         </nav>
       )}
-      {view === "billing" ? (
+      {impact ? (
+        <>
+          <p className="text-muted-foreground text-sm">
+            {t("impactDescription")}
+          </p>
+          <SeoActionImpactList
+            items={impact.items}
+            page={page}
+            t={t}
+            format={format}
+          />
+        </>
+      ) : view === "billing" ? (
         <SeoAuditBilling
           rows={alerts.billing}
           total={total}
@@ -320,18 +385,20 @@ export default async function AdminSeoAlertsPage({
           )}
         </>
       )}
-      {(page > 1 || page * alerts.pageSize < total) && (
+      {(page > 1 || hasNext) && (
         <nav aria-label={t("pagination")} className="flex gap-2">
           {page > 1 && (
             <Button asChild variant="outline">
-              <Link href={listHref(period, page - 1, view)}>
+              <Link href={listHref(period, page - 1, view, days)}>
                 {t("previous")}
               </Link>
             </Button>
           )}
-          {page * alerts.pageSize < total && (
+          {hasNext && (
             <Button asChild variant="outline" className="ms-auto">
-              <Link href={listHref(period, page + 1, view)}>{t("next")}</Link>
+              <Link href={listHref(period, page + 1, view, days)}>
+                {t("next")}
+              </Link>
             </Button>
           )}
         </nav>

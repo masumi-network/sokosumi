@@ -11,7 +11,11 @@ import {
 import { describe, expect, it } from "vitest";
 
 import type { Network } from "@/lib/network";
-import { rolledBack, testSchemaNames } from "@/test/split-layout";
+import {
+  onSplitLayout,
+  rolledBack,
+  testSchemaNames,
+} from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -42,6 +46,7 @@ const HISTORY_UPSERTS = [
   {
     schema: sharedSchema,
     procedure: "upsert_history_task(text)",
+    splitArbiter: INDEXES.history.untagged,
     declarations: `source_task ${sharedTable("task").sql};`,
     setup: "",
   },
@@ -49,6 +54,7 @@ const HISTORY_UPSERTS = [
     // Each Network schema holds its own copy (networkFunctions).
     schema: mainnetSchema,
     procedure: "upsert_history_job(text)",
+    splitArbiter: INDEXES.history.network,
     declarations: "source_job RECORD;",
     setup: `SELECT j.*, NULL::text AS "agentName" INTO source_job
       FROM ${netTable("mainnet", "Job").sql} AS j WHERE false;`,
@@ -56,6 +62,7 @@ const HISTORY_UPSERTS = [
   {
     schema: sharedSchema,
     procedure: "upsert_history_image_asset(uuid)",
+    splitArbiter: INDEXES.history.untagged,
     declarations: "source RECORD; spend bigint;",
     setup: `SELECT a.*, NULL::text AS "requestedByUserId", NULL::text AS "organizationId"
       INTO source FROM ${sharedTable("project_image_asset").sql} AS a WHERE false;`,
@@ -113,23 +120,48 @@ async function fixture(tx: Tx, table: keyof typeof INDEXES) {
 
 describe.skipIf(!enabled)("Network-aware unique indexes", () => {
   describe.each(["history", "notification"] as const)("%s", (table) => {
-    it("keeps the old key in use and has both new indexes valid", async () => {
-      await rolledBack(async (tx) => {
-        const { old, network, untagged } = INDEXES[table];
-        const valid = await tx.$queryRaw<{ name: string }[]>`
+    // The split layout is the window's end state: its script dropped the
+    // old key with the bodies that needed it.
+    it.runIf(onSplitLayout)(
+      "has both new indexes valid and no old key on the split layout",
+      async () => {
+        await rolledBack(async (tx) => {
+          const { old, network, untagged } = INDEXES[table];
+          const valid = await tx.$queryRaw<{ name: string }[]>`
           SELECT c.relname::text AS name
           FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
           WHERE i.indrelid = ${sharedTable(table).sql}::regclass
             AND i.indisvalid AND c.relname::text IN (${network}, ${untagged})
           ORDER BY c.relname`;
-        expect(valid.map(({ name }) => name)).toEqual([network, untagged]);
+          expect(valid.map(({ name }) => name)).toEqual([network, untagged]);
+          // Absent, whether valid or not.
+          const [gone] = await tx.$queryRaw<{ old: string | null }[]>`
+            SELECT to_regclass(${`"${sharedSchema}"."${old}"`})::text AS old`;
+          expect(gone.old).toBeNull();
+        });
+      },
+    );
 
-        const insert = await fixture(tx, table);
-        expect(await insert("mainnet")).toBe(1);
-        await expectDuplicate(tx, () => insert("preprod"), old);
-        await expectDuplicate(tx, () => insert("mainnet"));
-      });
-    });
+    it.runIf(!onSplitLayout)(
+      "keeps the old key in use and has both new indexes valid",
+      async () => {
+        await rolledBack(async (tx) => {
+          const { old, network, untagged } = INDEXES[table];
+          const valid = await tx.$queryRaw<{ name: string }[]>`
+          SELECT c.relname::text AS name
+          FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+          WHERE i.indrelid = ${sharedTable(table).sql}::regclass
+            AND i.indisvalid AND c.relname::text IN (${network}, ${untagged})
+          ORDER BY c.relname`;
+          expect(valid.map(({ name }) => name)).toEqual([network, untagged]);
+
+          const insert = await fixture(tx, table);
+          expect(await insert("mainnet")).toBe(1);
+          await expectDuplicate(tx, () => insert("preprod"), old);
+          await expectDuplicate(tx, () => insert("mainnet"));
+        });
+      },
+    );
 
     it("allows one row per Network and one untagged row per key", async () => {
       await rolledBack(async (tx) => {
@@ -137,7 +169,9 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
         // DROP INDEX takes ACCESS EXCLUSIVE on the table until rollback.
         // CI has one database per worker. On a shared local test database,
         // reads and writes wait until this transaction ends.
-        await tx.$executeRawUnsafe(`DROP INDEX "${sharedSchema}"."${old}"`);
+        await tx.$executeRawUnsafe(
+          `DROP INDEX IF EXISTS "${sharedSchema}"."${old}"`,
+        );
 
         const insert = await fixture(tx, table);
         expect(await insert("mainnet")).toBe(1);
@@ -155,8 +189,12 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
   });
 
   it.each(HISTORY_UPSERTS)(
-    "still plans $procedure with only the old arbiter",
-    async ({ schema, procedure, declarations, setup }) => {
+    // The split layout runs the bodies of the new layout: a Job's row by its
+    // Network, Task and image rows by the key of rows without one.
+    onSplitLayout
+      ? "plans $procedure with only $splitArbiter"
+      : "still plans $procedure with only the old arbiter",
+    async ({ schema, procedure, declarations, setup, splitArbiter }) => {
       await rolledBack(async (tx) => {
         const [fn] = await tx.$queryRaw<{ prosrc: string }[]>`
           SELECT prosrc FROM pg_catalog.pg_proc
@@ -184,7 +222,9 @@ describe.skipIf(!enabled)("Network-aware unique indexes", () => {
         const [result] = await tx.$queryRaw<{ arbiters: string[] }[]>`
           SELECT current_setting('test.history_upsert_plan')::json
             -> 0 -> 'Plan' -> 'Conflict Arbiter Indexes' AS arbiters`;
-        expect(result.arbiters).toEqual([INDEXES.history.old]);
+        expect(result.arbiters).toEqual([
+          onSplitLayout ? splitArbiter : INDEXES.history.old,
+        ]);
       });
     },
   );

@@ -32,11 +32,15 @@ import {
   privateLandingSourceSchema,
 } from "@/schemas/seo-landing-outcomes.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { withSeoActionImpact } from "./project-seo-action-impact";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
-import { loadSeoRankSources } from "./project-seo-rank-sources";
-import { withSeoRankings } from "./project-seo-rankings";
+import {
+  loadSeoRankPoints,
+  loadSeoRankSources,
+} from "./project-seo-rank-sources";
+import { seoRankKeys, withSeoRankings } from "./project-seo-rankings";
 import { loadSeoRunDiffBaselines } from "./project-seo-run-diff-baselines";
 import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
@@ -503,6 +507,8 @@ export async function getProjectSeoWorkspace(
     includePrivateIndexing?: boolean;
     includePrivateReviews?: boolean;
     includeAuditPerformance?: boolean;
+    /** The caller's window length. The audit performance read brings the default one. */
+    actionImpact?: { days?: number; ownerId?: string };
   } = {},
 ) {
   await requireSeoOwner(actor);
@@ -680,11 +686,18 @@ export async function getProjectSeoWorkspace(
     canSchedule: executor?.canSchedule === true,
     monitors,
   });
-  const actions = await pendingSeoActionReviews(
+  const reviewedActions = await pendingSeoActionReviews(
     actor,
     workspace,
     privateReviews,
   );
+  const impact =
+    options.actionImpact ??
+    (options.includeAuditPerformance && !actor.sokoBotId ? {} : null);
+  const actions =
+    impact && privateMetricsAllowed
+      ? await withSeoActionImpact(actor, reviewedActions, impact)
+      : reviewedActions;
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),
   );
@@ -700,10 +713,7 @@ export async function getProjectSeoWorkspace(
       (await readAuditPerformanceSummaries(
         actor,
         analyses.flatMap((a) =>
-          a.kind === "audit_full" &&
-          a.requestedBy === actor.userId &&
-          a.taskId &&
-          visibleTasks.has(a.taskId)
+          a.kind === "audit_full" && a.taskId && visibleTasks.has(a.taskId)
             ? [a.taskId]
             : [],
         ),
@@ -731,8 +741,8 @@ export async function getProjectSeoWorkspace(
   };
   const ranked = withSeoRankings(
     monitored,
-    rankSources.rows,
-    rankSources.limited,
+    rankSources,
+    await loadSeoRankPoints(actor, seoRankKeys(monitored), query),
   );
   return brandTerms ? { ...ranked, brandTerms } : ranked;
 }

@@ -1,4 +1,3 @@
-import type { Prisma } from "@sokosumi/database";
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
 import { seoKeywordIdentity } from "./project-seo-keyword-rows";
 import { sha256 } from "./project-seo-store";
@@ -8,6 +7,17 @@ import { sha256 } from "./project-seo-store";
  * A "page_check" lists keywords and reads no position.
  */
 export const SEO_RANK_POINT_KINDS = ["rankings", "audit_lite", "audit_full"];
+
+/** A rank point as the table stores it, without its ID. */
+export type SeoRankPointData = {
+  observationId: string;
+  key: string;
+  observedAt: Date;
+  position: number | null;
+  positionStatus: string;
+  checkedResults: number | null;
+  device: string | null;
+};
 
 /** The key of a keyword's points: the identity a workspace keyword row has, at a fixed length. */
 export function seoRankPointKey(
@@ -28,10 +38,10 @@ export function seoRankPoints(
     PublicSeoPayload,
     "kind" | "keywords" | "countryCode" | "languageCode"
   >,
-): Prisma.ProjectSeoRankPointCreateManyInput[] {
+): SeoRankPointData[] {
   if (!SEO_RANK_POINT_KINDS.includes(payload.kind)) return [];
   const seen = new Set<string>();
-  const points: Prisma.ProjectSeoRankPointCreateManyInput[] = [];
+  const points: SeoRankPointData[] = [];
   for (const item of payload.keywords) {
     const key = seoRankPointKey(
       item,

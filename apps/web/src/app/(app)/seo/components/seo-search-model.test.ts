@@ -307,6 +307,28 @@ describe("keyword trend", () => {
     });
   });
 
+  it("starts at the first day earlier syncs read for the keyword", () => {
+    const queries = seriesWorkspace();
+    const entry = queries.keywordSeries?.keywords[0];
+    if (!entry) throw new Error("fixture");
+    entry.from = "2026-09-29";
+    entry.points.unshift(point("2026-09-29", 3, 8));
+    expect(keywordTrend(queries, "usdc", "US")).toMatchObject({
+      points: [
+        { date: "2026-09-29", value: 8 },
+        { date: "2026-09-30", value: null },
+        { date: "2026-10-01", value: 6.5 },
+        { date: "2026-10-02", value: null },
+        { date: "2026-10-03", value: null },
+        { date: "2026-10-04", value: null },
+      ],
+    });
+    // A keyword without older days keeps the sync's own first day.
+    expect(keywordTrend(queries, "stablecoin", "US")).toMatchObject({
+      points: [{}, {}, {}, { date: "2026-10-04", value: 3 }],
+    });
+  });
+
   it("says when the read stopped at its row limit", () => {
     const queries = seriesWorkspace();
     if (!queries.keywordSeries) throw new Error("fixture");

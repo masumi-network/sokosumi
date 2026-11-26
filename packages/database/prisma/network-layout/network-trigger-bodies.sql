@@ -18,14 +18,17 @@
 -- One fixed word replaced, rather than a generator or two committed copies:
 -- the split script and the cutover can both do it, nothing can be edited in
 -- one copy and forgotten in the other, and PostgreSQL refuses the text when
--- the replacement was not made. Never write `mainnet` or `preprod` in a body
--- here: that copy would then reach into the other Network.
+-- the replacement was not made. Never write `mainnet.` or `preprod.` before a
+-- name in a body here: that copy would then reach into the other Network. The
+-- schema's name is also the value of a shared row's `network` column, so
+-- `'@network@'` is how a body writes or matches its own Network on
+-- `shared."history"`. The one place a body compares it with a Network's name
+-- is the Task refresh below.
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
 -- database, once per Network. The move script of the maintenance window
--- applies the same text, except for the History sync functions: see the known
--- limit below.
+-- applies the same text.
 --
 -- Contract: apply each copy once, in one transaction that stops at the first
 -- error (`psql --single-transaction -v ON_ERROR_STOP=1`), after the Network's
@@ -35,25 +38,36 @@
 -- guard does not stop the statements after it.
 --
 -- The guard refuses unless each function below is in the Network's schema with
--- the body the migrations create, by digest. So a second run refuses too. That
--- only schema names differ from those bodies is not checked by any code: it
--- was compared once for this text, and every later change to a body is
--- reviewed against its migration before its digest is updated.
+-- the body the migrations create, by digest. So a second run refuses too. No
+-- code checks how a body here differs from its migration's: it was compared
+-- once for this text, and every later change to a body is reviewed against its
+-- migration before its digest is updated. Apart from schema names, the
+-- differences are the two below, both in the History functions. Keep them when
+-- you copy a migration's new body over one of these.
 --
--- Known limit of the History sync functions below (`sync_history_from_*`,
--- `upsert_history_job` and its two helpers): they write `shared."history"`,
--- whose key is still (kind, entityId) without the Network, and they do not set
--- the row's `network`. A Job id that exists on both Networks has one History
--- row, and the Network written last owns it: a Preprod Job can overwrite or
--- delete the History row of a Mainnet Job. That is accepted on CI's split test
--- database only. The window must not install this text for them: it installs
--- the bodies of ticket 19 part 2, which delete and upsert the History row by
--- (kind, entityId, network) on the keys ticket 09 adds. New keys alone do not
--- help, because these bodies still delete by Job id and upsert on the old
--- key. Also,
--- `sync_history_from_transaction` calls `shared.upsert_history_task`, which
--- still waits for part 2: a Transaction that a Task event points at fails
--- there on the split database.
+-- A Job's History row belongs to its Network. `upsert_history_job` writes the
+-- Network into `network` and upserts on (network, kind, entityId), the key
+-- `history_network_kind_entityId_key`; it and `sync_history_from_job` delete
+-- by the same three. So a Job id that exists on both Networks has one row per
+-- Network, and neither copy touches the other's. Two things must hold before
+-- this text is applied, and the caller's transaction owns both:
+-- - the old key `history_kind_entityId_key` is dropped. While it exists it
+--   refuses the second Network's row;
+-- - every JOB row of `shared."history"` has its `network`. A row without one
+--   is not matched here: its Job's next write would add a second row, and its
+--   Job's delete would leave it behind.
+--
+-- Only Mainnet's Transactions count towards a Task's amount
+-- (`shared.history_task_amount`), so only Mainnet's refresh a Task's History
+-- row. Both Task loops of `sync_history_from_transaction` carry two conditions
+-- for that: `'@network@' = 'mainnet'`, which is false in Preprod's copy, so
+-- that copy finds no Task and refreshes none; and the event's `network` is
+-- not `preprod`, so Mainnet's copy passes over a Preprod event that holds the
+-- same Transaction id. Without them a Preprod write would compute a Task's
+-- amount beside a Mainnet charge that is changing it, and could store the
+-- older one. A condition on a constant, rather than a second template or a
+-- block cut out of one copy: both copies stay this text with one word
+-- replaced, and each reads as plain SQL.
 
 DO $guard$
 DECLARE
@@ -146,7 +160,7 @@ BEGIN
     RAISE EXCEPTION 'no digest for %: add its line to the guard of %', problem, file;
   END IF;
   IF changed IS NOT NULL THEN
-    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %, check by eye that only schema names differ from the migration''s body, then update its digest there',
+    RAISE EXCEPTION 'a migration changed this function: %. Update its body in %: copy the migration''s new body, put the schema names in again and keep every difference the file''s header lists (the Network a body reads, filters by or writes, and the History conflict targets). Check by eye that nothing else differs from the migration''s body, then update its digest there',
       changed, file;
   END IF;
   PERFORM set_config('search_path', settings[1], true), set_config('quote_all_identifiers', settings[2], true);
@@ -478,7 +492,8 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     DELETE FROM shared."history"
     WHERE "kind" = 'JOB'::shared."HistoryKind"
-      AND "entityId" = OLD."id";
+      AND "entityId" = OLD."id"
+      AND "network" = '@network@';
     RETURN OLD;
   END IF;
 
@@ -588,6 +603,8 @@ BEGIN
       SELECT DISTINCT "taskId"
       FROM shared."taskEvent"
       WHERE "transactionId" = OLD."id"
+        AND '@network@' = 'mainnet'
+        AND "network" IS DISTINCT FROM 'preprod'
     LOOP
       PERFORM shared.upsert_history_task(linked_task_id);
     END LOOP;
@@ -607,6 +624,8 @@ BEGIN
       SELECT DISTINCT "taskId"
       FROM shared."taskEvent"
       WHERE "transactionId" = NEW."id"
+        AND '@network@' = 'mainnet'
+        AND "network" IS DISTINCT FROM 'preprod'
     LOOP
       PERFORM shared.upsert_history_task(linked_task_id);
     END LOOP;
@@ -636,7 +655,8 @@ BEGIN
   IF NOT FOUND THEN
     DELETE FROM shared."history"
     WHERE "kind" = 'JOB'::shared."HistoryKind"
-      AND "entityId" = job_id;
+      AND "entityId" = job_id
+      AND "network" = '@network@';
     RETURN;
   END IF;
 
@@ -656,7 +676,8 @@ BEGIN
     "agentId",
     "coworkerId",
     "bucketSlug",
-    "archivedAt"
+    "archivedAt",
+    "network"
   )
   VALUES (
     gen_random_uuid()::TEXT,
@@ -674,9 +695,10 @@ BEGIN
     source_job."agentId",
     NULL,
     NULL,
-    NULL
+    NULL,
+    '@network@'
   )
-  ON CONFLICT ("kind", "entityId") DO UPDATE
+  ON CONFLICT ("network", "kind", "entityId") DO UPDATE
   SET
     "userId" = EXCLUDED."userId",
     "workspaceId" = EXCLUDED."workspaceId",

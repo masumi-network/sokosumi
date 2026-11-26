@@ -14,7 +14,11 @@ import {
 } from "@/test-fixtures/project-seo";
 
 import { projectSeoProjection } from "./project-seo-projection";
-import { withSeoRankings } from "./project-seo-rankings";
+import { seoRankPoints } from "./project-seo-rank-points";
+import {
+  SEO_RANK_HISTORY_OBSERVATIONS,
+  withSeoRankings,
+} from "./project-seo-rankings";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
 type Read = {
@@ -116,7 +120,6 @@ function workspaceOf(
   results: ReturnType<typeof result>[],
   base = input(),
   history = results,
-  limited = false,
 ) {
   const rows = results.map((payload) => observation(base, payload));
   const historyRows =
@@ -126,7 +129,8 @@ function workspaceOf(
   return withSeoRankings(
     projectSeoProjection({ ...base, observations: rows }),
     historyRows,
-    limited,
+    // The points the import stores for these results.
+    historyRows.flatMap((row, index) => seoRankPoints(row.id, history[index])),
   );
 }
 
@@ -200,6 +204,71 @@ describe("keyword position history", () => {
     ).toEqual([10, 9, 8, 7, 2]);
   });
 
+  it("reads the history of results imported before the import stored rank points", () => {
+    const results = [
+      result(3, [{ position: 3 }]),
+      result(2, [{ position: 6 }]),
+      result(1, [{ position: 9 }]),
+    ];
+    const base = input();
+    const rows = results.map((payload) => observation(base, payload));
+    // Only the newest result has stored points.
+    const workspace = withSeoRankings(
+      projectSeoProjection({ ...base, observations: rows }),
+      rows,
+      seoRankPoints(rows[0].id, results[0]),
+    );
+    expect(
+      workspace.keywords[0].positionHistory?.map((point) => [
+        point.observationId,
+        point.position,
+      ]),
+    ).toEqual([
+      [rows[2].id, 9],
+      [rows[1].id, 6],
+      [rows[0].id, 3],
+    ]);
+    expect(workspace.keywords[0].positionHistoryCut).toBe(false);
+  });
+
+  it("says that older reads can be missing when a full load holds results without stored points", () => {
+    const own = [3, 2, 1].map((day) => result(day, [{ position: day }]));
+    // Results of another page fill the rest of the load.
+    const filler = Array.from(
+      { length: SEO_RANK_HISTORY_OBSERVATIONS - own.length },
+      (_, day) => {
+        const payload = result(day + 10, [{ position: 1 }]);
+        return {
+          ...payload,
+          keywords: [{ ...payload.keywords[0], pageUrl: SEO_TEST_SECOND_PAGE }],
+        };
+      },
+    );
+    const base = input();
+    const ownRows = own.map((payload) => observation(base, payload));
+    const rows = [
+      ...filler.map((payload) => observation(base, payload)),
+      ...ownRows,
+    ];
+    const cut = (points: ReturnType<typeof seoRankPoints>) =>
+      withSeoRankings(
+        projectSeoProjection({ ...base, observations: ownRows }),
+        rows,
+        points,
+      ).keywords[0].positionHistoryCut;
+    // Older results of the period can be outside the load, and only the table holds their reads.
+    expect(cut([])).toBe(true);
+    const stored = (index: number[]) =>
+      index.flatMap((at) =>
+        seoRankPoints(rows[at].id, [...filler, ...own][at]),
+      );
+    const all = rows.map((_, index) => index);
+    // Every loaded result has its stored points: they say themselves whether older reads exist.
+    expect(cut(stored(all))).toBe(false);
+    // Only this keyword's results have stored points: older results of the period can still have none.
+    expect(cut(stored(all.slice(filler.length)))).toBe(true);
+  });
+
   it("keeps the newest points when the reads pass the limit", () => {
     const results = Array.from(
       { length: SEO_RANK_HISTORY_POINTS + 5 },
@@ -217,22 +286,6 @@ describe("keyword position history", () => {
       result(day, [{ position: 4 }]),
     ).reverse();
     expect(workspaceOf(full).keywords[0].positionHistoryCut).toBe(false);
-    // The load limit cuts whole results: every series can miss older reads.
-    const short = [result(1, [{ position: 4 }])];
-    expect(
-      workspaceOf(short, input(), short, true).keywords[0].positionHistoryCut,
-    ).toBe(true);
-  });
-
-  it("follows the period of the workspace", () => {
-    const base = input();
-    const workspace = workspaceOf(
-      [result(3, [{ position: 3 }]), result(1, [{ position: 5 }])],
-      { ...base, query: { from: at(2).slice(0, 10) } },
-    );
-    expect(
-      workspace.keywords[0].positionHistory?.map((point) => point.position),
-    ).toEqual([3]);
   });
 });
 
