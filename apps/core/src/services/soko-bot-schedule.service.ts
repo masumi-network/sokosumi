@@ -1487,8 +1487,46 @@ export async function purgeSokoBotSchedules(
   } satisfies Prisma.SokoBotScheduleWhereInput;
   const purge = async (
     where: Prisma.SokoBotScheduleWhereInput,
-    options?: { keepOutstandingChildren?: boolean },
+    options?: { keepOutstandingChildren?: boolean; retireProtected?: boolean },
   ) => {
+    if (options?.retireProtected && protectedScheduleIds.length > 0) {
+      // A schedule watching finished work that still has an outstanding child
+      // follow-up or watch cannot be deleted yet without revoking its child,
+      // and must not fire again while waiting. Retire live ones (`enabled: true`)
+      // into spent one-time form (`enabled: false, runOnce: true, lastRunAt`) so
+      // they never claim another run while keeping child authority live; schedules
+      // already paused by the owner (`enabled: false, runOnce: false`) stay
+      // untouched so explicit revocation is preserved.
+      const toRetire = await prisma.sokoBotSchedule.findMany({
+        where: {
+          ...idle,
+          ...where,
+          id: { in: protectedScheduleIds },
+          enabled: true,
+        },
+        select: { id: true, lastRunAt: true },
+        orderBy: { id: "asc" },
+        take: PURGE_BATCH,
+      });
+      const withoutLastRun = toRetire
+        .filter((row) => row.lastRunAt === null)
+        .map((row) => row.id);
+      const withLastRun = toRetire
+        .filter((row) => row.lastRunAt !== null)
+        .map((row) => row.id);
+      if (withoutLastRun.length > 0) {
+        await prisma.sokoBotSchedule.updateMany({
+          where: { id: { in: withoutLastRun }, enabled: true },
+          data: { enabled: false, runOnce: true, lastRunAt: now },
+        });
+      }
+      if (withLastRun.length > 0) {
+        await prisma.sokoBotSchedule.updateMany({
+          where: { id: { in: withLastRun }, enabled: true },
+          data: { enabled: false, runOnce: true },
+        });
+      }
+    }
     const scope: Prisma.SokoBotScheduleWhereInput = {
       ...idle,
       ...where,
@@ -1518,23 +1556,26 @@ export async function purgeSokoBotSchedules(
     },
     { keepOutstandingChildren: true },
   );
-  const watchedWorkFinished = await purge({
-    OR: [
-      {
-        task: {
-          OR: [
-            { status: { in: ["COMPLETED", "CANCELED"] } },
-            { archivedAt: { not: null } },
-          ],
+  const watchedWorkFinished = await purge(
+    {
+      OR: [
+        {
+          task: {
+            OR: [
+              { status: { in: ["COMPLETED", "CANCELED"] } },
+              { archivedAt: { not: null } },
+            ],
+          },
         },
-      },
-      {
-        job: {
-          events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+        {
+          job: {
+            events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+          },
         },
-      },
-    ],
-  });
+      ],
+    },
+    { keepOutstandingChildren: true, retireProtected: true },
+  );
   const failedRecurring = await purge({
     runOnce: false,
     enabled: false,

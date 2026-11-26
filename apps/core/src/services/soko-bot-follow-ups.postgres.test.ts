@@ -4656,6 +4656,301 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           capability: "generate_image",
         }),
       ).rejects.toThrow(/was revoked/);
+
+      // 4. Schedule watching Task A that also delegated Task B: when Task A
+      //    completes, routine cleanup retires the schedule so it never fires
+      //    again while keeping Task B's follow-up authorized, then deletes it
+      //    once Task B settles; an owner-paused watcher stays revoked.
+      const watchRoot = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          askedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `chat-watched-root:${randomUUID()}`,
+          userMessage: "Watch Task A and delegate Task B with 1 image.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["create_task", "generate_image"],
+        },
+      });
+      const taskA = await prisma.task.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          name: "Watched Task A",
+          status: "READY",
+        },
+      });
+      const taskB = await prisma.task.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          name: "Delegated Task B",
+          status: "READY",
+        },
+      });
+      const watchedSchedId = randomUUID();
+      const watchedGrantId = `watched-grant-${randomUUID()}`;
+      const pastDue = new Date(Date.now() - HOUR);
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: watchedSchedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Watch Task A",
+          cronExpression: "0 * * * *",
+          timezone: "UTC",
+          prompt: "Check Task A and coordinate Task B.",
+          nextRunAt: pastDue,
+          lastRunAt: pastDue,
+          runOnce: false,
+          enabled: true,
+          taskId: taskA.id,
+          capabilityNames: ["create_task", "generate_image"],
+          authority: {
+            version: 1,
+            grantId: watchedGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: watchRoot.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: watchedSchedId,
+            scope: "owner_writes",
+            socialMode: "draft_only",
+            limits: {
+              grantId: watchedGrantId,
+              period: "per_occurrence",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const watchedSchedTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "SCHEDULE",
+          status: "COMPLETED",
+          clientTurnId: `schedule:${watchedSchedId}:${pastDue.toISOString()}`,
+          userMessage: "Check Task A and coordinate Task B.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["create_task", "generate_image"],
+        },
+      });
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: watchedSchedId,
+          scheduledFor: pastDue,
+          status: "COMPLETED",
+          completedAt: pastDue,
+          turnId: watchedSchedTurn.id,
+        },
+      });
+      const taskBAuthority = await deriveDelegationAuthority(
+        {
+          id: watchedSchedTurn.id,
+          sokoBotId: botId,
+          workspaceId,
+          versionId: "v36",
+          source: "SCHEDULE",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: userId,
+          actingUserId: userId,
+          chainDepth: 0,
+        },
+        { followUpAllows: { images: 1, maxCredits: 10 }, projectId: projectA },
+      );
+      const taskBDelegation = await prisma.sokoBotDelegation.create({
+        data: {
+          turnId: watchedSchedTurn.id,
+          toolCallId: `tool-watched-b-${randomUUID()}`,
+          action: "create_task",
+          kind: "TASK",
+          taskId: taskB.id,
+          followUp: "Make 1 image once Task B finishes.",
+          followUpAllows: { images: 1, maxCredits: 10 },
+          authority: taskBAuthority,
+        },
+      });
+
+      // Task A completes; cleanup retires the schedule (disabled, never fires again)
+      // instead of deleting it while Task B is still pending.
+      await prisma.task.update({
+        where: { id: taskA.id },
+        data: { status: "COMPLETED" },
+      });
+      const watchedPurge = await purgeSokoBotSchedules(
+        new Date(Date.now() + 2 * HOUR),
+      );
+      expect(watchedPurge.watchedWorkFinished).toBe(0);
+      const retiredWatcher = await prisma.sokoBotSchedule.findUnique({
+        where: { id: watchedSchedId },
+      });
+      expect(retiredWatcher).not.toBeNull();
+      expect(retiredWatcher?.enabled).toBe(false);
+      expect(retiredWatcher?.runOnce).toBe(true);
+      expect(retiredWatcher?.lastRunAt).not.toBeNull();
+
+      // The retired schedule never fires again even though nextRunAt is past due.
+      const syncResult =
+        await new SokoBotSchedulesSyncService().syncDueSchedules({
+          shouldContinue: () => true,
+          scheduleId: watchedSchedId,
+        });
+      expect(syncResult.claimed).toBe(0);
+
+      // Task B completes within two hours -> follow-up retains its 1-image allowance.
+      await prisma.task.update({
+        where: { id: taskB.id },
+        data: { status: "COMPLETED" },
+      });
+      const taskBWake = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "EVENT",
+          status: "RUNNING",
+          clientTurnId: `event:taskb:${randomUUID()}`,
+          userMessage: "Follow up on Task B.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+        },
+      });
+      await prisma.sokoBotDelegation.update({
+        where: { id: taskBDelegation.id },
+        data: { followUpTurnId: taskBWake.id },
+      });
+      expect(
+        (
+          await mayMakeMediaForOwner(mediaRuntime, asAuthorized(taskBWake), {
+            projectId: projectA,
+            capability: "generate_image",
+          })
+        )?.images,
+      ).toBe(1);
+
+      // Once Task B's follow-up settles COMPLETED, cleanup removes the retired watcher.
+      await prisma.sokoBotTurn.update({
+        where: { id: taskBWake.id },
+        data: { status: "COMPLETED" },
+      });
+      const watchedCleanup = await purgeSokoBotSchedules(
+        new Date(Date.now() + 2 * HOUR),
+      );
+      expect(watchedCleanup.watchedWorkFinished).toBe(1);
+      expect(
+        await prisma.sokoBotSchedule.findUnique({
+          where: { id: watchedSchedId },
+        }),
+      ).toBeNull();
+
+      // Control: a watcher explicitly paused by the owner (`enabled: false, runOnce: false`)
+      // before Task A completes is NEVER un-revoked by cleanup.
+      const taskA2 = await prisma.task.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          name: "Watched Task A2",
+          status: "COMPLETED",
+        },
+      });
+      const taskB2 = await prisma.task.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          name: "Delegated Task B2",
+          status: "READY",
+        },
+      });
+      const pausedWatcherId = randomUUID();
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: pausedWatcherId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Paused Watch Task A2",
+          cronExpression: "0 * * * *",
+          timezone: "UTC",
+          prompt: "Paused watcher.",
+          nextRunAt: pastDue,
+          lastRunAt: pastDue,
+          runOnce: false,
+          enabled: false,
+          taskId: taskA2.id,
+          capabilityNames: ["create_task", "generate_image"],
+          authority: {
+            version: 1,
+            grantId: `paused-watch-${randomUUID()}`,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: watchRoot.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: pausedWatcherId,
+            scope: "owner_writes",
+            socialMode: "draft_only",
+            limits: {
+              grantId: `paused-watch-${randomUUID()}`,
+              period: "per_occurrence",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const taskB2Wake = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "EVENT",
+          status: "RUNNING",
+          clientTurnId: `event:taskb2:${randomUUID()}`,
+          userMessage: "Follow up on Task B2 after owner paused watcher.",
+          versionId: "v36",
+          deadlineAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+        },
+      });
+      await prisma.sokoBotDelegation.create({
+        data: {
+          turnId: watchedSchedTurn.id,
+          toolCallId: `tool-watched-b2-${randomUUID()}`,
+          action: "create_task",
+          kind: "TASK",
+          taskId: taskB2.id,
+          followUp: "Make 1 image once Task B2 finishes.",
+          followUpAllows: { images: 1, maxCredits: 10 },
+          followUpTurnId: taskB2Wake.id,
+          authority: {
+            ...taskBAuthority,
+            scheduleId: pausedWatcherId,
+          },
+        },
+      });
+      await purgeSokoBotSchedules(new Date(Date.now() + 2 * HOUR));
+      await expect(
+        mayMakeMediaForOwner(mediaRuntime, asAuthorized(taskB2Wake), {
+          projectId: projectA,
+          capability: "generate_image",
+        }),
+      ).rejects.toThrow(/was revoked/);
     });
   });
 });
