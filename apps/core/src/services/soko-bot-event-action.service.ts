@@ -162,10 +162,17 @@ async function claim(
     if (taken.count === 1) return { allowed: true, claimId: existing.id };
   }
   if (existing) {
-    const allowed =
+    const sameTurn =
       existing.turnId === actor.turnId &&
-      existing.handlerBotId === actor.sokoBotId &&
-      !existing.receiptId;
+      existing.handlerBotId === actor.sokoBotId;
+    // One EVENT wake may create several follow-up Tasks after a single
+    // completed Task update. Per-call replay deduplication stays on
+    // sokoBotToolCall's operationKey, while cross-turn claims and
+    // newer-event superseding checks stay strict.
+    if (sameTurn && actionKind === "CREATE_TASK" && existing.receiptId) {
+      return { allowed: true, claimId: null };
+    }
+    const allowed = sameTurn && !existing.receiptId;
     return {
       allowed,
       claimId: existing.id,

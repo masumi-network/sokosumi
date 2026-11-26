@@ -152,7 +152,15 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: async () => USER },
     // The hire form's twin reads the agent, then asks it for its input schema.
-    agent: { findUnique: async () => HIRE_AGENT },
+    // An empty agent list: the agents view test needs a successful agents_list.
+    agent: {
+      findUnique: async () => HIRE_AGENT,
+      findMany: async () => [],
+      count: async () => 0,
+    },
+    creditCost: { findMany: async () => [] },
+    syncMetadata: { findUnique: async () => null },
+    $transaction: (queries: Promise<unknown>[]) => Promise.all(queries),
     // An empty Task list: the board test needs a successful tasks_list.
     // No Task by id: tasks_get answers 404 (the Task detail test).
     task: {
@@ -186,7 +194,15 @@ vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
 
 /** Every view a UI tool uses, real rows first. */
 const VIEW_RESOURCES = (
-  ["tasks-board", "agents-hire", "job-status", "task-detail", "hello"] as const
+  [
+    "tasks-board",
+    "agents-hire",
+    "job-status",
+    "task-detail",
+    "agents-browse",
+    "social-posts",
+    "hello",
+  ] as const
 ).map((id) => ({
   uri: MCP_UI[id].uri,
   name: id,
@@ -276,10 +292,12 @@ describe("Sokosumi MCP server", () => {
     ]);
     // SOKD-410: feature toolsets keep the default small. Growing it is a
     // deliberate edit here; the ceiling is 45 (docs/agents/agent-surface.md).
-    // UI tools count: 34 data tools, plus tasks_show_board and tasks_show.
-    expect(defaults).toHaveLength(34 + 2);
+    // UI tools count: 34 data tools, plus tasks_show_board, tasks_show and
+    // workspaces_show_social_posts (its twin is in workspaces).
+    expect(defaults).toHaveLength(34 + 3);
     expect(defaults).toContain("tasks_show_board");
     expect(defaults).toContain("tasks_show");
+    expect(defaults).toContain("workspaces_show_social_posts");
     // jobs_show sits in the opt-in jobs toolset with jobs_get.
     expect(defaults).not.toContain("jobs_show");
     expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
@@ -586,6 +604,43 @@ describe("Sokosumi MCP server", () => {
     expect(uiMeta).toEqual({
       ...dataMeta,
       ui: { resourceUri: MCP_UI["task-detail"].uri },
+      sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+    });
+  }, 15_000);
+
+  it("shows agents with exactly agents_list's result, in the agents toolset", async () => {
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=agents",
+    );
+    const { tools } = await client.listTools();
+    const twin = tools.find((tool) => tool.name === "agents_list");
+    const show = tools.find((tool) => tool.name === "agents_show");
+    expect(show).toMatchObject({
+      inputSchema: twin?.inputSchema,
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { resourceUri: MCP_UI["agents-browse"].uri } },
+    });
+    // Off unless the agents toolset is on.
+    const defaults = await connect({ Authorization: "Bearer mcp-token" });
+    expect(
+      (await defaults.listTools()).tools.map(({ name }) => name),
+    ).not.toContain("agents_show");
+
+    const args = { limit: 8, kind: "cardano" };
+    const data = await client.callTool({
+      name: "agents_list",
+      arguments: args,
+    });
+    const ui = await client.callTool({ name: "agents_show", arguments: args });
+    expect(data).toMatchObject({ structuredContent: { data: [] } });
+    expect(data.isError).toBeFalsy();
+    const { _meta: uiMeta, ...uiResult } = ui;
+    const { _meta: dataMeta, ...dataResult } = data;
+    expect(uiResult).toEqual(dataResult);
+    expect(uiMeta).toEqual({
+      ...dataMeta,
+      ui: { resourceUri: MCP_UI["agents-browse"].uri },
       sokosumi: { webBaseUrl: getWebAppBaseUrl() },
     });
   }, 15_000);
