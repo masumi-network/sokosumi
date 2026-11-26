@@ -16,7 +16,7 @@ const layout = sqlTableLayoutFromEnv(process.env);
 const { netTable, netType, sharedTable } = createSqlTables(layout);
 const migration = readFileSync(
   new URL(
-    "../../../../../packages/database/prisma/migrations/20261126144339_soko_bot_network/migration.sql",
+    "../../../../../packages/database/prisma/migrations/20261126200926_soko_bot_network/migration.sql",
     import.meta.url,
   ),
   "utf8",

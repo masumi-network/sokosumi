@@ -2,7 +2,7 @@
 -- NOT VALID avoids scanning under ACCESS EXCLUSIVE. The 5s timeout caps how
 -- long each exclusive lock request can queue later reads and writes.
 -- After a failed deploy, run prisma migrate resolve --rolled-back
--- 20261126144339_soko_bot_network on the direct URL, then deploy again.
+-- 20261126200926_soko_bot_network on the direct URL, then deploy again.
 SET lock_timeout = '5s';
 ALTER TABLE "soko_bot_turn"
   ADD COLUMN IF NOT EXISTS "network" TEXT,
