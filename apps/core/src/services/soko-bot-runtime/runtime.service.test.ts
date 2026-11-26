@@ -12256,9 +12256,9 @@ describe("Content Studio image tools", () => {
     );
     expect(toolCallCountMock).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        turnId: SCOPE.turnId,
+        turnId: { in: [SCOPE.turnId] },
         capability: "generate_image",
-        NOT: { toolCallId: "call-9" },
+        NOT: { turnId: SCOPE.turnId, toolCallId: "call-9" },
       }),
     });
     expect(images.create).not.toHaveBeenCalled();

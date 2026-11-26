@@ -183,9 +183,11 @@ export {
 } from "./seo.js";
 export {
   SOKO_BOT_TASK_STATUSES,
+  type SokoBotFollowUpAllows,
   sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotFollowUpAllowsSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
   sokoBotReplyToTaskInputSchema,
