@@ -168,6 +168,8 @@ export interface CaptureLimits {
   xIntervalMs: number;
   /** Followers change slowly: read from the newest once a day. */
   xFollowsIntervalMs: number;
+  /** DM events the first, cheap read asks for. */
+  xDmProbeSize: number;
   /** DM events per page once the newest one is new. */
   xDmPageSize: number;
   /** Followers pages per run. */
@@ -208,6 +210,7 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   xCallsPerRun: 12,
   xIntervalMs: 60 * 60 * 1_000,
   xFollowsIntervalMs: DAY_MS,
+  xDmProbeSize: 10,
   xDmPageSize: 20,
   xFollowPages: 4,
   xFollowPageSize: 100,
@@ -1554,18 +1557,25 @@ export class ContactCaptureService {
         ],
         ...args,
       });
-    // The newest event alone: when it is not new, nothing is.
-    const newest = parseXDmEvent(
-      parseXPage(await dmEvents({ max_results: 1 })).items[0],
+    // The newest message alone: when it is not new, nothing is. X filters a
+    // page by event type after picking it, so a small page can hold no
+    // message at all while older ones exist; then only a full read can tell.
+    // X bills the messages a page returns, not the size asked for.
+    const probe = parseXPage(
+      await dmEvents({ max_results: this.limits.xDmProbeSize }),
     );
-    if (
-      !newest ||
-      (newest.id && newest.id === cursor.newestDmId) ||
-      new Date(newest.createdAt) < from
-    ) {
-      if (newest?.id) cursor.newestDmId = newest.id;
-      return true;
-    }
+    const newest = probe.items
+      .map(parseXDmEvent)
+      .find((event) => event !== null);
+    if (newest) {
+      if (
+        (newest.id && newest.id === cursor.newestDmId) ||
+        new Date(newest.createdAt) < from
+      ) {
+        if (newest.id) cursor.newestDmId = newest.id;
+        return true;
+      }
+    } else if (!probe.nextToken) return true;
     const events = [];
     const users = new Map<string, XUser>();
     let token: string | null = null;
@@ -1606,7 +1616,7 @@ export class ContactCaptureService {
     }
     const outcome = await this.write(context, { candidates, skipped });
     if (!reached || !outcome.complete) return false;
-    if (newest.id) cursor.newestDmId = newest.id;
+    if (events[0]?.id) cursor.newestDmId = events[0].id;
     return true;
   }
 
