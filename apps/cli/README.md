@@ -143,7 +143,7 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- auth logout
 
 ### Agent runs and macOS keychain prompts
 
-Stored credentials live in the macOS keychain. macOS asks for permission when a program that the keychain item does not trust reads the item. The CLI runs on whichever `node` comes first on `PATH`, so the trusted program is that `node` binary.
+Stored credentials live in the macOS keychain. macOS asks for permission when a program that the keychain item does not trust reads the item. That program is the `node` binary that runs the CLI. The first line of the `sokosumi` launcher selects it: `#!/usr/bin/env node` uses the first `node` on `PATH`, and an absolute path uses that binary. Check it with `head -1 "$(command -v sokosumi)"`.
 
 - Homebrew `node` has an ad-hoc signature. "Always Allow" trusts only that exact binary, so the prompt comes back after each `brew upgrade node`.
 - The official Node.js build (from nodejs.org, nvm, or fnm) has a Developer ID signature. macOS can match that signature, so "Always Allow" should stay valid after upgrades.
@@ -156,9 +156,9 @@ export SOKOSUMI_API_KEY=soko_mainnet_...   # set in the agent's environment, not
 sokosumi auth status --json                # reads no keychain item
 ```
 
-When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, the CLI does not read the keychain. Without an environment token, the CLI reads only the keychain items that the command needs.
+When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, user authentication reads no keychain item. Without an environment token, the CLI reads only the keychain items that the command needs. `runtime` commands use a separate Coworker key from the keychain. Give them the key with `--api-key-stdin` from an operator-controlled secret reader to skip the keychain.
 
-For interactive use, run the CLI on a signed `node`. Put the nvm or fnm `bin` directory before `/opt/homebrew/bin` on `PATH`, then click "Always Allow" once.
+For interactive use, run the CLI on a signed `node`. Put the nvm or fnm `bin` directory before `/opt/homebrew/bin` on `PATH`, then click "Always Allow" once. Approve the same binary that the launcher runs, not only the one that `command -v node` shows.
 
 Connect the selected existing or newly provisioned Coworker with the required Vendor and organization memberships:
 

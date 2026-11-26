@@ -51,12 +51,12 @@ Use headless commands with `--json` for automation. Do not open the Ink TUI duri
 
 Follow these rules on macOS:
 
-1. Prefer an environment token. When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, the CLI reads no keychain item. Ask the operator to set `SOKOSUMI_API_KEY` in the agent's environment. Never ask for the key in chat.
+1. Prefer an environment token. When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, user authentication reads no keychain item. `runtime` commands use a separate Coworker key: pass it with `--api-key-stdin` from an operator-controlled secret reader. Ask the operator to set `SOKOSUMI_API_KEY` in the agent's environment. Never ask for the key in chat.
 2. Without an environment token, run one command form only: the installed `sokosumi` executable. Do not switch to `npx @masumi_network/sokosumi`, `pnpm --filter @masumi_network/sokosumi sokosumi`, or `node apps/cli/dist/bin/sokosumi.js` for authenticated commands. Each of these can start a different `node` binary, and the keychain treats it as a new program.
-3. Check which `node` runs the CLI with `head -1 "$(command -v sokosumi)"`. A line `#!/usr/bin/env node` means the first `node` on `PATH` runs it, and that `node` can differ between shells. Report this to the operator if dialogs appear.
-4. If a command hangs or a keychain dialog appears, stop. Tell the operator which command and which `node` you used (`command -v node`). Do not retry in a loop.
+3. Check which `node` runs the CLI with `head -1 "$(command -v sokosumi)"`. An absolute path names that binary. A line `#!/usr/bin/env node` means the first `node` on `PATH` runs it, and that `node` can differ between shells.
+4. If a command hangs or a keychain dialog appears, stop. Tell the operator the command and the launcher's first line from step 3. For `#!/usr/bin/env node`, also report `command -v node` from your shell. Do not retry in a loop.
 
-The operator approves the agent's `node` binary once. They run the agent's exact command in their own terminal and click "Always Allow". See the CLI README section "Agent runs and macOS keychain prompts".
+The operator approves the agent's `node` binary once. They run the agent's exact command with that same `node` and click "Always Allow". With `#!/usr/bin/env node`, their terminal can find a different `node`, so they run `<node path> "$(command -v sokosumi)" auth status --json` with the `node` path that the agent reported. See the CLI README section "Agent runs and macOS keychain prompts".
 
 Never request keys, OAuth tokens, cookies, passwords, or client secrets in chat. If authentication is missing, use supported `auth login` when the browser can return to the CLI machine. Otherwise ask the operator to configure supported authentication. Do not invent remote approval links.
 
