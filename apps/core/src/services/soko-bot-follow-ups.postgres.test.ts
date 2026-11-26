@@ -18,6 +18,10 @@ import {
 
 import prisma from "@/lib/db/prisma";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import {
+  evaluateSocialWriteAuthority,
+  resolveSocialWriteOriginSource,
+} from "@/lib/soko-bot/owner-authority";
 import { inheritedScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { expectCoreLog } from "@/test/core-log";
 
@@ -1321,6 +1325,173 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         failed: 0,
       });
       retrySpy.mockRestore();
+    });
+
+    it("resolves production admin-retry:<uuid>:<op> chains on PostgreSQL without UUID syntax errors for chat and event turns", async () => {
+      const failedChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "FAILED",
+          clientTurnId: `chat:${randomUUID()}`,
+          versionId: "v36",
+          userMessage: "Finish editing the launch post.",
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const chatRetry = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: `admin-retry:${failedChat.id}:op-chat-1`,
+          versionId: "v36",
+          userMessage: failedChat.userMessage,
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const failedEvent = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "EVENT",
+          status: "FAILED",
+          clientTurnId: `event:${randomUUID()}`,
+          versionId: "v36",
+          userMessage: "Delegated task finished.",
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const eventRetry = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: `admin-retry:${failedEvent.id}:op-event-1`,
+          versionId: "v36",
+          userMessage: failedEvent.userMessage,
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const eventRetryChained = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: `admin-retry:${eventRetry.id}:op-event-2`,
+          versionId: "v36",
+          userMessage: failedEvent.userMessage,
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const malformedRetry = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "ADMIN_RETRY",
+          status: "RUNNING",
+          clientTurnId: "admin-retry:not-a-uuid:op-bad",
+          versionId: "v36",
+          userMessage: "Malformed retry.",
+          capabilityNames: ["create_social_post", "update_social_post"],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+      });
+
+      const chatOrigin = await resolveSocialWriteOriginSource(chatRetry);
+      expect(chatOrigin).toBe("CHAT");
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: chatRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: chatOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "update_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+
+      const eventOrigin = await resolveSocialWriteOriginSource(eventRetry);
+      expect(eventOrigin).toBe("EVENT");
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: eventRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: eventOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "create_social_post",
+          rawInput: { text: "Draft from retried event" },
+          tainted: false,
+        }),
+      ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: eventRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: eventOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "create_social_post",
+          rawInput: {
+            text: "Scheduled from retried event",
+            scheduledAt: "2026-12-01T09:00:00.000Z",
+          },
+          tainted: false,
+        }),
+      ).toMatchObject({ allowed: false, kind: "delegation_event_draft_only" });
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: eventRetry.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: eventOrigin,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+          },
+          capability: "update_social_post",
+          rawInput: {},
+          tainted: false,
+        }),
+      ).toMatchObject({ allowed: false, kind: "delegation_event_draft_only" });
+
+      expect(await resolveSocialWriteOriginSource(eventRetryChained)).toBe(
+        "EVENT",
+      );
+      expect(await resolveSocialWriteOriginSource(malformedRetry)).toBe(
+        "EVENT",
+      );
     });
   });
 });

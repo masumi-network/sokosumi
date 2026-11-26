@@ -1,6 +1,5 @@
 import {
   capabilitiesForClassification,
-  getSokoBotVersion,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   SOKO_BOT_CAPABILITIES,
@@ -34,33 +33,6 @@ function withMailFiling(preset: PresetRoute): PresetRoute {
 
 /** Turns Core starts when delegated work changes (`sokoBotEventClientTurnId`). */
 export const DELEGATION_EVENT_TURN_PREFIX = "event:";
-
-/**
- * A turn Core starts when delegated work comes back acts on a Coworker's or
- * Agent's result, which nobody has read yet: a post it makes stays a draft
- * for the owner to approve. Cuso's own approved posting is not such a turn.
- */
-export function delegationEventPostRefusal(
-  turn: { clientTurnId: string | null; versionId: string | null },
-  input: { capability: string; input: unknown },
-): string | null {
-  if (
-    !turn.clientTurnId?.startsWith(DELEGATION_EVENT_TURN_PREFIX) ||
-    getSokoBotVersion(turn.versionId).profile === "cmo"
-  )
-    return null;
-  const schedules =
-    input.capability === "publish_social_post" ||
-    input.capability === "schedule_social_post" ||
-    (input.capability === "create_social_post" &&
-      typeof input.input === "object" &&
-      input.input !== null &&
-      "scheduledAt" in input.input &&
-      Boolean(input.input.scheduledAt));
-  return schedules
-    ? "This turn acts on delegated work that came back, so a post stays a draft for the owner's approval: create it without scheduledAt, and tell the owner it is ready to approve. Publishing and scheduling wait for their OK in chat."
-    : null;
-}
 
 /**
  * What a follow-up never inherits from the owner's request: anything that
