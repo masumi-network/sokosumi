@@ -106,6 +106,22 @@ describe("useAgentsSectionNav", () => {
     expect(result.current).toBe("coworkers");
   });
 
+  it("moves on once the previous section has cleared the bar, gap included", () => {
+    // The page spaces sections by its row gap; inside that gap no content of
+    // the previous section is left under the bar.
+    const page = mountPage({ bots: -900, coworkers: 140, market: 2000 });
+    page.main.style.rowGap = "48px";
+    const { result } = renderHook(() => useAgentsSectionNav(page.nav, IDS));
+
+    expect(result.current).toBe("coworkers");
+
+    page.tops.coworkers = 160;
+    act(() => {
+      page.main.dispatchEvent(new Event("scroll"));
+    });
+    expect(result.current).toBe("bots");
+  });
+
   it("names the section in the hash as the reader scrolls, keeping the search", () => {
     const page = mountPage({ bots: 0, coworkers: 900, market: 2000 });
     const { result } = renderHook(() => useAgentsSectionNav(page.nav, IDS));

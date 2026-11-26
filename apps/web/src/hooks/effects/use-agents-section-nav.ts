@@ -32,7 +32,8 @@ export function writeAgentsSectionHash(id: string, first: string): void {
 
 /**
  * The phone-only section bar on the Agents page. Returns the section the
- * reader is in: the last whose top passed the bar, or the last one once
+ * reader is in: the last whose top passed the bar by the gap between
+ * sections (so nothing of the one before is left in view), or the last once
  * the page is scrolled to the end.
  *
  * On a return to the page (Back from a profile, a reload, a shared link),
@@ -55,6 +56,12 @@ export function useAgentsSectionNav(
     const bar = nav;
     const sectionIds = key.split(" ");
     const scroller = scrollParent(bar);
+    // A section is current once the one before it has left the view: its
+    // top has passed the bar by the page's own gap between sections.
+    const sectionGap =
+      Number.parseFloat(
+        bar.parentElement ? getComputedStyle(bar.parentElement).rowGap : "",
+      ) || 16;
     // The opaque bar covers the scroller's top: focus scrolling and jumps
     // must keep targets below it (WCAG 2.4.11), so pad the scrollport.
     const paddingBefore = scroller.style.scrollPaddingTop;
@@ -70,7 +77,7 @@ export function useAgentsSectionNav(
       ) {
         return present.at(-1);
       }
-      const line = bar.getBoundingClientRect().bottom + 16;
+      const line = bar.getBoundingClientRect().bottom + sectionGap;
       let found = present[0];
       for (const id of present) {
         const heading = document.getElementById(id);
