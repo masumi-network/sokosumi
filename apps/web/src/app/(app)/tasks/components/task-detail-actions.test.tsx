@@ -2524,6 +2524,26 @@ describe("TaskDetailActions", () => {
       // A copy would start a check outside its audit, without its price terms.
       expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
     });
+
+    it("starts the menu with its only action, not a separator", async () => {
+      const user = userEvent.setup();
+      renderActions({
+        taskBlueprint: focusedCheck,
+        status: "GRANT_PENDING" as TaskStatus,
+        organizations: undefined,
+        isTaskOwner: true,
+        isReadOnly: true,
+      });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(
+        screen.getByRole("menuitem", { name: labels.archive }),
+      ).toBeInTheDocument();
+      expect(
+        document.querySelector('[data-slot="dropdown-menu-separator"]'),
+      ).toBeNull();
+    });
   });
 
   describe("Duplicate", () => {
