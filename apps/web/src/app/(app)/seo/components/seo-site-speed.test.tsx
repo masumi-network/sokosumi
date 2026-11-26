@@ -143,10 +143,14 @@ it("says the trend in words, why a short check used one device and how many page
       /Largest item appears \(LCP\): 4\.2 s in the 28 days to Oct 18, 2026, 3 s in the 28 days to Nov 1, 2026\./,
     ),
   ).toBeVisible();
-  // Review pass 18: the drawing is hidden from a screen reader, so each week's value is in the caption too.
-  expect(screen.getByText("Oct 25, 2026: 3.6 s").closest("ul")).toHaveClass(
-    "sr-only",
-  );
+  // Review pass 18: the drawing is hidden from a screen reader, so each week's value is in a list too.
+  expect(
+    screen.getByText("28 days to Oct 25, 2026: 3.6 s").closest("ul"),
+  ).toHaveClass("sr-only");
+  // Review pass 19: a week without a value is in the list, so a reader hears the gap the chart shows.
+  expect(
+    screen.getByText("28 days to Oct 25, 2026: no data"),
+  ).toBeInTheDocument();
   // One week with a value is no trend: a sentence stands in for the line.
   expect(
     screen.getByText(/INP\): Too few weeks with data to show a trend\./),

@@ -118,14 +118,19 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
                 {t("siteSpeed.trendLimit", {
                   good: seoSpeedValue(metric, SEO_VITAL_LIMITS[metric].good),
                 })}
-                <ul className="sr-only">
-                  {trend.measured.map((point) => (
-                    <li key={point.week}>
-                      {day(point.week)}: {seoSpeedValue(metric, point.value)}
-                    </li>
-                  ))}
-                </ul>
               </figcaption>
+              <ul className="sr-only">
+                {trend.series.map((point) => (
+                  <li key={point.week}>
+                    {point.value == null
+                      ? t("siteSpeed.trendWeekNone", { date: day(point.week) })
+                      : t("siteSpeed.trendWeek", {
+                          date: day(point.week),
+                          value: seoSpeedValue(metric, point.value),
+                        })}
+                  </li>
+                ))}
+              </ul>
             </figure>
           );
         })}
