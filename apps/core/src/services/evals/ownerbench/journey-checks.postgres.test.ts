@@ -8,9 +8,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
+import { searchFiles } from "@/services/file-search.service";
 import {
   clearEarlierCaseArtifacts,
   type EvalLaneRecord,
@@ -23,6 +24,7 @@ import {
 import {
   claimedRunCheck,
   claimedRunState,
+  earlierCaseFilesCheck,
   earlierCaseTasksCheck,
   foregroundTurnId,
   freshConversationCheck,
@@ -38,6 +40,12 @@ import {
   seedTeammateRoom,
 } from "./journey-world";
 import { type JourneyOutcome, OWNER_JOURNEYS } from "./journeys";
+
+// Clearing a lane also deletes its uploads' blobs; nothing leaves this test.
+vi.mock("@vercel/blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/blob")>()),
+  del: vi.fn(async () => undefined),
+}));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -947,6 +955,11 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
   });
 
   describe("a case's first context holds no earlier case's work", () => {
+    // Its own owner and workspace: clearing a lane tombstones every upload in
+    // it, and the other tests' files live in the shared one.
+    const userId = randomUUID();
+    let workspaceId: string;
+    let projectId: string;
     let botId: string;
     const classification = {
       schemaVersion: 1 as const,
@@ -962,6 +975,23 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     };
 
     beforeAll(async () => {
+      await prisma.user.create({
+        data: {
+          id: userId,
+          name: "Isolation owner",
+          email: `${userId}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      workspaceId = (await prisma.workspace.create({ data: { userId } })).id;
+      projectId = (
+        await prisma.project.create({
+          data: { workspaceId, name: "Cuso" },
+          select: { id: true },
+        })
+      ).id;
       botId = (
         await prisma.sokoBot.create({
           data: { userId, workspaceId },
@@ -974,7 +1004,12 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
       await prisma.task.deleteMany({ where: { workspaceId } });
       await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+      await prisma.socialPost.deleteMany({ where: { workspaceId } });
+      await prisma.fileResource.deleteMany({ where: { workspaceId } });
       await prisma.sokoBot.deleteMany({ where: { id: botId } });
+      await prisma.project.deleteMany({ where: { workspaceId } });
+      await prisma.workspace.deleteMany({ where: { id: workspaceId } });
+      await prisma.user.deleteMany({ where: { id: userId } });
     });
 
     /** What one case leaves: a Task it delegated, a Task its schedule released, a post. */
@@ -1112,6 +1147,75 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           where: { projectId, text: "Earlier case's draft" },
         });
       });
+
+    it("keeps an earlier case's evidence file out of the next case's Files and first reads", async () => {
+      const upload = (name: string) =>
+        prisma.fileResource.create({
+          data: {
+            workspaceId,
+            sourceKind: "DRIVE_UPLOAD",
+            sourceScope: "USER",
+            sourceId: `drive/users/${userId}/${name}`,
+            ownerUserId: userId,
+            displayName: name,
+            normalizedName: name.toLowerCase(),
+            mimeType: "application/pdf",
+            lifecycle: "ACTIVE",
+          },
+          select: { id: true, displayName: true },
+        });
+      const listing = async () =>
+        (
+          await searchFiles({
+            workspaceId,
+            actor: { userId, organizationId: null, kind: "soko_bot" },
+            query: null,
+            filters: {},
+            sortBy: "modified",
+            sortOrder: "desc",
+            cursor: null,
+            limit: 50,
+          })
+        ).items.map((file) => file.id);
+      // Case A's prepare seeded its evidence PDF.
+      const evidence = await upload("Case A launch evidence.pdf");
+      expect(await listing()).toContain(evidence.id);
+      // Case B starts: the clear, its isolation point, then its own file.
+      await clearEarlierCaseArtifacts({
+        workspaceId,
+        cusoProjectId: projectId,
+      });
+      const isolatedAt = new Date();
+      const own = await upload("Case B customer story.pdf");
+      expect(await listing()).toEqual([own.id]);
+      const { turnId } = await openingTurn();
+      // Its first read listed Files: only its own file came back.
+      const ownRead = [
+        {
+          capability: "list_files",
+          result: { files: [{ id: own.id, name: own.displayName }] },
+        },
+      ];
+      expect(
+        await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, ownRead),
+      ).toMatchObject({ pass: true });
+      // A read that still returned case A's PDF fails the check, by id or name.
+      for (const leaked of [
+        { id: evidence.id },
+        { name: evidence.displayName },
+      ])
+        expect(
+          await earlierCaseFilesCheck(turnId, isolatedAt, workspaceId, [
+            { capability: "list_files", result: { files: [leaked] } },
+          ]),
+        ).toMatchObject({
+          pass: false,
+          actual: expect.stringContaining("Case A launch evidence.pdf"),
+        });
+      await prisma.fileResource.deleteMany({
+        where: { id: { in: [evidence.id, own.id] } },
+      });
+    });
 
     it("fails a case whose opening packet carries another case's Task", async () => {
       const leaked = await runCase("delegated");

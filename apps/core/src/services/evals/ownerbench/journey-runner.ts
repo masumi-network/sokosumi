@@ -543,6 +543,62 @@ export async function earlierCaseTasksCheck(
   };
 }
 
+/** Tools whose results show what is in Files. */
+const FILE_READS = [
+  "list_files",
+  "read_file",
+  "search_files",
+  "workspace_import_file",
+];
+
+/**
+ * Neither the first turn's context nor what its file reads returned names a
+ * file an earlier case left: a Drive upload of the lane made before this
+ * journey's isolation point, by id or by name.
+ */
+export async function earlierCaseFilesCheck(
+  turnId: string,
+  isolatedAt: Date,
+  workspaceId: string,
+  toolCalls: readonly { capability: string; result?: unknown }[],
+): Promise<ScenarioCheck> {
+  const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
+    where: { turnId },
+    select: { packet: true },
+  });
+  const earlier = await prisma.fileResource.findMany({
+    where: {
+      workspaceId,
+      sourceKind: "DRIVE_UPLOAD",
+      createdAt: { lt: isolatedAt },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: { id: true, displayName: true },
+  });
+  const seen = [
+    JSON.stringify(snapshot?.packet ?? null),
+    ...toolCalls
+      .filter((call) => FILE_READS.includes(call.capability))
+      .map((call) => JSON.stringify(call.result ?? null)),
+  ].join("\n");
+  const leaked = earlier.filter(
+    (file) =>
+      seen.includes(file.id) ||
+      // A short name ("notes.md") would match by chance.
+      (file.displayName.length >= 12 && seen.includes(file.displayName)),
+  );
+  return {
+    label: "Opens with no other case's files",
+    pass: Boolean(snapshot) && leaked.length === 0,
+    actual: snapshot
+      ? leaked.length
+        ? `${leaked.length} earlier case file(s) seen: "${leaked[0]?.displayName}"`
+        : "no earlier case's file in the context or the first file reads"
+      : "no context snapshot",
+  };
+}
+
 /** The Task ids a context packet's tasks names. */
 export function packetTaskIds(packet: unknown): string[] {
   const tasks =
@@ -608,6 +664,12 @@ async function finishStep(
         new Date(state.journeyStartedAt),
       ),
       await earlierCaseTasksCheck(turnIds[0], new Date(state.journeyStartedAt)),
+      await earlierCaseFilesCheck(
+        turnIds[0],
+        new Date(state.world.isolatedAt ?? state.journeyStartedAt),
+        lane.workspaceId,
+        merged?.toolCalls ?? [],
+      ),
     );
   if (step.kind === "schedule_fires")
     checks.push(await claimedRunCheck(state.memo));
@@ -747,6 +809,7 @@ export async function startJourney(
   // Cuso has no full reset: what earlier cases made goes before its setup
   // seeds this journey's world.
   else await clearEarlierCaseArtifacts(lane);
+  const isolatedAt = (await databaseNow()).toISOString();
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
@@ -766,6 +829,7 @@ export async function startJourney(
       botId,
     )),
     cusoRoomId,
+    isolatedAt,
   };
   await setEvalCoworkerScript(world.coworkers.Mira, []);
   await setEvalCoworkerScript(world.coworkers.CodePat, []);

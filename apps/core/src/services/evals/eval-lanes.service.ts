@@ -480,8 +480,9 @@ export async function seedEvalXDms(
 
 /**
  * What earlier benchmark cases made in the lane, known by who made it, not
- * by its title: Tasks and Task Schedules (with their Runs) a bot created, and
- * the Cuso Project's posts a bot created. A case that starts after this sees
+ * by its title: Tasks and Task Schedules (with their Runs) a bot created, the
+ * Cuso Project's posts a bot created, and every Drive upload (an earlier
+ * case's evidence PDF or a file a bot saved). A case that starts after this sees
  * none of them in its first context. A member's Tasks and schedules (the
  * owner's seeded board) stay; a case's setup seeds its own posts and
  * strategy after this runs.
@@ -504,29 +505,20 @@ export async function clearEarlierCaseArtifacts(
   await prisma.socialPost.deleteMany({
     where: { projectId: lane.cusoProjectId, creatorSokoBotId: { not: null } },
   });
+  await removeLaneUploads(lane);
 }
 
-export async function resetEvalLaneForSokoBot(
-  lane: EvalLaneRecord,
+/**
+ * Every Drive upload in the lane, which is every file in its Files and its
+ * Projects' files: an earlier case's evidence PDF, a file a bot saved, an
+ * upload. Nothing on a lane is shared seed; each case's prepare writes its
+ * own files after this. An upload finds an earlier file by listing the blob
+ * store, so the blob goes as well as its catalog entry.
+ */
+export async function removeLaneUploads(
+  lane: Pick<EvalLaneRecord, "workspaceId">,
 ): Promise<void> {
-  const { workspaceId, sokoBotId } = lane;
-  await prisma.task.updateMany({
-    where: { workspaceId, archivedAt: null },
-    data: { archivedAt: new Date() },
-  });
-  await prisma.sokoBotSchedule.deleteMany({
-    where: { sokoBotId, systemKey: null },
-  });
-  await prisma.chatRoomMessage.updateMany({
-    where: {
-      room: { organizationId: lane.organizationId },
-      senderSokoBotId: { not: null },
-      deletedAt: null,
-    },
-    data: { deletedAt: new Date() },
-  });
-  // Every Drive upload in the lane: an upload finds an earlier file by
-  // listing the blob store, so the blob goes as well as its catalog entry.
+  const { workspaceId } = lane;
   const uploads = await prisma.fileResource.findMany({
     where: {
       workspaceId,
@@ -550,6 +542,28 @@ export async function resetEvalLaneForSokoBot(
           : "user",
       pathnames: [upload.sourceId],
     });
+}
+
+export async function resetEvalLaneForSokoBot(
+  lane: EvalLaneRecord,
+): Promise<void> {
+  const { workspaceId, sokoBotId } = lane;
+  await prisma.task.updateMany({
+    where: { workspaceId, archivedAt: null },
+    data: { archivedAt: new Date() },
+  });
+  await prisma.sokoBotSchedule.deleteMany({
+    where: { sokoBotId, systemKey: null },
+  });
+  await prisma.chatRoomMessage.updateMany({
+    where: {
+      room: { organizationId: lane.organizationId },
+      senderSokoBotId: { not: null },
+      deletedAt: null,
+    },
+    data: { deletedAt: new Date() },
+  });
+  await removeLaneUploads(lane);
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
