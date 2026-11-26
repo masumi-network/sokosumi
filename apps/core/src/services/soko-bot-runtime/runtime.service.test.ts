@@ -4867,6 +4867,72 @@ describe("SokoBotRuntimeService memory updates", () => {
     );
     expect(replayed.markdown).toContain(lastEntry);
     expect(replayed.markdown.length).toBeGreaterThan(14_000);
+
+    // The first response was lost; the retry is what the model read. Its
+    // rewrite passes the guard and keeps the whole document.
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionSnapshotFindUniqueMock.mockResolvedValue({
+      omissions: { memory: 8_000 },
+    });
+    transactionToolCallFindManyMock.mockResolvedValueOnce([
+      { toolCallId: "call_read" },
+    ]);
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionCreateMock.mockImplementation(
+      async ({ data }: { data: { markdown: string } }) => ({
+        id: "01960001-0001-7001-8001-000000000033",
+        version: 2,
+        hash: "hash_4",
+        markdown: data.markdown,
+      }),
+    );
+    const rewrite = replayed.markdown.replace(
+      "Active goals 0:",
+      "Active goals 0 (renamed):",
+    );
+    const saved = (await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "call_write",
+      input: { markdown: rewrite },
+    })) as { markdown: string };
+    expect(saved.markdown).toContain(lastEntry);
+    expect(saved.markdown).toContain("Active goals 0 (renamed):");
+    transactionSnapshotFindUniqueMock.mockResolvedValue(null);
+    transactionMemoryRevisionCreateMock.mockReset();
+  });
+
+  it("replays a read that found no memory as none, though a revision was saved since", async () => {
+    const turn = await turnFindUniqueMock();
+    turnFindUniqueMock.mockResolvedValue({
+      ...turn,
+      capabilityNames: ["read_memory", "update_memory"],
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256").update(canonicalJson({})).digest("hex"),
+      capability: "read_memory",
+      status: "COMPLETED",
+      result: null,
+      toolCallId: "call_empty",
+      turnId: SCOPE.turnId,
+    });
+    memoryRevisionFindFirstMock.mockClear();
+    memoryRevisionFindFirstMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000032",
+      version: 1,
+      hash: "hash_1",
+      markdown: memoryMarkdown("Saved after the first read"),
+    });
+
+    const replayed = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "read_memory",
+      toolCallId: "call_empty",
+      input: {},
+    });
+
+    expect(replayed).toBeNull();
+    expect(memoryRevisionFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("keeps optimistic conflict when another turn changed memory", async () => {
