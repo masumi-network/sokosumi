@@ -141,6 +141,25 @@ SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @masumi_network/sokosumi sokosum
 pnpm --filter @masumi_network/sokosumi sokosumi -- auth logout
 ```
 
+### Agent runs and macOS keychain prompts
+
+Stored credentials live in the macOS keychain. macOS asks for permission when a program that the keychain item does not trust reads the item. The CLI runs on whichever `node` comes first on `PATH`, so the trusted program is that `node` binary.
+
+- Homebrew `node` has an ad-hoc signature. "Always Allow" trusts only that exact binary, so the prompt comes back after each `brew upgrade node`.
+- The official Node.js build (from nodejs.org, nvm, or fnm) has a Developer ID signature. macOS can match that signature, so "Always Allow" should stay valid after upgrades.
+- Two different `node` binaries on two `PATH`s (for example, your terminal and an agent host) count as two programs. Each one gets its own prompt.
+
+For agents, give the agent process its own credential and skip the keychain:
+
+```bash
+export SOKOSUMI_API_KEY=soko_mainnet_...   # set in the agent's environment, not in chat
+sokosumi auth status --json                # reads no keychain item
+```
+
+When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, the CLI does not read the keychain. Without an environment token, the CLI reads only the keychain items that the command needs.
+
+For interactive use, run the CLI on a signed `node`. Put the nvm or fnm `bin` directory before `/opt/homebrew/bin` on `PATH`, then click "Always Allow" once.
+
 Connect the selected existing or newly provisioned Coworker with the required Vendor and organization memberships:
 
 ```bash
