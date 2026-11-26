@@ -78,15 +78,7 @@ export {
   seoStatisticsLostData,
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
-export {
-  editSeoTaskProse,
-  hasSeoTaskRequest,
-  hideSeoAuditRequest,
-  removeSeoTaskRequest,
-  type SeoTaskMarker,
-  seoTaskDescription,
-  seoTaskRequestPacket,
-} from "./seo-task-request.js";
+export * from "./seo-task-request.js";
 export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
