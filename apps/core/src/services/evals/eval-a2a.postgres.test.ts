@@ -3,13 +3,18 @@ import { A2A_SCENARIOS } from "@sokosumi/soko-bot";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
-import { takeEvalCoworkerReply } from "@/lib/evals/fake-coworker";
+import {
+  EMPTY_COWORKER_RESPONSE,
+  takeEvalCoworkerReply,
+} from "@/lib/evals/fake-coworker";
 import { deliverSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { expectCoreLog } from "@/test/core-log";
 import { drainWaitUntil } from "@/test/wait-until";
 import {
   A2A_DELIVERY_ATTEMPTS,
+  a2aCaseScope,
   closeA2aWorld,
+  endA2aCase,
   pollA2aChain,
   prepareA2aCase,
 } from "./eval-a2a";
@@ -268,7 +273,7 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
     }
   });
 
-  it("ends a case as undelivered only on its own settled failures, and closing it settles its messages", async () => {
+  it("ends a case as undelivered only on its own settled failures, and ending it closes only its messages", async () => {
     const [lane, otherLane] = await ensureEvalLanes(2);
     if (!lane || !otherLane) throw new Error("no lanes");
     const { coworkerId, asked, poll } = await askAndRelay(lane);
@@ -324,22 +329,21 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
       expect(step.turnIds).toContain(asked.turnId);
       expect(step.turnIds).not.toContain(unrelated.turnId);
 
-      // Closing the case leaves nothing of it to publish into the next one.
-      await closeA2aWorld(lane);
-      for (const id of [asked.effectId, unrelated.effectId])
-        expect(await effectRow(id)).toMatchObject({
-          status: "SUPPRESSED",
-          reason: "EVAL_CASE_CLOSED",
-          leaseUntil: null,
-        });
+      // Ending the case leaves nothing of it to publish into the next one,
+      // and touches nothing that is not its own.
+      await endA2aCase(await a2aCaseScope(step.turnIds));
+      expect(await effectRow(asked.effectId)).toMatchObject({
+        status: "SUPPRESSED",
+        reason: "EVAL_CASE_ENDED",
+        leaseUntil: null,
+      });
       await prisma.sokoBotEffectOutbox.update({
         where: { id: asked.effectId },
         data: { nextAttemptAt: new Date(0) },
       });
       expect(await deliverSokoBotEffect(asked.effectId)).toBe(false);
-      expect(await effectRow(elsewhere.effectId)).toMatchObject({
-        status: "PERSISTED",
-      });
+      for (const id of [unrelated.effectId, elsewhere.effectId])
+        expect(await effectRow(id)).toMatchObject({ status: "PERSISTED" });
       expect(
         await prisma.chatRoomMention.findFirstOrThrow({
           where: { messageId: asked.messageId },
@@ -355,7 +359,7 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
     }
   });
 
-  it("ends a case as undelivered when Mira's scripted answer failed, not when the bot never asked", async () => {
+  it("ends a case as undelivered when Mira's answer failed, not on her scripted silence or when the bot never asked", async () => {
     const [lane] = await ensureEvalLanes(1);
     if (!lane) throw new Error("no lane");
     const startedAt = new Date(Date.now() - 1_000);
@@ -378,24 +382,77 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
         where: { id: asked.effectId },
         data: { status: "PUBLISHED" },
       });
-      await prisma.chatRoomMention.updateMany({
-        where: { messageId: asked.messageId },
-        data: { status: "failed", error: "dispatch threw" },
-      });
+      const mentionFails = (error: string) =>
+        prisma.chatRoomMention.updateMany({
+          where: { messageId: asked.messageId },
+          data: { status: "failed", error },
+        });
+
+      // A script that answers nothing: her silence is the case, not a fault.
+      await mentionFails(EMPTY_COWORKER_RESPONSE);
+      expect((await poll(asked.turnId)).kind).not.toBe("undelivered");
+
+      await mentionFails("dispatch threw");
       expect(await poll(asked.turnId)).toMatchObject({
         kind: "undelivered",
         detail: expect.stringContaining("dispatch threw"),
       });
-
-      // Retries ran out: a dead letter is a delivery failure too.
-      const exhausted = await persistedQuestion(lane, null);
-      await prisma.sokoBotEffectOutbox.update({
-        where: { id: exhausted.effectId },
-        data: { status: "DEAD_LETTER", reason: "RETRY_EXHAUSTED" },
+    } finally {
+      await endCase(lane, coworkerId);
+    }
+  });
+  it("follows the case's mentions to Juno's answering turn and cancels it as Hannah", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    const { coworkerId, asked } = await askAndRelay(lane);
+    const { junoId } = (
+      await prepareA2aCase(lane, scenario("a2a-ask-and-relay"))
+    ).a2a as { junoId: string };
+    const juno = await prisma.sokoBot.findUniqueOrThrow({
+      where: { id: junoId },
+      select: { userId: true, workspaceId: true },
+    });
+    const junoTurn = (chatMentionId: string | null) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: junoId,
+          requestedByUserId: juno.userId,
+          workspaceId: juno.workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          userMessage: "Answer the question",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          chatMentionId,
+        },
       });
-      expect(await poll(exhausted.turnId)).toMatchObject({
-        kind: "undelivered",
-        detail: expect.stringContaining(exhausted.effectId),
+    try {
+      const mention = await prisma.chatRoomMention.create({
+        data: { messageId: asked.messageId, sokoBotId: junoId, status: "sent" },
+      });
+      const answering = await junoTurn(mention.id);
+      const unrelated = await junoTurn(null);
+
+      const scope = await a2aCaseScope([asked.turnId]);
+      expect(scope.turnIds).toEqual([asked.turnId, answering.id]);
+      expect(scope.messageIds).toEqual([asked.messageId]);
+
+      await endA2aCase(scope);
+      const status = async (id: string) =>
+        (
+          await prisma.sokoBotTurn.findUniqueOrThrow({
+            where: { id },
+            select: { status: true },
+          })
+        ).status;
+      expect(["CANCEL_REQUESTED", "CANCELLED"]).toContain(
+        await status(answering.id),
+      );
+      expect(await status(unrelated.id)).toBe("RUNNING");
+      await prisma.sokoBotTurn.update({
+        where: { id: unrelated.id },
+        data: { status: "CANCELLED" },
       });
     } finally {
       await endCase(lane, coworkerId);

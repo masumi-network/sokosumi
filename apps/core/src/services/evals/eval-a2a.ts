@@ -9,9 +9,12 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import {
+  EMPTY_COWORKER_RESPONSE,
   EVAL_COWORKER,
   setEvalCoworkerScript,
 } from "@/lib/evals/fake-coworker";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   EFFECT_PUBLICATION_FAILED,
@@ -165,27 +168,6 @@ export async function ensureA2aWorld(lane: EvalLaneRecord): Promise<A2aWorld> {
  * case would hand research to Mira and find Juno in the team room.
  */
 export async function closeA2aWorld(lane: EvalLaneRecord): Promise<void> {
-  // A message the case never got out stays unsent: published later, it would
-  // land in the next case (a PENDING one even undeletes itself on delivery).
-  await prisma.sokoBotEffectOutbox.updateMany({
-    where: {
-      status: { in: ["PENDING", "PERSISTED"] },
-      receipt: { turn: { workspaceId: lane.workspaceId } },
-    },
-    data: {
-      status: "SUPPRESSED",
-      reason: "EVAL_CASE_CLOSED",
-      leaseToken: null,
-      leaseUntil: null,
-    },
-  });
-  await prisma.chatRoomMention.updateMany({
-    where: {
-      status: { in: ["staged", "pending"] },
-      message: { room: { organizationId: lane.organizationId } },
-    },
-    data: { status: "failed", error: "The eval case ended" },
-  });
   await prisma.coworkerWorkspaceAccess.updateMany({
     where: {
       workspaceId: lane.workspaceId,
@@ -333,65 +315,143 @@ export type A2aPoll =
   /**
    * A message of the case never got out, or Mira's scripted answer failed:
    * the other side cannot answer, so waiting proves nothing. `turnIds` holds
-   * every turn of the case, the other agents' included.
+   * every turn of the case (`a2aCaseScope`), the answering agents' included.
    */
   | { kind: "undelivered"; turnIds: string[]; detail: string };
+
+/** The chat messages these turns posted: every one goes out through its effect. */
+async function postedMessageIds(turnIds: string[]): Promise<string[]> {
+  const posted = await prisma.sokoBotEffectOutbox.findMany({
+    where: { purpose: "CHAT_MESSAGE", receipt: { turnId: { in: turnIds } } },
+    select: { payload: true },
+  });
+  return posted.flatMap(({ payload }) => {
+    const parsed = z.object({ messageId: z.string() }).safeParse(payload);
+    return parsed.success ? [parsed.data.messageId] : [];
+  });
+}
+
+export interface A2aCaseScope {
+  turnIds: string[];
+  messageIds: string[];
+}
+
+/**
+ * What belongs to the case: the bot's chain, then the turns that answered its
+ * messages' mentions (Juno's), their own follow-ups and answers, and every
+ * message those turns posted. Nothing else in the workspace.
+ */
+export async function a2aCaseScope(chain: string[]): Promise<A2aCaseScope> {
+  const turnIds = [...chain];
+  for (let round = 0; round < 8; round += 1) {
+    const messageIds = await postedMessageIds(turnIds);
+    const more = await prisma.sokoBotTurn.findMany({
+      where: {
+        id: { notIn: turnIds },
+        OR: [
+          { parentTurnId: { in: turnIds } },
+          { chatMention: { messageId: { in: messageIds } } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (more.length === 0) return { turnIds, messageIds };
+    turnIds.push(...more.map((turn) => turn.id));
+  }
+  return { turnIds, messageIds: await postedMessageIds(turnIds) };
+}
 
 /**
  * Why the case cannot go on, when its own delivery broke: a chat effect of
  * one of its turns with A2A_DELIVERY_ATTEMPTS settled failures (a leased
- * attempt is still running) or retries exhausted, or a failed mention of Mira
- * on the bot's message.
- * A bot that never asked has neither, and stays a behavioural failure.
+ * attempt is still running), or a mention of Mira on one of its messages that
+ * failed for any reason but her scripted silence. A bot that never asked has
+ * neither, and stays a behavioural failure.
  */
 async function caseDeliveryFailure(
-  caseTurnIds: string[],
+  scope: A2aCaseScope,
   now: Date,
 ): Promise<string | null> {
   const effect = await prisma.sokoBotEffectOutbox.findFirst({
     where: {
       purpose: "CHAT_MESSAGE",
-      receipt: { turnId: { in: caseTurnIds } },
-      OR: [
-        {
-          status: { in: ["PENDING", "PERSISTED"] },
-          attempts: { gte: A2A_DELIVERY_ATTEMPTS },
-          lastErrorCategory: { startsWith: EFFECT_PUBLICATION_FAILED },
-          AND: [{ OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] }],
-        },
-        {
-          status: { in: ["DEAD_LETTER", "SUPPRESSED"] },
-          reason: "RETRY_EXHAUSTED",
-        },
-      ],
+      receipt: { turnId: { in: scope.turnIds } },
+      status: { in: ["PENDING", "PERSISTED"] },
+      attempts: { gte: A2A_DELIVERY_ATTEMPTS },
+      lastErrorCategory: { startsWith: EFFECT_PUBLICATION_FAILED },
+      OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }],
     },
     select: { id: true, attempts: true, lastErrorCategory: true },
   });
   if (effect)
     return `Chat effect ${effect.id} failed ${effect.attempts} publications (${effect.lastErrorCategory})`;
-  // Every chat message a turn posts goes out through its effect.
-  const posted = await prisma.sokoBotEffectOutbox.findMany({
-    where: {
-      purpose: "CHAT_MESSAGE",
-      receipt: { turnId: { in: caseTurnIds } },
-    },
-    select: { payload: true },
-  });
-  const messageIds = posted.flatMap(({ payload }) => {
-    const parsed = z.object({ messageId: z.string() }).safeParse(payload);
-    return parsed.success ? [parsed.data.messageId] : [];
-  });
   const mention = await prisma.chatRoomMention.findFirst({
     where: {
       status: "failed",
       coworker: { baseURL: EVAL_COWORKER.baseURL },
-      messageId: { in: messageIds },
+      messageId: { in: scope.messageIds },
+      NOT: { error: EMPTY_COWORKER_RESPONSE },
     },
     select: { id: true, error: true },
   });
   return mention
     ? `${EVAL_COWORKER.name}'s scripted answer to mention ${mention.id} failed: ${mention.error ?? "no error recorded"}`
     : null;
+}
+
+/**
+ * Ends what the case left running: each of its active turns is cancelled as
+ * the member it runs for (Juno's as Hannah), and its unsent messages and
+ * their open mentions are closed, so none of it reaches the next case.
+ */
+export async function endA2aCase(scope: A2aCaseScope): Promise<void> {
+  const active = await prisma.sokoBotTurn.findMany({
+    where: {
+      id: { in: scope.turnIds },
+      status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+    },
+    select: {
+      id: true,
+      requestedByUserId: true,
+      sokoBot: { select: { userId: true } },
+    },
+  });
+  for (const turn of active) {
+    const member = turn.requestedByUserId ?? turn.sokoBot.userId;
+    await (member
+      ? sokoBotControlPlane.cancelTurn(member, turn.id)
+      : Promise.reject(new Error("The turn runs for no member"))
+    ).catch((error: unknown) =>
+      recordCoreWarning(
+        { operation: "eval_tick", turnId: turn.id },
+        {
+          message: "Could not cancel a turn of an ended eval case",
+          why: "Cancelling it as the member it runs for threw",
+        },
+        { failure: messageSafeErrorFields(error) },
+      ),
+    );
+  }
+  await prisma.sokoBotEffectOutbox.updateMany({
+    where: {
+      purpose: "CHAT_MESSAGE",
+      status: { in: ["PENDING", "PERSISTED"] },
+      receipt: { turnId: { in: scope.turnIds } },
+    },
+    data: {
+      status: "SUPPRESSED",
+      reason: "EVAL_CASE_ENDED",
+      leaseToken: null,
+      leaseUntil: null,
+    },
+  });
+  await prisma.chatRoomMention.updateMany({
+    where: {
+      status: { in: ["staged", "pending"] },
+      messageId: { in: scope.messageIds },
+    },
+    data: { status: "failed", error: "The eval case ended" },
+  });
 }
 
 /**
@@ -415,20 +475,17 @@ export async function pollA2aChain(input: {
     return { kind: "done", turnIds, timedOut: true };
   if (turnIds.length - 1 > exchange.maxFollowUps)
     return { kind: "done", turnIds, timedOut: false };
-  const caseTurnIds = [
-    ...turnIds,
-    ...(await otherAgentTurnIds(lane, startedAt)),
-  ];
+  const scope = await a2aCaseScope(turnIds);
   // The sync cron does this when Core is deployed; a local run has no cron,
   // and only this case's own messages are its business.
   await syncSokoBotEffects({
     shouldContinue: () => true,
     abortSignal: new AbortController().signal,
-    turnIds: caseTurnIds,
+    turnIds: scope.turnIds,
   });
-  const failure = await caseDeliveryFailure(caseTurnIds, now);
+  const failure = await caseDeliveryFailure(scope, now);
   if (failure)
-    return { kind: "undelivered", turnIds: caseTurnIds, detail: failure };
+    return { kind: "undelivered", turnIds: scope.turnIds, detail: failure };
 
   const active = await prisma.sokoBotTurn.count({
     where: {

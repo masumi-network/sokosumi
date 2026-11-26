@@ -30,9 +30,11 @@ import {
   followUpMessage,
 } from "@/services/soko-bot-watches.service";
 import {
+  a2aCaseScope,
   a2aChecks,
   a2aRoomLog,
   closeA2aWorld,
+  endA2aCase,
   isA2aScenario,
   loadA2aChain,
   otherAgentTurnIds,
@@ -529,14 +531,6 @@ async function pollScenario(
   };
 }
 
-function cancelChain(lane: EvalLaneRecord, turnIds: string[]) {
-  return Promise.all(
-    turnIds.map((id) =>
-      sokoBotControlPlane.cancelTurn(lane.userId, id).catch(() => undefined),
-    ),
-  );
-}
-
 /** An agent-to-agent case: the whole chain of turns, checked and judged as one. */
 async function pollA2aScenario(
   scenario: SokoBotScenario,
@@ -552,7 +546,7 @@ async function pollA2aScenario(
   });
   if (step.kind === "waiting") return step;
   if (step.kind === "undelivered") {
-    await cancelChain(lane, step.turnIds);
+    await endA2aCase(await a2aCaseScope(step.turnIds));
     await closeA2aWorld(lane);
     const infrastructure: EvalInfrastructureFailure = {
       code: "chat_delivery_failed",
@@ -572,7 +566,8 @@ async function pollA2aScenario(
     };
   }
   const { turnIds, timedOut } = step;
-  if (timedOut) await cancelChain(lane, turnIds);
+  // Whatever is left of the case ends now, before it is read and judged.
+  await endA2aCase(await a2aCaseScope(turnIds));
   const { turns, merged } = await loadA2aChain(turnIds);
   const output = {
     ...scenarioOutput(merged),
