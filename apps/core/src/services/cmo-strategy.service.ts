@@ -80,6 +80,7 @@ import {
   cmoChangeKind,
   cmoStrategyStepTurn,
   cmoStrategyStepTurnId,
+  cusoPostsVideoShapes,
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
@@ -1651,8 +1652,11 @@ export async function saveCmoStrategy(
             : {}),
         }
       : sent;
+  const shapes = (strategy.calendar ?? []).some((entry) => entry.alsoOn?.length)
+    ? await cusoPostsVideoShapes(cuso.projectId, db)
+    : false;
   const alsoOn = (strategy.calendar ?? [])
-    .map((entry) => cmoAlsoOnProblem(entry))
+    .map((entry) => cmoAlsoOnProblem(entry, shapes))
     .find((problem) => problem !== null);
   if (alsoOn && options.turnId) throw unprocessableEntity(alsoOn);
   if (options.part === "pieces") {

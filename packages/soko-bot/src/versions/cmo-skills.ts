@@ -1,5 +1,6 @@
 import {
   CMO_CHANNELS,
+  cmoOfferedFormats,
   creditsPerTalkingVideoCents,
   isCmoOwnerConfirmedChannel,
   TALKING_VIDEO_PLANNED_SCRIPT,
@@ -46,6 +47,7 @@ import { cmoV22Strategy } from "./cmo-v22-skills.js";
 import { CMO_CONTEXT_ON_DEMAND } from "./cmo-v23-skills.js";
 import { CMO_TOOL_HIGHLIGHTS } from "./cmo-v24-skills.js";
 import { CMO_STRATEGY_STEP } from "./cmo-v25-skills.js";
+import { CMO_VIDEO_SHAPES } from "./cmo-video-shapes-skill.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -182,6 +184,8 @@ const CHANNEL_MENU = Object.entries(CMO_CHANNELS)
       ? `- ${key} (${channel.name}), ${OWNER_TASKS[channel.owner]}. Formats: ${Object.entries(
           channel.formats,
         )
+          // A gated format is told only by the skill that opts into it.
+          .filter(([format]) => cmoOfferedFormats(key).includes(format))
           .map(
             ([format, about]) =>
               `${format} (${about.what}${about.image && !/image/i.test(about.what) ? ", with an image you make" : ""}${"video" in about && about.video ? ", a video you make" : ""})`,
@@ -768,4 +772,5 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   CMO_STRATEGY_STEP,
   CMO_PLAYBOOKS,
   CMO_TOOL_HIGHLIGHTS,
+  CMO_VIDEO_SHAPES,
 ];

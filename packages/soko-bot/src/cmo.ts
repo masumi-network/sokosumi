@@ -1,5 +1,6 @@
 import {
   CMO_CHANNELS,
+  cmoOfferedFormats,
   isCmoChannelFormat,
   normalizeCmoChannelFormat,
 } from "@sokosumi/utils";
@@ -304,10 +305,7 @@ export const cmoSaveStrategyInputSchema = z.object({
     .superRefine((strategy, ctx) => {
       const live = Object.entries(CMO_CHANNELS)
         .filter(([, channel]) => channel.status === "live")
-        .map(
-          ([key, channel]) =>
-            `${key} (${Object.keys(channel.formats).join(", ")})`,
-        )
+        .map(([key]) => `${key} (${cmoOfferedFormats(key).join(", ")})`)
         .join("; ");
       const planned = new Set(
         (strategy.channels ?? []).map((channel) => channel.channel),

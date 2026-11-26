@@ -41,6 +41,14 @@ export const CMO_CHANNELS = {
         image: false,
         video: true,
       },
+      wide_video: {
+        name: "Widescreen video",
+        what: "The month's talking video or short in 16:9, for LinkedIn on a desktop",
+        image: false,
+        video: true,
+        shape: "16:9",
+        gate: "cmo-video-shapes",
+      },
     },
   },
   x: {
@@ -63,6 +71,14 @@ export const CMO_CHANNELS = {
         name: "Image post",
         what: "A post with an image Cuso makes",
         image: true,
+      },
+      video: {
+        name: "Video post",
+        what: "The month's talking video or short in 16:9, posted on X",
+        image: false,
+        video: true,
+        shape: "16:9",
+        gate: "cmo-video-shapes",
       },
     },
   },
@@ -94,6 +110,14 @@ export const CMO_CHANNELS = {
         what: "A five-second vertical video made from a brand picture",
         image: false,
         video: true,
+      },
+      feed_video: {
+        name: "Feed video",
+        what: "The month's talking video or short in 4:5, for the feed",
+        image: false,
+        video: true,
+        shape: "4:5",
+        gate: "cmo-video-shapes",
       },
     },
   },
@@ -132,6 +156,14 @@ export const CMO_CHANNELS = {
         image: false,
         video: true,
       },
+      feed_video: {
+        name: "Feed video",
+        what: "The month's talking video or short in 4:5, for the feed and the grid",
+        image: false,
+        video: true,
+        shape: "4:5",
+        gate: "cmo-video-shapes",
+      },
     },
   },
   youtube: {
@@ -152,6 +184,14 @@ export const CMO_CHANNELS = {
         what: "A five-second vertical video made from a brand picture, with a title",
         image: false,
         video: true,
+      },
+      video: {
+        name: "YouTube video",
+        what: "The month's talking video or short in 16:9, a normal video with a thumbnail",
+        image: false,
+        video: true,
+        shape: "16:9",
+        gate: "cmo-video-shapes",
       },
     },
   },
@@ -265,11 +305,84 @@ export const CMO_CHANNELS = {
         talking?: boolean;
         /** A multi-image format: the fewest and most slides it takes. */
         slides?: readonly [number, number];
+        /** The shape a video format is posted in; vertical when not given. */
+        shape?: VideoShape;
+        /**
+         * The version skill that offers this format. Without it the format is
+         * in no menu and no plan; with it, only as a copy of a video (alsoOn).
+         */
+        gate?: typeof CMO_VIDEO_SHAPES_SKILL;
       }
     >;
   }
 >;
 export type CmoChannelKey = keyof typeof CMO_CHANNELS;
+
+/**
+ * The version skill that lets a Cuso post the month's videos in other shapes
+ * (`CMO_SHAPED_VIDEO_TARGETS`). Default off; a version lists it to opt in.
+ */
+export const CMO_VIDEO_SHAPES_SKILL = "cmo-video-shapes";
+
+interface ChannelFormat {
+  name: string;
+  what: string;
+  video?: boolean;
+  shape?: VideoShape;
+  gate?: string;
+}
+
+function channelFormats(channel: string): Record<string, ChannelFormat> {
+  return (
+    (
+      CMO_CHANNELS as Record<string, { formats: Record<string, ChannelFormat> }>
+    )[channel]?.formats ?? {}
+  );
+}
+
+/** Whether a format is only ever a video's copy in another shape. */
+export function isCmoShapedVideoFormat(
+  channel: string,
+  format: string,
+): boolean {
+  return Boolean(channelFormats(channel)[format]?.gate);
+}
+
+/** The formats a plan may name on a channel: every one no skill gates. */
+export function cmoOfferedFormats(channel: string): string[] {
+  return Object.entries(channelFormats(channel))
+    .filter(([, format]) => !format.gate)
+    .map(([key]) => key);
+}
+
+/**
+ * Where a video can also go out in another shape, for a version with
+ * `CMO_VIDEO_SHAPES_SKILL`: each a name a talking video's or short's
+ * `alsoOn` may list, the network and format its copy post takes, and its
+ * shape. Core cuts the shape from the same video, at no extra cost.
+ */
+export const CMO_SHAPED_VIDEO_TARGETS = {
+  x: { channel: "x", format: "video" },
+  instagram_feed: { channel: "instagram", format: "feed_video" },
+  facebook_feed: { channel: "facebook", format: "feed_video" },
+  youtube_video: { channel: "youtube", format: "video" },
+  linkedin_wide: { channel: "linkedin", format: "wide_video" },
+} as const satisfies Record<string, { channel: CmoChannelKey; format: string }>;
+export type CmoShapedVideoTarget = keyof typeof CMO_SHAPED_VIDEO_TARGETS;
+
+/** The shaped-video target an `alsoOn` name means, or null. */
+export function cmoShapedVideoTarget(
+  name: string,
+): (typeof CMO_SHAPED_VIDEO_TARGETS)[CmoShapedVideoTarget] | null {
+  return (
+    (
+      CMO_SHAPED_VIDEO_TARGETS as Record<
+        string,
+        (typeof CMO_SHAPED_VIDEO_TARGETS)[CmoShapedVideoTarget]
+      >
+    )[name] ?? null
+  );
+}
 
 /**
  * Networks whose rules ask the account's owner to confirm each post: Cuso
@@ -283,12 +396,19 @@ export function isCmoOwnerConfirmedChannel(channel: string): boolean {
   return CMO_OWNER_CONFIRMED_CHANNELS.includes(channel);
 }
 
-/** Whether a plan may use this channel and format today. */
+/**
+ * Whether a plan may use this channel and format today. A gated format is
+ * never a plan's own entry: it is only made as a copy of a video.
+ */
 export function isCmoChannelFormat(channel: string, format: string): boolean {
   const entry = (
     CMO_CHANNELS as Record<string, (typeof CMO_CHANNELS)[CmoChannelKey]>
   )[channel];
-  return Boolean(entry && entry.status === "live" && format in entry.formats);
+  return Boolean(
+    entry &&
+      entry.status === "live" &&
+      cmoOfferedFormats(channel).includes(format),
+  );
 }
 
 /**
@@ -320,12 +440,16 @@ export function isCmoShortVideoFormat(
 }
 
 /**
- * The shape a network shows a video piece in. Reels, Shorts and TikTok are
- * vertical; LinkedIn's feed shows a 4:5 video larger than a vertical one on
- * a desktop and as large on a phone (its own video guide).
+ * The shape a network shows a video piece in: a shaped format's own, else
+ * vertical for Reels, Shorts and TikTok, and 4:5 on LinkedIn, whose feed
+ * shows a 4:5 video larger than a vertical one on a desktop and as large on
+ * a phone (its own video guide).
  */
-export function cmoVideoShape(channel: string): VideoShape {
-  return channel === "linkedin" ? "4:5" : "9:16";
+export function cmoVideoShape(channel: string, format: string): VideoShape {
+  return (
+    channelFormats(channel)[format]?.shape ??
+    (channel === "linkedin" ? "4:5" : "9:16")
+  );
 }
 
 /** Whether a format is a talking video: a presenter speaking a script. */
@@ -371,10 +495,10 @@ export function normalizeCmoChannelFormat(
     rawChannel in CMO_CHANNELS ? rawChannel : CHANNEL_ALIASES[rawChannel]
   ) as CmoChannelKey | undefined;
   if (!key) return { channel: rawChannel, format: raw };
-  const formats = Object.keys(CMO_CHANNELS[key].formats);
-  if (formats.includes(raw)) return { channel: key, format: raw };
+  const offered = cmoOfferedFormats(key);
+  if (offered.includes(raw)) return { channel: key, format: raw };
   const pick = (...candidates: string[]) =>
-    candidates.find((candidate) => formats.includes(candidate));
+    candidates.find((candidate) => offered.includes(candidate));
   const guess =
     (/fix|meta|title/.test(raw) && pick("page_fix")) ||
     (/search/.test(raw) && pick("search_ad")) ||

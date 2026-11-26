@@ -312,6 +312,11 @@ export {
   cmoWritesStrategyStep,
 } from "./versions/cmo-v25-skills.js";
 export {
+  CMO_VIDEO_SHAPES,
+  CMO_VIDEO_SHAPES_SKILL,
+  cmoPostsVideoShapes,
+} from "./versions/cmo-video-shapes-skill.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,

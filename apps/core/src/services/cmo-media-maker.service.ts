@@ -19,6 +19,7 @@ import {
   CMO_CHANNELS,
   cmoVideoShape,
   isCmoOwnerConfirmedChannel,
+  isCmoShapedVideoFormat,
   isCmoTalkingFormat,
   socialPostMediaKindForMime,
 } from "@sokosumi/utils";
@@ -259,11 +260,18 @@ export function cmoPieceIsVideo(
   return Boolean(formatOf(entry)?.video);
 }
 
-/** Whether the piece is a talking video Core makes from its script. */
+/**
+ * Whether the piece is a talking video Core makes from its script. A copy
+ * in another shape (cmo-video-shapes) is its source's kind: a short's copy
+ * carries the short's format, a talking video's none.
+ */
 export function cmoPieceIsTalking(
-  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+  entry: Pick<CmoCalendarEntry, "channel" | "format" | "shortFormat">,
 ): boolean {
-  return isCmoTalkingFormat(entry.channel, entry.format);
+  return (
+    isCmoTalkingFormat(entry.channel, entry.format) ||
+    (isCmoShapedVideoFormat(entry.channel, entry.format) && !entry.shortFormat)
+  );
 }
 
 /** Whether Core makes the piece's picture, or each slide, in a library style. */
@@ -2137,7 +2145,7 @@ async function videoInNetworkShape(
   job: CmoMediaJob,
 ): Promise<CmoMediaJob | null> {
   if (job.step !== "talking" && job.step !== "short") return job;
-  const shape = cmoVideoShape(piece.channel);
+  const shape = cmoVideoShape(piece.channel, piece.format);
   if (shape === "9:16") return job;
   const cut = await prisma.projectImageJob.findUnique({
     where: {

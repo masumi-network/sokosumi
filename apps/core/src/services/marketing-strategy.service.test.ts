@@ -3,8 +3,29 @@ import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+// "flagged" is a Cuso version that lists cmo-video-shapes; no live one does yet.
+vi.mock("@sokosumi/soko-bot", async () => {
+  const actual =
+    await vi.importActual<typeof import("@sokosumi/soko-bot")>(
+      "@sokosumi/soko-bot",
+    );
+  return {
+    ...actual,
+    getSokoBotVersion: (id: string) =>
+      id === "flagged"
+        ? {
+            ...actual.getSokoBotVersion("cmo-v24"),
+            skills: [
+              ...actual.getSokoBotVersion("cmo-v24").skills,
+              actual.CMO_VIDEO_SHAPES_SKILL,
+            ],
+          }
+        : actual.getSokoBotVersion(id),
+  };
+});
 
 import {
+  cmoAlsoOnProblem,
   listMarketingStrategyPosts,
   planMarketingStrategyPosts,
   socialPostNotSent,
@@ -247,5 +268,110 @@ describe("a talking video's post planned again", () => {
     const data = await plan("Entry Free costs zero euros forever.");
     expect(data).not.toHaveProperty("media");
     expect(data).not.toHaveProperty("status");
+  });
+});
+
+describe("a video in other shapes", () => {
+  const entry = {
+    id: "v1",
+    date: "2026-11-30",
+    time: "11:00",
+    channel: "instagram",
+    format: "reel",
+    title: "Roasted this morning",
+    status: "draft",
+    shortFormat: "voiceover",
+    script: "Most coffee sits for weeks before you drink it.",
+    alsoOn: ["tiktok", "instagram_feed", "x", "linkedin_wide"],
+  };
+
+  async function plan(versionId: string, existing: unknown[] = []) {
+    const created: Record<string, unknown>[] = [];
+    const canceled: string[] = [];
+    const tx = {
+      socialPost: {
+        findMany: async () => existing,
+        update: async (input: {
+          where: { id: string };
+          data: { status?: string };
+        }) => {
+          if (input.data.status === "CANCELED") canceled.push(input.where.id);
+        },
+        createMany: async ({ data }: { data: Record<string, unknown>[] }) => {
+          created.push(...data);
+        },
+      },
+      sokoBot: { findFirst: async () => ({ versionId }) },
+      projectSocialConnection: { findMany: async () => [] },
+      sokoBotSchedule: { findMany: async () => [] },
+    } as unknown as Prisma.TransactionClient;
+    await planMarketingStrategyPosts(tx, {
+      version: { id: "version-1", projectId: "project-1" },
+      workspaceId: "workspace-1",
+      creator: { userId: "user-1" },
+      entries: [entry as never],
+    });
+    return {
+      created: created.map((post) => ({
+        provider: post.provider,
+        format: (post.planning as { format: string }).format,
+        id: (post.planning as { id: string }).id,
+        videoOf: (post.planning as { videoOf?: string }).videoOf,
+      })),
+      canceled,
+    };
+  }
+
+  it("is posted on each target as its own post, for a version that opts in", async () => {
+    const { created } = await plan("flagged");
+    expect(created).toEqual([
+      { provider: "instagram", format: "reel", id: "v1", videoOf: undefined },
+      { provider: "tiktok", format: "video", id: "v1@tiktok", videoOf: "v1" },
+      {
+        provider: "instagram",
+        format: "feed_video",
+        id: "v1@instagram_feed",
+        videoOf: "v1",
+      },
+      { provider: "x", format: "video", id: "v1@x", videoOf: "v1" },
+      {
+        provider: "linkedin",
+        format: "wide_video",
+        id: "v1@linkedin_wide",
+        videoOf: "v1",
+      },
+    ]);
+  });
+
+  it("is left out for every other version, which keeps its copies as before", async () => {
+    const { created } = await plan("cmo-v24");
+    expect(created.map((post) => post.id)).toEqual(["v1", "v1@tiktok"]);
+  });
+
+  it("cancels only the shape taken off the list, not the Reel on the same network", async () => {
+    const post = (id: string, provider: string, planningId: string) => ({
+      id,
+      status: "DRAFT",
+      provider,
+      media: [],
+      planning: {
+        id: planningId,
+        title: "Roasted this morning",
+        format: "feed_video",
+        videoOf: "v1",
+      },
+    });
+    const { canceled } = await plan("flagged", [
+      post("post-feed", "instagram", "v1@instagram_feed"),
+      post("post-old", "instagram", "v1@facebook_feed"),
+    ]);
+    expect(canceled).toEqual(["post-old"]);
+  });
+
+  it("refuses a target in alsoOn unless the version opts in", () => {
+    expect(cmoAlsoOnProblem(entry, false)).toContain(
+      "cannot also go out on instagram_feed, x, linkedin_wide",
+    );
+    expect(cmoAlsoOnProblem(entry, true)).toBeNull();
   });
 });

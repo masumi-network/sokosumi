@@ -7,7 +7,9 @@ import {
   type CmoBrandAnswer,
   type CmoCalendarEntry,
   type CmoSearchAd,
+  cmoPostsVideoShapes,
   cmoSearchAdSchema,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
   type SocialPostPlanning,
@@ -15,7 +17,9 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  CMO_SHAPED_VIDEO_TARGETS,
   CMO_SHORT_VIDEO_FORMATS,
+  cmoShapedVideoTarget,
   cmoShortVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
@@ -41,6 +45,7 @@ import {
   zonedDateTimeLocalToUtc,
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import { madeTestCopy } from "@/services/project-test-copy";
 import {
   settledTurnStatus,
@@ -516,62 +521,95 @@ export function plannedAt(
   );
 }
 
+/** One more post of a video: the `alsoOn` name, its network and format. */
+interface VideoCopy {
+  name: string;
+  channel: SocialPostProvider;
+  format: string;
+}
+
 /**
- * The other networks a video also goes out on: for a talking video, live
- * social networks with a talking video format; for a short video (a TikTok,
- * a Reel, a YouTube Short), the other short-video networks (owner,
- * 2026-11-22: one file on TikTok, Reels and Shorts). Each once, never the
- * entry's own.
+ * The posts a video's `alsoOn` adds. A talking video goes to the other live
+ * networks with a talking video format; a short video (a TikTok, a Reel, a
+ * YouTube Short) to the other short-video networks (owner, 2026-11-22: one
+ * file on TikTok, Reels and Shorts), never the entry's own. And, for a
+ * version that posts other shapes (`cmo-video-shapes`), one per shaped-video
+ * target (an X or YouTube video in 16:9, an Instagram or Facebook feed video
+ * in 4:5, a LinkedIn widescreen video), which Core cuts from the same video.
  */
-export function cmoVideoNetworks(
+export function cmoVideoCopies(
   entry: Pick<CmoCalendarEntry, "channel" | "format" | "alsoOn">,
-): SocialPostProvider[] {
+  shapes: boolean,
+): VideoCopy[] {
   const talking = isCmoTalkingFormat(entry.channel, entry.format);
-  if (!talking && !isCmoShortVideoFormat(entry.channel, entry.format))
-    return [];
-  const networks = (entry.alsoOn ?? []).flatMap((network) => {
-    const provider = socialPostProvider(network);
-    return provider &&
+  const short = isCmoShortVideoFormat(entry.channel, entry.format);
+  if (!talking && !short) return [];
+  const copies = new Map<string, VideoCopy>();
+  for (const name of entry.alsoOn ?? []) {
+    const provider = socialPostProvider(name);
+    if (
+      provider &&
       provider !== entry.channel &&
       (talking
         ? isCmoTalkingFormat(provider, entry.format)
         : cmoShortVideoFormat(provider) !== null)
-      ? [provider]
-      : [];
-  });
-  return [...new Set(networks)];
+    ) {
+      copies.set(name, {
+        name,
+        channel: provider,
+        format: short
+          ? (cmoShortVideoFormat(provider) ?? entry.format)
+          : entry.format,
+      });
+      continue;
+    }
+    const target = shapes ? cmoShapedVideoTarget(name) : null;
+    const channel = target && socialPostProvider(target.channel);
+    if (target && channel)
+      copies.set(name, { name, channel, format: target.format });
+  }
+  return [...copies.values()];
 }
 
-/** The format a video's post on another network takes there. */
-function copyFormat(
-  entry: { channel: string; format: string },
-  network: string,
-) {
-  return isCmoShortVideoFormat(entry.channel, entry.format)
-    ? (cmoShortVideoFormat(network) ?? entry.format)
-    : entry.format;
+/** Whether the Project's live Cuso posts its videos in other shapes. */
+export async function cusoPostsVideoShapes(
+  projectId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  const bot = await db.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId },
+    select: { versionId: true },
+  });
+  return (
+    bot?.versionId != null &&
+    cmoPostsVideoShapes(getSokoBotVersion(bot.versionId).skills)
+  );
 }
 
 /** Why an entry's `alsoOn` cannot be carried out, or null. */
 export function cmoAlsoOnProblem(
   entry: Pick<CmoCalendarEntry, "id" | "channel" | "format" | "alsoOn">,
+  shapes = false,
 ): string | null {
   if (!entry.alsoOn?.length) return null;
   const talking = isCmoTalkingFormat(entry.channel, entry.format);
   if (!talking && !isCmoShortVideoFormat(entry.channel, entry.format))
     return `${entry.id} lists alsoOn, which only a video takes: a talking_video, or a short video (a TikTok, a Reel, a YouTube Short) shown on the other short-video networks. Remove alsoOn or make it one.`;
-  const allowed = cmoVideoNetworks(entry) as string[];
+  const allowed = cmoVideoCopies(entry, shapes).map((copy) => copy.name);
   const refused = entry.alsoOn.filter((network) => !allowed.includes(network));
-  const offered = talking
-    ? Object.keys(CMO_CHANNELS).filter(
-        (key) =>
-          key !== entry.channel &&
-          socialPostProvider(key) &&
-          isCmoTalkingFormat(key, entry.format),
-      )
-    : Object.keys(CMO_SHORT_VIDEO_FORMATS).filter(
-        (key) => key !== entry.channel,
-      );
+  const offered = [
+    ...(talking
+      ? Object.keys(CMO_CHANNELS).filter(
+          (key) =>
+            key !== entry.channel &&
+            socialPostProvider(key) &&
+            isCmoTalkingFormat(key, entry.format),
+        )
+      : Object.keys(CMO_SHORT_VIDEO_FORMATS).filter(
+          (key) => key !== entry.channel,
+        )),
+    ...(shapes ? Object.keys(CMO_SHAPED_VIDEO_TARGETS) : []),
+  ];
   return refused.length > 0
     ? `${entry.id} cannot also go out on ${refused.join(", ")}: alsoOn takes ${offered.join(", ")}, never its own channel.`
     : null;
@@ -643,6 +681,8 @@ export async function planMarketingStrategyPosts(
   const entries = [...input.entries];
   // The posts Core plans here for a talking video's other networks.
   const copies = new Set<CmoCalendarEntry>();
+  // Read once, on the first video with alsoOn.
+  let shapes: boolean | undefined;
   for (const entry of entries) {
     const provider = socialPostProvider(entry.channel);
     if (!provider) continue;
@@ -673,33 +713,40 @@ export async function planMarketingStrategyPosts(
       id: stored?.id ?? entry.id,
     };
     if (!planning.videoOf) {
-      const networks = cmoVideoNetworks({
-        channel: provider,
-        format: planning.format ?? entry.format,
-        alsoOn: planning.alsoOn,
-      });
-      for (const network of networks) {
+      const wanted = cmoVideoCopies(
+        {
+          channel: provider,
+          format: planning.format ?? entry.format,
+          alsoOn: planning.alsoOn,
+        },
+        planning.alsoOn?.length
+          ? (shapes ??= await cusoPostsVideoShapes(version.projectId, db))
+          : false,
+      );
+      const wantedIds = new Set<string>();
+      for (const target of wanted) {
         const copy = {
           ...entry,
           ...planning,
-          id: videoCopyId(planning.id, network),
-          channel: network,
-          format: copyFormat(
-            { channel: provider, format: planning.format ?? entry.format },
-            network,
-          ),
+          id: videoCopyId(planning.id, target.name),
+          channel: target.channel,
+          format: target.format,
           alsoOn: undefined,
           videoOf: planning.id,
           draft: undefined,
           socialPostId: undefined,
         };
+        wantedIds.add(copy.id);
         copies.add(copy);
         entries.push(copy);
       }
+      // A copy is its planning id: a network can carry two (a Reel and a
+      // feed video), and taking one off the list cancels only that one.
       for (const copy of posts) {
+        const copyPlanning = parseSocialPostPlanning(copy.planning);
         if (
-          parseSocialPostPlanning(copy.planning)?.videoOf === planning.id &&
-          !(networks as string[]).includes(copy.provider) &&
+          copyPlanning?.videoOf === planning.id &&
+          !wantedIds.has(copyPlanning.id ?? "") &&
           unpublished(copy.status)
         )
           await db.socialPost.update({

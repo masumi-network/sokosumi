@@ -3,6 +3,7 @@
 import "./phone-feeds.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoOfferedFormats } from "@sokosumi/utils";
 import { ImageIcon, Play } from "lucide-react";
 
 import {
@@ -185,7 +186,9 @@ function screenKinds(screen: Screen): string[] {
  */
 export function proposalScreens(strategy: Strategy): Screen[] {
   return (strategy.proposals ?? []).flatMap((proposal) => {
-    const formats = Object.keys(channelInfo(proposal.channel)?.formats ?? {});
+    // A copy-only format (a video in another shape) is no piece of its own.
+    const key = channelKey(proposal.channel);
+    const formats = key ? cmoOfferedFormats(key) : [];
     const base = SCREENS.find(
       (screen) =>
         screen.key === screenKey({ channel: proposal.channel } as Entry),
