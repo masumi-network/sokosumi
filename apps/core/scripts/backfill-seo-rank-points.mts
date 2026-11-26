@@ -1,7 +1,8 @@
 /**
  * Writes the SEO rank points of the results imported before the import wrote them.
- * Run once per environment, after the Core deployment that writes rank points at import is live
- * and before the deployment that reads the rank history from the table.
+ * Optional: the rank history reads a loaded result without points from its payload. Only the
+ * positions of full audits imported before then, and of results older than the newest 200 of
+ * a period, need this run to reach the history.
  *
  *   pnpm --filter @sokosumi/core seo:backfill-rank-points -- --dry-run
  *   pnpm --filter @sokosumi/core seo:backfill-rank-points

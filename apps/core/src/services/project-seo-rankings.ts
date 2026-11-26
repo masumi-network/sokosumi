@@ -13,7 +13,7 @@ import {
   SEO_RANK_HISTORY_POINTS,
   SEO_SERP_SERIES_MAX,
 } from "@/schemas/project-seo-rankings.schema";
-import { seoRankPointKey } from "./project-seo-rank-points";
+import { seoRankPointKey, seoRankPoints } from "./project-seo-rank-points";
 import { matchesSeoPeriod, normalizeSeoUrl } from "./project-seo-store";
 
 /**
@@ -93,9 +93,18 @@ export function withSeoRankings(
   points: SeoRankPointRow[] = [],
 ): ProjectSeoWorkspace {
   const sources = rankSources(workspace, rows);
+  const history = withUnstoredPoints(
+    points,
+    sources,
+    rows.length >= SEO_RANK_HISTORY_OBSERVATIONS,
+  );
   return {
     ...workspace,
-    keywords: withPositionHistory(workspace.keywords, points),
+    keywords: withPositionHistory(
+      workspace.keywords,
+      history.points,
+      history.cut,
+    ),
     serpHistory: serpHistory(sources),
     shareOfVoice: shareOfVoice(workspace, sources),
   };
@@ -126,9 +135,31 @@ function shareOfVoice(
   return weeks.length ? { ctrSource: SEO_CTR_SOURCE, weeks } : null;
 }
 
+/**
+ * The stored points, and the points of the loaded results that have none: a result imported before the import
+ * wrote rank points keeps its history without a backfill. A full audit is not loaded, so its old reads stay out,
+ * as before the table. `cut`: the load was full and holds such a result, so older results without stored points
+ * can be missing from every series.
+ */
+function withUnstoredPoints(
+  points: SeoRankPointRow[],
+  sources: Source[],
+  loadFull: boolean,
+): { points: SeoRankPointRow[]; cut: boolean } {
+  const stored = new Set(points.map((point) => point.observationId));
+  const unstored = sources.flatMap(({ row, data }) =>
+    stored.has(row.id) ? [] : seoRankPoints(row.id, data),
+  );
+  return {
+    points: [...points, ...unstored],
+    cut: loadFull && sources.some(({ row }) => !stored.has(row.id)),
+  };
+}
+
 function withPositionHistory(
   keywords: ProjectSeoWorkspace["keywords"],
   points: SeoRankPointRow[],
+  cut: boolean,
 ): ProjectSeoWorkspace["keywords"] {
   const history = new Map<string, PositionPoint[]>();
   // Two reads of one time keep one order on every load: by code unit, as the database orders the IDs.
@@ -157,7 +188,7 @@ function withPositionHistory(
       ? {
           ...row,
           positionHistory: series.slice(-SEO_RANK_HISTORY_POINTS),
-          positionHistoryCut: series.length > SEO_RANK_HISTORY_POINTS,
+          positionHistoryCut: series.length > SEO_RANK_HISTORY_POINTS || cut,
         }
       : row;
   });
