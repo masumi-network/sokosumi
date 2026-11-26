@@ -419,11 +419,20 @@ describe.runIf(enabled)(
       await recordCmoApplyOp(world.candidateId, op("op-1"));
       expect(await staleCmoApplies()).not.toContain(world.candidateId);
       // An approved version whose Go back crashed while undoing is found.
-      await commitCmoChangeApply({
-        candidateId: world.candidateId,
-        approverUserId: world.userId,
+      await recordCmoApplyOp(world.candidateId, op("op-1", "done"));
+      expect(
+        await commitCmoChangeApply({
+          candidateId: world.candidateId,
+          approverUserId: world.userId,
+        }),
+      ).toBe("applied");
+      const approved = await prisma.marketingStrategy.findUniqueOrThrow({
+        where: { id: world.candidateId },
       });
-      await setCmoApplyState(world.candidateId, "undoing", old);
+      expect(approved.approvedAt).not.toBeNull();
+      expect(await setCmoApplyState(world.candidateId, "undoing", old)).toBe(
+        true,
+      );
       expect(await staleCmoApplies()).toContain(world.candidateId);
     });
   },
