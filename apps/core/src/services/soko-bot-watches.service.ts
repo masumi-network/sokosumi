@@ -466,7 +466,7 @@ export async function registerWatch(
     waiting: true,
     watchId: watch.id,
     until: watch.expiresAt,
-    note: "Waiting in the background. End your turn now and say in one sentence what happens once it is done; the follow-up posts its answer in this chat.",
+    note: "Waiting in the background. Finish any other step you can do now, then end your turn and say in one sentence what happens once it is done; the follow-up posts its answer in this chat.",
   };
 }
 
