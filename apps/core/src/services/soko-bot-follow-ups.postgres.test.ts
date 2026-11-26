@@ -2446,7 +2446,64 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(bgFirstRun?.capabilities).toContain("read_table");
       expect(bgFirstRun?.capabilities).not.toContain("write_table_rows");
 
-      // Background run cannot edit that read-only schedule to require write_table_rows.
+      // Background run cannot replace a read-only schedule's prompt without declaring
+      // capabilities or keepCapabilities: true, and cannot add write_table_rows.
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "update_schedule",
+          toolCallId: `bg-edit-undeclared-${randomUUID()}`,
+          input: {
+            scheduleId: bgReadSchedule.id,
+            prompt: "Update the pipeline table rows.",
+          },
+        }),
+      ).rejects.toThrow(/capabilities|keepCapabilities/);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: bgReadSchedule.id },
+          select: { prompt: true, capabilityNames: true },
+        }),
+      ).toEqual({
+        prompt: "Check the pipeline table and report anomalies.",
+        capabilityNames: ["read_table"],
+      });
+
+      // Timing/name edits without prompt still work without capabilities or keepCapabilities,
+      // and replacing prompt with keepCapabilities: true succeeds while keeping ["read_table"].
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgBroadTurn.id,
+        capability: "update_schedule",
+        toolCallId: `bg-edit-cron-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          cronExpression: "0 12 * * *",
+        },
+      });
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgBroadTurn.id,
+        capability: "update_schedule",
+        toolCallId: `bg-edit-keep-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          prompt: "Check the pipeline table and report anomalies clearly.",
+          keepCapabilities: true,
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: bgReadSchedule.id },
+          select: { cronExpression: true, prompt: true, capabilityNames: true },
+        }),
+      ).toEqual({
+        cronExpression: "0 12 * * *",
+        prompt: "Check the pipeline table and report anomalies clearly.",
+        capabilityNames: ["read_table"],
+      });
+
       await expect(
         sokoBotRuntimeService.executeTool({
           sessionId: ownerSessionId,
@@ -2466,9 +2523,112 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           select: { prompt: true, capabilityNames: true },
         }),
       ).toEqual({
-        prompt: "Check the pipeline table and report anomalies.",
+        prompt: "Check the pipeline table and report anomalies clearly.",
         capabilityNames: ["read_table"],
       });
+
+      // Direct top-level owner chat declaring BOTH create_social_post and schedule_social_post:
+      // - refused without allowScheduledPosts: true (0 schedules created);
+      // - succeeds with allowScheduledPosts: true, and first run gets BOTH tools;
+      // - refused when explicitly declaring publish_social_post even with allowScheduledPosts: true.
+      const directSocialChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Draft and schedule a weekly LinkedIn post.",
+          capabilityNames: [
+            "create_social_post",
+            "schedule_social_post",
+            "publish_social_post",
+            "create_schedule",
+          ],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directSocialChat.id,
+          capability: "create_schedule",
+          toolCallId: `direct-social-no-perm-${randomUUID()}`,
+          input: {
+            name: "Weekly social schedule",
+            cronExpression: "0 9 * * 1",
+            timezone: "UTC",
+            prompt: "Draft and schedule our weekly post.",
+            capabilities: ["create_social_post", "schedule_social_post"],
+          },
+        }),
+      ).rejects.toThrow(/schedule_social_post.*allowScheduledPosts/i);
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directSocialChat.id,
+          capability: "create_schedule",
+          toolCallId: `direct-social-publish-${randomUUID()}`,
+          input: {
+            name: "Weekly social publish",
+            cronExpression: "0 9 * * 1",
+            timezone: "UTC",
+            prompt: "Draft and publish immediately.",
+            allowScheduledPosts: true,
+            capabilities: ["create_social_post", "publish_social_post"],
+          },
+        }),
+      ).rejects.toThrow(/publish_social_post/);
+      expect(
+        await prisma.sokoBotSchedule.count({
+          where: {
+            sokoBotId: botId,
+            name: { in: ["Weekly social schedule", "Weekly social publish"] },
+          },
+        }),
+      ).toBe(0);
+
+      const authorizedSocialSchedule = (await sokoBotRuntimeService.executeTool(
+        {
+          sessionId: ownerSessionId,
+          turnId: directSocialChat.id,
+          capability: "create_schedule",
+          toolCallId: `direct-social-with-perm-${randomUUID()}`,
+          input: {
+            name: "Weekly social schedule",
+            cronExpression: "0 9 * * 1",
+            timezone: "UTC",
+            prompt: "Draft and schedule our weekly post.",
+            allowScheduledPosts: true,
+            capabilities: ["create_social_post", "schedule_social_post"],
+          },
+        },
+      )) as { id: string };
+      const socialFirstRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        authorizedSocialSchedule.id,
+        "v36",
+      );
+      expect(socialFirstRun?.capabilities).toEqual(
+        expect.arrayContaining(["create_social_post", "schedule_social_post"]),
+      );
+      expect(socialFirstRun?.capabilities).not.toContain("publish_social_post");
 
       // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
       // and its next run actually carries write_table_rows.

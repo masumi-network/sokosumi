@@ -114,13 +114,13 @@ function directOwnerChatScheduleEdit(
  * broader turn) without escalating beyond what the authoring turn holds.
  */
 export function resolveRequestedScheduleCapabilities(
-  requested: readonly SokoBotCapability[] | undefined,
+  requested: readonly string[] | undefined,
   granted: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
   if (requested === undefined) {
     return [...granted];
   }
-  const grantSet = new Set<SokoBotCapability>(granted);
+  const grantSet = new Set<string>(granted);
   const uniqueRequested = [...new Set(requested)];
   const unavailable = uniqueRequested.filter(
     (capability) => !grantSet.has(capability),
@@ -130,7 +130,7 @@ export function resolveRequestedScheduleCapabilities(
       `This turn does not have permission to grant ${unavailable.join(", ")} to a schedule. Request only capabilities available in this turn.`,
     );
   }
-  return uniqueRequested;
+  return uniqueRequested as SokoBotCapability[];
 }
 
 /**

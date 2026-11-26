@@ -2718,5 +2718,67 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
       denialReason: "expired",
       droppedWriteCapabilities: ["write_table_rows"],
     });
+
+    // 5. Explicit caller-declared capabilities must EVERY one survive first run:
+    //    declaring both create_social_post and schedule_social_post without
+    //    allowScheduledPosts (draft_only) is refused naming schedule_social_post,
+    //    passes under schedule_posts, and refuses publish_social_post under schedule_posts.
+    const explicitDraftCheck = checkScheduleFirstRunCapabilities({
+      scheduleId: SCHED_ID,
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      authority: directPersonalAuthority,
+      actingUserId: OWNER_ID,
+      botUserId: OWNER_ID,
+      botProjectId: null,
+      botVersionId: "v36",
+      requestedCapabilities: ["create_social_post", "schedule_social_post"],
+      explicitCapabilities: true,
+    });
+    expect(explicitDraftCheck).toMatchObject({
+      ok: false,
+      droppedWriteCapabilities: ["schedule_social_post"],
+    });
+    if (!explicitDraftCheck.ok) {
+      expect(explicitDraftCheck.detail).toContain("schedule_social_post");
+      expect(explicitDraftCheck.detail).toContain("allowScheduledPosts: true");
+    }
+
+    const schedulePostsAuthority = {
+      ...directPersonalAuthority,
+      socialMode: "schedule_posts" as const,
+    };
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: schedulePostsAuthority,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        requestedCapabilities: ["create_social_post", "schedule_social_post"],
+        explicitCapabilities: true,
+      }),
+    ).toEqual({ ok: true });
+
+    expect(
+      checkScheduleFirstRunCapabilities({
+        scheduleId: SCHED_ID,
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        authority: schedulePostsAuthority,
+        actingUserId: OWNER_ID,
+        botUserId: OWNER_ID,
+        botProjectId: null,
+        botVersionId: "v36",
+        requestedCapabilities: ["create_social_post", "publish_social_post"],
+        explicitCapabilities: true,
+      }),
+    ).toMatchObject({
+      ok: false,
+      droppedWriteCapabilities: ["publish_social_post"],
+    });
   });
 });

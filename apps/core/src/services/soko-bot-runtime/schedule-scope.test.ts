@@ -1343,6 +1343,50 @@ describe("resolveRequestedScheduleCapabilities and capability-aware authority ed
         ["read_table", "create_schedule"],
       ),
     ).toThrow(/write_table_rows/);
+
+    // Unknown tool names are also refused by the grant bound (schema stays compact without a 186-tool enum).
+    expect(() =>
+      resolveRequestedScheduleCapabilities(
+        ["nonexistent_tool"],
+        ["read_table", "create_schedule"],
+      ),
+    ).toThrow(/nonexistent_tool/);
+  });
+
+  it("keeps create_schedule and update_schedule JSON schemas compact without listing all 186 tool names", async () => {
+    const { z } = await import("zod");
+    const {
+      sokoBotCreateScheduleInputSchema,
+      sokoBotUpdateScheduleInputSchema,
+    } = await import("@sokosumi/soko-bot");
+    const createJson = z.toJSONSchema(sokoBotCreateScheduleInputSchema) as {
+      properties?: { capabilities?: { items?: { enum?: unknown } } };
+    };
+    const updateJson = z.toJSONSchema(sokoBotUpdateScheduleInputSchema) as {
+      properties?: { capabilities?: { items?: { enum?: unknown } } };
+    };
+    expect(createJson.properties?.capabilities?.items?.enum).toBeUndefined();
+    expect(updateJson.properties?.capabilities?.items?.enum).toBeUndefined();
+    expect(
+      Buffer.byteLength(
+        JSON.stringify(createJson.properties?.capabilities),
+        "utf8",
+      ),
+    ).toBeLessThan(250);
+    expect(
+      Buffer.byteLength(
+        JSON.stringify(updateJson.properties?.capabilities),
+        "utf8",
+      ),
+    ).toBeLessThan(250);
+    expect(
+      sokoBotUpdateScheduleInputSchema.safeParse({
+        scheduleId: OWN,
+        prompt: "New prompt",
+        capabilities: ["read_table"],
+        keepCapabilities: true,
+      }).success,
+    ).toBe(false);
   });
 
   it("upgrades system/legacy authority on capability edits only from direct top-level owner chat", () => {

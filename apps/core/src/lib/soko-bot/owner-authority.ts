@@ -1130,6 +1130,11 @@ const SCHEDULE_META_CAPABILITIES: ReadonlySet<string> = new Set([
   "delete_schedule",
 ]);
 
+const SCHEDULE_OWN_LIFECYCLE_CAPABILITIES: ReadonlySet<string> = new Set([
+  "update_schedule",
+  "delete_schedule",
+]);
+
 function formatCapabilitySample(
   capabilities: readonly SokoBotCapability[],
 ): string {
@@ -1149,6 +1154,12 @@ export interface ScheduleFirstRunCapabilityCheckInput {
   botProjectId: string | null;
   botVersionId: string | null;
   requestedCapabilities: readonly string[];
+  /**
+   * True when the caller explicitly declared the job's required tool list
+   * (rather than inheriting a broad chat or console grant). Every explicitly
+   * declared tool must survive first-run authority intersection.
+   */
+  explicitCapabilities?: boolean;
   now?: Date;
 }
 
@@ -1216,33 +1227,50 @@ export function checkScheduleFirstRunCapabilities(
     };
   }
 
-  if (requestedWrites.length === 0) {
+  if (!input.explicitCapabilities && requestedWrites.length === 0) {
     return { ok: true };
   }
 
   const allowed = new Set<SokoBotCapability>(firstRun.capabilities);
-  const droppedNonSocialWrites = requestedWrites.filter(
-    (capability) => !SOCIAL_WRITE.has(capability) && !allowed.has(capability),
-  );
-  const requestedSocialWrites = requestedWrites.filter((capability) =>
-    SOCIAL_WRITE.has(capability),
-  );
-  const droppedAllSocialWrites =
-    requestedSocialWrites.length > 0 &&
-    !requestedSocialWrites.some((capability) => allowed.has(capability));
-  const droppedWriteCapabilities = [
-    ...droppedNonSocialWrites,
-    ...(droppedAllSocialWrites ? requestedSocialWrites : []),
-  ];
+  let droppedWriteCapabilities: SokoBotCapability[];
+  if (input.explicitCapabilities) {
+    droppedWriteCapabilities = requested.filter(
+      (capability) =>
+        !SCHEDULE_OWN_LIFECYCLE_CAPABILITIES.has(capability) &&
+        !allowed.has(capability),
+    );
+    if (
+      droppedWriteCapabilities.length === 0 &&
+      (firstRun.effective || requestedWrites.length === 0)
+    ) {
+      return { ok: true };
+    }
+  } else {
+    const droppedNonSocialWrites = requestedWrites.filter(
+      (capability) => !SOCIAL_WRITE.has(capability) && !allowed.has(capability),
+    );
+    const requestedSocialWrites = requestedWrites.filter((capability) =>
+      SOCIAL_WRITE.has(capability),
+    );
+    const droppedAllSocialWrites =
+      requestedSocialWrites.length > 0 &&
+      !requestedSocialWrites.some((capability) => allowed.has(capability));
+    droppedWriteCapabilities = [
+      ...droppedNonSocialWrites,
+      ...(droppedAllSocialWrites ? requestedSocialWrites : []),
+    ];
 
-  if (droppedWriteCapabilities.length === 0 && firstRun.effective) {
-    return { ok: true };
+    if (droppedWriteCapabilities.length === 0 && firstRun.effective) {
+      return { ok: true };
+    }
   }
 
   const sample = formatCapabilitySample(
     droppedWriteCapabilities.length > 0
       ? droppedWriteCapabilities
-      : requestedWrites,
+      : requestedWrites.length > 0
+        ? requestedWrites
+        : requested,
   );
   const reason = firstRun.denialReason ?? "read_only_authority";
 
@@ -1277,11 +1305,43 @@ export function checkScheduleFirstRunCapabilities(
       detail: `Only a direct top-level owner chat or console action can authorize a schedule to run write tools (${sample}). Ask the owner in chat to set up this scheduled write directly, or pass capabilities with only read-only tools for a read-only check.`,
     };
   }
+  if (
+    input.authority.socialMode === "draft_only" &&
+    droppedWriteCapabilities.some((capability) => SOCIAL_WRITE.has(capability))
+  ) {
+    const needsPostingPermission = droppedWriteCapabilities.every(
+      (capability) =>
+        capability === "schedule_social_post" ||
+        capability === "update_social_post" ||
+        capability === "update_social_posts",
+    );
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: needsPostingPermission
+        ? `This schedule is draft-only and cannot run ${sample} on its first run. Pass allowScheduledPosts: true in direct top-level owner chat to authorize scheduling posts, or limit capabilities to create_social_post.`
+        : `This schedule is draft-only and cannot run ${sample} on its first run. Pass allowScheduledPosts: true in direct top-level owner chat to authorize scheduling posts (immediate publishing and canceling remain chat-only), or limit capabilities to create_social_post.`,
+    };
+  }
+  if (
+    input.authority.socialMode === "schedule_posts" &&
+    droppedWriteCapabilities.some((capability) =>
+      SOCIAL_PUBLISH_OR_CANCEL.has(capability),
+    )
+  ) {
+    return {
+      ok: false,
+      droppedWriteCapabilities,
+      denialReason: reason,
+      detail: `This schedule may create and schedule posts, not publish immediately or cancel existing posts (${sample}). Remove ${sample} from capabilities, or publish directly in chat.`,
+    };
+  }
   return {
     ok: false,
     droppedWriteCapabilities,
     denialReason: reason,
-    detail: `This schedule cannot execute the requested write tools (${sample}) under its owner authorization. Adjust the schedule's posting permission in direct owner chat, or pass capabilities with only the tools it is allowed to run.`,
+    detail: `This schedule cannot execute the requested tools (${sample}) under its owner authorization. Adjust the schedule's posting permission in direct owner chat, or pass capabilities with only the tools it is allowed to run.`,
   };
 }
 

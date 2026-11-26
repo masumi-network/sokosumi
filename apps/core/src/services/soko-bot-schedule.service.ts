@@ -118,6 +118,8 @@ export interface CreateSokoBotScheduleInput {
   prompt: string;
   /** The writing turn's tools, when the bot wrote it; see the schema. */
   capabilityNames?: readonly string[];
+  /** True when the caller explicitly declared the job's required tool list. */
+  explicitCapabilities?: boolean;
   /** Work the schedule watches; it is removed once that work finishes. */
   taskId?: string;
   jobId?: string;
@@ -219,6 +221,8 @@ export interface UpdateSokoBotScheduleInput {
   prompt?: string;
   /** Replaces the run's tools, when a person rewrote the schedule. */
   capabilityNames?: readonly string[];
+  /** True when the caller explicitly declared the job's required tool list. */
+  explicitCapabilities?: boolean;
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
   /**
@@ -413,6 +417,7 @@ export async function createSokoBotSchedule(
           botVersionId:
             botDetails?.versionId ?? existing.sokoBot?.versionId ?? null,
           requestedCapabilities: input.capabilityNames ?? [],
+          explicitCapabilities: input.explicitCapabilities,
           now,
         });
         if (!capabilityCheck.ok) {
@@ -516,6 +521,7 @@ export async function createSokoBotSchedule(
         botProjectId: botDetails?.projectId ?? null,
         botVersionId: botDetails?.versionId ?? null,
         requestedCapabilities: input.capabilityNames ?? [],
+        explicitCapabilities: input.explicitCapabilities,
       });
       if (!capabilityCheck.ok) {
         throw new SokoBotScheduleValidationError(capabilityCheck.detail);
@@ -725,6 +731,7 @@ export async function updateSokoBotSchedule(
       botProjectId: botDetails?.projectId ?? null,
       botVersionId: botDetails?.versionId ?? null,
       requestedCapabilities: input.capabilityNames ?? [],
+      explicitCapabilities: input.explicitCapabilities,
       now,
     });
     if (!capabilityCheck.ok) {
