@@ -26,7 +26,8 @@ export function SeoRunDiff({
   const format = useSeoResultFormatter();
   const view = seoRunDiffView(diff);
   const title = t("runDiff.title", {
-    day: format.dateTime(diff.from, { dateStyle: "medium" }),
+    // The UTC day, as the runs row names its days.
+    day: format.dateTime(diff.from, { dateStyle: "medium", timeZone: "UTC" }),
   });
   return (
     <section
@@ -105,7 +106,13 @@ export function SeoRunDiff({
                     keyword: move.keyword,
                     from: move.from,
                     to: move.to,
-                  })}
+                  })}{" "}
+                  <span className="text-muted-foreground break-all">
+                    {pathOf(move.pageUrl)}
+                    {move.device
+                      ? ` (${t("timeline.device", { device: move.device })})`
+                      : null}
+                  </span>
                 </li>
               ))}
             </DiffList>

@@ -454,7 +454,14 @@ export function SeoRuns({
                 : report("runs.sinceStart")
         }
         nodes={details?.nodes ?? []}
-        checkId={days.find((entry) => entry.day === detailsDay)?.check}
+        checkId={
+          // A range compares its newest check: the timeline can lack a check that was stored after the range.
+          days.find((entry) =>
+            detailsDay === WHOLE
+              ? entry.inRange && entry.check
+              : entry.day === detailsDay,
+          )?.check
+        }
         onClose={() => setDetailsOpen(false)}
         onCloseAutoFocus={(event) => {
           // The dialog has no trigger: without a button to go back to, focus goes to the newest stop.

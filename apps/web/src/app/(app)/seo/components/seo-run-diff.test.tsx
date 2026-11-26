@@ -75,10 +75,10 @@ it("lists new, fixed and still open issues under headings that carry the full co
   expect(screen.getByText("None")).toBeInTheDocument();
   expect(screen.getByText("Open issues: 3 before, 10 now")).toBeInTheDocument();
   expect(
-    screen.getByText(/^2 earlier issues were not checked again/),
+    screen.getByText(/^2 earlier issues have no clear result in this check/),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(/^1 open issue was not checked before/),
+    screen.getByText(/^1 open issue has no clear result in the earlier check/),
   ).toBeInTheDocument();
 });
 
