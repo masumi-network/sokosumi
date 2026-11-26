@@ -2078,11 +2078,16 @@ export async function cancelSocialPost(
 
 export interface RestoreCanceledSocialPostInput extends CancelSocialPostInput {
   organizationId?: string | null;
-  /** The status it had before the cancel. */
-  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED";
+  /** The status it had before the cancel: any status a cancel accepts. */
+  status: "DRAFT" | "NEEDS_APPROVAL" | "SCHEDULED" | "FAILED" | "MISSED";
   /** The time it was planned at before the cancel. */
   scheduledAt: Date | null;
   timezone?: string;
+  /** A FAILED or MISSED post's diagnostics, so it comes back as it was. */
+  diagnostics?: {
+    lastError: string | null;
+    needsAttentionReason: string | null;
+  };
 }
 
 /**
@@ -2109,6 +2114,22 @@ export async function restoreCanceledSocialPost(
     if (post.status !== "CANCELED")
       throw conflict("Only a canceled post can be restored");
     requireRevision(post, input.revision);
+    // A quote whose quoted post is still cancelled comes back flagged, as
+    // the cancel of that post would have left it: approving it as if the
+    // quote stood would fail at its time.
+    const target = post.quotedPostId
+      ? await tx.socialPost.findUnique({
+          where: { id: post.quotedPostId },
+          select: { status: true },
+        })
+      : null;
+    const quotesCanceled =
+      post.quotedPostId !== null && (!target || target.status === "CANCELED");
+    if (quotesCanceled && input.status === "SCHEDULED")
+      throw conflict(
+        "The post it quotes is cancelled; restore that post first, then schedule this one",
+      );
+    const settled = input.status === "FAILED" || input.status === "MISSED";
     const restored = await writeWithRevision(
       input,
       input.revision,
@@ -2117,6 +2138,19 @@ export async function restoreCanceledSocialPost(
         canceledAt: null,
         scheduledAt: input.scheduledAt,
         ...(input.timezone ? { timezone: input.timezone } : {}),
+        ...(settled
+          ? {
+              lastError: input.diagnostics?.lastError ?? null,
+              needsAttentionReason:
+                input.diagnostics?.needsAttentionReason ?? null,
+            }
+          : {}),
+        ...(quotesCanceled
+          ? {
+              needsAttentionReason: QUOTED_POST_CANCELLED,
+              lastError: QUOTED_POST_CANCELLED,
+            }
+          : {}),
       },
       tx,
     );
