@@ -1564,7 +1564,41 @@ describe("authoritative action responses", () => {
     expect(response.answerText).toContain("Not confirmed: sent a message.");
   });
 
-  it("suppresses a rejected post_chat, open_direct_chat, or ask_coworker retry to the same recipient", async () => {
+  it("still reports a rejected send_message when a later send to the same recipient carries a different message", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: { to: "CodePat", message: "Review the launch plan" },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-diff",
+        input: { to: "CodePat", message: "Send the invoice" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("does not conflate a #room address with a person of the same name", async () => {
+    refusedThenCreated(
+      {
+        capability: "send_message",
+        input: { to: "#Jordan", message: "Review the launch plan" },
+      },
+      {
+        capability: "send_message",
+        targetId: "msg-person",
+        input: { to: "Jordan", message: "Review the launch plan" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+    expect(response.answerText).toContain("Not confirmed: sent a message.");
+  });
+
+  it("suppresses a rejected post_chat, open_direct_chat, or ask_coworker retry of the same message", async () => {
     for (const [capability, earlier, later] of [
       [
         "post_chat",
@@ -1577,13 +1611,24 @@ describe("authoritative action responses", () => {
       ],
       [
         "open_direct_chat",
-        { person: "Hannah", message: "First try" },
-        { person: "hannah", message: "Cleaned message" },
+        {
+          person: "Hannah",
+          message: "Please review the brief",
+          resultReferences: [{ id: "bad" }],
+        },
+        { person: "@hannah", message: "Please review the brief" },
       ],
       [
         "ask_coworker",
-        { coworkerIds: ["mira", "codepat"], question: "Q1" },
-        { coworkerIds: ["codepat", "mira"], question: "Q2" },
+        {
+          coworkerIds: ["mira", "codepat"],
+          question: "Can you check the release notes?",
+          projectId: "bad-project",
+        },
+        {
+          coworkerIds: ["codepat", "mira"],
+          question: "Can you check the release notes?",
+        },
       ],
     ] as const) {
       refusedThenCreated(

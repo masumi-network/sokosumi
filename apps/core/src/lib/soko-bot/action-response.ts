@@ -260,39 +260,73 @@ const REWRITTEN_KEYS: Record<string, Set<string>> = {
   update_social_post: new Set(["revision"]),
 };
 
-function normalizeRecipient(value: unknown): string | null {
+function normalizeMessageTarget(
+  value: unknown,
+  allowRoomHash: boolean,
+): string | null {
   if (typeof value !== "string") return null;
-  const normalized = value
-    .trim()
-    .replace(/^[@#]+/, "")
-    .toLowerCase();
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (allowRoomHash && trimmed.startsWith("#")) {
+    const room = trimmed.replace(/^#+/, "").trim();
+    return room.length > 0 ? `#${room}` : null;
+  }
+  const handle = trimmed.replace(/^@+/, "").trim();
+  return handle.length > 0 ? handle : null;
+}
+
+function normalizeMessageText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
   return normalized.length > 0 ? normalized : null;
 }
 
 /**
- * Whether `later` reached the same message recipient as `earlier`. A rejected
- * attempt whose extra or invalid field (e.g. a bad `projectId`) was dropped
- * on retry to the same recipient should not print "Not confirmed" beside the
- * confirmed send.
+ * Whether `later` retried the same message to the same recipient as `earlier`.
+ * A rejected attempt whose extra or invalid field (e.g. a bad `projectId`) was
+ * dropped on retry should not print "Not confirmed" beside the confirmed send,
+ * while a different message to the same recipient or a different address kind
+ * (`#Jordan` room vs `Jordan` person) stays reported.
  */
-function sameMessageRecipient(
+function sameMessageRetry(
   later: unknown,
   earlier: unknown,
   capability: string,
 ): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
   if (capability === "send_message") {
-    const laterTo = normalizeRecipient(later.to);
-    const earlierTo = normalizeRecipient(earlier.to);
-    return laterTo !== null && laterTo === earlierTo;
+    const laterTo = normalizeMessageTarget(later.to, true);
+    const earlierTo = normalizeMessageTarget(earlier.to, true);
+    const laterMsg = normalizeMessageText(later.message);
+    const earlierMsg = normalizeMessageText(earlier.message);
+    return (
+      laterTo !== null &&
+      laterTo === earlierTo &&
+      laterMsg !== null &&
+      laterMsg === earlierMsg
+    );
   }
   if (capability === "open_direct_chat") {
-    const laterPerson = normalizeRecipient(later.person);
-    const earlierPerson = normalizeRecipient(earlier.person);
-    return laterPerson !== null && laterPerson === earlierPerson;
+    const laterPerson = normalizeMessageTarget(later.person, false);
+    const earlierPerson = normalizeMessageTarget(earlier.person, false);
+    const laterMsg = normalizeMessageText(later.message);
+    const earlierMsg = normalizeMessageText(earlier.message);
+    return (
+      laterPerson !== null &&
+      laterPerson === earlierPerson &&
+      laterMsg !== null &&
+      laterMsg === earlierMsg
+    );
   }
   if (capability === "post_chat") {
-    return typeof later.roomId === "string" && later.roomId === earlier.roomId;
+    const laterContent = normalizeMessageText(later.content);
+    const earlierContent = normalizeMessageText(earlier.content);
+    return (
+      typeof later.roomId === "string" &&
+      later.roomId === earlier.roomId &&
+      laterContent !== null &&
+      laterContent === earlierContent
+    );
   }
   if (capability === "ask_coworker") {
     if (
@@ -302,10 +336,14 @@ function sameMessageRecipient(
       return false;
     const laterIds = later.coworkerIds.map(String).sort();
     const earlierIds = earlier.coworkerIds.map(String).sort();
+    const laterQuestion = normalizeMessageText(later.question);
+    const earlierQuestion = normalizeMessageText(earlier.question);
     return (
       laterIds.length > 0 &&
       laterIds.length === earlierIds.length &&
-      laterIds.every((id, index) => id === earlierIds[index])
+      laterIds.every((id, index) => id === earlierIds[index]) &&
+      laterQuestion !== null &&
+      laterQuestion === earlierQuestion
     );
   }
   return false;
@@ -450,9 +488,9 @@ export async function buildActionResponse(
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
   // A refused attempt the bot then made good — the same call on the same
-  // target, a retry to the same message recipient, or again with the missing
-  // fields filled in — is not something the owner needs to hear about. One
-  // whose outcome is unknown always is.
+  // target, a retry of the same message to the same recipient, or again with
+  // the missing fields filled in — is not something the owner needs to hear
+  // about. One whose outcome is unknown always is.
   const madeGood = (call: (typeof calls)[number]) =>
     call.disposition !== "UNKNOWN" &&
     unique.some(
@@ -462,7 +500,7 @@ export async function buildActionResponse(
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
           inputCovers(applied.input, call.input, call.capability) ||
-          sameMessageRecipient(applied.input, call.input, call.capability)),
+          sameMessageRetry(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(
