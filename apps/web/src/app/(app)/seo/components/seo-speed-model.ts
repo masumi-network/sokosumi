@@ -213,6 +213,8 @@ export type SeoVitalTrend =
       direction: SeoTrendDirection;
       first: SeoTrendPoint;
       last: SeoTrendPoint;
+      /** Each week with a value, oldest first: the text of the chart for a screen reader. */
+      measured: SeoTrendPoint[];
       /**
        * One point per week, both axes 0 to 1 with y 0 at the top. x is the week's date between the first and last week. A null y is a week without a value: the line breaks there.
        * `alone`: a value with no value in the week before and after it. It lies on no line, so the chart draws a dot.
@@ -266,6 +268,7 @@ export function seoVitalTrend(
           : "worse",
     first,
     last,
+    measured,
     points: values.map((value, index) => ({
       x: span > 0 ? (Date.parse(weeks[index]) - start) / span : 0,
       y: value == null ? null : height(value),

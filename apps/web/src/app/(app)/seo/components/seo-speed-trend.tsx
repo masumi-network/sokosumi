@@ -20,8 +20,8 @@ const x = (share: number) => PAD + share * (WIDTH - 2 * PAD);
 const y = (share: number) => PAD + share * (HEIGHT - 2 * PAD);
 
 /**
- * The weekly values of each Core Web Vital for real visitors. The sentence under a line says what the line
- * shows, so the drawing is hidden from a screen reader and nothing is lost without it.
+ * The weekly values of each Core Web Vital for real visitors. The drawing is hidden from a screen reader: the
+ * caption gives the direction, and a hidden list gives each week's value, so a week over the limit is not lost.
  */
 export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
   const t = useSeoResultTranslations("App.Seo");
@@ -118,6 +118,13 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
                 {t("siteSpeed.trendLimit", {
                   good: seoSpeedValue(metric, SEO_VITAL_LIMITS[metric].good),
                 })}
+                <ul className="sr-only">
+                  {trend.measured.map((point) => (
+                    <li key={point.week}>
+                      {day(point.week)}: {seoSpeedValue(metric, point.value)}
+                    </li>
+                  ))}
+                </ul>
               </figcaption>
             </figure>
           );
