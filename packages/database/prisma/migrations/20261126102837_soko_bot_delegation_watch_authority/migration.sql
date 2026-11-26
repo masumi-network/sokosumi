@@ -21,7 +21,7 @@ CREATE TABLE "soko_bot_authority_spend" (
     "capability" TEXT NOT NULL,
     "images" INTEGER NOT NULL DEFAULT 0,
     "videos" INTEGER NOT NULL DEFAULT 0,
-    "credits" INTEGER NOT NULL DEFAULT 0,
+    "credits" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'RESERVED',
 
     CONSTRAINT "soko_bot_authority_spend_pkey" PRIMARY KEY ("id")

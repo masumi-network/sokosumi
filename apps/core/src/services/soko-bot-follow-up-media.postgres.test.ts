@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   DEFAULT_SOKO_BOT_VERSION_ID,
   ownerAuthoritySchema,
+  sokoBotFollowUpAllowsSchema,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import {
@@ -155,6 +156,7 @@ vi.mock("@/services/x-subscription-tier.service", async (importOriginal) => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 import { sokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 import { pngBytes } from "@/test/image-bytes";
 import { withFixtureSchemas } from "@/test/split-layout";
@@ -906,5 +908,281 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
       }),
     ).rejects.toThrow("The owner asked for 2 images in this plan");
     expect(await studioJobs()).toBe(jobsBeforeReplayAllowance + 2);
+
+    // 8. A previously stranded RESERVED spend row whose durable tool-call
+    //    receipt is already terminal REJECTED is repaired to RELEASED so a
+    //    corrected image succeeds against the 1-image grant.
+    const strandedGrantId = randomUUID();
+    const strandedTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `stranded-${strandedTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Recover stranded reservation",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: strandedGrantId,
+          limits: {
+            grantId: strandedGrantId,
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: credits,
+          },
+        }),
+        followUpTurnId: strandedTurn,
+      },
+    });
+    await prisma.sokoBotToolCall.create({
+      data: {
+        turnId: strandedTurn,
+        toolCallId: "stranded-call-1",
+        capability: "generate_image",
+        actorBotId: sokoBotId,
+        inputHash: "stranded-hash",
+        input: { projectId, prompt: "Old failed prompt", maxCredits: credits },
+        result: { status: "FAILED" },
+        status: "COMPLETED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        operationKey: null,
+      },
+    });
+    await prisma.sokoBotAuthoritySpend.create({
+      data: {
+        sokoBotId,
+        workspaceId,
+        grantId: strandedGrantId,
+        operationKey: `stranded-op-${strandedTurn}`,
+        turnId: strandedTurn,
+        toolCallId: "stranded-call-1",
+        capability: "generate_image",
+        images: 1,
+        videos: 0,
+        credits,
+        status: "RESERVED",
+      },
+    });
+    const jobsBeforeStranded = await studioJobs();
+    const recoveredJob = (await call(strandedTurn, "generate_image", {
+      projectId,
+      prompt: "Corrected prompt after stranded reservation",
+      maxCredits: credits,
+    })) as { jobId: string; status: string };
+    expect(recoveredJob.status).toBe("QUEUED");
+    expect(await studioJobs()).toBe(jobsBeforeStranded + 1);
+    const strandedRows = await prisma.sokoBotAuthoritySpend.findMany({
+      where: { sokoBotId, grantId: strandedGrantId },
+      orderBy: { createdAt: "asc" },
+      select: { toolCallId: true, status: true, operationKey: true },
+    });
+    expect(strandedRows).toEqual([
+      {
+        toolCallId: "stranded-call-1",
+        status: "RELEASED",
+        operationKey: null,
+      },
+      expect.objectContaining({ status: "SETTLED" }),
+    ]);
+
+    // 9. Public fractional credit caps (e.g. 2 * credits + 0.5) persist through
+    //    deriveDelegationAuthority, DOUBLE PRECISION storage, and legacy restore.
+    const perImageFractional = credits + 0.25;
+    const totalFractionalCap = 2 * perImageFractional;
+    const publicFractionalAllows = sokoBotFollowUpAllowsSchema.parse({
+      images: 2,
+      maxCredits: totalFractionalCap,
+    });
+    const fractionalAuthority = await deriveDelegationAuthority(
+      {
+        id: ownerChatId,
+        sokoBotId,
+        workspaceId,
+        versionId: DEFAULT_SOKO_BOT_VERSION_ID,
+        source: "CHAT",
+        parentTurnId: null,
+        askedByUserId: null,
+        requestedByUserId: ownerId,
+        actingUserId: ownerId,
+        chainDepth: 0,
+      },
+      { followUpAllows: publicFractionalAllows },
+    );
+    expect(fractionalAuthority.limits?.maxMediaCredits).toBe(
+      totalFractionalCap,
+    );
+    const fractionalGrantId = randomUUID();
+    const fractionalTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `fractional-${fractionalTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Two images under a fractional credit cap",
+        followUpAllows: publicFractionalAllows,
+        authority: {
+          ...fractionalAuthority,
+          grantId: fractionalGrantId,
+          limits: {
+            ...fractionalAuthority.limits!,
+            grantId: fractionalGrantId,
+          },
+        },
+        followUpTurnId: fractionalTurn,
+      },
+    });
+    await call(fractionalTurn, "generate_image", {
+      projectId,
+      prompt: "Fractional picture 1",
+      maxCredits: perImageFractional,
+    });
+    // Over the remaining fractional allowance is refused cleanly.
+    await expect(
+      call(fractionalTurn, "generate_image", {
+        projectId,
+        prompt: "Fractional picture over budget",
+        maxCredits: perImageFractional + 0.1,
+      }),
+    ).rejects.toThrow(
+      `The owner allowed ${totalFractionalCap} credits on media for this plan, and ${perImageFractional} are set aside already`,
+    );
+    // Exact remaining fractional allowance succeeds and persists exact float.
+    await call(fractionalTurn, "generate_image", {
+      projectId,
+      prompt: "Fractional picture 2",
+      maxCredits: perImageFractional,
+    });
+    const fractionalLedger = await prisma.sokoBotAuthoritySpend.findMany({
+      where: { sokoBotId, grantId: fractionalGrantId, status: "SETTLED" },
+      select: { credits: true },
+    });
+    expect(fractionalLedger).toEqual([
+      { credits: perImageFractional },
+      { credits: perImageFractional },
+    ]);
+    // Legacy row (`authority: null`) with fractional followUpAllows also works.
+    const legacyFractionalTurn = await wakeTurn({
+      images: 1,
+      maxCredits: perImageFractional,
+    });
+    await call(legacyFractionalTurn, "generate_image", {
+      projectId,
+      prompt: "Legacy fractional picture",
+      maxCredits: perImageFractional,
+    });
+
+    // 10. Mixed Project A + Project B grants sharing one wake: a historical
+    //     pre-migration Project A image never exhausts Project B's untouched grant.
+    const projectB = await withFixtureSchemas(
+      async (tx) =>
+        (
+          await tx.project.create({
+            data: { workspaceId, name: "Second project fixture" },
+          })
+        ).id,
+    );
+    const mixedFailedTurn = await eventTurn();
+    await prisma.sokoBotTurn.update({
+      where: { id: mixedFailedTurn },
+      data: { status: "FAILED" },
+    });
+    await prisma.sokoBotToolCall.create({
+      data: {
+        turnId: mixedFailedTurn,
+        toolCallId: "legacy-proj-a-img",
+        capability: "generate_image",
+        actorBotId: sokoBotId,
+        inputHash: "legacy-proj-a-hash",
+        input: {
+          projectId,
+          prompt: "Old Project A picture",
+          maxCredits: credits,
+        },
+        result: { status: "QUEUED" },
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        verification: "NONE",
+      },
+    });
+    const mixedRetryTurn = await eventTurn();
+    await prisma.sokoBotEventInbox.createMany({
+      data: [
+        {
+          botId: sokoBotId,
+          eventId: "mixed-done",
+          entityId: "mixed-entity",
+          purpose: "delegation",
+          turnId: mixedFailedTurn,
+        },
+        {
+          botId: sokoBotId,
+          eventId: "mixed-done:follow-up-retry",
+          entityId: "mixed-entity",
+          purpose: "delegation",
+          turnId: mixedRetryTurn,
+        },
+      ],
+    });
+    const mixedGrantA = randomUUID();
+    const mixedGrantB = randomUUID();
+    await prisma.sokoBotDelegation.createMany({
+      data: [
+        {
+          turnId: ownerChatId,
+          toolCallId: `mixed-a-${mixedRetryTurn}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Project A image",
+          authority: ownerAuthoritySchema.parse({
+            ...sharedAuthority,
+            grantId: mixedGrantA,
+            targetScope: { kind: "project", projectId },
+            limits: {
+              grantId: mixedGrantA,
+              period: "lifetime",
+              images: 1,
+              maxMediaCredits: credits,
+            },
+          }),
+          followUpTurnId: mixedRetryTurn,
+        },
+        {
+          turnId: ownerChatId,
+          toolCallId: `mixed-b-${mixedRetryTurn}`,
+          kind: "TASK",
+          action: "create_task",
+          followUp: "Project B image",
+          authority: ownerAuthoritySchema.parse({
+            ...sharedAuthority,
+            grantId: mixedGrantB,
+            targetScope: { kind: "project", projectId: projectB },
+            limits: {
+              grantId: mixedGrantB,
+              period: "lifetime",
+              images: 1,
+              maxMediaCredits: credits,
+            },
+          }),
+          followUpTurnId: mixedRetryTurn,
+        },
+      ],
+    });
+    // Project B succeeds against its untouched grant even though Project A's
+    // grant was already spent by the pre-migration Project A image.
+    const projBJob = (await call(mixedRetryTurn, "generate_image", {
+      projectId: projectB,
+      prompt: "Project B untouched grant picture",
+      maxCredits: credits,
+    })) as { jobId: string; status: string };
+    expect(projBJob.status).toBe("QUEUED");
+    await expect(
+      call(mixedRetryTurn, "generate_image", {
+        projectId,
+        prompt: "Project A already spent by legacy call",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
   });
 });

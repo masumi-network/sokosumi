@@ -1,3 +1,4 @@
+import { type Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isSokoBotAnnouncementCapability,
@@ -372,6 +373,18 @@ export async function executeTool(
       );
     }
     if (existing.status === "COMPLETED") {
+      if (
+        externalEffect &&
+        existing.disposition === "REJECTED" &&
+        existing.turnId &&
+        existing.toolCallId
+      ) {
+        await settleAuthoritySpend(
+          prisma,
+          { turnId: existing.turnId, toolCallId: existing.toolCallId },
+          "RELEASED",
+        );
+      }
       if (isFundraisingCapability(input.capability))
         await fundraisingActor(authorized);
       if (isSokoBotSeoCapability(input.capability)) {
@@ -587,6 +600,18 @@ export async function executeTool(
       return replayResult;
     }
     if (existing.status === "FAILED") {
+      if (
+        externalEffect &&
+        existing.disposition === "REJECTED" &&
+        existing.turnId &&
+        existing.toolCallId
+      ) {
+        await settleAuthoritySpend(
+          prisma,
+          { turnId: existing.turnId, toolCallId: existing.toolCallId },
+          "RELEASED",
+        );
+      }
       throw new SokoBotRuntimeConflictError("Tool call previously failed");
     }
     if (externalEffect) {
@@ -742,25 +767,23 @@ export async function executeTool(
     const receipt = externalEffect
       ? externalActionReceipt(input.capability, result)
       : null;
-    await prisma.sokoBotToolCall.updateMany({
-      where: {
-        turnId: input.turnId,
-        toolCallId: input.toolCallId,
-        ...(externalEffect
-          ? {
-              status: { in: ["PENDING", "COMPLETED"] },
-              disposition: "UNKNOWN",
-              verification: "NONE",
-            }
-          : { status: "PENDING" }),
-      },
-      data: {
-        ...(receipt ?? {}),
-        ...(receipt?.disposition === "REJECTED" ? { operationKey: null } : {}),
-        status: "COMPLETED",
-        result: persistedToolResult(result ?? null, input.capability),
-      },
-    });
+    const completionWhere: Prisma.SokoBotToolCallWhereInput = {
+      turnId: input.turnId,
+      toolCallId: input.toolCallId,
+      ...(externalEffect
+        ? {
+            status: { in: ["PENDING", "COMPLETED"] },
+            disposition: "UNKNOWN",
+            verification: "NONE",
+          }
+        : { status: "PENDING" }),
+    };
+    const completionData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
+      ...(receipt ?? {}),
+      ...(receipt?.disposition === "REJECTED" ? { operationKey: null } : {}),
+      status: "COMPLETED",
+      result: persistedToolResult(result ?? null, input.capability),
+    };
     if (spendReserved) {
       const spendOutcome =
         receipt?.disposition === "REJECTED"
@@ -768,48 +791,82 @@ export async function executeTool(
           : receipt?.disposition === "UNKNOWN"
             ? "UNKNOWN"
             : "SETTLED";
-      await settleAuthoritySpend(
-        prisma,
-        { turnId: input.turnId, toolCallId: input.toolCallId },
-        spendOutcome,
-      );
+      const commitCompletion = async (tx: typeof prisma) => {
+        await tx.sokoBotToolCall.updateMany({
+          where: completionWhere,
+          data: completionData,
+        });
+        await settleAuthoritySpend(
+          tx,
+          { turnId: input.turnId, toolCallId: input.toolCallId },
+          spendOutcome,
+        );
+      };
+      if (typeof prisma.$transaction === "function") {
+        await prisma.$transaction((tx) =>
+          commitCompletion(tx as unknown as typeof prisma),
+        );
+      } else {
+        await commitCompletion(prisma);
+      }
+    } else {
+      await prisma.sokoBotToolCall.updateMany({
+        where: completionWhere,
+        data: completionData,
+      });
     }
     return result;
   } catch (error) {
     const refusedUnsent = error instanceof SokoBotRefusedUnsentError;
-    await prisma.sokoBotToolCall.updateMany({
-      where: {
-        turnId: input.turnId,
-        toolCallId: input.toolCallId,
-        ...(externalEffect
-          ? {
-              status: { in: ["PENDING", "COMPLETED"] },
-              disposition: "UNKNOWN",
-              verification: "NONE",
-            }
-          : { status: "PENDING" }),
-      },
-      data: {
-        status: "FAILED",
-        // A rolled-back local attempt is not an enduring semantic
-        // reservation, and neither is an effect refused before it was sent.
-        ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-        ...(action
-          ? {
-              disposition:
-                externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
-            }
-          : {}),
-        errorKind: toolErrorKind(error),
-        errorDetail: persistedErrorDetail(error),
-      },
-    });
+    const failureWhere: Prisma.SokoBotToolCallWhereInput = {
+      turnId: input.turnId,
+      toolCallId: input.toolCallId,
+      ...(externalEffect
+        ? {
+            status: { in: ["PENDING", "COMPLETED"] },
+            disposition: "UNKNOWN",
+            verification: "NONE",
+          }
+        : { status: "PENDING" }),
+    };
+    const failureData: Prisma.SokoBotToolCallUpdateManyMutationInput = {
+      status: "FAILED",
+      // A rolled-back local attempt is not an enduring semantic
+      // reservation, and neither is an effect refused before it was sent.
+      ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
+      ...(action
+        ? {
+            disposition:
+              externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
+          }
+        : {}),
+      errorKind: toolErrorKind(error),
+      errorDetail: persistedErrorDetail(error),
+    };
     if (spendReserved) {
-      await settleAuthoritySpend(
-        prisma,
-        { turnId: input.turnId, toolCallId: input.toolCallId },
-        refusedUnsent ? "RELEASED" : "UNKNOWN",
-      );
+      const commitFailure = async (tx: typeof prisma) => {
+        await tx.sokoBotToolCall.updateMany({
+          where: failureWhere,
+          data: failureData,
+        });
+        await settleAuthoritySpend(
+          tx,
+          { turnId: input.turnId, toolCallId: input.toolCallId },
+          refusedUnsent ? "RELEASED" : "UNKNOWN",
+        );
+      };
+      if (typeof prisma.$transaction === "function") {
+        await prisma.$transaction((tx) =>
+          commitFailure(tx as unknown as typeof prisma),
+        );
+      } else {
+        await commitFailure(prisma);
+      }
+    } else {
+      await prisma.sokoBotToolCall.updateMany({
+        where: failureWhere,
+        data: failureData,
+      });
     }
     throw error;
   }

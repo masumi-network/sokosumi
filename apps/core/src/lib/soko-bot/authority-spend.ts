@@ -139,6 +139,20 @@ export function summarizeGrantBuckets(
   return { unboundedPerTurn: true, grants: all };
 }
 
+const CREDIT_EPSILON = 1e-9;
+const MAX_LEGACY_SEARCH_NODES = 10_000;
+
+function formatCredits(value: number): string {
+  return String(Number(value.toFixed(6)));
+}
+
+function grantAllowsProject(
+  scope: OwnerAuthorityTargetScope,
+  projectId: string,
+): boolean {
+  return scope.kind !== "project" || scope.projectId === projectId;
+}
+
 /**
  * Selects grants whose `targetScope` permits `projectId`, prioritizing an
  * exact project match ahead of workspace-scoped grants, then `grantId` order.
@@ -148,11 +162,7 @@ export function selectEligibleGrantsForProject(
   projectId: string,
 ): MediaSpendGrant[] {
   return grants
-    .filter(
-      (grant) =>
-        grant.targetScope.kind !== "project" ||
-        grant.targetScope.projectId === projectId,
-    )
+    .filter((grant) => grantAllowsProject(grant.targetScope, projectId))
     .sort((left, right) => {
       const leftExact =
         left.targetScope.kind === "project" &&
@@ -179,26 +189,106 @@ interface GrantUsage {
   credits: number;
 }
 
+interface LegacySpendItem {
+  key: string;
+  cost: GrantUsage;
+  compatibleGrants: MediaSpendGrant[];
+}
+
 const legacyMediaInputSchema = z.object({
   maxCredits: z.number().optional(),
   projectId: z.string().optional(),
 });
 
-async function readEligibleGrantUsages(
+function isTerminalRejectedToolCall(call: {
+  disposition?: string | null;
+  status?: string | null;
+}): boolean {
+  return (
+    call.disposition === "REJECTED" &&
+    (call.status === undefined ||
+      call.status === "COMPLETED" ||
+      call.status === "FAILED")
+  );
+}
+
+/**
+ * Finds `RESERVED` ledger rows whose durable `sokoBotToolCall` receipt is
+ * already terminal `REJECTED` (e.g. from a crash between receipt commit and
+ * ledger release on an older worker).
+ */
+async function findStrandedRejectedKeys(
+  client: SpendReadClient,
+  reservedPairs: readonly { turnId: string; toolCallId: string }[],
+): Promise<Set<string>> {
+  const stranded = new Set<string>();
+  if (
+    !reservedPairs.length ||
+    typeof client.sokoBotToolCall?.findMany !== "function"
+  ) {
+    return stranded;
+  }
+  const wanted = new Set(
+    reservedPairs.map((pair) => `${pair.turnId}:${pair.toolCallId}`),
+  );
+  const turnIds = [...new Set(reservedPairs.map((pair) => pair.turnId))];
+  const toolCallIds = [
+    ...new Set(reservedPairs.map((pair) => pair.toolCallId)),
+  ];
+  const calls = await client.sokoBotToolCall.findMany({
+    where: {
+      turnId: { in: turnIds },
+      toolCallId: { in: toolCallIds },
+      disposition: "REJECTED",
+    },
+    select: {
+      turnId: true,
+      toolCallId: true,
+      status: true,
+      disposition: true,
+    },
+  });
+  for (const call of calls) {
+    const key = `${call.turnId}:${call.toolCallId}`;
+    if (wanted.has(key) && isTerminalRejectedToolCall(call)) {
+      stranded.add(key);
+    }
+  }
+  return stranded;
+}
+
+async function loadGrantAccounting(
   client: SpendReadClient,
   sokoBotId: string,
-  eligible: readonly MediaSpendGrant[],
+  allGrants: readonly MediaSpendGrant[],
   exclude: {
     turnId: string;
     toolCallId: string;
     operationKey: string | null;
   },
-): Promise<Map<string, GrantUsage>> {
-  const usageByGrant = new Map<string, GrantUsage>();
+  options: { repairStranded: boolean },
+): Promise<{
+  ledgerUsageByGrant: Map<string, GrantUsage>;
+  legacyItems: LegacySpendItem[];
+}> {
+  const ledgerUsageByGrant = new Map<string, GrantUsage>();
   const coveredCalls = new Set<string>();
   const coveredOperationKeys = new Set<string>();
+  const rowsByGrant = new Map<
+    string,
+    {
+      turnId: string;
+      toolCallId: string;
+      operationKey: string | null;
+      status?: string;
+      images: number;
+      videos: number;
+      credits: number;
+    }[]
+  >();
+  const reservedToCheck: { turnId: string; toolCallId: string }[] = [];
 
-  for (const grant of eligible) {
+  for (const grant of allGrants) {
     const ledgerRows =
       typeof client.sokoBotAuthoritySpend?.findMany === "function"
         ? await client.sokoBotAuthoritySpend.findMany({
@@ -212,6 +302,7 @@ async function readEligibleGrantUsages(
               turnId: true,
               toolCallId: true,
               operationKey: true,
+              status: true,
               images: true,
               videos: true,
               credits: true,
@@ -227,29 +318,58 @@ async function readEligibleGrantUsages(
           row.operationKey === exclude.operationKey
         ),
     );
+    rowsByGrant.set(grant.grantId, filteredLedger);
+    for (const row of filteredLedger) {
+      if (row.status === AUTHORITY_SPEND_STATUS.RESERVED) {
+        reservedToCheck.push({
+          turnId: row.turnId,
+          toolCallId: row.toolCallId,
+        });
+      }
+    }
+  }
 
+  const strandedKeys = await findStrandedRejectedKeys(client, reservedToCheck);
+  const repairedKeys = new Set<string>();
+
+  for (const grant of allGrants) {
+    const rows = rowsByGrant.get(grant.grantId) ?? [];
     let images = 0;
     let videos = 0;
     let credits = 0;
-    for (const row of filteredLedger) {
+    for (const row of rows) {
+      const key = `${row.turnId}:${row.toolCallId}`;
+      if (
+        row.status === AUTHORITY_SPEND_STATUS.RESERVED &&
+        strandedKeys.has(key)
+      ) {
+        if (options.repairStranded && !repairedKeys.has(key)) {
+          repairedKeys.add(key);
+          await settleAuthoritySpend(
+            client,
+            { turnId: row.turnId, toolCallId: row.toolCallId },
+            "RELEASED",
+          );
+        }
+        continue;
+      }
       images += row.images;
       videos += row.videos;
       credits += row.credits;
-      coveredCalls.add(`${row.turnId}:${row.toolCallId}`);
+      coveredCalls.add(key);
       if (row.operationKey) coveredOperationKeys.add(row.operationKey);
     }
-    usageByGrant.set(grant.grantId, { images, videos, credits });
+    ledgerUsageByGrant.set(grant.grantId, { images, videos, credits });
   }
 
-  // Rolling-deploy & pre-migration fallback: include any legacy tool calls on
-  // `legacyTurnIds` written before SokoBotAuthoritySpend existed.
-  // - Exclude calls that already have an active ledger row under ANY grantId.
-  // - Exclude REJECTED and ALREADY_SATISFIED replay markers (`replayedReceiptId != null`).
-  // - Count each distinct historical paid action ONCE across multiple old grants
-  //   sharing a wake instead of charging the same historical call against each grant.
+  // Rolling-deploy & pre-migration fallback: collect unassigned legacy tool
+  // calls across ALL grants on the wake (before Project filtering) so a
+  // Project A legacy call binds to Project A's grant and never exhausts an
+  // untouched Project B grant.
   const allLegacyTurnIds = [
-    ...new Set(eligible.flatMap((grant) => grant.legacyTurnIds ?? [])),
+    ...new Set(allGrants.flatMap((grant) => grant.legacyTurnIds ?? [])),
   ];
+  const legacyItems: LegacySpendItem[] = [];
   if (
     allLegacyTurnIds.length > 0 &&
     typeof client.sokoBotToolCall?.findMany === "function"
@@ -264,7 +384,9 @@ async function readEligibleGrantUsages(
           select: { turnId: true, toolCallId: true, operationKey: true },
         });
       for (const row of anyLedgerOnLegacyTurns) {
-        coveredCalls.add(`${row.turnId}:${row.toolCallId}`);
+        const key = `${row.turnId}:${row.toolCallId}`;
+        if (strandedKeys.has(key)) continue;
+        coveredCalls.add(key);
         if (row.operationKey) coveredOperationKeys.add(row.operationKey);
       }
     }
@@ -331,47 +453,52 @@ async function readEligibleGrantUsages(
 
     for (const call of unassignedLegacy) {
       const parsedInput = legacyMediaInputSchema.safeParse(call.input).data;
-      const callCost = {
-        images: call.capability === "generate_image" ? 1 : 0,
-        videos: call.capability === "generate_video" ? 1 : 0,
-        credits: parsedInput?.maxCredits ?? 0,
-      };
-      const turnMatchingGrants = eligible.filter((grant) =>
+      const turnMatchingGrants = allGrants.filter((grant) =>
         grant.legacyTurnIds?.includes(call.turnId),
       );
       if (!turnMatchingGrants.length) continue;
-      const scopedCandidates = parsedInput?.projectId
+      // Known Project scopes only match grants covering that Project; never
+      // fall back to a grant bound to a different Project.
+      const compatibleGrants = parsedInput?.projectId
         ? selectEligibleGrantsForProject(
             turnMatchingGrants,
             parsedInput.projectId,
           )
-        : turnMatchingGrants;
-      const candidates = scopedCandidates.length
-        ? scopedCandidates
-        : turnMatchingGrants;
-      const assigned =
-        candidates.find(
-          (grant) =>
-            grantRefusalMessage(
-              grant,
-              usageByGrant.get(grant.grantId)!,
-              callCost,
-            ) === null,
-        ) ?? candidates[0]!;
-      const bucket = usageByGrant.get(assigned.grantId)!;
-      bucket.images += callCost.images;
-      bucket.videos += callCost.videos;
-      bucket.credits += callCost.credits;
+        : [...turnMatchingGrants].sort((left, right) =>
+            left.grantId.localeCompare(right.grantId),
+          );
+      if (!compatibleGrants.length) continue;
+      legacyItems.push({
+        key: `${call.turnId}:${call.toolCallId}`,
+        cost: {
+          images: call.capability === "generate_image" ? 1 : 0,
+          videos: call.capability === "generate_video" ? 1 : 0,
+          credits: parsedInput?.maxCredits ?? 0,
+        },
+        compatibleGrants,
+      });
     }
   }
 
-  return usageByGrant;
+  // Order most-constrained legacy items first (fewest compatible grants, then
+  // largest credit cost) so exact feasibility search resolves immediately.
+  legacyItems.sort((left, right) => {
+    if (left.compatibleGrants.length !== right.compatibleGrants.length) {
+      return left.compatibleGrants.length - right.compatibleGrants.length;
+    }
+    if (left.cost.credits !== right.cost.credits) {
+      return right.cost.credits - left.cost.credits;
+    }
+    return left.key.localeCompare(right.key);
+  });
+
+  return { ledgerUsageByGrant, legacyItems };
 }
 
 function grantRefusalMessage(
   grant: MediaSpendGrant,
   usage: GrantUsage,
-  requested: { images: number; videos: number; credits: number },
+  requested: GrantUsage,
 ): string | null {
   if (
     grant.images !== undefined &&
@@ -389,11 +516,193 @@ function grantRefusalMessage(
   }
   if (
     grant.maxMediaCredits !== undefined &&
-    usage.credits + requested.credits > grant.maxMediaCredits
+    usage.credits + requested.credits > grant.maxMediaCredits + CREDIT_EPSILON
   ) {
-    return `The owner allowed ${grant.maxMediaCredits} credits on media for this plan, and ${usage.credits} are set aside already. Make it fit with a lower maxCredits, or tell the owner what more would cost.`;
+    return `The owner allowed ${formatCredits(grant.maxMediaCredits)} credits on media for this plan, and ${formatCredits(usage.credits)} are set aside already. Make it fit with a lower maxCredits, or tell the owner what more would cost.`;
   }
   return null;
+}
+
+function cloneUsageMap(
+  source: Map<string, GrantUsage>,
+): Map<string, GrantUsage> {
+  const copy = new Map<string, GrantUsage>();
+  for (const [grantId, usage] of source) {
+    copy.set(grantId, { ...usage });
+  }
+  return copy;
+}
+
+function remainingCredits(grant: MediaSpendGrant, usage: GrantUsage): number {
+  return grant.maxMediaCredits === undefined
+    ? Number.POSITIVE_INFINITY
+    : grant.maxMediaCredits - usage.credits;
+}
+
+function canPlaceLegacyItems(
+  items: readonly LegacySpendItem[],
+  usageByGrant: Map<string, GrantUsage>,
+): boolean {
+  let nodesRemaining = MAX_LEGACY_SEARCH_NODES;
+
+  const search = (index: number): boolean => {
+    if (index >= items.length) return true;
+    const item = items[index]!;
+    // Try tightest-fitting compatible grants first so smaller legacy calls
+    // leave larger grants available for higher-cost calls.
+    const orderedGrants = [...item.compatibleGrants].sort((left, right) => {
+      const leftExact = left.targetScope.kind === "project" ? 0 : 1;
+      const rightExact = right.targetScope.kind === "project" ? 0 : 1;
+      if (leftExact !== rightExact) return leftExact - rightExact;
+      const leftRem = remainingCredits(left, usageByGrant.get(left.grantId)!);
+      const rightRem = remainingCredits(
+        right,
+        usageByGrant.get(right.grantId)!,
+      );
+      if (Math.abs(leftRem - rightRem) > CREDIT_EPSILON) {
+        return leftRem - rightRem;
+      }
+      return left.grantId.localeCompare(right.grantId);
+    });
+
+    if (nodesRemaining <= 0) {
+      // Deterministic tightest-fit greedy fallback if node cap is ever hit.
+      const chosen = orderedGrants.find(
+        (grant) =>
+          grantRefusalMessage(
+            grant,
+            usageByGrant.get(grant.grantId)!,
+            item.cost,
+          ) === null,
+      );
+      if (!chosen) return false;
+      const bucket = usageByGrant.get(chosen.grantId)!;
+      bucket.images += item.cost.images;
+      bucket.videos += item.cost.videos;
+      bucket.credits += item.cost.credits;
+      const ok = search(index + 1);
+      if (!ok) {
+        bucket.images -= item.cost.images;
+        bucket.videos -= item.cost.videos;
+        bucket.credits -= item.cost.credits;
+      }
+      return ok;
+    }
+
+    for (const grant of orderedGrants) {
+      const bucket = usageByGrant.get(grant.grantId)!;
+      if (grantRefusalMessage(grant, bucket, item.cost) !== null) continue;
+      nodesRemaining -= 1;
+      bucket.images += item.cost.images;
+      bucket.videos += item.cost.videos;
+      bucket.credits += item.cost.credits;
+      if (search(index + 1)) return true;
+      bucket.images -= item.cost.images;
+      bucket.videos -= item.cost.videos;
+      bucket.credits -= item.cost.credits;
+    }
+    return false;
+  };
+
+  return search(0);
+}
+
+function connectedLegacyItems(
+  candidateGrantId: string,
+  legacyItems: readonly LegacySpendItem[],
+): LegacySpendItem[] {
+  if (!legacyItems.length) return [];
+  const reachableGrants = new Set<string>([candidateGrantId]);
+  const includedIndices = new Set<number>();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < legacyItems.length; i += 1) {
+      if (includedIndices.has(i)) continue;
+      const item = legacyItems[i]!;
+      if (
+        item.compatibleGrants.some((grant) =>
+          reachableGrants.has(grant.grantId),
+        )
+      ) {
+        includedIndices.add(i);
+        for (const grant of item.compatibleGrants) {
+          reachableGrants.add(grant.grantId);
+        }
+        changed = true;
+      }
+    }
+  }
+  return legacyItems.filter((_, index) => includedIndices.has(index));
+}
+
+function selectFeasibleGrant(
+  eligible: readonly MediaSpendGrant[],
+  ledgerUsageByGrant: Map<string, GrantUsage>,
+  legacyItems: readonly LegacySpendItem[],
+  requested: GrantUsage,
+): { chosen: MediaSpendGrant | null; refusal: string } {
+  for (const grant of eligible) {
+    const baseUsage = ledgerUsageByGrant.get(grant.grantId)!;
+    if (grantRefusalMessage(grant, baseUsage, requested) !== null) continue;
+    const relevantLegacy = connectedLegacyItems(grant.grantId, legacyItems);
+    if (!relevantLegacy.length) {
+      return { chosen: grant, refusal: "" };
+    }
+    const working = cloneUsageMap(ledgerUsageByGrant);
+    const candidateBucket = working.get(grant.grantId)!;
+    candidateBucket.images += requested.images;
+    candidateBucket.videos += requested.videos;
+    candidateBucket.credits += requested.credits;
+    if (canPlaceLegacyItems(relevantLegacy, working)) {
+      return { chosen: grant, refusal: "" };
+    }
+  }
+
+  // No eligible grant can accommodate the request alongside historical spend.
+  // Compute a baseline placement of legacy items alone to produce the clearest
+  // refusal message.
+  const baseline = cloneUsageMap(ledgerUsageByGrant);
+  if (legacyItems.length > 0 && !canPlaceLegacyItems(legacyItems, baseline)) {
+    const greedy = cloneUsageMap(ledgerUsageByGrant);
+    for (const item of legacyItems) {
+      const target =
+        item.compatibleGrants.find(
+          (grant) =>
+            grantRefusalMessage(
+              grant,
+              greedy.get(grant.grantId)!,
+              item.cost,
+            ) === null,
+        ) ?? item.compatibleGrants[0]!;
+      const bucket = greedy.get(target.grantId)!;
+      bucket.images += item.cost.images;
+      bucket.videos += item.cost.videos;
+      bucket.credits += item.cost.credits;
+    }
+    for (const grant of eligible) {
+      const msg = grantRefusalMessage(
+        grant,
+        greedy.get(grant.grantId)!,
+        requested,
+      );
+      if (msg) return { chosen: null, refusal: msg };
+    }
+  } else {
+    for (const grant of eligible) {
+      const msg = grantRefusalMessage(
+        grant,
+        baseline.get(grant.grantId)!,
+        requested,
+      );
+      if (msg) return { chosen: null, refusal: msg };
+    }
+  }
+
+  return {
+    chosen: null,
+    refusal: "The owner's media allowance for this plan has been reached.",
+  };
 }
 
 /**
@@ -415,31 +724,30 @@ export async function checkGrantSpendPreflight(
       "The owner's media authorization for this follow-up is scoped to a different Project.",
     );
   }
-  const usageByGrant = await readEligibleGrantUsages(
+  const { ledgerUsageByGrant, legacyItems } = await loadGrantAccounting(
     client,
     request.sokoBotId,
-    eligible,
+    request.grants,
     {
       turnId: request.turnId,
       toolCallId: request.toolCallId,
       operationKey: request.operationKey,
     },
+    { repairStranded: false },
   );
-  let firstRefusal: string | null = null;
-  for (const grant of eligible) {
-    const usage = usageByGrant.get(grant.grantId)!;
-    const refusal = grantRefusalMessage(grant, usage, {
+  const { chosen, refusal } = selectFeasibleGrant(
+    eligible,
+    ledgerUsageByGrant,
+    legacyItems,
+    {
       images: request.images,
       videos: request.videos,
       credits: request.credits,
-    });
-    if (!refusal) return;
-    firstRefusal ??= refusal;
-  }
-  throw new SokoBotRuntimeValidationError(
-    firstRefusal ??
-      "The owner's media allowance for this plan has been reached.",
+    },
   );
+  if (!chosen) {
+    throw new SokoBotRuntimeValidationError(refusal);
+  }
 }
 
 type SpendTxClient = Partial<
@@ -458,6 +766,8 @@ type SpendTxClient = Partial<
  *   serialize cleanly without deadlocking.
  * - Idempotent per `operationKey` and per `(turnId, toolCallId)`: retries of
  *   one paid action across children settle a single reservation.
+ * - Repairs any previously stranded `RESERVED` row whose durable tool-call
+ *   receipt is already terminal `REJECTED` before evaluating capacity.
  * - Refuses before provider dispatch with `SokoBotImageRefusedError` (an unsent
  *   refusal), rolling back the reservation transaction cleanly.
  */
@@ -481,9 +791,11 @@ export async function reserveAuthoritySpend(
     );
   }
 
-  // Acquire advisory locks in deterministic sorted order to prevent deadlocks
-  // when concurrent mixed wakes touch overlapping grantIds.
-  const lockIds = [...new Set(eligible.map((grant) => grant.grantId))].sort();
+  // Acquire advisory locks across ALL grants carried on the wake in
+  // deterministic sorted order to prevent deadlocks when mixed wakes overlap.
+  const lockIds = [
+    ...new Set(request.grants.map((grant) => grant.grantId)),
+  ].sort();
   if (typeof tx.$executeRaw === "function") {
     for (const grantId of lockIds) {
       const lockKey = `soko-bot-authority-spend:${request.sokoBotId}:${grantId}`;
@@ -493,20 +805,41 @@ export async function reserveAuthoritySpend(
 
   // Settle once per operationKey: if another child or retry already holds an
   // active reservation/settlement for this exact operationKey, do not charge
-  // the shared grant a second time.
+  // the shared grant a second time. If the existing row is a stranded RESERVED
+  // row whose durable tool-call receipt is already REJECTED, release it first.
   if (
     request.operationKey !== null &&
     typeof tx.sokoBotAuthoritySpend.findUnique === "function"
   ) {
     const existingByOp = await tx.sokoBotAuthoritySpend.findUnique({
       where: { operationKey: request.operationKey },
-      select: { grantId: true, status: true },
+      select: { grantId: true, status: true, turnId: true, toolCallId: true },
     });
     if (
       existingByOp &&
       existingByOp.status !== AUTHORITY_SPEND_STATUS.RELEASED
     ) {
-      return { grantId: existingByOp.grantId, reused: true };
+      const isStranded =
+        existingByOp.status === AUTHORITY_SPEND_STATUS.RESERVED &&
+        existingByOp.turnId &&
+        existingByOp.toolCallId &&
+        (
+          await findStrandedRejectedKeys(tx, [
+            {
+              turnId: existingByOp.turnId,
+              toolCallId: existingByOp.toolCallId,
+            },
+          ])
+        ).has(`${existingByOp.turnId}:${existingByOp.toolCallId}`);
+      if (isStranded) {
+        await settleAuthoritySpend(
+          tx,
+          { turnId: existingByOp.turnId, toolCallId: existingByOp.toolCallId },
+          "RELEASED",
+        );
+      } else {
+        return { grantId: existingByOp.grantId, reused: true };
+      }
     }
   }
 
@@ -524,41 +857,49 @@ export async function reserveAuthoritySpend(
       existingByCall &&
       existingByCall.status !== AUTHORITY_SPEND_STATUS.RELEASED
     ) {
-      return { grantId: existingByCall.grantId, reused: true };
+      const isStranded =
+        existingByCall.status === AUTHORITY_SPEND_STATUS.RESERVED &&
+        (
+          await findStrandedRejectedKeys(tx, [
+            { turnId: request.turnId, toolCallId: request.toolCallId },
+          ])
+        ).has(`${request.turnId}:${request.toolCallId}`);
+      if (isStranded) {
+        await settleAuthoritySpend(
+          tx,
+          { turnId: request.turnId, toolCallId: request.toolCallId },
+          "RELEASED",
+        );
+      } else {
+        return { grantId: existingByCall.grantId, reused: true };
+      }
     }
   }
 
-  const usageByGrant = await readEligibleGrantUsages(
+  const { ledgerUsageByGrant, legacyItems } = await loadGrantAccounting(
     tx,
     request.sokoBotId,
-    eligible,
+    request.grants,
     {
       turnId: request.turnId,
       toolCallId: request.toolCallId,
       operationKey: request.operationKey,
     },
+    { repairStranded: true },
   );
-  let chosen: MediaSpendGrant | null = null;
-  let firstRefusal: string | null = null;
-  for (const grant of eligible) {
-    const usage = usageByGrant.get(grant.grantId)!;
-    const refusal = grantRefusalMessage(grant, usage, {
+  const { chosen, refusal } = selectFeasibleGrant(
+    eligible,
+    ledgerUsageByGrant,
+    legacyItems,
+    {
       images: request.images,
       videos: request.videos,
       credits: request.credits,
-    });
-    if (!refusal) {
-      chosen = grant;
-      break;
-    }
-    firstRefusal ??= refusal;
-  }
+    },
+  );
 
   if (!chosen) {
-    throw new SokoBotImageRefusedError(
-      firstRefusal ??
-        "The owner's media allowance for this plan has been reached.",
-    );
+    throw new SokoBotImageRefusedError(refusal);
   }
 
   await tx.sokoBotAuthoritySpend.upsert({

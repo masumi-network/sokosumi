@@ -34,6 +34,7 @@ interface LegacyCallRow {
   toolCallId: string;
   operationKey?: string | null;
   capability: string;
+  status?: string;
   disposition: string | null;
   replayedReceiptId?: string | null;
   input: { maxCredits: number; projectId?: string };
@@ -175,16 +176,27 @@ function createInMemorySpendDb() {
         where,
       }: {
         where: {
-          turnId: { in: string[] };
-          capability: { in: string[] };
+          turnId?: { in: string[] };
+          toolCallId?: { in: string[] };
+          capability?: { in: string[] };
+          disposition?: string;
+          replayedReceiptId?: null;
           NOT?: { turnId?: string; toolCallId?: string };
         };
       }) =>
         legacyCalls.filter(
           (call) =>
-            where.turnId.in.includes(call.turnId) &&
-            where.capability.in.includes(call.capability) &&
-            call.disposition !== "REJECTED" &&
+            (!where.turnId || where.turnId.in.includes(call.turnId)) &&
+            (!where.toolCallId ||
+              where.toolCallId.in.includes(call.toolCallId)) &&
+            (!where.capability ||
+              where.capability.in.includes(call.capability)) &&
+            (where.disposition !== undefined
+              ? call.disposition === where.disposition
+              : call.disposition !== "REJECTED") &&
+            (where.replayedReceiptId === null
+              ? call.replayedReceiptId == null
+              : true) &&
             !matchesNot(call, where.NOT),
         ),
     },
@@ -739,7 +751,8 @@ describe("authority-spend", () => {
       input: { maxCredits: 10 },
     });
 
-    // The historical call fills legacyA once, leaving legacyB available for the 2nd image.
+    // Both grants are identical (1 image, 10 credits each): the historical call
+    // consumes one grant and the new 2nd image reserves the other cleanly.
     const second = await reserveAuthoritySpend(db as never, {
       sokoBotId: BOT_ID,
       workspaceId: WS_ID,
@@ -753,7 +766,7 @@ describe("authority-spend", () => {
       credits: 10,
       grants: [legacyA, legacyB],
     });
-    expect(second).toEqual({ grantId: "legacy-delegation:b", reused: false });
+    expect(second).toEqual({ grantId: "legacy-delegation:a", reused: false });
 
     // A 3rd image exhausts both old grants and is refused.
     await expect(
@@ -771,5 +784,363 @@ describe("authority-spend", () => {
         grants: [legacyA, legacyB],
       }),
     ).rejects.toThrow("The owner asked for 1 image in this plan");
+  });
+
+  it("ignores and repairs stranded RESERVED rows whose durable tool-call receipt is REJECTED while keeping in-flight or UNKNOWN rows held", async () => {
+    const db = createInMemorySpendDb();
+    const grant: MediaSpendGrant = {
+      grantId: "grant-stranded",
+      images: 1,
+      maxMediaCredits: 10,
+      targetScope: { kind: "workspace" },
+    };
+
+    // Simulate a crash between committing a REJECTED receipt and releasing spend.
+    db.rows.push({
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      grantId: grant.grantId,
+      operationKey: "op-refunded",
+      turnId: "wake-1",
+      toolCallId: "call-refunded",
+      capability: "generate_image",
+      images: 1,
+      videos: 0,
+      credits: 10,
+      status: AUTHORITY_SPEND_STATUS.RESERVED,
+    });
+    db.legacyCalls.push({
+      turnId: "wake-1",
+      toolCallId: "call-refunded",
+      operationKey: null,
+      capability: "generate_image",
+      status: "COMPLETED",
+      disposition: "REJECTED",
+      input: { maxCredits: 10, projectId: PROJECT_A },
+    });
+
+    // Preflight sees the stranded row as released and permits a corrected retry.
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "wake-1",
+        toolCallId: "call-corrected",
+        operationKey: "op-refunded",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 10,
+        grants: [grant],
+      }),
+    ).resolves.toBeUndefined();
+
+    // Reserving with the SAME operationKey repairs the stranded row (releasing
+    // its unique operationKey) and reserves the corrected call cleanly.
+    const reserved = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "wake-1",
+      toolCallId: "call-corrected",
+      operationKey: "op-refunded",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 10,
+      grants: [grant],
+    });
+    expect(reserved).toEqual({ grantId: grant.grantId, reused: false });
+    expect(db.rows[0]).toMatchObject({
+      toolCallId: "call-refunded",
+      status: AUTHORITY_SPEND_STATUS.RELEASED,
+      operationKey: null,
+    });
+    expect(db.rows[1]).toMatchObject({
+      toolCallId: "call-corrected",
+      status: AUTHORITY_SPEND_STATUS.RESERVED,
+      operationKey: "op-refunded",
+    });
+
+    // By contrast, an in-flight PENDING+UNKNOWN call stays held and blocks another image.
+    db.legacyCalls.push({
+      turnId: "wake-1",
+      toolCallId: "call-corrected",
+      operationKey: "op-refunded",
+      capability: "generate_image",
+      status: "PENDING",
+      disposition: "UNKNOWN",
+      input: { maxCredits: 10, projectId: PROJECT_A },
+    });
+    await expect(
+      reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "wake-1",
+        toolCallId: "call-third",
+        operationKey: "op-other",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: [grant],
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
+  });
+
+  it("attributes historical Project A spend before filtering so Project B keeps its untouched grant", async () => {
+    const db = createInMemorySpendDb();
+    const grantA: MediaSpendGrant = {
+      grantId: "grant-proj-a",
+      images: 1,
+      maxMediaCredits: 5,
+      targetScope: { kind: "project", projectId: PROJECT_A },
+      legacyTurnIds: ["mixed-wake"],
+    };
+    const grantB: MediaSpendGrant = {
+      grantId: "grant-proj-b",
+      images: 1,
+      maxMediaCredits: 5,
+      targetScope: { kind: "project", projectId: PROJECT_B },
+      legacyTurnIds: ["mixed-wake"],
+    };
+
+    // Historical 5-credit image spent on Project A.
+    db.legacyCalls.push({
+      turnId: "mixed-wake",
+      toolCallId: "legacy-proj-a",
+      capability: "generate_image",
+      disposition: "APPLIED",
+      replayedReceiptId: null,
+      input: { maxCredits: 5, projectId: PROJECT_A },
+    });
+
+    // Project B's untouched 5-credit grant passes preflight and reserves cleanly,
+    // whether both grants or only Project B's grant are passed.
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "mixed-wake",
+        toolCallId: "new-proj-b",
+        operationKey: "op-proj-b",
+        capability: "generate_image",
+        projectId: PROJECT_B,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: [grantB],
+      }),
+    ).resolves.toBeUndefined();
+
+    const reservedB = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "mixed-wake",
+      toolCallId: "new-proj-b",
+      operationKey: "op-proj-b",
+      capability: "generate_image",
+      projectId: PROJECT_B,
+      images: 1,
+      videos: 0,
+      credits: 5,
+      grants: [grantA, grantB],
+    });
+    expect(reservedB).toEqual({ grantId: "grant-proj-b", reused: false });
+
+    // Project A's grant IS exhausted by the historical Project A image.
+    await expect(
+      reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "mixed-wake",
+        toolCallId: "new-proj-a-2",
+        operationKey: "op-proj-a-2",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: [grantA, grantB],
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
+
+    // Mixed Project A + workspace grant: Project A historical call binds to
+    // grantA so the workspace grant remains free for Project B.
+    const dbMixedWs = createInMemorySpendDb();
+    dbMixedWs.legacyCalls.push({
+      turnId: "mixed-ws-wake",
+      toolCallId: "legacy-proj-a",
+      capability: "generate_image",
+      disposition: "APPLIED",
+      replayedReceiptId: null,
+      input: { maxCredits: 5, projectId: PROJECT_A },
+    });
+    const grantWs: MediaSpendGrant = {
+      grantId: "grant-ws",
+      images: 1,
+      maxMediaCredits: 5,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["mixed-ws-wake"],
+    };
+    const reservedWs = await reserveAuthoritySpend(dbMixedWs as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "mixed-ws-wake",
+      toolCallId: "new-proj-b",
+      operationKey: "op-ws-proj-b",
+      capability: "generate_image",
+      projectId: PROJECT_B,
+      images: 1,
+      videos: 0,
+      credits: 5,
+      grants: [{ ...grantA, legacyTurnIds: ["mixed-ws-wake"] }, grantWs],
+    });
+    expect(reservedWs).toEqual({ grantId: "grant-ws", reused: false });
+  });
+
+  it("preserves feasible allocations across differently sized legacy workspace grants (10 cr + 5 cr with a past 5 cr image)", async () => {
+    const db = createInMemorySpendDb();
+    // Deliberately put the 10-credit grant first alphabetically so greedy
+    // assignment would misplace the past 5-credit image onto the 10-credit grant.
+    const grantTen: MediaSpendGrant = {
+      grantId: "grant-a-ten",
+      images: 1,
+      maxMediaCredits: 10,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["shared-wake"],
+    };
+    const grantFive: MediaSpendGrant = {
+      grantId: "grant-b-five",
+      images: 1,
+      maxMediaCredits: 5,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["shared-wake"],
+    };
+
+    db.legacyCalls.push({
+      turnId: "shared-wake",
+      toolCallId: "past-five",
+      capability: "generate_image",
+      disposition: "APPLIED",
+      replayedReceiptId: null,
+      input: { maxCredits: 5, projectId: PROJECT_A },
+    });
+
+    // A new 10-credit image fits by placing the past 5-credit image on grantFive
+    // and reserving the new 10-credit image on grantTen.
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "shared-wake",
+        toolCallId: "new-ten",
+        operationKey: "op-new-ten",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 10,
+        grants: [grantTen, grantFive],
+      }),
+    ).resolves.toBeUndefined();
+
+    const reservedTen = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "shared-wake",
+      toolCallId: "new-ten",
+      operationKey: "op-new-ten",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 10,
+      grants: [grantTen, grantFive],
+    });
+    expect(reservedTen).toEqual({ grantId: "grant-a-ten", reused: false });
+
+    // Both grants are now accounted for (grantTen by ledger, grantFive by past-five),
+    // so a 3rd image is refused.
+    await expect(
+      reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "shared-wake",
+        toolCallId: "third-img",
+        operationKey: "op-third",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 1,
+        grants: [grantTen, grantFive],
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
+  });
+
+  it("enforces fractional credit caps accurately (e.g. 5.5 credits across two 2.75-credit images)", async () => {
+    const db = createInMemorySpendDb();
+    const fractionalAuth = makeDelegationAuthority({
+      grantId: "grant-fractional",
+      images: 2,
+      maxMediaCredits: 5.5,
+    });
+    const summarized = summarizeGrantBuckets([{ authority: fractionalAuth }]);
+    expect(summarized.grants[0]?.maxMediaCredits).toBe(5.5);
+
+    const r1 = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "wake-frac",
+      toolCallId: "frac-1",
+      operationKey: "op-frac-1",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 2.75,
+      grants: summarized.grants,
+    });
+    expect(r1).toEqual({ grantId: "grant-fractional", reused: false });
+    expect(db.rows[0]?.credits).toBe(2.75);
+
+    // 2.8 exceeds the remaining 2.75 credits on the 5.5-credit allowance.
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "wake-frac",
+        toolCallId: "frac-over",
+        operationKey: "op-frac-over",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 2.8,
+        grants: summarized.grants,
+      }),
+    ).rejects.toThrow(
+      "The owner allowed 5.5 credits on media for this plan, and 2.75 are set aside already",
+    );
+
+    // Exact remaining 2.75 fits (total 5.5 / 5.5).
+    const r2 = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "wake-frac",
+      toolCallId: "frac-2",
+      operationKey: "op-frac-2",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 2.75,
+      grants: summarized.grants,
+    });
+    expect(r2).toEqual({ grantId: "grant-fractional", reused: false });
+    expect(db.rows[1]?.credits).toBe(2.75);
   });
 });

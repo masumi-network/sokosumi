@@ -3289,7 +3289,7 @@ model SokoBotAuthoritySpend {
   capability   String
   images       Int         @default(0)
   videos       Int         @default(0)
-  credits      Int         @default(0)
+  credits      Float       @default(0)
   /// RESERVED | SETTLED | UNKNOWN | RELEASED
   status       String      @default("RESERVED")
 

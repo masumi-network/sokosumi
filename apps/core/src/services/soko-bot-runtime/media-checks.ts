@@ -179,7 +179,8 @@ export async function mayMakeMediaForOwner(
   const fallbackWorkspaceId =
     authorized.turn.workspaceId ?? "unknown-workspace";
   const versionId = authorized.turn.versionId ?? null;
-  const effectiveItems: { authority: OwnerAuthority }[] = [];
+  const allLiveEffective: { authority: OwnerAuthority }[] = [];
+  const matchedEffective: { authority: OwnerAuthority }[] = [];
   let sawExpired = false;
   let sawScopeMismatch = false;
 
@@ -206,12 +207,11 @@ export async function mayMakeMediaForOwner(
         ? authorized.turn.actingUserId
         : (delegation.turn.requestedByUserId ?? null);
     const sharedBot = delegation.turn.sokoBot?.userId === null;
-    const liveProjectId =
-      options?.projectId ??
+    const botProjectId =
       authorized.turn.botProjectId ??
       delegation.turn.sokoBot?.projectId ??
       null;
-    const effective = intersectOwnerAuthority(authority, {
+    const baseContext = {
       sokoBotId,
       workspaceId,
       versionId,
@@ -219,59 +219,91 @@ export async function mayMakeMediaForOwner(
       askedByKind,
       sharedBot,
       source: "EVENT",
-      ...(liveProjectId
-        ? {
-            targetScope: {
-              kind: "project" as const,
-              projectId: liveProjectId,
-            },
-          }
-        : {}),
       hasWorkspaceAccess: true,
       botAlive: true,
-      offeredCapabilities: ["generate_image", "generate_video"],
+      offeredCapabilities: ["generate_image", "generate_video"] as const,
       now,
+    };
+    const liveBotScoped = intersectOwnerAuthority(authority, {
+      ...baseContext,
+      targetScope: botProjectId
+        ? {
+            kind: "project" as const,
+            projectId: botProjectId,
+          }
+        : authority.targetScope,
     });
-    if (!effective.effective) {
-      if (effective.denialReason === "expired") sawExpired = true;
-      if (effective.denialReason === "target_scope_mismatch") {
+    if (!liveBotScoped.effective) {
+      if (liveBotScoped.denialReason === "expired") sawExpired = true;
+      if (liveBotScoped.denialReason === "target_scope_mismatch") {
         sawScopeMismatch = true;
       }
       continue;
     }
     if (
-      effective.authority.origin === "system" ||
-      effective.authority.scope === "read_only"
+      liveBotScoped.authority.origin === "system" ||
+      liveBotScoped.authority.scope === "read_only"
     ) {
       continue;
     }
-    effectiveItems.push({ authority: effective.authority });
+    allLiveEffective.push({ authority: liveBotScoped.authority });
+
+    const requestedProjectId = options?.projectId ?? botProjectId;
+    if (requestedProjectId) {
+      const matched = intersectOwnerAuthority(liveBotScoped.authority, {
+        ...baseContext,
+        targetScope: {
+          kind: "project" as const,
+          projectId: requestedProjectId,
+        },
+      });
+      if (!matched.effective) {
+        if (matched.denialReason === "target_scope_mismatch") {
+          sawScopeMismatch = true;
+        }
+        continue;
+      }
+      matchedEffective.push({ authority: matched.authority });
+    } else {
+      matchedEffective.push({ authority: liveBotScoped.authority });
+    }
   }
 
-  if (!effectiveItems.length) {
-    if (sawExpired) {
-      throw new SokoBotRuntimeAuthorizationError(
-        "The owner's media authorization for this follow-up has expired. Ask the owner in chat to renew it.",
-      );
-    }
+  if (!matchedEffective.length) {
     if (sawScopeMismatch) {
       throw new SokoBotRuntimeValidationError(
         "The owner's media authorization for this follow-up is scoped to a different Project.",
+      );
+    }
+    if (sawExpired) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "The owner's media authorization for this follow-up has expired. Ask the owner in chat to renew it.",
       );
     }
     return null;
   }
 
   const turns = await planTurnIds(authorized);
-  const summarized = summarizeGrantBuckets(
-    effectiveItems.map((item) => ({
+  const matchedSummarized = summarizeGrantBuckets(
+    matchedEffective.map((item) => ({
       authority: item.authority,
       legacyTurnIds: turns,
     })),
   );
+  // Preserve sibling-project limited grants on the wake so historical legacy
+  // spend for Project A is attributed to Project A's grant before evaluating
+  // capacity on Project B's eligible grants.
+  const allSummarized = matchedSummarized.unboundedPerTurn
+    ? matchedSummarized
+    : summarizeGrantBuckets(
+        allLiveEffective.map((item) => ({
+          authority: item.authority,
+          legacyTurnIds: turns,
+        })),
+      );
   const total = (key: "images" | "maxMediaCredits") => {
-    if (summarized.unboundedPerTurn) return undefined;
-    const given = summarized.grants.flatMap((grant) =>
+    if (matchedSummarized.unboundedPerTurn) return undefined;
+    const given = matchedSummarized.grants.flatMap((grant) =>
       grant[key] !== undefined ? [grant[key]] : [],
     );
     return given.length
@@ -282,8 +314,8 @@ export async function mayMakeMediaForOwner(
     images: total("images"),
     maxCredits: total("maxMediaCredits"),
     planTurnIds: turns,
-    grants: summarized.unboundedPerTurn ? [] : summarized.grants,
-    unboundedPerTurn: summarized.unboundedPerTurn,
+    grants: matchedSummarized.unboundedPerTurn ? [] : allSummarized.grants,
+    unboundedPerTurn: matchedSummarized.unboundedPerTurn,
   };
 }
 

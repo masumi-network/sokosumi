@@ -312,5 +312,62 @@ describe("mayMakeMediaForOwner", () => {
     await expect(
       mayMakeMediaForOwner(runtime, cmoWake, { projectId: "project-other" }),
     ).rejects.toThrow("scoped to a different Project");
+
+    // Mixed Project A + Project B wake preserves both grants for historical
+    // attribution while summarizing Project B's own allowance.
+    delegationFindManyMock.mockResolvedValue([
+      {
+        id: "del-a",
+        authority: {
+          ...projectGrant,
+          grantId: "grant-project-a",
+          targetScope: { kind: "project", projectId: "project-a" },
+          limits: {
+            grantId: "grant-project-a",
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: 5,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-a",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+      {
+        id: "del-b",
+        authority: {
+          ...projectGrant,
+          grantId: "grant-project-b",
+          targetScope: { kind: "project", projectId: "project-b" },
+          limits: {
+            grantId: "grant-project-b",
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: 5.5,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "root-b",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+    ]);
+    const mixedAllowance = await mayMakeMediaForOwner(runtime, personalWake, {
+      projectId: "project-b",
+    });
+    expect(mixedAllowance).toMatchObject({ images: 1, maxCredits: 5.5 });
+    expect(mixedAllowance?.grants?.map((g) => g.grantId).sort()).toEqual([
+      "grant-project-a",
+      "grant-project-b",
+    ]);
   });
 });
