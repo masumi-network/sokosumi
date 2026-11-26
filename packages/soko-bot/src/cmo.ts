@@ -1,6 +1,8 @@
 import {
   CMO_CHANNELS,
+  cmoOfferedFormats,
   isCmoChannelFormat,
+  isCmoShapedVideoFormat,
   normalizeCmoChannelFormat,
 } from "@sokosumi/utils";
 import { z } from "zod";
@@ -218,6 +220,34 @@ export type CmoSaveBrandBrainInput = z.input<
  * What Cuso saves: only channels and formats he can run today. Reading a
  * stored strategy stays lenient so older plans still show.
  */
+/**
+ * A post Core made from a video's alsoOn in another shape (`<entry>@<target>`,
+ * e.g. an X video), by its plan id.
+ */
+function isShapedVideoCopy(entry: {
+  id?: unknown;
+  channel: unknown;
+  format: unknown;
+}): boolean {
+  return (
+    typeof entry.id === "string" &&
+    entry.id.includes("@") &&
+    isShapedVideoFormat(entry)
+  );
+}
+
+/**
+ * A video's other shape, named exactly. It goes to Core as sent: Core keeps
+ * it on the post it made for that shape, whichever id the calendar gave
+ * (plan id or Social post id), and maps it anywhere else.
+ */
+function isShapedVideoFormat(entry: {
+  channel: unknown;
+  format: unknown;
+}): boolean {
+  return isCmoShapedVideoFormat(String(entry.channel), String(entry.format));
+}
+
 /** Older channel and format names, mapped to the catalog before the check. */
 function normalizeStrategyChannels(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
@@ -241,7 +271,8 @@ function normalizeStrategyChannels(value: unknown): unknown {
         entry &&
         typeof entry === "object" &&
         "channel" in entry &&
-        "format" in entry
+        "format" in entry &&
+        !isShapedVideoFormat(entry)
           ? {
               ...entry,
               ...normalizeCmoChannelFormat(
@@ -292,65 +323,75 @@ export const CMO_STRATEGY_SAVE_PARTS = [
 ] as const;
 export type CmoStrategySavePart = (typeof CMO_STRATEGY_SAVE_PARTS)[number];
 
-export const cmoSaveStrategyInputSchema = z.object({
-  part: z.enum(CMO_STRATEGY_SAVE_PARTS).default("all"),
-  /**
-   * Lists the owner asked to empty, by field name. A list sent empty is
-   * otherwise filler and stays as saved.
-   */
-  clear: z.array(z.string().max(40)).max(10).default([]),
-  strategy: z
-    .preprocess(normalizeStrategyChannels, cmoStrategySaveSchema)
-    .superRefine((strategy, ctx) => {
-      const live = Object.entries(CMO_CHANNELS)
-        .filter(([, channel]) => channel.status === "live")
-        .map(
-          ([key, channel]) =>
-            `${key} (${Object.keys(channel.formats).join(", ")})`,
-        )
-        .join("; ");
-      const planned = new Set(
-        (strategy.channels ?? []).map((channel) => channel.channel),
-      );
-      (strategy.proposals ?? []).forEach((proposal, index) => {
-        const entry = (CMO_CHANNELS as Record<string, { status: string }>)[
-          proposal.channel
-        ];
-        if (entry?.status !== "live" || planned.has(proposal.channel)) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["proposals", index, "channel"],
-            message: `Propose only a channel Cuso runs today that the strategy does not use yet: ${live}`,
-          });
-        }
-      });
-      (strategy.channels ?? []).forEach((channel, index) => {
-        const entry = (CMO_CHANNELS as Record<string, { status: string }>)[
-          channel.channel
-        ];
-        if (entry?.status !== "live") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["channels", index, "channel"],
-            message: `Use a channel Cuso runs today: ${live}`,
-          });
-        }
-      });
-      (strategy.calendar ?? []).forEach((entry, index) => {
-        // Skipped entries from older plans may name retired formats.
-        if (
-          entry.status !== "skipped" &&
-          !isCmoChannelFormat(entry.channel, entry.format)
-        ) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["calendar", index],
-            message: `"${entry.channel}" / "${entry.format}" is not something Cuso makes. Use one of: ${live}`,
-          });
-        }
-      });
-    }),
-});
+export const cmoSaveStrategyInputSchema = z
+  .object({
+    part: z.enum(CMO_STRATEGY_SAVE_PARTS).default("all"),
+    /**
+     * Lists the owner asked to empty, by field name. A list sent empty is
+     * otherwise filler and stays as saved.
+     */
+    clear: z.array(z.string().max(40)).max(10).default([]),
+    strategy: z
+      .preprocess(normalizeStrategyChannels, cmoStrategySaveSchema)
+      .superRefine((strategy, ctx) => {
+        const live = Object.entries(CMO_CHANNELS)
+          .filter(([, channel]) => channel.status === "live")
+          .map(([key]) => `${key} (${cmoOfferedFormats(key).join(", ")})`)
+          .join("; ");
+        const planned = new Set(
+          (strategy.channels ?? []).map((channel) => channel.channel),
+        );
+        (strategy.proposals ?? []).forEach((proposal, index) => {
+          const entry = (CMO_CHANNELS as Record<string, { status: string }>)[
+            proposal.channel
+          ];
+          if (entry?.status !== "live" || planned.has(proposal.channel)) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["proposals", index, "channel"],
+              message: `Propose only a channel Cuso runs today that the strategy does not use yet: ${live}`,
+            });
+          }
+        });
+        (strategy.channels ?? []).forEach((channel, index) => {
+          const entry = (CMO_CHANNELS as Record<string, { status: string }>)[
+            channel.channel
+          ];
+          if (entry?.status !== "live") {
+            ctx.addIssue({
+              code: "custom",
+              path: ["channels", index, "channel"],
+              message: `Use a channel Cuso runs today: ${live}`,
+            });
+          }
+        });
+        (strategy.calendar ?? []).forEach((entry, index) => {
+          // Skipped entries from older plans may name retired formats.
+          if (
+            entry.status !== "skipped" &&
+            !isCmoChannelFormat(entry.channel, entry.format) &&
+            !isShapedVideoFormat(entry)
+          ) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["calendar", index],
+              message: `"${entry.channel}" / "${entry.format}" is not something Cuso makes. Use one of: ${live}`,
+            });
+          }
+        });
+      }),
+  })
+  .superRefine((input, ctx) => {
+    if (input.part === "pieces") return;
+    (input.strategy.calendar ?? []).forEach((entry, index) => {
+      if (isShapedVideoCopy(entry))
+        ctx.addIssue({
+          code: "custom",
+          path: ["strategy", "calendar", index],
+          message: `${entry.id} is a post Core made from its video's alsoOn: change it with part "pieces", or change alsoOn on ${entry.id.split("@")[0]}.`,
+        });
+    });
+  });
 
 export const CMO_WEEKLY_VERDICTS = [
   "hold",

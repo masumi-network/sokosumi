@@ -16,7 +16,11 @@ import {
   marketingStrategyPlanSchema,
   networkAudiences,
 } from "@sokosumi/soko-bot";
-import { isCmoChannelFormat, isCmoTalkingFormat } from "@sokosumi/utils";
+import {
+  isCmoChannelFormat,
+  isCmoShortVideoFormat,
+  isCmoTalkingFormat,
+} from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
@@ -80,10 +84,12 @@ import {
   cmoChangeKind,
   cmoStrategyStepTurn,
   cmoStrategyStepTurnId,
+  cusoPostsVideoShapes,
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
   parseSocialPostPlanning,
+  planEntryFormat,
   planMarketingStrategyPosts,
   STRATEGY_TURN_PREFIX,
   sameTitle,
@@ -1638,7 +1644,7 @@ export async function saveCmoStrategy(
   // piece after. A patch keeps what it leaves out, so a draft Cuso sent with
   // a plan once could never be taken back (the review asked, he resent the
   // entry without it, the draft stayed): Core leaves it out instead.
-  const strategy =
+  const undrafted =
     options.turnId && !options.executing && options.part !== "pieces"
       ? {
           ...sent,
@@ -1651,8 +1657,13 @@ export async function saveCmoStrategy(
             : {}),
         }
       : sent;
+  const strategy =
+    options.part === "pieces" ? undrafted : withPlanFormats(undrafted);
+  const shapes = (strategy.calendar ?? []).some((entry) => entry.alsoOn?.length)
+    ? await cusoPostsVideoShapes(cuso.projectId, db)
+    : false;
   const alsoOn = (strategy.calendar ?? [])
-    .map((entry) => cmoAlsoOnProblem(entry))
+    .map((entry) => cmoAlsoOnProblem(entry, shapes))
     .find((problem) => problem !== null);
   if (alsoOn && options.turnId) throw unprocessableEntity(alsoOn);
   if (options.part === "pieces") {
@@ -1919,6 +1930,23 @@ export async function saveCmoStrategy(
 }
 
 /**
+ * A plan names only formats a piece of its own takes. A video's other shape
+ * (an X video, a feed video) is a post Core makes from alsoOn, so a plan
+ * entry naming one means the format it maps to ("a YouTube video" is a
+ * Short), or is refused.
+ */
+export function withPlanFormats(save: CmoStrategySave): CmoStrategySave {
+  if (!save.calendar) return save;
+  return {
+    ...save,
+    calendar: save.calendar.map((entry) => ({
+      ...entry,
+      format: planEntryFormat(entry),
+    })),
+  };
+}
+
+/**
  * A patch on a plan: each sent entry replaces its own (keeping what it
  * leaves out, such as a draft), a new id is added, and every other entry and
  * plan field stays as it was. Each entry it changed keeps how it was before,
@@ -1937,9 +1965,11 @@ export function patchPlan(
       const next = byId.get(entry.id);
       if (!next) return entry;
       const merged = { ...entry, ...next };
-      // A patch that makes a talking video another format leaves its other
-      // networks out: they belong to the talking video alone.
-      return merged.alsoOn && !isCmoTalkingFormat(merged.channel, merged.format)
+      // A patch that makes a video another format leaves its other networks
+      // out: they belong to a talking video or a short alone.
+      return merged.alsoOn &&
+        !isCmoTalkingFormat(merged.channel, merged.format) &&
+        !isCmoShortVideoFormat(merged.channel, merged.format)
         ? { ...merged, alsoOn: undefined }
         : merged;
     }),

@@ -35559,6 +35559,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         maxLength: 64
                                     },
+                                    videoOfTalking: {
+                                        type: 'boolean'
+                                    },
                                     story: {
                                         type: 'string',
                                         minLength: 1,
@@ -36031,6 +36034,9 @@ export const MarketingStrategySchema = {
                                             videoOf: {
                                                 type: 'string',
                                                 maxLength: 64
+                                            },
+                                            videoOfTalking: {
+                                                type: 'boolean'
                                             },
                                             story: {
                                                 type: 'string',
@@ -37599,6 +37605,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 maxLength: 64
                             },
+                            videoOfTalking: {
+                                type: 'boolean'
+                            },
                             story: {
                                 type: 'string',
                                 minLength: 1,
@@ -38071,6 +38080,9 @@ export const MarketingStrategyRequestSchema = {
                                     videoOf: {
                                         type: 'string',
                                         maxLength: 64
+                                    },
+                                    videoOfTalking: {
+                                        type: 'boolean'
                                     },
                                     story: {
                                         type: 'string',
@@ -44505,6 +44517,9 @@ export const SocialPostSchema = {
                 videoOf: {
                     type: 'string',
                     maxLength: 64
+                },
+                videoOfTalking: {
+                    type: 'boolean'
                 },
                 story: {
                     type: 'string',
@@ -63114,6 +63129,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         maxLength: 64
                     },
+                    videoOfTalking: {
+                        type: 'boolean'
+                    },
                     story: {
                         type: 'string',
                         minLength: 1,
@@ -63586,6 +63604,9 @@ export const CmoPlanSchema = {
                             videoOf: {
                                 type: 'string',
                                 maxLength: 64
+                            },
+                            videoOfTalking: {
+                                type: 'boolean'
                             },
                             story: {
                                 type: 'string',
