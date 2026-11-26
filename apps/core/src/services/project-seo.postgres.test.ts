@@ -15,7 +15,10 @@ import { getEnv } from "@/config/env";
 import { forbidden } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { reportObject } from "@/helpers/project-seo-public-report";
-import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
+import {
+  parsePublicSeoArtifact,
+  publicSeoPayloadSchema,
+} from "@/helpers/project-seo-report";
 import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -74,6 +77,8 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
+import { seoRankPoints } from "./project-seo-rank-points";
+import { backfillSeoRankPoints } from "./project-seo-rank-points-backfill";
 import { SEO_RANK_HISTORY_OBSERVATIONS } from "./project-seo-rankings";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import { acknowledgeSeoReview } from "./seo-action-reviews";
@@ -2569,6 +2574,19 @@ describe.skipIf(!enabled)(
         { taskId: task.id, fileId: file.id },
         { fetchImpl: async () => new Response(body) },
       );
+      // The import copies the audit's position reads into the rank point table, in the same transaction.
+      const points = await prisma.projectSeoRankPoint.findMany({
+        where: { observationId: observation.id },
+      });
+      expect(points.length).toBeGreaterThan(0);
+      expect(points.map((point) => point.key).sort()).toEqual(
+        seoRankPoints(
+          observation.id,
+          publicSeoPayloadSchema.parse(observation.payload),
+        )
+          .map((point) => point.key)
+          .sort(),
+      );
       const workspace = await getProjectSeoWorkspace(owner);
       const plan = workspace.observations[0]?.auditPlan;
       expect(plan).toMatchObject({
@@ -3071,6 +3089,54 @@ describe.skipIf(!enabled)(
       expect(await read({})).toEqual([[newest.id], true]);
       // The period holds one result. The load has all of it.
       expect(await read({ from: "2026-11-01" })).toEqual([[newest.id], false]);
+    });
+
+    it("backfills the rank points of a result stored before the import wrote them, once", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-backfill",
+        relationship: "primary",
+      });
+      const stored = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-10-04T09:00:00.000Z", { position: 4 }),
+      );
+      const points = () =>
+        prisma.projectSeoRankPoint.findMany({
+          where: { observationId: stored.id },
+          select: { position: true, positionStatus: true, observedAt: true },
+        });
+      expect(await points()).toEqual([]);
+      // The run reads every result of the database, so only this result's own points are compared.
+      expect(
+        (await backfillSeoRankPoints({ dryRun: true })).points,
+      ).toBeGreaterThanOrEqual(1);
+      expect(await points()).toEqual([]);
+      await backfillSeoRankPoints();
+      expect(await points()).toEqual([
+        {
+          position: 4,
+          positionStatus: "ranked",
+          observedAt: new Date("2026-10-04T09:00:00.000Z"),
+        },
+      ]);
+      // A second run leaves the point as it is.
+      await backfillSeoRankPoints();
+      expect(await points()).toHaveLength(1);
+      // The payload accepts a count above the 32-bit range. The point keeps it.
+      const wide = rankingsPayload(page.url, "2026-10-05T09:00:00.000Z");
+      Object.assign(wide.keywords[0], {
+        position: null,
+        positionStatus: "not_in_range",
+        checkedResults: 2 ** 31,
+      });
+      const deep = await storeResult(page.id, wide);
+      await backfillSeoRankPoints();
+      expect(
+        await prisma.projectSeoRankPoint.findMany({
+          where: { observationId: deep.id },
+          select: { checkedResults: true },
+        }),
+      ).toEqual([{ checkedResults: 2 ** 31 }]);
     });
 
     it("reads the rank history only from rankings and audit_lite results", async () => {
