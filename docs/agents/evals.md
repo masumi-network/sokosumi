@@ -37,6 +37,29 @@ sokosumi evals list                                    # recent runs and scores
 
 The weekly run runs each case once. A run you start runs once too unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the weekly run on one repeat may be chance: run it with three repeats before chasing it.
 
+### On your own ChatGPT plan
+
+Local runs can send the bots' OpenAI calls through your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan usage) instead of the AI Gateway. Use it to check cases while you work. Gemini checks, the Claude judge and Jev stay on their usual path.
+
+```bash
+pnpm chatgpt-plan:login                     # once per machine: sign in with YOUR ChatGPT account in the browser
+pnpm chatgpt-plan:status                    # who is signed in, which models the plan has
+pnpm evals:local --plan --cases ambiguous-request,cmo-brand-fit
+pnpm evals:local --plan --suite cmo --cuso-version cmo-v23
+pnpm chatgpt-plan:logout                    # revoke and forget the session
+```
+
+- `evals:local` runs the cases in its own process against the database in `apps/core/.env`. It needs no Core server and no CLI login. Point it at a database of your own: runs share one queue, and it refuses to start while another run is queued or running there. Without `--plan` it runs the same cases on the Gateway.
+- The session is per machine, in `~/.sokosumi/chatgpt-plan.json` (mode 0600), outside every checkout. Tokens are never printed. Each person signs in with their own account. Never share a session file.
+- `SOKO_BOT_LOCAL_CHATGPT_PLAN=1` turns the switch on for any local Core process (`evals:local --plan` sets it). Core refuses the flag on Vercel and in production.
+- When the plan's usage limit is hit, the call fails with "ChatGPT plan usage limit reached". Nothing falls back to the paid Gateway. Wait for the limit to reset (ChatGPT settings, Usage), then run again. On Plus the 5-hour limit is shared with Codex and every other app on your plan.
+- Plan runs do not count as Evidence for a default-deciding run, such as a new version's full suite or a model change. Those stay on the Gateway, because the plan differs from production:
+  - Cost and cache numbers are zero or missing.
+  - The plan ignores the output cap (`max_output_tokens`), `temperature` and prompt-cache retention.
+  - Every request is stateless (`store: false`).
+  - Reasoning effort is set to `medium` unless the caller sets one. Left unset, the plan reasons less than the API, and Cuso skipped work it did on the Gateway.
+  - Only models on your plan run (`chatgpt-plan:status` lists them). A Gateway id `openai/<slug>` runs as `<slug>`.
+
 ## How a run works
 
 - **Lanes.** Repeat N runs in lane N: its own eval organization (`sokosumi-evals-N`) with an owner (Robin Keller), two teammates (Hannah Weber does research, Alex Kim writes), the Projects "Sokosumi Marketing" (an X account) and "utxo AG Outreach" (a LinkedIn account), a newsletter, a "Launch team" room, a Soko Bot and a Cuso. `eval-lanes.service.ts` makes them on first use and resets the Soko Bot's world before its first case. Agent-to-agent cases add Mira, a research Coworker whose chat answers Core scripts in process (`lib/evals/fake-coworker.ts`, host under `.invalid`), and Juno, Hannah's own Soko Bot in the Launch team room, which runs for real (`eval-a2a.ts`).

@@ -34,6 +34,8 @@
     "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts",
     "soko-bot:judge-eval": "tsx --env-file=.env scripts/soko-bot-judge-eval.mts",
     "soko-bot:router-eval": "tsx --env-file=.env scripts/soko-bot-router-eval.mts",
+    "chatgpt-plan": "tsx scripts/chatgpt-plan.mts",
+    "evals:local": "tsx --env-file=.env scripts/evals-local.mts",
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
     "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts",
@@ -42,6 +44,7 @@
   },
   "dependencies": {
     "@ai-sdk/mcp": "2.0.104",
+    "@ai-sdk/openai": "4.0.123",
     "@better-auth/api-key": "1.7.28",
     "@better-auth/core": "1.7.28",
     "@better-auth/i18n": "1.7.28",
