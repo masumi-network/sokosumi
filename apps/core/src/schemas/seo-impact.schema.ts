@@ -11,7 +11,6 @@ export const SEO_IMPACT_REASONS = [
   "no_cuso",
   "not_connected",
   "no_property",
-  "page_outside_property",
   "inspection_failed",
   "not_crawled_yet",
 ] as const;
@@ -36,6 +35,7 @@ export const adminSeoImpactRow = z.object({
   projectId: z.uuid(),
   projectName: z.string(),
   pageUrl: z.string(),
+  /** The suggestion's title when the change was recorded. */
   suggestionTitle: z.string().nullable(),
   changeSource: z.enum(["cuso_done", "audit_recheck"]),
   changedAt: z.iso.datetime(),

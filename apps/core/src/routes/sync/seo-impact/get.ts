@@ -1,5 +1,7 @@
 import type { Hono } from "hono";
 
+import { getEnv } from "@/config/env";
+
 import { syncSeoImpact } from "@/services/seo-impact.service";
 
 import { handleSyncRequest } from "../handler.js";
@@ -16,10 +18,13 @@ export default function mount(app: Hono) {
       c,
       SEO_IMPACT_SYNC_LOCK_KEY,
       async (context) => {
-        const result = await syncSeoImpact(context.shouldContinue);
+        const result = await syncSeoImpact(context);
         context.log.set({ result });
       },
-      { errorDetail: "safe-fields" },
+      {
+        errorDetail: "safe-fields",
+        enabled: () => getEnv().SEO_IMPACT_TRACKING_ENABLED,
+      },
     );
   });
 }

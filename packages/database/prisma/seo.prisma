@@ -274,14 +274,17 @@ model ProjectSeoImpactVerdict {
   changeEarliest  DateTime?
   changeLatest    DateTime?
   pageUrl         String
+  /// The suggestion's title and kind when the change was recorded: a later edit does not relabel it.
+  title           String?
+  kind            String?
   /// The Search Console property the page was inspected in.
   property        String?
   /// waiting_crawl | waiting_window | not_measurable
   state           String                @default("waiting_crawl")
   /// Why the row waits or cannot be measured, as a code.
   reason          String?
-  /// The last URL Inspection attempt.
-  inspectedAt     DateTime?
+  /// The last URL Inspection attempt, failed ones included.
+  lastInspectedAt DateTime?
   /// The first Google crawl seen after changedAt.
   crawledAt       DateTime?
   /// The compared weeks, as Search Console (Pacific) dates.

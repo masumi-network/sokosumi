@@ -653,30 +653,6 @@ export async function markCmoLandingPageLive(
   };
 }
 
-export async function setCmoSeoSuggestionStatus(
-  target: CusoTarget,
-  id: string,
-  status: "open" | "done" | "dismissed",
-  now: Date = new Date(),
-): Promise<CmoSeoSuggestion> {
-  const cuso = await requireCuso(target);
-  const row = await prisma.projectSeoSuggestion.findFirst({
-    where: { id, projectId: cuso.projectId },
-  });
-  if (!row) throw new CmoNotFoundError("Suggestion not found");
-  return toSuggestion(
-    await prisma.projectSeoSuggestion.update({
-      where: { id },
-      data: {
-        status,
-        doneAt: status === "done" ? now : null,
-        checkedAt: null,
-        verifiedAt: null,
-      },
-    }),
-  );
-}
-
 // ---------------------------------------------------------------------------
 // The tab
 // ---------------------------------------------------------------------------

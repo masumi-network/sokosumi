@@ -30,19 +30,19 @@ import {
   requestCmoArticleIdeas,
   saveCmoSeoSuggestions,
   searchCmoKeywords,
-  setCmoSeoSuggestionStatus,
 } from "./cmo-seo.service";
 import {
   keepCmoSeoAudit,
   listCmoSeoAuditRuns,
   pauseCmoSeoAuditsWithoutCuso,
   readCmoSeoAudit,
-  verifyCmoSeoChanges,
 } from "./cmo-seo-audit.service";
 import {
   checkCmoSearchRankings,
   seoCheckOutcome,
 } from "./cmo-seo-rankings.service";
+import { setCmoSeoSuggestionStatus } from "./cmo-seo-status.service";
+import { verifyCmoSeoChanges } from "./cmo-seo-verify.service";
 
 // A page change's before is read on the live page.
 vi.mock("@sokosumi/net", async (importOriginal) => ({

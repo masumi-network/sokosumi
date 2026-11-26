@@ -1,23 +1,25 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
+
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-import { isEvalCusoProject, isEvalWorkspace } from "@/lib/evals/eval-guard";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { impactWindow } from "@/lib/seo/impact-window";
 import { GSC_INSPECT_TOOL } from "@/lib/seo/native-gsc-inspection";
-import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
+import { withDeadline } from "@/lib/with-deadline";
 import type { SeoImpactReason } from "@/schemas/seo-impact.schema";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import {
   pickProperty,
   searchConsoleAccount,
 } from "@/services/cmo-seo-research.service";
+import type { ComposioIntegrationAccount } from "@/services/composio-integration-tools.service";
 import {
   propertyChoices,
   readNativeSeoTool,
 } from "@/services/project-seo-statistics.service";
 import { inspectStatisticsPage } from "@/services/project-seo-statistics-inspections";
-import { normalizeSeoUrl } from "@/services/project-seo-store";
+import { trackedSeoChange } from "@/services/seo-impact-record";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -25,6 +27,25 @@ const DAY_MS = 24 * HOUR_MS;
 export const IMPACT_CRAWL_WAIT_DAYS = 28;
 /** Under a day, so the daily cron's start time drift never skips a day of URL Inspection. */
 const INSPECT_INTERVAL_MS = 20 * HOUR_MS;
+/** Done suggestions read per query while recording changes the status writes missed. */
+const RECORD_BATCH_SIZE = 200;
+/** Waiting pages inspected per tick, well under Google's daily URL Inspection quota. Not calibrated. */
+const INSPECTIONS_PER_TICK = 500;
+/** Kept back from each Google read, so its result is stored before the tick ends. */
+const WRITE_RESERVE_MS = 5_000;
+/** Below every UUID: the first batch of the backfill starts after it. */
+const FIRST_ID = "00000000-0000-0000-0000-000000000000";
+
+/** The tick's time budget: a cron route passes its run context. */
+export interface SeoImpactTick {
+  shouldContinue: () => boolean;
+  msRemaining: () => number;
+}
+
+const UNBOUNDED_TICK: SeoImpactTick = {
+  shouldContinue: () => true,
+  msRemaining: () => Number.POSITIVE_INFINITY,
+};
 
 export interface SeoImpactSyncResult {
   skipped: "disabled" | null;
@@ -48,121 +69,148 @@ type Inspection =
   | { crawledAt: Date; property: string }
   | { reason: SeoImpactReason; property: string | null };
 
-/**
- * One row per done page change: a suggestion marked done again after a reopen
- * gets a new row, and its earlier rows stay. Test copies and eval projects
- * are no customers, so they get none.
- */
-async function recordDoneChanges(): Promise<number> {
-  const suggestions = await prisma.projectSeoSuggestion.findMany({
-    where: {
-      kind: "page_change",
-      status: { in: ["done", "verified"] },
-      pageUrl: { not: null },
-      doneAt: { not: null },
-      project: { testCopyOfProjectId: null },
-    },
-    select: {
-      id: true,
-      projectId: true,
-      pageUrl: true,
-      doneAt: true,
-      project: { select: { workspaceId: true } },
-      impactVerdicts: {
-        orderBy: { changedAt: "desc" },
-        take: 1,
-        select: { changedAt: true },
-      },
-    },
-  });
-  const rows = [];
-  for (const suggestion of suggestions) {
-    const { doneAt, pageUrl } = suggestion;
-    if (!doneAt || !pageUrl) continue;
-    if (suggestion.impactVerdicts[0]?.changedAt.getTime() === doneAt.getTime())
-      continue;
-    if (
-      (await isEvalWorkspace(suggestion.project.workspaceId)) ||
-      (await isEvalCusoProject(suggestion.projectId))
-    )
-      continue;
-    rows.push({
-      projectId: suggestion.projectId,
-      changeSource: "cuso_done",
-      suggestionId: suggestion.id,
-      changedAt: doneAt,
-      pageUrl,
-    });
-  }
-  if (rows.length === 0) return 0;
-  // A concurrent tick inserts the same rows: the unique key keeps one.
-  const { count } = await prisma.projectSeoImpactVerdict.createMany({
-    data: rows,
-    skipDuplicates: true,
-  });
-  return count;
+interface DoneSuggestionRow {
+  id: string;
+  projectId: string;
+  kind: string;
+  title: string;
+  status: string;
+  pageUrl: string;
+  doneAt: Date;
+  workspaceId: string;
+  testCopyOfProjectId: string | null;
 }
 
-/** URL Inspection of each waiting page, through the Project's Cuso connection. */
-async function inspectProject(
+/**
+ * The backfill: records done page changes no status write recorded, such as
+ * those done before tracking was on. Only changes without a row are read.
+ */
+async function recordDoneChanges(
+  tick: SeoImpactTick,
+): Promise<{ recorded: number; stopped: boolean }> {
+  let recorded = 0;
+  let after = FIRST_ID;
+  for (;;) {
+    if (!tick.shouldContinue()) return { recorded, stopped: true };
+    const batch = await prisma.$queryRaw<DoneSuggestionRow[]>`
+      SELECT s.id, s."projectId", s.kind, s.title, s.status, s."pageUrl",
+        s."doneAt", p."workspaceId", p."testCopyOfProjectId"
+      FROM ${sharedTable("project_seo_suggestion")} s
+      JOIN ${sharedTable("project")} p ON p.id = s."projectId"
+      WHERE s.kind = 'page_change'
+        AND s.status IN ('done', 'verified')
+        AND s."pageUrl" IS NOT NULL
+        AND s."doneAt" IS NOT NULL
+        AND p."testCopyOfProjectId" IS NULL
+        AND s.id > ${after}::uuid
+        AND NOT EXISTS (
+          SELECT 1 FROM ${sharedTable("project_seo_impact_verdict")} v
+          WHERE v."suggestionId" = s.id AND v."changedAt" = s."doneAt"
+        )
+      ORDER BY s.id
+      LIMIT ${RECORD_BATCH_SIZE}`;
+    const rows = [];
+    for (const suggestion of batch) {
+      const row = await trackedSeoChange(suggestion, suggestion);
+      if (row) rows.push(row);
+    }
+    if (rows.length > 0) {
+      // A concurrent tick or status write inserts the same rows: the unique key keeps one.
+      const { count } = await prisma.projectSeoImpactVerdict.createMany({
+        data: rows,
+        skipDuplicates: true,
+      });
+      recorded += count;
+    }
+    const last = batch.at(-1);
+    if (!last || batch.length < RECORD_BATCH_SIZE)
+      return { recorded, stopped: false };
+    after = last.id;
+  }
+}
+
+/** The tick's lookups: each Project's connection and each account's properties, read once. */
+interface TickLookups {
+  accounts: Map<string, Promise<ComposioIntegrationAccount | SeoImpactReason>>;
+  properties: Map<string, Promise<string[] | null>>;
+}
+
+function once<T>(
+  cache: Map<string, Promise<T>>,
+  key: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  let value = cache.get(key);
+  if (!value) {
+    value = load();
+    cache.set(key, value);
+  }
+  return value;
+}
+
+/** The Search Console connection of the Project's Cuso. */
+async function projectAccount(
   projectId: string,
-  rows: WaitingRow[],
-  shouldContinue: () => boolean,
-): Promise<Map<string, Inspection>> {
-  const all = (reason: SeoImpactReason, property: string | null = null) =>
-    new Map(rows.map((row) => [row.id, { reason, property }]));
+): Promise<ComposioIntegrationAccount | SeoImpactReason> {
   const cuso = await prisma.sokoBot.findFirst({
     where: { ...LIVE_CUSO_WHERE, projectId },
-    select: { id: true, project: { select: { websiteUrl: true } } },
+    select: { id: true },
   });
-  if (!cuso) return all("no_cuso");
-  const account = await searchConsoleAccount(cuso.id);
-  if (!account) return all("not_connected");
-  let property: string | null;
+  if (!cuso) return "no_cuso";
+  return (await searchConsoleAccount(cuso.id)) ?? "not_connected";
+}
+
+async function accountProperties(
+  account: ComposioIntegrationAccount,
+  projectId: string,
+  budgetMs: number,
+): Promise<string[] | null> {
   try {
-    const choices = await propertyChoices(account, "search_console");
-    property = pickProperty(
-      choices.properties.map((choice) => choice.id),
-      normalizeSeoUrl(cuso.project?.websiteUrl ?? ""),
+    const choices = await withDeadline(
+      propertyChoices(account, "search_console"),
+      budgetMs,
+      "The Search Console property list timed out",
     );
+    return choices.properties.map((choice) => choice.id);
   } catch (error) {
     warnInspectionFailed(projectId, "property_list", error);
-    return all("inspection_failed");
+    return null;
   }
-  if (!property) return all("no_property");
+}
 
-  const read = (args: Record<string, unknown>) =>
-    readNativeSeoTool(account, GSC_INSPECT_TOOL, args);
-  const outcomes = new Map<string, Inspection>();
-  for (const row of rows) {
-    if (!shouldContinue()) break;
-    if (!gscPropertyCovers(property, [row.pageUrl])) {
-      outcomes.set(row.id, { reason: "page_outside_property", property });
-      continue;
-    }
-    try {
-      const page = await inspectStatisticsPage(
-        property,
-        row.pageUrl,
-        undefined,
-        read,
-      );
-      const crawledAt = page.lastCrawlTime
-        ? new Date(page.lastCrawlTime)
-        : null;
-      // Google reports only its last crawl: one before the change says nothing about it.
-      outcomes.set(
-        row.id,
-        crawledAt && crawledAt > row.changedAt
-          ? { crawledAt, property }
-          : { reason: "not_crawled_yet", property },
-      );
-    } catch (error) {
-      warnInspectionFailed(projectId, "url_inspection", error);
-      outcomes.set(row.id, { reason: "inspection_failed", property });
-    }
+/** URL Inspection of one waiting page, in the property that covers it. */
+async function inspectRow(
+  row: WaitingRow,
+  lookups: TickLookups,
+  budgetMs: () => number,
+): Promise<Inspection> {
+  const account = await once(lookups.accounts, row.projectId, () =>
+    projectAccount(row.projectId),
+  );
+  if (typeof account === "string") return { reason: account, property: null };
+  const ids = await once(lookups.properties, account.composioAccountId, () =>
+    accountProperties(account, row.projectId, budgetMs()),
+  );
+  if (!ids) return { reason: "inspection_failed", property: null };
+  const property = pickProperty(ids, row.pageUrl);
+  if (!property) return { reason: "no_property", property: null };
+  try {
+    const page = await withDeadline(
+      inspectStatisticsPage(property, row.pageUrl, undefined, (args) =>
+        readNativeSeoTool(account, GSC_INSPECT_TOOL, args),
+      ),
+      budgetMs(),
+      "URL Inspection timed out",
+    );
+    const crawledAt = page.lastCrawlTime ? new Date(page.lastCrawlTime) : null;
+    // Google reports only its last crawl: one before the change says nothing about it.
+    return crawledAt && crawledAt > row.changedAt
+      ? { crawledAt, property }
+      : { reason: "not_crawled_yet", property };
+  } catch (error) {
+    warnInspectionFailed(row.projectId, "url_inspection", error);
+    return { reason: "inspection_failed", property };
   }
-  return outcomes;
 }
 
 function warnInspectionFailed(
@@ -197,7 +245,7 @@ async function applyInspection(
         state: "waiting_window",
         reason: null,
         property: inspection.property,
-        inspectedAt: now,
+        lastInspectedAt: now,
         crawledAt: inspection.crawledAt,
         windowStart: new Date(`${window.windowStart}T00:00:00Z`),
         windowEnd: new Date(`${window.windowEnd}T00:00:00Z`),
@@ -213,18 +261,21 @@ async function applyInspection(
       state: expired ? "not_measurable" : "waiting_crawl",
       reason: inspection.reason,
       property: inspection.property,
-      inspectedAt: now,
+      lastInspectedAt: now,
     },
   });
   return expired ? "not_measurable" : "waiting";
 }
 
 /**
- * The daily impact tracking run: records done page changes, then inspects
- * each page still waiting for Google's crawl, at most once a day.
+ * The daily impact tracking run: records done page changes the status writes
+ * missed, then inspects each page still waiting for Google's crawl, at most
+ * once a day. Pages never inspected go first, then the longest unseen, so a
+ * page that stays uncrawled cannot hold back the others. Each result is
+ * stored before the next read starts.
  */
 export async function syncSeoImpact(
-  shouldContinue: () => boolean = () => true,
+  tick: SeoImpactTick = UNBOUNDED_TICK,
   now: Date = new Date(),
 ): Promise<SeoImpactSyncResult> {
   const result: SeoImpactSyncResult = {
@@ -239,13 +290,21 @@ export async function syncSeoImpact(
   if (!getEnv().SEO_IMPACT_TRACKING_ENABLED)
     return { ...result, skipped: "disabled" };
 
-  result.recorded = await recordDoneChanges();
+  const recording = await recordDoneChanges(tick);
+  result.recorded = recording.recorded;
+  if (recording.stopped) return { ...result, stopped: true };
+  // PR 1b's audit rechecks wait by their own rule.
   const waiting = await prisma.projectSeoImpactVerdict.findMany({
     where: {
       state: "waiting_crawl",
+      changeSource: "cuso_done",
       OR: [
-        { inspectedAt: null },
-        { inspectedAt: { lt: new Date(now.getTime() - INSPECT_INTERVAL_MS) } },
+        { lastInspectedAt: null },
+        {
+          lastInspectedAt: {
+            lt: new Date(now.getTime() - INSPECT_INTERVAL_MS),
+          },
+        },
       ],
     },
     select: {
@@ -255,26 +314,26 @@ export async function syncSeoImpact(
       changedAt: true,
       createdAt: true,
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [
+      { lastInspectedAt: { sort: "asc", nulls: "first" } },
+      { id: "asc" },
+    ],
+    take: INSPECTIONS_PER_TICK,
   });
-  const byProject = Map.groupBy(waiting, (row) => row.projectId);
-  for (const [projectId, rows] of byProject) {
-    if (!shouldContinue()) {
+  const lookups: TickLookups = { accounts: new Map(), properties: new Map() };
+  const budgetMs = () => tick.msRemaining() - WRITE_RESERVE_MS;
+  for (const row of waiting) {
+    if (!tick.shouldContinue() || budgetMs() <= 0) {
       result.stopped = true;
       break;
     }
-    const outcomes = await inspectProject(projectId, rows, shouldContinue);
-    if (outcomes.size < rows.length) result.stopped = true;
-    for (const row of rows) {
-      const inspection = outcomes.get(row.id);
-      if (!inspection) continue;
-      result.inspected += 1;
-      if ("reason" in inspection && inspection.reason === "inspection_failed")
-        result.failed += 1;
-      const outcome = await applyInspection(row, inspection, now);
-      if (outcome === "crawled") result.crawled += 1;
-      if (outcome === "not_measurable") result.notMeasurable += 1;
-    }
+    const inspection = await inspectRow(row, lookups, budgetMs);
+    result.inspected += 1;
+    if ("reason" in inspection && inspection.reason === "inspection_failed")
+      result.failed += 1;
+    const outcome = await applyInspection(row, inspection, now);
+    if (outcome === "crawled") result.crawled += 1;
+    if (outcome === "not_measurable") result.notMeasurable += 1;
   }
   return result;
 }

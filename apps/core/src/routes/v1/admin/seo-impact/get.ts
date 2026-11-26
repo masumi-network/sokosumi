@@ -17,7 +17,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       operationId: "listAdminSeoImpactVerdicts",
       tags: ["Admin"],
       description:
-        "Page changes tracked for an SEO impact verdict across customers: the change, Google's first crawl after it, and the measured window.",
+        "Page changes tracked for an SEO impact verdict across customers: the change, the first observed crawl after change, and the measured window.",
       request: { query: adminSeoImpactQuery },
       responses: {
         200: jsonSuccessResponse(

@@ -43,7 +43,7 @@ export async function listAdminSeoImpactVerdicts(
         windowEnd: true,
         state: true,
         reason: true,
-        suggestion: { select: { title: true } },
+        title: true,
         project: {
           select: {
             name: true,
@@ -63,7 +63,7 @@ export async function listAdminSeoImpactVerdicts(
         projectId: row.projectId,
         projectName: row.project.name,
         pageUrl: row.pageUrl,
-        suggestionTitle: row.suggestion?.title ?? null,
+        suggestionTitle: row.title,
         changeSource: row.changeSource,
         changedAt: row.changedAt.toISOString(),
         crawledAt: row.crawledAt?.toISOString() ?? null,

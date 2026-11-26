@@ -9,7 +9,7 @@ import {
   cmoSeoSuggestionSchema,
   cmoSeoSuggestionStatusRequestSchema,
 } from "@/schemas/cmo-seo.schema";
-import { setCmoSeoSuggestionStatus } from "@/services/cmo-seo.service";
+import { setCmoSeoSuggestionStatus } from "@/services/cmo-seo-status.service";
 
 const route = createRoute({
   method: "post",
