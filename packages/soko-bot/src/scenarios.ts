@@ -1481,9 +1481,16 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       anyTools: ["save_strategy", "write_strategy"],
+      // Core also reads what was saved (eval-cmo-change-then-drafts.ts):
+      // three different X drafts on his Project, none scheduled, LinkedIn weekly.
       minCalls: { save_strategy: 1, create_social_post: 3 },
       allowFailedTools: ["save_strategy"],
-      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+      forbiddenTools: [
+        "create_task",
+        "hire_agent",
+        "publish_social_post",
+        "schedule_social_post",
+      ],
     },
   },
   {
