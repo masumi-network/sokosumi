@@ -336,6 +336,60 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     expect(results[0].crawled + results[1].crawled).toBe(1);
   });
 
+  it("keeps a newer tick's answer over an older tick's failure that writes later", async () => {
+    const pageUrl = "https://battery-sensei.app/pricing";
+    const { id } = await doneChange(pageUrl);
+    const { promise: olderAsked, resolve: askOlder } =
+      Promise.withResolvers<void>();
+    const { promise: newerDone, resolve: finishNewer } =
+      Promise.withResolvers<void>();
+    beforeAnswer.mockImplementationOnce(async () => {
+      askOlder();
+      await newerDone;
+      throw new Error("Composio refused the read: 403");
+    });
+    expectCoreLog("warn", "SEO impact tracking could not read Search Console.");
+    const older = syncSeoImpact();
+    await olderAsked;
+    const newerAt = new Date(Date.now() + HOUR_MS);
+
+    await syncSeoImpact(undefined, newerAt);
+    finishNewer();
+    await older;
+
+    expect(await rowsOf(id)).toMatchObject([
+      {
+        state: "waiting_crawl",
+        reason: "not_crawled_yet",
+        property: "sc-domain:battery-sensei.app",
+        lastInspectedAt: newerAt,
+      },
+    ]);
+  });
+
+  it("counts a page given up once when two ticks inspect it at once", async () => {
+    await doneChange("https://battery-sensei.app/pricing");
+    // Recorded now, so the ticks below run past its wait.
+    await syncSeoImpact();
+    // Both ticks have Google's answer before either writes it.
+    const { promise: bothAsked, resolve } = Promise.withResolvers<void>();
+    let asked = 0;
+    beforeAnswer.mockImplementation(async () => {
+      asked += 1;
+      if (asked === 2) resolve();
+      await bothAsked;
+    });
+    const pastWait = new Date(Date.now() + IMPACT_CRAWL_WAIT_DAYS * DAY_MS);
+
+    const results = await Promise.all([
+      syncSeoImpact(undefined, pastWait),
+      syncSeoImpact(undefined, pastWait),
+    ]);
+
+    expect(asked).toBe(2);
+    expect(results[0].notMeasurable + results[1].notMeasurable).toBe(1);
+  });
+
   it("records both completions when a reopened change is done again before a tick", async () => {
     const { id } = await doneChange("https://battery-sensei.app/pricing", {
       status: "open",

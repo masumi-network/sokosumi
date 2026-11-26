@@ -288,7 +288,12 @@ async function applyInspection(
     inspection.final ||
     now.getTime() - row.createdAt.getTime() >= IMPACT_CRAWL_WAIT_DAYS * DAY_MS;
   const { count } = await prisma.projectSeoImpactVerdict.updateMany({
-    where: { id: row.id, state: "waiting_crawl" },
+    // A newer tick's answer stands over this one that writes later.
+    where: {
+      id: row.id,
+      state: "waiting_crawl",
+      OR: [{ lastInspectedAt: null }, { lastInspectedAt: { lt: now } }],
+    },
     data: {
       state: expired ? "not_measurable" : "waiting_crawl",
       reason: inspection.reason,
