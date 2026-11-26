@@ -40,7 +40,8 @@ const EXCEPTIONS = new Map([
       line: 254,
       code: "42883",
       message: "function compute_history_job_status(text) does not exist",
-      reason: "compute_history_job_status moved to shared (ticket 19)",
+      reason:
+        "compute_history_job_status is in each Network's schema (ticket 19)",
     },
   ],
 ]);
