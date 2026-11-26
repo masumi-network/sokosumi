@@ -7,7 +7,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
 }));
 
-import { HeaderCenter } from "./header-center.client";
+import { HeaderCenter, HeaderMobileActions } from "./header-center.client";
 
 describe("HeaderCenter", () => {
   beforeEach(() => {
@@ -61,5 +61,22 @@ describe("HeaderCenter", () => {
     expect(scopeClasses).toContain("hidden");
     expect(scopeClasses).toContain("md:flex");
     expect(scopeClasses).not.toContain("sm:flex");
+  });
+
+  it("keeps the phone's global actions off a room, where the room's title needs the row", () => {
+    const actions = () =>
+      render(
+        <HeaderMobileActions>
+          <button type="button">Search</button>
+        </HeaderMobileActions>,
+      );
+
+    const { unmount } = actions();
+    expect(screen.getByRole("button", { name: "Search" })).toBeVisible();
+    unmount();
+
+    mockPathname = "/chat/rooms/room-1";
+    actions();
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
   });
 });

@@ -10,6 +10,17 @@ interface HeaderCenterProps {
 }
 
 /**
+ * The phone's global Search and New task. A chat room gives this row to its
+ * own title, room search and menu, so they stay off there: at 375px they left
+ * the room's name two letters. Back to chats is one tap to both.
+ */
+export function HeaderMobileActions({ children }: HeaderCenterProps) {
+  const pathname = useChromePathname();
+  if (isChatRoomPathname(pathname)) return null;
+  return <div className="flex items-center gap-1 md:hidden">{children}</div>;
+}
+
+/**
  * App-header center: mobile room toolbar slot + the project selector.
  * Room slot only claims space on chat room routes below `md`. The selector
  * starts at `md`: below it the header's scope chip stands in, so it never sits
