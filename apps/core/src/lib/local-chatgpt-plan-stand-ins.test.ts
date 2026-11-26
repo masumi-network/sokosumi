@@ -130,28 +130,27 @@ describe("ChatGPT plan stand-ins", () => {
       "./evals/eval-environment"
     );
     expect(evalEnvironment()).toBe("local-chatgpt-plan");
-    const planGroup = {
-      OR: [
-        { environment: "local-chatgpt-plan" },
-        { label: { contains: "ChatGPT plan" } },
-      ],
-    };
+    // Current plan runs (stand-ins): only with each other.
     expect(
       comparableRuns({ environment: "local-chatgpt-plan", label: null }),
-    ).toEqual(planGroup);
-    // Saved before plan runs had their own environment.
+    ).toEqual({ environment: "local-chatgpt-plan" });
+    // Older plan runs used real Jev and Gemini checks: a group of their own.
     expect(
       comparableRuns({
         environment: "local",
         label: "local, OpenAI on ChatGPT plan",
       }),
-    ).toEqual(planGroup);
+    ).toEqual({ environment: "local", label: "local, OpenAI on ChatGPT plan" });
+    // A Gateway run that only mentions the plan in its label stays a Gateway run.
+    expect(
+      comparableRuns({
+        environment: "mainnet",
+        label: "Gateway control for ChatGPT plan comparison",
+      }),
+    ).toEqual({ trigger: "DAILY" });
     expect(
       comparableRuns({ environment: "local", label: "local, Gateway" }),
     ).toEqual({ trigger: "DAILY" });
-    expect(comparableRuns({ environment: "mainnet", label: null })).toEqual({
-      trigger: "DAILY",
-    });
   });
 
   it("never compares local vectors with stored Gateway vectors, nor stores them", async () => {

@@ -52,7 +52,7 @@ Local runs can use your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan u
 - The judge runs on Claude Code unless you set `SOKO_BOT_JUDGE_RUNNER`. Stored results name the model that actually ran (`chatgpt-plan:<slug>`, `claude-code:<model>`).
 - Any other call to the Gateway fails with "A ChatGPT plan run tried to call the AI Gateway". Nothing is sent.
 
-All of this applies whenever plan mode is on, whether you passed `--plan` or only set `SOKO_BOT_LOCAL_CHATGPT_PLAN=1`. A plan run records its environment as `local-chatgpt-plan`, with the label "local, ChatGPT plan (approximate)". It is compared only with other plan runs, never with the daily production runs.
+All of this applies whenever plan mode is on, whether you passed `--plan` or only set `SOKO_BOT_LOCAL_CHATGPT_PLAN=1`. A plan run records its environment as `local-chatgpt-plan`, with the label "local, ChatGPT plan (approximate)". It is compared only with other plan runs, never with the daily production runs. Plan runs from before this change (environment `local`, label "local, OpenAI on ChatGPT plan") still used real Jev and Gemini checks, so they form their own group.
 
 Stand-in answers, check results and similarity scores are approximate, so pass rates can differ from a Gateway run.
 

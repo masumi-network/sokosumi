@@ -27,35 +27,25 @@ export function comparableRuns(run: {
   environment: string;
   label: string | null;
 }):
-  | {
-      OR: (
-        | { environment: "local-chatgpt-plan" }
-        | { label: { contains: string } }
-      )[];
-    }
+  | { environment: "local-chatgpt-plan" }
+  | { environment: "local"; label: typeof LEGACY_PLAN_LABEL }
   | { trigger: "DAILY" } {
-  return isChatGptPlanRun(run)
-    ? {
-        OR: [
-          { environment: "local-chatgpt-plan" },
-          { label: { contains: PLAN_LABEL_MARK } },
-        ],
-      }
-    : { trigger: "DAILY" };
+  if (run.environment === "local-chatgpt-plan")
+    return { environment: "local-chatgpt-plan" };
+  // Older plan runs still used Jev and the Gateway's checks: their own group.
+  if (isLegacyPlanRun(run))
+    return { environment: "local", label: LEGACY_PLAN_LABEL };
+  return { trigger: "DAILY" };
 }
 
-/** Plan runs saved before they had their own environment carry this label. */
-const PLAN_LABEL_MARK = "ChatGPT plan";
+/** The exact label `evals:local --plan` gave runs before plan mode had its environment. */
+const LEGACY_PLAN_LABEL = "local, OpenAI on ChatGPT plan";
 
-/** Whether a run's models ran on the ChatGPT plan, however it was saved. */
-export function isChatGptPlanRun(run: {
+function isLegacyPlanRun(run: {
   environment: string;
   label: string | null;
 }): boolean {
-  return (
-    run.environment === "local-chatgpt-plan" ||
-    (run.label?.includes(PLAN_LABEL_MARK) ?? false)
-  );
+  return run.environment === "local" && run.label === LEGACY_PLAN_LABEL;
 }
 
 /** The daily run belongs to mainnet's production deploy of main only. */
