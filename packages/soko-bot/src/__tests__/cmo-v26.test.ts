@@ -13,6 +13,10 @@ import {
   cmoCompactProduction,
 } from "../versions/cmo-v26-skills.js";
 import {
+  CMO_VIDEO_SHAPES_SKILL,
+  cmoPostsVideoShapes,
+} from "../versions/cmo-video-shapes-skill.js";
+import {
   applyVersionCapabilities,
   composeSystemPrompt,
   composeTurnPreamble,
@@ -31,7 +35,10 @@ describe("cmo-v26", () => {
       CMO_STRATEGY_STEP_SKILL,
       CMO_PLAYBOOKS_SKILL,
       CMO_COMPACT_PRODUCTION_SKILL,
+      CMO_VIDEO_SHAPES_SKILL,
     ]);
+    expect(cmoPostsVideoShapes(v26.skills)).toBe(true);
+    expect(cmoPostsVideoShapes(v24.skills)).toBe(false);
     expect(cmoReadsPlaybooks(v26.skills)).toBe(true);
     expect(
       cmoWritingSkills(v26.skills).some((s) => s.group === "playbooks"),

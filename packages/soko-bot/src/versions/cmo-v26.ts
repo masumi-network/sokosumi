@@ -2,6 +2,7 @@ import { CMO_PLAYBOOKS_SKILL } from "./cmo-playbooks-skill.js";
 import { cmoV24 } from "./cmo-v24.js";
 import { CMO_STRATEGY_STEP_SKILL } from "./cmo-v25-skills.js";
 import { CMO_COMPACT_PRODUCTION_SKILL } from "./cmo-v26-skills.js";
+import { CMO_VIDEO_SHAPES_SKILL } from "./cmo-video-shapes-skill.js";
 import type { SokoBotVersion } from "./types.js";
 
 /**
@@ -32,5 +33,6 @@ export const cmoV26: SokoBotVersion = {
     CMO_STRATEGY_STEP_SKILL,
     CMO_PLAYBOOKS_SKILL,
     CMO_COMPACT_PRODUCTION_SKILL,
+    CMO_VIDEO_SHAPES_SKILL,
   ],
 };
