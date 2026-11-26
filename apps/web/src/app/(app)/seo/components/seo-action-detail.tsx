@@ -205,10 +205,12 @@ export function SeoActionDetail({
               <ChangeBox label={report("actions.before")}>
                 <pre
                   dir="auto"
-                  lang={action.edit.before === null ? "en" : ""}
+                  lang={action.edit.before?.trim() ? "" : "en"}
                   className="bg-muted text-muted-foreground rounded-md p-3 text-xs whitespace-pre-wrap break-words"
                 >
-                  {action.edit.before ?? report("actions.noBefore")}
+                  {action.edit.before?.trim()
+                    ? action.edit.before
+                    : report("actions.noBefore")}
                 </pre>
               </ChangeBox>
               <ChangeBox
