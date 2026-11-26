@@ -269,9 +269,14 @@ async function applyInspection(
 ): Promise<"crawled" | "not_measurable" | "waiting"> {
   if ("crawledAt" in inspection) {
     const window = impactWindow(row.changedAt, inspection.crawledAt);
-    // Of two ticks at once, only the one that moved the row counts it.
+    // Of two ticks at once, only the one that moved the row counts it. A
+    // crawl also stands over a tick that gave the page up meanwhile.
     const { count } = await prisma.projectSeoImpactVerdict.updateMany({
-      where: { id: row.id, state: "waiting_crawl", crawledAt: null },
+      where: {
+        id: row.id,
+        state: { in: ["waiting_crawl", "not_measurable"] },
+        crawledAt: null,
+      },
       data: {
         state: "waiting_window",
         reason: null,

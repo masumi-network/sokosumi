@@ -10,7 +10,6 @@ export async function withDeadline<T>(
   ms: number,
   message: string,
 ): Promise<T> {
-  if (ms === Number.POSITIVE_INFINITY) return await work;
   // A deadline already past fails at once, even for work that is done.
   if (!(ms > 0)) {
     work.catch(() => {});
@@ -21,10 +20,14 @@ export async function withDeadline<T>(
     return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(message)),
-          Math.min(ms, MAX_TIMER_MS),
-        );
+        const end = Date.now() + ms;
+        // A deadline past the longest timer waits in steps; Infinity never ends.
+        const wait = () => {
+          const left = end - Date.now();
+          if (left > 0) timer = setTimeout(wait, Math.min(left, MAX_TIMER_MS));
+          else reject(new Error(message));
+        };
+        wait();
       }),
     ]);
   } finally {

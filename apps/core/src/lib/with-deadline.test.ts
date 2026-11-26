@@ -41,6 +41,26 @@ describe("withDeadline", () => {
     }
   });
 
+  it("keeps a deadline past the longest timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const ms = 3_000_000_000;
+      const early = Promise.withResolvers<string>();
+      const late = Promise.withResolvers<string>();
+      const done = withDeadline(early.promise, ms, "timed out");
+      const timedOut = withDeadline(late.promise, ms, "timed out");
+      timedOut.catch(() => {});
+      // Past the longest timer Node can set, before the deadline.
+      await vi.advanceTimersByTimeAsync(2 ** 31);
+      early.resolve("done");
+      await expect(done).resolves.toBe("done");
+      await vi.advanceTimersByTimeAsync(ms - 2 ** 31);
+      await expect(timedOut).rejects.toThrow("timed out");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("waits for the work with no deadline", async () => {
     // Node fires a timer past 2^31-1 ms at once: an uncapped Infinity rejects.
     await expect(

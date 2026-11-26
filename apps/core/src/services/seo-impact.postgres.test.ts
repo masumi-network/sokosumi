@@ -336,34 +336,81 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     expect(results[0].crawled + results[1].crawled).toBe(1);
   });
 
-  it("keeps a newer tick's answer over an older tick's failure that writes later", async () => {
+  it.each([
+    { tick: "a newer", gap: HOUR_MS },
+    { tick: "an equal", gap: 0 },
+  ])(
+    "keeps $tick tick's answer over a failure that writes later",
+    async ({ gap }) => {
+      const pageUrl = "https://battery-sensei.app/pricing";
+      const { id } = await doneChange(pageUrl);
+      const { promise: olderAsked, resolve: askOlder } =
+        Promise.withResolvers<void>();
+      const { promise: newerDone, resolve: finishNewer } =
+        Promise.withResolvers<void>();
+      beforeAnswer.mockImplementationOnce(async () => {
+        askOlder();
+        await newerDone;
+        throw new Error("Composio refused the read: 403");
+      });
+      expectCoreLog(
+        "warn",
+        "SEO impact tracking could not read Search Console.",
+      );
+      const olderAt = new Date();
+      const older = syncSeoImpact(undefined, olderAt);
+      await olderAsked;
+      const newerAt = new Date(olderAt.getTime() + gap);
+
+      await syncSeoImpact(undefined, newerAt);
+      finishNewer();
+      await older;
+
+      expect(await rowsOf(id)).toMatchObject([
+        {
+          state: "waiting_crawl",
+          reason: "not_crawled_yet",
+          property: "sc-domain:battery-sensei.app",
+          lastInspectedAt: newerAt,
+        },
+      ]);
+    },
+  );
+
+  it("keeps a crawl that arrives after another tick gave the page up", async () => {
     const pageUrl = "https://battery-sensei.app/pricing";
     const { id } = await doneChange(pageUrl);
-    const { promise: olderAsked, resolve: askOlder } =
+    // Recorded now, so the ticks below run past its wait.
+    await syncSeoImpact();
+    lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+    const { promise: firstAsked, resolve: askFirst } =
       Promise.withResolvers<void>();
-    const { promise: newerDone, resolve: finishNewer } =
+    const { promise: secondAsked, resolve: askSecond } =
       Promise.withResolvers<void>();
-    beforeAnswer.mockImplementationOnce(async () => {
-      askOlder();
-      await newerDone;
-      throw new Error("Composio refused the read: 403");
-    });
+    let givingUp: Promise<unknown> | undefined;
+    // The first tick's read times out and it gives up; the second's finds
+    // the crawl and writes after it.
+    beforeAnswer
+      .mockImplementationOnce(async () => {
+        askFirst();
+        await secondAsked;
+        throw new Error("URL Inspection timed out");
+      })
+      .mockImplementationOnce(async () => {
+        askSecond();
+        await givingUp;
+      });
     expectCoreLog("warn", "SEO impact tracking could not read Search Console.");
-    const older = syncSeoImpact();
-    await olderAsked;
-    const newerAt = new Date(Date.now() + HOUR_MS);
+    const pastWait = new Date(Date.now() + IMPACT_CRAWL_WAIT_DAYS * DAY_MS);
 
-    await syncSeoImpact(undefined, newerAt);
-    finishNewer();
-    await older;
+    givingUp = syncSeoImpact(undefined, pastWait);
+    await firstAsked;
+    const crawling = await syncSeoImpact(undefined, pastWait);
 
+    expect(await givingUp).toMatchObject({ notMeasurable: 1 });
+    expect(crawling).toMatchObject({ crawled: 1 });
     expect(await rowsOf(id)).toMatchObject([
-      {
-        state: "waiting_crawl",
-        reason: "not_crawled_yet",
-        property: "sc-domain:battery-sensei.app",
-        lastInspectedAt: newerAt,
-      },
+      { state: "waiting_window", reason: null, crawledAt: expect.any(Date) },
     ]);
   });
 
@@ -772,7 +819,8 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     expect(
       await syncSeoImpact(undefined, new Date(Date.now() + 21 * HOUR_MS)),
     ).toMatchObject({ inspected: 500 });
-  });
+    // A thousand inspections: slower than the default limit on a busy machine.
+  }, 30_000);
 
   it("defers an account's other pages when its property list fails", async () => {
     const pages = ["a", "b"].map(
