@@ -147,12 +147,25 @@ describe("repeatedPollRefusal", () => {
       await expect(job("processing")).resolves.toContain(
         "This Job is still running",
       );
-      // A Job's digest carries no event ids: its read is judged by time only.
+      // A Job's digest carries no event ids: its read is judged by time and
+      // by the status it returned.
       expect(db.read.mock.calls.at(-1)![0].where).toMatchObject({
         capability: "get_job_status",
         createdAt: { gt: changed },
+        result: { path: ["status"], equals: "processing" },
       });
-      expect(db.read.mock.calls.at(-1)![0].where).not.toHaveProperty("result");
+    });
+
+    it("lets the bot read a Job that left input_required on the same event", async () => {
+      // The earlier read returned input_required; the owner's answer turned
+      // the Job to processing without a new JobEvent.
+      db.read.mockImplementation(
+        async ({ where }: { where: { result: { equals: string } } }) =>
+          where.result.equals === "input_required"
+            ? { id: "earlier-read" }
+            : null,
+      );
+      await expect(job("processing")).resolves.toBeNull();
     });
 
     it.each([

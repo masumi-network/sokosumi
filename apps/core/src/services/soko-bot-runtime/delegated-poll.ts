@@ -123,6 +123,11 @@ export async function repeatedPollRefusal(
             },
           }
         : {}),
+      // A Job read must have returned the status it has now: answering its
+      // input request turns it to processing on the same event.
+      ...(work.kind === "JOB"
+        ? { result: { path: ["status"], equals: work.status } }
+        : {}),
     },
     select: { id: true },
   });
