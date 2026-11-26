@@ -11,6 +11,10 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  JOB_WAKE_STATUSES,
+  TASK_WAKE_STATUSES,
+} from "@/lib/soko-bot/delegation-wake";
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
   isOwnerRequest,
@@ -32,18 +36,6 @@ import { proactiveGate } from "@/services/soko-bot-proactive.service";
 const BATCH_SIZE = 500;
 const MAX_CHANGES_PER_TURN = 8;
 
-/** Task statuses worth waking the bot for; intermediate churn stays silent. */
-const TASK_WAKE_STATUSES = new Set([
-  "COMPLETED",
-  "FAILED",
-  "CANCELED",
-  "INPUT_REQUIRED",
-  "APPROVAL_REQUIRED",
-  "AUTHENTICATION_REQUIRED",
-  "OUT_OF_CREDITS",
-  "GRANT_PENDING",
-]);
-const JOB_WAKE_STATUSES = new Set(["COMPLETED", "FAILED", "AWAITING_INPUT"]);
 const FINISHED = new Set(["COMPLETED", "FAILED", "CANCELED"]);
 
 /**
