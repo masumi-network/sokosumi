@@ -14,6 +14,7 @@ describe.runIf(enabled)("databaseNow on PostgreSQL", () => {
   afterAll(() => prisma.$disconnect());
 
   it.each([
+    ["UTC", PrismaRaw.sql`SET LOCAL TIME ZONE 'UTC'`],
     ["Europe/Berlin", PrismaRaw.sql`SET LOCAL TIME ZONE 'Europe/Berlin'`],
     ["America/New_York", PrismaRaw.sql`SET LOCAL TIME ZONE 'America/New_York'`],
   ])("uses the real clock for lease checks in %s", async (_zone, setZone) => {
@@ -36,11 +37,17 @@ describe.runIf(enabled)("databaseNow on PostgreSQL", () => {
       const { id: sokoBotId } = await tx.sokoBot.create({
         data: { userId, workspaceId, ingestTimezone: "UTC" },
       });
-      const [{ epochMs }] = await tx.$queryRaw<{ epochMs: number }[]>`
-        SELECT EXTRACT(EPOCH FROM clock_timestamp())::double precision * 1000 AS "epochMs"
-      `;
-      const now = await databaseNow(tx);
-      expect.soft(Math.abs(now.getTime() - epochMs)).toBeLessThan(1_000);
+      const readEpochMs = async () => {
+        const [{ epochMs }] = await tx.$queryRaw<{ epochMs: number }[]>`
+          SELECT (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::double precision AS "epochMs"
+        `;
+        return epochMs;
+      };
+      const beforeMs = await readEpochMs();
+      const nowMs = (await databaseNow(tx)).getTime();
+      const afterMs = await readEpochMs();
+      expect.soft(nowMs).toBeGreaterThanOrEqual(beforeMs - 1);
+      expect.soft(nowMs).toBeLessThanOrEqual(afterMs);
 
       const leaseMs = 15 * 60_000;
       const turn = await tx.sokoBotTurn.create({
@@ -53,8 +60,8 @@ describe.runIf(enabled)("databaseNow on PostgreSQL", () => {
           clientTurnId: userId,
           userMessage: "Check the lease",
           capabilityNames: [],
-          deadlineAt: new Date(epochMs + leaseMs),
-          leaseExpiresAt: new Date(epochMs + leaseMs),
+          deadlineAt: new Date(afterMs + leaseMs),
+          leaseExpiresAt: new Date(afterMs + leaseMs),
         },
       });
       const authorize = () =>
@@ -73,7 +80,7 @@ describe.runIf(enabled)("databaseNow on PostgreSQL", () => {
         .resolves.toMatchObject({ id: workspaceId });
       await tx.sokoBotTurn.update({
         where: { id: turn.id },
-        data: { leaseExpiresAt: new Date(epochMs - leaseMs) },
+        data: { leaseExpiresAt: new Date(afterMs - leaseMs) },
       });
       await expect
         .soft(authorize())
