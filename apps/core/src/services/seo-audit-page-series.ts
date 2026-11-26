@@ -87,13 +87,22 @@ export async function collectSeoAuditPageSeries(
       select: { payload: true },
     }),
   ]);
-  const measured = nativeSeoMetricsSchema.safeParse(performance?.payload).data
-    ?.auditMeasuredPages;
+  // An unverified address is a guess: Google can count the page's traffic under another address.
+  const measured = nativeSeoMetricsSchema
+    .safeParse(performance?.payload)
+    .data?.auditMeasuredPages?.filter((page) => page.basis !== "unverified");
   if (!performance || !measured?.length) return;
+  // Pages stored for another property or range are read again: one row holds one range.
+  const sameRange = (payload: unknown) => {
+    const data = auditPageSeriesSchema.safeParse(payload).data;
+    return data?.propertyId === access.propertyId &&
+      data.from === period.from &&
+      data.to === period.to
+      ? data.pages
+      : [];
+  };
   const pages = new Map(
-    auditPageSeriesSchema
-      .safeParse(stored?.payload)
-      .data?.pages.map((page) => [page.pageUrl, page]),
+    sameRange(stored?.payload).map((page) => [page.pageUrl, page]),
   );
   if (measured.every((page) => pages.has(page.pageUrl))) return;
   const integration = await resolveSeoStatisticsIntegration(
@@ -176,10 +185,9 @@ export async function collectSeoAuditPageSeries(
       where: { ...where, kind: AUDIT_PAGE_SERIES_KIND },
       select: { payload: true },
     });
-    const kept =
-      auditPageSeriesSchema
-        .safeParse(latest?.payload)
-        .data?.pages.filter((page) => !pages.has(page.pageUrl)) ?? [];
+    const kept = sameRange(latest?.payload).filter(
+      (page) => !pages.has(page.pageUrl),
+    );
     const payload: AuditPageSeries = {
       propertyId: access.propertyId,
       ...period,

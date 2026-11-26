@@ -97,7 +97,7 @@ export async function listAdminSeoActionImpact({
       ownerId: { not: null },
     },
     _max: { observedAt: true },
-    // The three keys make the order total, so two pages never share or skip a group.
+    // The three keys make the order total: while no audit is stored, two pages never share or skip a group.
     orderBy: [
       { _max: { observedAt: "desc" } },
       { auditId: "asc" },

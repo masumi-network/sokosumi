@@ -86,6 +86,18 @@ afterEach(() => vi.useRealTimers());
 
 describe("withSeoActionImpact", () => {
   const visible = new Set(["audit-task"]);
+  /** The stored audits, newest first. The first read lists them, the second takes the chosen payloads. */
+  const store = (...audits: { payload: unknown; pageIds?: string[] }[]) =>
+    boundary.findMany.mockImplementation(async ({ where, select }) => {
+      const rows = audits.map((audit, index) => ({
+        id: `audit-${index}`,
+        pageIds: ["page-a"],
+        ...audit,
+      }));
+      return select.pageIds
+        ? rows
+        : rows.filter((row) => where.id.in.includes(row.id));
+    });
   const action = (pageUrl: string) =>
     ({
       id: `fix:${pageUrl}`,
@@ -111,7 +123,7 @@ describe("withSeoActionImpact", () => {
   };
 
   it("counts the rows of the action's page alone and leaves an unread page without impact", async () => {
-    boundary.findMany.mockResolvedValue([{ payload: series }]);
+    store({ payload: series });
     const [a, other] = await withSeoActionImpact(
       actor,
       [action(pageA), action("https://example.test/c")],
@@ -132,7 +144,6 @@ describe("withSeoActionImpact", () => {
       sourceTaskId: { in: ["audit-task"] },
       pageIds: { hasSome: ["page-a"] },
     });
-    // Only audits of a done action's page count toward the limit of audits read.
     expect(boundary.pages.mock.calls[0][0].where).toEqual({
       auditId: "audit",
       projectId: null,
@@ -141,7 +152,7 @@ describe("withSeoActionImpact", () => {
   });
 
   it("finds the rows of an action reported with a fragment on its page address", async () => {
-    boundary.findMany.mockResolvedValue([{ payload: series }]);
+    store({ payload: series });
     const [a] = await withSeoActionImpact(
       actor,
       [action(`${pageA}#title`)],
@@ -165,10 +176,7 @@ describe("withSeoActionImpact", () => {
         },
       ],
     };
-    boundary.findMany.mockResolvedValue([
-      { payload: moved },
-      { payload: series },
-    ]);
+    store({ payload: moved }, { payload: series });
     const [a] = await withSeoActionImpact(
       actor,
       [action(pageA)],
@@ -180,6 +188,32 @@ describe("withSeoActionImpact", () => {
     expect(a.impact).toMatchObject({ state: "not_measured", before: null });
   });
 
+  it("counts the limit of audits per page, so many audits of one page do not hide another page's only audit", async () => {
+    boundary.pages.mockResolvedValue([{ id: "page-a" }, { id: "page-b" }]);
+    const [onlyA, onlyB] = [0, 1].map((index) => ({
+      ...series,
+      pages: [series.pages[index]],
+    }));
+    store(...Array.from({ length: 7 }, () => ({ payload: onlyA })), {
+      payload: onlyB,
+      pageIds: ["page-b"],
+    });
+    const [a, b] = await withSeoActionImpact(
+      actor,
+      [action(pageA), action(pageB)],
+      visible,
+      undefined,
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    expect(a.impact).toMatchObject({ state: "measured" });
+    expect(b.impact).toMatchObject({
+      state: "measured",
+      before: { clicks: 2800 },
+    });
+    // Six of page A's seven audits and the one of page B.
+    expect(boundary.findMany.mock.calls[1][0].where.id.in).toHaveLength(7);
+  });
+
   it("narrows the rows to one person's own when the caller names that person", async () => {
     boundary.findMany.mockResolvedValue([]);
     await withSeoActionImpact(actor, [action(pageA)], visible, {
@@ -189,7 +223,7 @@ describe("withSeoActionImpact", () => {
   });
 
   it("reads the rows by the audit Tasks the reader may see, not by who requested the audit", async () => {
-    boundary.findMany.mockResolvedValue([{ payload: series }]);
+    store({ payload: series });
     const [a] = await withSeoActionImpact(
       { ...actor, userId: "colleague" },
       [action(pageA)],
@@ -204,7 +238,7 @@ describe("withSeoActionImpact", () => {
   });
 
   it("reports an unsettled after-window as too early", async () => {
-    boundary.findMany.mockResolvedValue([{ payload: series }]);
+    store({ payload: series });
     const [a] = await withSeoActionImpact(
       actor,
       [action(pageA)],
@@ -245,7 +279,7 @@ describe("collectSeoAuditPageSeries", () => {
     period: { from: "2026-06-01", to: "2026-06-03" },
   };
   const authorize = vi.fn(async () => {});
-  const measured = (stored: unknown = null) =>
+  const measured = (stored: unknown = null, basis = "selected") =>
     boundary.findFirst.mockImplementation(async ({ where }) =>
       where.kind === AUDIT_PERFORMANCE_KIND
         ? {
@@ -265,7 +299,7 @@ describe("collectSeoAuditPageSeries", () => {
               auditMeasuredPages: [pageA, pageB].map((pageUrl) => ({
                 pageUrl,
                 measuredUrl: pageUrl,
-                basis: "selected",
+                basis,
               })),
             },
           }
@@ -384,11 +418,56 @@ describe("collectSeoAuditPageSeries", () => {
     ]);
   });
 
+  it("reads a page again when its stored days cover another range, and never an unverified address", async () => {
+    expectCoreLog(
+      "warn",
+      "Could not read every audit page's daily Search Console rows",
+    );
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-06T00:00:00Z"));
+    const other = {
+      payload: {
+        propertyId: binding.access.propertyId,
+        from: "2025-04-29",
+        to: binding.period.to,
+        pages: [pageA, pageB].map((pageUrl) => ({
+          pageUrl,
+          measuredUrl: pageUrl,
+          days: days("2025-04-29", "2025-04-29", 1, 1),
+        })),
+      },
+    };
+    measured(other);
+    boundary.latest.mockResolvedValue(other);
+    boundary.integration.mockResolvedValue(account);
+    boundary.read.mockImplementation(async (_account, _slug, logical) => {
+      if (JSON.stringify(logical).includes(pageB)) throw new Error("quota");
+      return { rows: [] };
+    });
+    await collectSeoAuditPageSeries("task", binding, authorize);
+    expect(boundary.read).toHaveBeenCalledTimes(2);
+    // Page B's read failed. Its days of the other range are not kept beside the new range.
+    const { payload } = boundary.upsert.mock.calls[0][0].update;
+    expect(payload.from).toBe("2025-04-30");
+    expect(payload.pages).toEqual([
+      { pageUrl: pageA, measuredUrl: pageA, days: [] },
+    ]);
+
+    vi.clearAllMocks();
+    measured(null, "unverified");
+    await collectSeoAuditPageSeries("task", binding, authorize);
+    expect(boundary.integration).not.toHaveBeenCalled();
+    expect(boundary.upsert).not.toHaveBeenCalled();
+  });
+
   it("reads nothing when the row has every page or the connection changed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-06T00:00:00Z"));
     measured({
       payload: {
         propertyId: binding.access.propertyId,
-        ...binding.period,
+        from: "2025-04-30",
+        to: binding.period.to,
         pages: [pageA, pageB].map((pageUrl) => ({
           pageUrl,
           measuredUrl: pageUrl,

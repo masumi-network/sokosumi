@@ -10,7 +10,7 @@ import {
 } from "@/schemas/seo-action-impact.schema";
 import { normalizeSeoUrl, seoOwnerWhere } from "./project-seo-store";
 
-/** Each audit holds over a year of days per page. An older audit only adds a page that the newer ones left out. */
+/** Each audit holds over a year of days per page, so each page needs only its newest few audits. */
 const IMPACT_SERIES_AUDITS = 6;
 
 /**
@@ -34,7 +34,6 @@ export async function withSeoActionImpact(
     (action) => action.completedAt || action.verifiedAt,
   );
   if (!done.length) return actions;
-  // Only audits of a done action's page count toward the limit below.
   const pages = await prisma.projectSeoPage.findMany({
     where: {
       ...seoOwnerWhere(actor),
@@ -43,7 +42,7 @@ export async function withSeoActionImpact(
     select: { id: true },
   });
   if (!pages.length) return actions;
-  const rows = await prisma.projectSeoObservation.findMany({
+  const audits = await prisma.projectSeoObservation.findMany({
     where: {
       ...seoOwnerWhere(actor),
       kind: AUDIT_PAGE_SERIES_KIND,
@@ -52,7 +51,18 @@ export async function withSeoActionImpact(
       ...(ownerId && { ownerId }),
     },
     orderBy: { observedAt: "desc" },
-    take: IMPACT_SERIES_AUDITS,
+    select: { id: true, pageIds: true },
+  });
+  // The limit counts per page: many audits of one page must not hide the only audit of another.
+  const wanted = new Set<string>();
+  for (const { id } of pages)
+    for (const audit of audits
+      .filter((row) => row.pageIds.includes(id))
+      .slice(0, IMPACT_SERIES_AUDITS))
+      wanted.add(audit.id);
+  const rows = await prisma.projectSeoObservation.findMany({
+    where: { id: { in: [...wanted] } },
+    orderBy: { observedAt: "desc" },
     select: { payload: true },
   });
   const byPage = new Map<
