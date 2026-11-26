@@ -13,7 +13,11 @@ import {
   readRequestPlan,
   resolveRequestId,
 } from "@/lib/soko-bot/request-chain";
-import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
+import {
+  RECORDED_SAVES,
+  RuntimeEventLog,
+  runtimeEvent,
+} from "@/lib/soko-bot/turn-loop";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /** Recorded before the one bounce, so a restarted runner never bounces again. */
@@ -162,7 +166,7 @@ async function waitingOnOthers(
 }
 
 /** A receipt's outcome as Core recorded it, and what the bot should do. */
-type ReceiptOutcome = "done" | "started" | "not done";
+type ReceiptOutcome = "done" | "started" | "not done" | "unconfirmed";
 
 interface SaveReceipt {
   capability: string;
@@ -188,28 +192,37 @@ function receiptLabel(targetId: string | null, result: unknown): string {
     .join(", ");
 }
 
+const STUDIO_RUNNING = new Set(["PENDING", "SUBMITTING", "QUEUED", "RUNNING"]);
+const STUDIO_NOT_MADE = new Set(["FAILED", "CANCELED", "ORPHANED"]);
+
 /**
- * The outcome Core recorded: refused or uncertain is not done, a Studio job
- * is done only once it made its asset, and anything else completed is done.
+ * The outcome Core recorded. Refused is not done; uncertain is unconfirmed,
+ * since it may have happened. A Studio job is done only once it made its
+ * asset. A Core-checked save (#8278's recorded saves) is done when its own
+ * check says so; anything else completed is done.
  */
 async function receiptOutcome(call: {
   capability: string;
   disposition: string | null;
   targetId: string | null;
+  result: unknown;
 }): Promise<ReceiptOutcome> {
-  if (call.disposition === "REJECTED" || call.disposition === "UNKNOWN")
-    return "not done";
+  if (call.disposition === "REJECTED") return "not done";
+  if (call.disposition === "UNKNOWN") return "unconfirmed";
+  const recorded = RECORDED_SAVES[call.capability];
+  if (recorded)
+    return !recorded.confirmed || recorded.confirmed(call.result)
+      ? "done"
+      : "not done";
   if (!STUDIO_JOB_CAPABILITIES.has(call.capability)) return "done";
-  if (!call.targetId) return "not done";
+  if (!call.targetId) return "unconfirmed";
   const job = await prisma.projectImageJob.findUnique({
     where: { id: call.targetId },
     select: { status: true },
   });
   if (job?.status === "SUCCEEDED") return "done";
-  return job &&
-    ["PENDING", "SUBMITTING", "QUEUED", "RUNNING"].includes(job.status)
-    ? "started"
-    : "not done";
+  if (job && STUDIO_RUNNING.has(job.status)) return "started";
+  return job && STUDIO_NOT_MADE.has(job.status) ? "not done" : "unconfirmed";
 }
 
 /**
@@ -241,7 +254,9 @@ async function savesSincePlan(
     where: {
       turnId: { in: [...turnIds] },
       status: "COMPLETED",
-      capability: { in: [...ACTION_CAPABILITIES] },
+      capability: {
+        in: [...ACTION_CAPABILITIES, ...Object.keys(RECORDED_SAVES)],
+      },
       createdAt: { gt: written.createdAt },
     },
     orderBy: { createdAt: "asc" },
@@ -266,6 +281,7 @@ const OUTCOME_WORDS: Record<ReceiptOutcome, string> = {
   done: "done",
   started: "started, not finished yet",
   "not done": "did not happen",
+  unconfirmed: "Core could not confirm whether it happened",
 };
 
 /** The saves the plan does not show yet, and what to do about them. */
@@ -277,7 +293,7 @@ function savedNote(saves: readonly SaveReceipt[], revision: number): string {
         `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
     )
     .join("\n");
-  return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nMark the steps done saves finished done with update_plan (revision ${revision}) and do not do them again. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started stays in progress until it finishes.\n`;
+  return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nMark the steps done saves finished done with update_plan (revision ${revision}) and do not do them again. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started stays in progress until it finishes. One Core could not confirm may have happened: read back whether it did before anything else, never repeat it blind, and if you cannot tell, mark it blocked with the reason and say so.\n`;
 }
 
 /** The draft asks the owner something: its clarification, or a question. */

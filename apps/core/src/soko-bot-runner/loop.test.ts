@@ -1046,15 +1046,25 @@ describe("the done check (planLoop)", () => {
     expect(asked).toBe(0);
   });
 
-  it("keeps the finished answer when the extra round runs out of steps", async () => {
+  it("writes a new answer when the extra round worked and ran out of steps", async () => {
     let calls = 0;
     const model = new MockLanguageModelV3({
-      doStream: async () => {
+      doStream: async (options) => {
         calls += 1;
+        // The wrap-up, without tools, says what the work came to.
+        if (options.toolChoice?.type === "none")
+          return streamOf({
+            content: [{ type: "text", text: "The posts are scheduled." }],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          });
         return streamOf(
           calls === 1
             ? {
-                content: [{ type: "text", text: "Here is your summary." }],
+                content: [
+                  { type: "text", text: "The posts still need scheduling." },
+                ],
                 finishReason: { unified: "stop", raw: "stop" },
                 warnings: [],
                 usage,
@@ -1082,10 +1092,16 @@ describe("the done check (planLoop)", () => {
         { maxSteps: 3 },
       ),
     );
+    // The first answer is stale once the extra round scheduled the posts.
+    expect(result.text).toBe("The posts are scheduled.");
+    expect(calls).toBe(4);
+  });
+
+  it("keeps the finished answer when the extra round did nothing and wrote nothing", async () => {
+    const { model, calls } = scriptedModel(["Here is your summary.", ""]);
+    const result = await runTurnLoop(loopInput(model, goBack));
     expect(result.text).toBe("Here is your summary.");
-    // The answer, the extra round's two steps, and no wrap-up call after it:
-    // the answer was already there.
-    expect(calls).toBe(3);
+    expect(calls()).toBe(2);
   });
 
   it("lets the answer through when Core does or cannot answer", async () => {

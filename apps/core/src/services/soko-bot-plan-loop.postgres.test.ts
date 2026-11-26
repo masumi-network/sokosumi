@@ -656,6 +656,36 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       });
     }
 
+    it("never invites a blind retry of a save Core could not confirm", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      await childReceipts(chat, [
+        {
+          capability: "publish_social_post",
+          extra: { disposition: "UNKNOWN", verification: "NONE" },
+        },
+      ]);
+      const prompt = await check(chat);
+      expect(prompt).toContain(
+        "- publish_social_post: Core could not confirm whether it happened",
+      );
+      expect(prompt).not.toContain("publish_social_post: did not happen");
+      expect(prompt).toContain("never repeat it blind");
+    });
+
+    it("judges Cuso's Core-checked saves by their own check", async () => {
+      const chat = await turn("CHAT");
+      await updatePlan(chat, twoSteps);
+      await childReceipts(chat, [
+        { capability: "save_strategy", extra: { result: { saved: true } } },
+        // Settled COMPLETED, but nothing was written.
+        { capability: "write_month_pieces", extra: { result: { written: 0 } } },
+      ]);
+      const prompt = await check(chat);
+      expect(prompt).toContain("- save_strategy: done");
+      expect(prompt).toContain("- write_month_pieces: did not happen");
+    });
+
     it("never calls a Studio request Core rejected done", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, twoSteps);

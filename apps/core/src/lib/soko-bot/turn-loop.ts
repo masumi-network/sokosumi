@@ -801,7 +801,7 @@ export async function runTurnTool(input: {
 
 /** The changes this turn's receipts confirm, as the answer names them. */
 /** Saves that carry no action receipt but are Core-checked writes the owner may hear about. */
-const RECORDED_SAVES: Record<
+export const RECORDED_SAVES: Record<
   string,
   { label: string; confirmed?: (result: unknown) => boolean }
 > = {

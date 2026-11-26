@@ -204,6 +204,8 @@ export async function runTurnLoop(
   let activePlan = input.plan?.inherited ? input.plan : undefined;
   /** The reply the done check sent back, kept in case the extra round fails. */
   let draft: TurnLoopResult | undefined;
+  /** The extra round called tools: the reply sent back no longer tells it all. */
+  let workedAfterCheck = false;
   const roomForAnotherRound = () =>
     !refused &&
     stepsLeft > 1 &&
@@ -259,6 +261,8 @@ export async function runTurnLoop(
       });
     if (!result) return draft as TurnLoopResult;
     bookUnreported(result.steps);
+    if (draft && result.steps.some((step) => step.toolCalls.length > 0))
+      workedAfterCheck = true;
     if (
       input.plan &&
       !activePlan &&
@@ -351,8 +355,10 @@ export async function runTurnLoop(
   // has no answer yet: one call without tools writes it.
   const cutOff = stepsLeft <= 0 || timeUp() || refused;
   // The latest complete answer wins. The one the done check sent back stands
-  // only when the extra round ran out before it wrote a new one.
-  if (draft && (finishReason === "tool-calls" || !text.trim())) return draft;
+  // only when the extra round did nothing and wrote nothing new; once it
+  // worked, that reply is stale and the wrap-up below writes a new one.
+  const noNewAnswer = finishReason === "tool-calls" || !text.trim();
+  if (draft && !workedAfterCheck && noNewAnswer) return draft;
   // A part never makes a wrap-up call, whatever stopped it: the turn's own
   // loop makes the one, from what the parts handed back.
   if (cutOff && input.part)
@@ -365,7 +371,7 @@ export async function runTurnLoop(
     };
   const needsReport = input.background
     ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
-    : cutOff && (finishReason === "tool-calls" || !text.trim());
+    : (cutOff || workedAfterCheck) && noNewAnswer;
   if (needsReport) {
     const result = await callModel({
       model: input.model,
