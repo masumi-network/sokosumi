@@ -42,4 +42,33 @@ describe("fitToolResult", () => {
     const result = { text: "z".repeat(40_000) };
     expect(fitToolResult("refresh_context", result)).toBe(result);
   });
+
+  it.each([
+    ["bash", { exitCode: 0, stdout: '"row",\\n'.repeat(30_000), stderr: "" }],
+    ["workspace_read", { path: "data.csv", content: "a,b\n".repeat(50_000) }],
+  ])("fits a sandbox-local %s result for the model", (capability, result) => {
+    const fitted = fitToolResult(capability, result) as { note: string };
+    expect(JSON.stringify(fitted).length).toBeLessThanOrEqual(
+      TOOL_RESULT_MAX_CHARS,
+    );
+    expect(fitted.note).toContain("more narrowly");
+  });
+
+  it("stays within the cap when the list of what it left out would not fit", () => {
+    // Thousands of small lists, each cut: the omitted map alone outgrows the cap.
+    const result = Object.fromEntries(
+      Array.from({ length: 3_000 }, (_, index) => [
+        `list_${index}_${"k".repeat(20)}`,
+        ["x".repeat(40), "y".repeat(40)],
+      ]),
+    );
+    const fitted = fitToolResult("run_integration_tool", result) as {
+      omitted?: Record<string, number>;
+    };
+    expect(JSON.stringify(fitted).length).toBeLessThanOrEqual(
+      TOOL_RESULT_MAX_CHARS,
+    );
+    // At most one entry per trimming round.
+    expect(Object.keys(fitted.omitted ?? {}).length).toBeLessThanOrEqual(40);
+  });
 });

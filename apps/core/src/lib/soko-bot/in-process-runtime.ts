@@ -127,9 +127,9 @@ async function runTurn(
   const log = new RuntimeEventLog(input.turnId, sessionId);
 
   try {
-    const { ms: budgetMs, inputTokens: inputTokenBudget } = await turnBudget(
-      input.turnId,
-    );
+    const { ms: budgetMs, inputTokens } = await turnBudget(input.turnId);
+    // One allowance for the turn's parts and its main call together.
+    const budget = { limit: inputTokens, used: 0 };
     const abortSignal = AbortSignal.timeout(budgetMs);
     await announceTurn(log, input.message);
     const [turn, replyLanguage] = await withReplyLanguage(
@@ -221,14 +221,11 @@ async function runTurn(
           stopWhen: [
             stepCountIs(maxSteps),
             endedByTool,
-            ({ steps }) =>
-              steps.reduce(
-                (sum, step) => sum + (step.usage.inputTokens ?? 0),
-                0,
-              ) >= inputTokenBudget,
+            () => budget.used >= budget.limit,
           ],
           abortSignal: signal,
           async onStepFinish(step) {
+            budget.used += step.usage?.inputTokens ?? 0;
             assertSokoBotInferenceRegion(step.providerMetadata, {
               model: turn.model,
               role: "agent",

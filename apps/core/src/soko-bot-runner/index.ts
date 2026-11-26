@@ -28,7 +28,7 @@ import {
   MODEL_CALL_MAX_MS,
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
-
+import { fitToolResult } from "../lib/soko-bot/tool-result-fit";
 import {
   partTools,
   TURN_PART_MAX_MS,
@@ -286,9 +286,14 @@ function buildTools(
         SOKO_BOT_TOOL_DESCRIPTIONS[capability],
       inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
       async execute(input: unknown, callOptions: { toolCallId: string }) {
+        // What the sandbox returns reaches the model here, not through
+        // Core's runTurnTool, so it is fitted here too.
         if (runLocal)
-          return sandboxTool(capability, callOptions.toolCallId, input, () =>
-            runLocal(input as never),
+          return fitToolResult(
+            capability,
+            await sandboxTool(capability, callOptions.toolCallId, input, () =>
+              runLocal(input as never),
+            ),
           );
         try {
           const { result } = await callCore<{ result: unknown }>(
@@ -443,7 +448,11 @@ async function main(): Promise<void> {
     headers: authHeaders,
     fetch: modelFetch,
   });
-  const { inputTokenBudget } = start;
+  // One allowance for the parts and the main loop together.
+  const budget =
+    start.inputTokenBudget === undefined
+      ? undefined
+      : { limit: start.inputTokenBudget, used: 0 };
   const budgetMs =
     start.budgetMs ??
     Math.max(30_000, Date.parse(start.deadlineAt) - Date.now() - 20_000);
@@ -469,7 +478,7 @@ async function main(): Promise<void> {
             message: part.message,
             tools: partTools(tools, part),
             maxSteps: TURN_PART_MAX_STEPS,
-            inputTokenBudget,
+            budget,
             background: false,
             deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
             stopped: stopped.signal,
@@ -482,7 +491,7 @@ async function main(): Promise<void> {
       message,
       tools,
       maxSteps: start.maxSteps,
-      inputTokenBudget,
+      budget,
       background: Boolean(start.background),
       deadline,
       stopped: stopped.signal,

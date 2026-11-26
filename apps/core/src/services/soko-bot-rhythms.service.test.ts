@@ -340,10 +340,49 @@ describe("dreaming", () => {
       scheduledFor: new Date("2026-09-01T03:00:00.000Z"),
     });
     await dream();
-    expect(turnFindManyMock.mock.calls[1][0].where.createdAt.gte).toEqual(
+    // Two reads a dream: the newest turns, and the ones it can learn from.
+    expect(turnFindManyMock.mock.calls[2][0].where.createdAt.gte).toEqual(
       new Date("2026-10-25T03:00:00.000Z"),
     );
   });
+
+  // Codex's repro (codex-8244-dream-window.mjs): one owner chat, then N
+  // routine turns. At N = 100 the chat fell out of the newest hundred, the
+  // night skipped, and the skip moved the cutoff past the chat for good.
+  it.each([99, 100, 250])(
+    "learns from the owner's chat behind %i newer routine turns",
+    async (routineTurns) => {
+      const start = new Date("2026-10-31T04:00:00.000Z").getTime();
+      const rows = Array.from({ length: routineTurns + 1 }, (_, index) =>
+        turn({
+          createdAt: new Date(start + index * 60_000),
+          source: index === 0 ? "CHAT" : "SCHEDULE",
+          userMessage:
+            index === 0 ? "Always copy Finance on invoices" : "Meeting prep.",
+        }),
+      );
+      // A faithful stand-in for the two reads: filter, newest first, take.
+      turnFindManyMock.mockImplementation(
+        async ({ where, take }: { where: { OR?: unknown[] }; take: number }) =>
+          rows
+            .filter(
+              (row) =>
+                !where.OR ||
+                row.source === "CHAT" ||
+                row.ownerFeedback !== null ||
+                row.status === "FAILED",
+            )
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .slice(0, take),
+      );
+      const packet = await dream();
+      expect(packet.skip).toBe(false);
+      expect(packet.lines.join("\n")).toContain(
+        'Asked: "Always copy Finance on invoices"',
+      );
+      turnFindManyMock.mockResolvedValue([]);
+    },
+  );
 
   it("quotes chats with the owner's thumbs, and only counts packet-driven turns", async () => {
     turnFindManyMock.mockResolvedValue([

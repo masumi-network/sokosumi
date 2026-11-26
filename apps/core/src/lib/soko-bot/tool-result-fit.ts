@@ -13,6 +13,8 @@ const SHORTENED_NOTE =
 
 type Json = unknown;
 
+const MAX_TRIM_ROUNDS = 40;
+
 function size(value: Json): number {
   return JSON.stringify(value)?.length ?? 0;
 }
@@ -53,7 +55,9 @@ export function fitToolResult(capability: string, result: Json): Json {
   if (size(result) <= TOOL_RESULT_MAX_CHARS) return result;
   const copy: Json = structuredClone(result);
   const omitted: Record<string, number> = {};
-  for (;;) {
+  // Each round serializes the whole result again: a result of many small
+  // lists goes to the text preview instead of thousands of rounds.
+  for (let round = 0; round < MAX_TRIM_ROUNDS; round++) {
     const found = longestArray(copy, "");
     if (!found || found.items.length <= 1) break;
     const drop = Math.max(1, Math.ceil(found.items.length / 4));
@@ -67,14 +71,20 @@ export function fitToolResult(capability: string, result: Json): Json {
       return { result: copy, omitted, note: SHORTENED_NOTE };
   }
   const text = JSON.stringify(copy) ?? "";
+  // The list of what was left out can itself grow past the cap (thousands of
+  // nested lists); then only its total is kept.
+  const left: Record<string, number> =
+    size(omitted) <= TOOL_RESULT_MAX_CHARS / 4
+      ? omitted
+      : { items: Object.values(omitted).reduce((sum, n) => sum + n, 0) };
   const shortened = (length: number) => ({
-    preview: text.slice(0, length).toWellFormed(),
-    ...(Object.keys(omitted).length ? { omitted } : {}),
+    preview: text.slice(0, Math.max(0, length)).toWellFormed(),
+    ...(Object.keys(left).length ? { omitted: left } : {}),
     note: SHORTENED_NOTE,
   });
   let length = TOOL_RESULT_MAX_CHARS;
   // Quotes and backslashes grow when the preview is encoded again.
-  while (size(shortened(length)) > TOOL_RESULT_MAX_CHARS)
-    length -= size(shortened(length)) - TOOL_RESULT_MAX_CHARS;
+  while (length > 0 && size(shortened(length)) > TOOL_RESULT_MAX_CHARS)
+    length -= Math.max(1, size(shortened(length)) - TOOL_RESULT_MAX_CHARS);
   return shortened(length);
 }

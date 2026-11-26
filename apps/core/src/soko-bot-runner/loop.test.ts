@@ -387,7 +387,7 @@ describe("runTurnLoop", () => {
       message: "Fill the table.",
       tools,
       maxSteps: 500,
-      inputTokenBudget: 25,
+      budget: { limit: 25, used: 0 },
       background: true,
       deadline: 600 * MINUTE,
       stopped: new AbortController().signal,
@@ -398,6 +398,35 @@ describe("runTurnLoop", () => {
     expect(calls).toHaveLength(4);
     expect(calls.at(-1)?.lastUser).toBe(TIME_UP_PROMPT);
     expect(result.text).toBe("filled 12 of 30 rows; 18 left.");
+  });
+
+  it("shares one budget between a turn's parts and its main loop, and still reports", async () => {
+    const clock = { now: 0 };
+    const budget = { limit: 45, used: 0 };
+    const part = tirelessModel(clock);
+    const main = tirelessModel(clock);
+    const loop = (model: typeof part.model, maxSteps: number) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps,
+        budget,
+        background: false,
+        deadline: 600 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await loop(part.model, 4);
+    expect(budget.used).toBeGreaterThanOrEqual(40);
+    const result = await loop(main.model, 500);
+
+    // The parts spent the allowance: the main loop only writes its answer.
+    expect(main.calls).toHaveLength(1);
+    expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    expect(result.text).toContain("filled 12 of 30 rows");
   });
 
   it("ends on the step whose tool said so, without a closing step", async () => {

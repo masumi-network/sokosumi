@@ -31,8 +31,11 @@ export interface TurnLoopInput {
   message: string;
   tools: ToolSet;
   maxSteps: number;
-  /** Input tokens the turn may spend across all its model calls; none from an older Core. */
-  inputTokenBudget?: number;
+  /**
+   * Input tokens the whole turn may spend, shared by its parts and its main
+   * loop; none from an older Core.
+   */
+  budget?: TurnTokenBudget;
   background: boolean;
   /** Epoch ms by which the turn must have answered. */
   deadline: number;
@@ -42,8 +45,10 @@ export interface TurnLoopInput {
   now?: () => number;
 }
 
-interface StepUsage {
-  usage: { inputTokens?: number | undefined };
+/** One turn's input-token allowance; every loop of the turn adds to `used`. */
+export interface TurnTokenBudget {
+  limit: number;
+  used: number;
 }
 
 export interface TurnLoopResult {
@@ -74,18 +79,22 @@ export async function runTurnLoop(
           Math.max(0, input.deadline - now()) / 5,
         ));
   const timeUp = () => now() >= reportAt;
-  const tokenBudget = input.inputTokenBudget ?? Number.POSITIVE_INFINITY;
-  let tokensUsed = 0;
-  const inputTokensOf = (steps: readonly StepUsage[]) =>
-    steps.reduce((sum, step) => sum + (step.usage.inputTokens ?? 0), 0);
-  const overBudget = ({ steps }: { steps: readonly StepUsage[] }) =>
-    tokensUsed + inputTokensOf(steps) >= tokenBudget;
+  const budget = input.budget ?? {
+    limit: Number.POSITIVE_INFINITY,
+    used: 0,
+  };
+  const spend = (step: { usage: { inputTokens?: number | undefined } }) => {
+    budget.used += step.usage.inputTokens ?? 0;
+  };
+  const overBudget = () => budget.used >= budget.limit;
   let messages: ModelMessage[] = [{ role: "user", content: input.message }];
   let stepsLeft = input.maxSteps;
   let text = "";
   let finishReason = "";
   let idleRounds = 0;
   for (let round = 0; ; round++) {
+    // The turn's parts may have spent the allowance: answer without tools.
+    if (overBudget()) break;
     const result = await streamModelCall({
       model: input.model,
       system: input.system,
@@ -100,6 +109,7 @@ export async function runTurnLoop(
       // chat can show what the bot considered, as Coworker replies do.
       providerOptions: modelReasoningSummaryOptions(input.model),
       onStepFinish: async (step) => {
+        spend(step);
         const summary = stepReasoningSummary(step);
         if (summary) await input.onReasoning?.(summary);
       },
@@ -107,7 +117,6 @@ export async function runTurnLoop(
       maxRetries: 1,
     });
     stepsLeft -= result.steps.length;
-    tokensUsed += inputTokensOf(result.steps);
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
     const ended = toolEndedTurn(result.steps);
@@ -128,14 +137,14 @@ export async function runTurnLoop(
       idleRounds < MAX_IDLE_ROUNDS &&
       round < MAX_KEEP_GOING_ROUNDS &&
       stepsLeft > 0 &&
-      tokensUsed < tokenBudget &&
+      !overBudget() &&
       reportAt - now() > MIN_ROUND_TIME_MS;
     if (!keepGoing) break;
     messages.push({ role: "user", content: KEEP_GOING_PROMPT });
   }
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
-  const cutOff = stepsLeft <= 0 || timeUp() || tokensUsed >= tokenBudget;
+  const cutOff = stepsLeft <= 0 || timeUp() || overBudget();
   const needsReport = input.background
     ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
     : cutOff && (finishReason === "tool-calls" || !text.trim());
@@ -157,6 +166,7 @@ export async function runTurnLoop(
       abortSignal: signal(),
       maxRetries: 1,
     });
+    for (const step of result.steps) spend(step);
     text = result.text || text;
     finishReason = result.finishReason;
   }
