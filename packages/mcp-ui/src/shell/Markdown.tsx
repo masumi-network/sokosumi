@@ -135,7 +135,10 @@ function parseBlocks(lines: string[]): Block[] {
       const marker = first[2].slice(-1);
       const items: Item[] = [];
       while (i < lines.length) {
-        const item = LIST_ITEM.exec(lines[i]);
+        // Blank lines between items keep one (loose) list.
+        let next = i;
+        while (next < lines.length && !lines[next].trim()) next++;
+        const item = LIST_ITEM.exec(lines[next] ?? "");
         if (
           !item ||
           /\d/.test(item[2]) !== ordered ||
@@ -143,6 +146,7 @@ function parseBlocks(lines: string[]): Block[] {
         ) {
           break;
         }
+        i = next;
         // Lines indented past the marker belong to the item, as do lazy
         // lines that continue its text.
         const indent = item[1].length + item[2].length + 1;
@@ -150,12 +154,18 @@ function parseBlocks(lines: string[]): Block[] {
         i++;
         while (i < lines.length) {
           const next = lines[i];
-          const indented = next.length - next.trimStart().length >= indent;
+          const leading = next.length - next.trimStart().length;
+          // A list marker indented past this item's marker nests in it.
+          const nested =
+            (LIST_ITEM.exec(next)?.[1].length ?? -1) > item[1].length;
+          const indented = leading >= indent || nested;
           const lazy = next.trim() && body.at(-1)?.trim() && !startsBlock(next);
           if (next.trim() && !indented && !lazy) break;
           if (!next.trim() && !lines[i + 1]?.startsWith(" ".repeat(indent)))
             break;
-          body.push(indented ? next.slice(indent) : next.trim());
+          body.push(
+            indented ? next.slice(Math.min(leading, indent)) : next.trim(),
+          );
           i++;
         }
         const task = /^\[([ xX])\][ \t]+/.exec(body[0]);
@@ -168,7 +178,7 @@ function parseBlocks(lines: string[]): Block[] {
       blocks.push({
         type: "list",
         ordered,
-        start: Number.parseInt(first[2], 10) || 1,
+        start: ordered ? Number.parseInt(first[2], 10) : 1,
         items,
       });
       continue;

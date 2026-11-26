@@ -86,6 +86,26 @@ describe("Markdown", () => {
     expect(screen.getByRole("cell", { name: "20 €" })).toBeTruthy();
   });
 
+  it("keeps a loose list, with blank lines between items, as one list", () => {
+    const { container } = show("- a\n\n- b\n\n- c\n\n0. zero\n1. one");
+
+    const lists = container.querySelectorAll(
+      ":scope > div > ul, :scope > div > ol",
+    );
+    expect(lists).toHaveLength(2);
+    expect(lists[0].querySelectorAll("li")).toHaveLength(3);
+    expect(lists[1].getAttribute("start")).toBe("0");
+  });
+
+  it("nests a list indented under a numbered item", () => {
+    const { container } = show("1. Step\n  - detail\n2. Next");
+
+    expect(container.querySelector("ol > li > ul > li")?.textContent).toBe(
+      "detail",
+    );
+    expect(container.querySelectorAll("ol > li")).toHaveLength(2);
+  });
+
   it("keeps a single line break, as Web does", () => {
     const { container } = show("one\ntwo");
     expect(container.querySelectorAll("p br")).toHaveLength(1);

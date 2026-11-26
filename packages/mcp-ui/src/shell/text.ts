@@ -87,11 +87,13 @@ export function isOverdue(
   timeZone?: string,
 ): boolean {
   if (status === "COMPLETED" || status === "CANCELED") return false;
+  // en-CA writes YYYY-MM-DD, which compares as a string.
+  const day = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
   let today: string;
   try {
-    today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(now);
+    today = new Intl.DateTimeFormat("en-CA", { ...day, timeZone }).format(now);
   } catch {
-    today = new Intl.DateTimeFormat("en-CA").format(now);
+    today = new Intl.DateTimeFormat("en-CA", day).format(now);
   }
   return dueOn < today;
 }
