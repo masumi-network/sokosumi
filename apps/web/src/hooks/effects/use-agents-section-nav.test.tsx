@@ -247,6 +247,27 @@ describe("useAgentsSectionNav", () => {
     expect(window.location.hash).toBe("");
   });
 
+  it("pads the scroller by the bar so focused controls stay below it", () => {
+    const page = mountPage({ bots: 0, coworkers: 900, market: 2000 });
+    page.main.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+    const { unmount } = renderHook(() => useAgentsSectionNav(page.nav, IDS));
+
+    expect(page.main.style.scrollPaddingTop).toBe("100px");
+
+    unmount();
+    expect(page.main.style.scrollPaddingTop).toBe("");
+  });
+
+  it("drops the padding when the window widens to desktop", () => {
+    const page = mountPage({ bots: 0, coworkers: 900, market: 2000 });
+    page.main.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+    renderHook(() => useAgentsSectionNav(page.nav, IDS));
+
+    setViewport("desktop");
+
+    expect(page.main.style.scrollPaddingTop).toBe("");
+  });
+
   it("stops listening once unmounted", () => {
     const page = mountPage({ bots: 0, coworkers: 900, market: 2000 });
     const { unmount } = renderHook(() => useAgentsSectionNav(page.nav, IDS));

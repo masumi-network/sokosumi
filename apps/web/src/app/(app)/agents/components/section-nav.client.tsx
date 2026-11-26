@@ -55,9 +55,9 @@ export function AgentsSectionNav() {
     writeAgentsSectionHash(id, AGENTS_SECTION_IDS[0]);
   }
 
-  // Sticky `top` counts from `main`'s content box, which starts below its
-  // `pt-[calc(5rem+env(safe-area-inset-top))]`; -1rem puts the bar right
-  // under the 4rem fixed top bar. The band bleeds to the screen edges
+  // Sticky `top` counts from `main`'s content box, which starts below
+  // `APP_MAIN_MOBILE_PT_CLASS`; -1rem puts the bar right under the 4rem
+  // fixed top bar. The band bleeds to the screen edges
   // (`-mx-4 px-4`), is opaque and ends in a hairline, so cards scrolling
   // under it never show around it.
   return (

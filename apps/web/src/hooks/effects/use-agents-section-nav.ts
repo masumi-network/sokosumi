@@ -55,6 +55,12 @@ export function useAgentsSectionNav(
     const bar = nav;
     const sectionIds = key.split(" ");
     const scroller = scrollParent(bar);
+    // The opaque bar covers the scroller's top: focus scrolling and jumps
+    // must keep targets below it (WCAG 2.4.11), so pad the scrollport.
+    const paddingBefore = scroller.style.scrollPaddingTop;
+    scroller.style.scrollPaddingTop = `${Math.round(
+      bar.getBoundingClientRect().bottom - scroller.getBoundingClientRect().top,
+    )}px`;
 
     function read(): string | undefined {
       const present = sectionIds.filter((id) => document.getElementById(id));
@@ -122,6 +128,7 @@ export function useAgentsSectionNav(
     scroller.addEventListener("touchstart", stopRestoring, options);
     scroller.addEventListener("keydown", stopRestoring, options);
     return () => {
+      scroller.style.scrollPaddingTop = paddingBefore;
       listening.abort();
       observer.disconnect();
       window.clearTimeout(deadline);
