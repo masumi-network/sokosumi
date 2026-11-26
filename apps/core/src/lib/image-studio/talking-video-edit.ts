@@ -10,6 +10,7 @@ import {
 
 import { CAPTION_FONT_FAMILY, captionFontsDir, runFfmpeg } from "@/lib/ffmpeg";
 
+import { renderVideoCards, type VideoCardBrand } from "./video-cards";
 import { VIDEO_LAYOUTS, type VideoLayout } from "./video-layout";
 
 /**
@@ -90,6 +91,8 @@ export interface TalkingVideoEditPlan {
   /** The cuts' length together, before the end card. */
   speechSeconds: number;
   durationSeconds: number;
+  /** Where a launch's date card shows: over the sentence that says when. */
+  cardSpan?: { start: number; end: number; text: string };
 }
 
 /** The first sentence is the hook and the last the next step: both to camera. */
@@ -336,6 +339,7 @@ function shortShot(
         ? page(0)
         : picture(index);
     case "slideshow":
+    case "launch":
       return picture(index);
     case "voiceover":
       return options.page && options.pictures > 0 && index % 2 === 1
@@ -421,6 +425,11 @@ export function planShortVideo(
         lines.push({ ...span, text: String(sentence), style: "Number" });
     }
   }
+  // The second sentence says when, and the hook keeps the first to itself;
+  // a launch told in one sentence shows its date over that sentence.
+  const dated = sentences > 1 ? 1 : 0;
+  const dateSpan = options.format === "launch" ? spans[dated] : undefined;
+  const dateText = texts[dated];
   return {
     ...base,
     cuts: shots,
@@ -428,8 +437,13 @@ export function planShortVideo(
     captions: onScreen ? [] : base.captions,
     lines,
     captionBox: true,
+    ...(dateSpan && dateText
+      ? { cardSpan: { ...dateSpan, text: dateText } }
+      : {}),
+    // A list's hook names it; a launch's makes way for its date card.
     hookSeconds:
-      options.format === "top_three" && sentences > 1
+      (options.format === "top_three" || options.format === "launch") &&
+      sentences > 1
         ? (spans[0]?.end ?? base.hookSeconds)
         : base.hookSeconds,
   };
@@ -524,7 +538,7 @@ export function talkingVideoSubtitles(
     `Style: ${name},${CAPTION_FONT_FAMILY},${values.size},${values.colour},${values.colour},${values.outlineColour},${values.outlineColour},0,0,0,0,100,100,0,0,${values.borderStyle},${values.outline},0,${values.alignment},${sideMargin},${sideMargin},${values.marginV},1`;
   const hook = hookLine ? assText(hookLine) : "";
   const events = [
-    ...(hook
+    ...(hook && plan.hookSeconds > 0
       ? [
           `Dialogue: 1,${assTime(0)},${assTime(plan.hookSeconds)},Hook,,0,0,0,,${hook}`,
         ]
@@ -910,6 +924,8 @@ export interface ShortVideoEditInput extends Omit<EditExtras, "broll"> {
   page?: Uint8Array;
   /** A card with no picture behind it, as `0xRRGGBB`. */
   cardColour?: string;
+  /** A launch's date and the brand its card is drawn in. */
+  launch?: { date: string; brand: VideoCardBrand };
 }
 
 interface EditResult {
@@ -1031,5 +1047,36 @@ export async function editShortVideo(
     endCard: Boolean(input.endCard),
   });
   if (!plan) return null;
-  return await renderEdit(plan, input.hookLine, input);
+  const card =
+    plan.cardSpan && input.launch
+      ? await launchCard(plan.cardSpan, input)
+      : null;
+  if (!card) return await renderEdit(plan, input.hookLine, input);
+  // The card says it, so the captions under it and the hook line make way.
+  const span = plan.cardSpan!;
+  return await renderEdit(
+    {
+      ...plan,
+      captions: plan.captions.filter(
+        (caption) => caption.end <= span.start || caption.start >= span.end,
+      ),
+      hookSeconds: Math.min(plan.hookSeconds, span.start),
+    },
+    input.hookLine,
+    { ...input, cards: [card] },
+  );
+}
+
+/** A launch's date card over the sentence that says when, or null when it could not be drawn. */
+async function launchCard(
+  span: NonNullable<TalkingVideoEditPlan["cardSpan"]>,
+  input: ShortVideoEditInput,
+): Promise<{ png: Uint8Array; start: number; end: number } | null> {
+  const { date, brand } = input.launch!;
+  const pngs = await renderVideoCards(
+    [{ kind: "date", date, text: input.hookLine ?? span.text }],
+    brand,
+    input.shape ?? "9:16",
+  );
+  return pngs?.[0] ? { png: pngs[0], start: span.start, end: span.end } : null;
 }
