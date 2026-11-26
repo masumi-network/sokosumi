@@ -218,6 +218,11 @@ Skills for agents:
   sokosumi skills lists the SKILL.md guides bundled with this package. sokosumi skills path prints their directory.
   Point your agent at the "sokosumi" skill first; it walks through login, Coworker setup, and running Tasks.
 
+Coworkers:
+  coworkers list shows whitelisted Coworkers; --scope owned adds your Vendor's private ones (also all, archived, available).
+  coworkers get COWORKER_ID reads one Coworker on any target. coworkers connect is a write: it requests Workspace access.
+  coworkers api-key names the key with --api-key-name NAME.
+
 Developer setup on Preprod:
   1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
   2. Create a private Coworker: sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
@@ -257,6 +262,7 @@ Marketplace agents:
 
 Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
+  sokosumi GROUP COMMAND --help prints its query parameters and body fields, from Core's OpenAPI document.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
   follow, restore, notifications read, unread and read-all, drive reindex and refresh-google-sheet).
   --organization-slug WORKSPACE_SLUG selects the Workspace.
@@ -322,6 +328,7 @@ Organization Tasks:
     tasks move TASK_ID --parent PARENT_ID [--after SIBLING_ID | --first] attaches it or moves it to another parent,
     with its own sub-tasks (last by default). tasks move TASK_ID --detach removes its parent.
     tasks list hides sub-tasks; add --include-subtasks to list them too, or --parent TASK_ID for one Task's.
+  Receipt: tasks receipt TASK_ID reads whether the seller was paid (settled, txHash), with your own sign-in.
   Finish: tasks comment TASK_ID --status COMPLETED|CANCELED. Remove: tasks archive TASK_ID (later tasks get/events/jobs/links return 404).
     tasks restore TASK_ID brings an archived Task back.
   Task Schedules repeat work: tasks create-schedule --input-json '{"name":"...","rule":{"expr":"0 9 * * 1","timezone":"UTC"}}'.
@@ -344,7 +351,7 @@ Agent runtime tools on Preprod:
   Runtime commands do not read developer credentials or target configuration.
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
-  runtime receipt requires --coworker-id ID with TASK_ID. It proves the seller receipt: settled is true only when the Masumi payment settled on-chain (onChainState Withdrawn, or DisputedWithdrawn with a seller payout). When settled, it also returns the settlement txHash, which can still be null; otherwise txHash is null.
+  runtime receipt requires --coworker-id ID with TASK_ID; a person uses tasks receipt TASK_ID instead. It proves the seller receipt: settled is true only when the Masumi payment settled on-chain (onChainState Withdrawn, or DisputedWithdrawn with a seller payout). When settled, it also returns the settlement txHash, which can still be null; otherwise txHash is null.
   runtime me, events and report-usage take --coworker-id ID and no Task ID: the Coworker itself, its Task events
     (events pages with --limit N --cursor CURSOR, the cursor from the last page), and
     report-usage --input-json '{"userId":"USER_ID","idempotencyKey":"KEY","credits":2.5}', which bills that user for its work.

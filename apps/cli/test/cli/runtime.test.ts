@@ -923,3 +923,17 @@ test("runtime events pages with --limit and --cursor", async () => {
   );
   assert.deepEqual(paths, ["/v1/coworkers/me/events?limit=50&cursor=evt+9"]);
 });
+
+test("runtime receipt without a Coworker points a person to tasks receipt (SOKD-467)", async () => {
+  for (const argv of [
+    ["runtime", "receipt", "task-1", "--organization-slug", "utxo"],
+    ["runtime", "receipt", "task-1"],
+  ]) {
+    const f = fixture();
+    await assert.rejects(
+      runCli(argv, f.dependencies),
+      /sokosumi tasks receipt TASK_ID/,
+    );
+    assert.equal(f.calls.length, 0);
+  }
+});

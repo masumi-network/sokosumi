@@ -24,8 +24,10 @@ import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import {
   CLI_COMMAND_CATALOG,
+  type CliCommandCatalogEntry,
   formatUnknownCommandUsage,
 } from "./commands/catalog.js";
+import { printCommandHelp } from "./commands/command-help.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import { runDiscoverCommand } from "./commands/discover.js";
@@ -171,6 +173,9 @@ const CORE_COMMAND_SECTIONS = new Set(
       section !== "skills" && section !== "runtime" && section !== "auth",
   ),
 );
+const COMMAND_ROWS = new Map<string, CliCommandCatalogEntry>(
+  CLI_COMMAND_CATALOG.map((entry) => [entry.command, entry]),
+);
 const GENERIC_ROWS = CLI_COMMAND_CATALOG.filter(
   (entry): entry is Extract<typeof entry, { operation: string }> =>
     "operation" in entry,
@@ -297,13 +302,55 @@ export async function runCli(
     ["register", "provision", "connect"].includes(positionals[1]);
   const adminOnboarding = positionals[0] === "admin";
 
+  const commandRow = COMMAND_ROWS.get(positionals.slice(0, 2).join(" "));
   if (options.help) {
-    stdout.write(formatHelpText());
+    if (commandRow && positionals.length >= 2) {
+      const apiUrl = commandRow.operation
+        ? bootstrapCliSession({
+            environment: dependencies.env || process.env,
+            loadFiles: dependencies.env === undefined,
+            preprod: options.preprod,
+            preprodDefault: coworkerRegistration || adminOnboarding,
+            apiUrl: options["api-url"],
+            authManager: dependencies.authManager,
+          }).config.apiUrl
+        : "";
+      await printCommandHelp({ row: commandRow, apiUrl, stdout });
+    } else stdout.write(formatHelpText());
     return { help: true };
   }
   if (options.version) {
     stdout.write(`${CLI_VERSION}\n`);
     return { version: CLI_VERSION };
+  }
+
+  if (
+    positionals[0] === "coworkers" &&
+    ["me", "events", "report-usage"].includes(positionals[1])
+  ) {
+    // Core answers these only for a Coworker's own key, which only runtime uses.
+    const error = new Error(
+      `coworkers ${positionals[1]} needs a Coworker's own key. Use sokosumi --preprod runtime ${positionals[1]} --coworker-id COWORKER_ID, with the key from runtime key-import or --api-key-stdin.`,
+    );
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
+  }
+
+  const group = positionals[0];
+  if (
+    positionals.length >= 2 &&
+    !commandRow &&
+    group !== "runtime" && // runtime names its own commands
+    CLI_COMMAND_CATALOG.some((entry) => entry.command.startsWith(`${group} `))
+  ) {
+    const commands = CLI_COMMAND_CATALOG.filter((entry) =>
+      entry.command.startsWith(`${group} `),
+    ).map((entry) => entry.command.slice(group.length + 1));
+    const error = new Error(
+      `Unknown command: sokosumi ${group} ${positionals[1]}. ${group} commands: ${commands.join(", ")}.`,
+    );
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
   }
 
   if (options.query !== undefined && !genericRow) {
@@ -339,18 +386,6 @@ export async function runCli(
   ) {
     const error = new Error(
       "--personal supports coworkers register/connect, tasks create, workspaces list, and runtime start/complete/run",
-    );
-    if (options.json) writeJsonError(stdout, error);
-    throw error;
-  }
-
-  if (
-    positionals[0] === "coworkers" &&
-    ["me", "events", "report-usage"].includes(positionals[1])
-  ) {
-    // Core answers these only for a Coworker's own key, which only runtime uses.
-    const error = new Error(
-      `coworkers ${positionals[1]} needs a Coworker's own key. Use sokosumi --preprod runtime ${positionals[1]} --coworker-id COWORKER_ID, with the key from runtime key-import or --api-key-stdin.`,
     );
     if (options.json) writeJsonError(stdout, error);
     throw error;

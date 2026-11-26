@@ -254,7 +254,9 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "--json",
     ],
   },
-  "GET /coworkers/{id}": COWORKER_CONNECT,
+  "GET /coworkers/{id}": {
+    argv: [...API, "coworkers", "get", "cw-1", "--json"],
+  },
   "POST /coworkers/{id}/workspace-access": COWORKER_CONNECT,
   "PATCH /coworkers/{id}": {
     argv: [...API, "coworkers", "update", "cw-1", "--name", "Ada", "--json"],
@@ -300,16 +302,13 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "DELETE /jobs/{id}/share": { argv: [...API, "jobs", "unshare", "job-1"] },
   "GET /tasks/{id}/receipt": {
     argv: [
-      "runtime",
+      ...API,
+      "tasks",
       "receipt",
-      "task-1",
-      "--coworker-id",
-      "cw-1",
-      "--api-key-stdin",
+      "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
       "--json",
     ],
     response: () => ({ data: { settled: false, txHash: null } }),
-    stdin: "coworker_fixture_key",
   },
   "GET /tasks": { argv: [...API, "tasks", "list", "--json"] },
   "POST /tasks": {

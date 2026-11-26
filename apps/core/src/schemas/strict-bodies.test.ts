@@ -14,6 +14,7 @@ import { createChatRoomGuestInviteLinkRequestSchema } from "@/schemas/chat-room-
 import { createChatRoomInvitationRequestSchema } from "@/schemas/chat-room-invitation.schema";
 import { linkDriveGoogleSheetRequestSchema } from "@/schemas/drive-file.schema";
 import { updateFileMetadataRequestSchema } from "@/schemas/file-resource.schema";
+import { updateTeamStandupSchema } from "@/schemas/team-standup.schema";
 
 /** The 422 message a route sends for this body. */
 function refusal(schema: z.ZodType, body: unknown): string {
@@ -153,5 +154,26 @@ describe("contact writes refuse unknown keys and empty updates", () => {
     expect(refusal(updateContactSchema, { version: 1 })).toMatch(
       /^Send at least one field to change: /,
     );
+  });
+});
+
+// SOKD-474: `{"time":"10:00"}` answered 200 and kept the old 09:00.
+describe("the stand-up settings refuse unknown keys", () => {
+  it("names a guessed time key and lists the real ones", () => {
+    expect(refusal(updateTeamStandupSchema, { time: "10:00" })).toBe(
+      'Unknown key "time". This body takes: enabled, timeOfDay, weekdays, timezone, weekInReviewWeekday.',
+    );
+  });
+
+  it("still takes the keys Web sends", () => {
+    expect(
+      updateTeamStandupSchema.safeParse({
+        enabled: true,
+        timeOfDay: "10:00",
+        weekdays: [1, 2, 3, 4, 5],
+        timezone: "Europe/Berlin",
+        weekInReviewWeekday: 5,
+      }).success,
+    ).toBe(true);
   });
 });

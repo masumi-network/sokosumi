@@ -398,3 +398,45 @@ test("a JSON command still refuses a non-JSON body", async (t) => {
     /invalid JSON/,
   );
 });
+
+test("tasks receipt reads a Task's receipt as a person, in the selected Workspace (SOKD-467)", async (t) => {
+  const body = { data: { settled: false, txHash: null } };
+  const f = fixture(t, body);
+  const id = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+  await runCli(
+    [...API, "tasks", "receipt", id, "--organization-slug", "utxo", "--json"],
+    f.deps,
+  );
+  assert.deepEqual(f.calls, [
+    {
+      method: "GET",
+      url: `https://fixture.invalid/v1/tasks/${id}/receipt`,
+      slug: "utxo",
+      body: undefined,
+    },
+  ]);
+  assert.deepEqual(JSON.parse(f.output.join("")), body);
+});
+
+test("coworkers get reads one Coworker on any target (SOKD-479)", async (t) => {
+  const body = { data: { id: "cw-1", name: "Private Coworker" } };
+  const f = fixture(t, body);
+  await runCli([...API, "coworkers", "get", "cw-1", "--json"], f.deps);
+  assert.deepEqual(
+    f.calls.map((call) => `${call.method} ${new URL(call.url).pathname}`),
+    ["GET /v1/coworkers/cw-1"],
+  );
+  assert.deepEqual(JSON.parse(f.output.join("")), body);
+});
+
+test("coworkers api-key refuses --name, which would leave the key unnamed (SOKD-479)", async (t) => {
+  const f = fixture(t);
+  await assert.rejects(
+    runCli(
+      [...API, "--preprod", "coworkers", "api-key", "cw-1", "--name", "x"],
+      f.deps,
+    ),
+    /--api-key-name/,
+  );
+  assert.deepEqual(f.calls, []);
+});

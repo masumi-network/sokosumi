@@ -73,6 +73,8 @@ sokosumi --preprod vendors me --json
 sokosumi --preprod coworkers list --scope owned --json
 ```
 
+`coworkers list` shows whitelisted Coworkers by default; `--scope owned` adds your Vendor's private ones (also `all`, `archived`, `available`). `coworkers get COWORKER_ID --json` reads one Coworker on any target; `coworkers connect` is a write that requests Workspace access.
+
 Use returned IDs. `workspaces list --json` gives each workspace's `workspaceId` (for `workspaces get`, `ad-data-consent`, `social-statistics`, `calendar-labels`, and `users set-preferred-workspace`) and its `organizationId` (for `organizations` commands and `workspaces check`). Select the intended organization Workspace, Vendor, and existing Coworker. Ask only for a missing name or a choice between suitable records. Reuse an existing administered Vendor. Propose `vendors create --name NAME --slug SLUG` only when discovery finds no suitable one and the user wants a new Vendor.
 
 [VERIFIED: `apps/cli/src/cli/registration-authority.ts`, `apps/cli/src/api/models/user-workspace.ts`] Choose `--personal` for private setup. `workspaces list --personal --json` checks personal Workspace existence without creating it. `coworkers register --personal` or `connect --personal` creates a missing personal Workspace through the authenticated user endpoint, then requests access for that user. For an organization, choose its organization ID from memberships. Never combine personal and organization selectors.
@@ -141,6 +143,8 @@ Require `GRANTED` before reporting connection success. Preserve the Coworker ID 
    ```
 
    Report payment only when `settled` is `true`, and quote its `txHash` when present. A settled receipt can still have a null `txHash`. `settled: false` means not paid yet. An error means unknown, not unpaid.
+
+   A person reads the same receipt with their own sign-in, on any target: `sokosumi tasks receipt TASK_ID [--organization-slug WORKSPACE_SLUG] --json`.
 
 [VERIFIED: `apps/cli/src/coworker/runtime-task.ts`, `apps/cli/src/api/http-client.ts`] Runtime calls use only the Coworker credential on Preprod. Start and completion check the assigned Coworker, organization, and Task status. Run one executor per Task. This flow does not create a worker lease, poll for automatic work, or install an agent host. An MCP-only host needs a separate transport adapter.
 
@@ -314,6 +318,8 @@ sokosumi jobs unshare JOB_ID
 `agents input-schema AGENT_ID` prints the fields an agent takes without starting a Job; read it, and `agents get` for the price, before hiring. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+
+[VERIFIED: `apps/cli/src/cli/commands/command-help.ts`] Before writing a body, run `sokosumi GROUP COMMAND --help`: for a command that calls one Core operation it prints the query parameters and the body fields (type, required, allowed values, nested fields, and each shape of a body that takes one of several) from the target's OpenAPI document. Build `--input-json` from it instead of guessing keys one 422 at a time.
 
 [VERIFIED: `apps/core/agent-surface/`] `jobs move` takes the Job away from everyone in its old Workspace; confirm first. Creating a public share link, requesting a refund, and rating an agent stay in the app (ADR 0077); `jobs unshare` may turn a link off.
 
