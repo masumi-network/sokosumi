@@ -26,6 +26,8 @@ const prisma = vi.hoisted(() => {
     socialPost: { create: vi.fn().mockResolvedValue({ id: "post-1" }) },
     sokoBotIntegration: { deleteMany: ok() },
     projectSeoResearch: { deleteMany: ok() },
+    sokoBotToolCall: { findMany: vi.fn().mockResolvedValue([]) },
+    sokoBotWatch: { findMany: vi.fn().mockResolvedValue([]) },
   };
 });
 // PostgreSQL's clock is the test clock here.
@@ -64,6 +66,7 @@ import {
   changeRequestPlan,
   commentChecks,
   monthPlanFromTomorrow,
+  monthProductionTurns,
   newsletterIssueCheck,
   pollCmoCase,
   prepareCmoChatCase,
@@ -466,5 +469,75 @@ describe("the newsletter month", () => {
       false,
     );
     expect(check(null)).toBe(false);
+  });
+});
+
+describe("the month's own turns", () => {
+  it("keeps its run's own wake (a sibling), never another case's watch", async () => {
+    const PREFIX = "cmo:production:bot:1:";
+    // As Core runs it: production is a child of the latest chat turn, and
+    // the watch it sets wakes as a second child of that same chat turn.
+    const all = [
+      { id: "chat", clientTurnId: "lab:chat:1", parentTurnId: null },
+      { id: "make", clientTurnId: `${PREFIX}0`, parentTurnId: "chat" },
+      { id: "wake", clientTurnId: "watch:w1", parentTurnId: "chat" },
+      { id: "wake-run", clientTurnId: "lab:x", parentTurnId: "wake" },
+      // An earlier chat case's own wait, waking during the month.
+      { id: "other-wake", clientTurnId: "watch:w2", parentTurnId: "chat" },
+    ].map((turn) => ({ ...turn, status: "COMPLETED", source: "EVENT" }));
+    const waits = [
+      { turnId: "make", result: { waiting: true, watchId: "w1" } },
+      { turnId: "chat", result: { waiting: true, watchId: "w2" } },
+    ];
+    const watches = [
+      { id: "w1", firedTurnId: "wake" },
+      { id: "w2", firedTurnId: "other-wake" },
+    ];
+    prisma.sokoBotTurn.findMany.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: {
+          clientTurnId?: { startsWith: string };
+          parentTurnId?: { in: string[] };
+          id?: { in: string[] };
+        };
+      }) =>
+        all.filter((turn) =>
+          where.id
+            ? where.id.in.includes(turn.id)
+            : where.parentTurnId
+              ? turn.parentTurnId !== null &&
+                where.parentTurnId.in.includes(turn.parentTurnId)
+              : turn.clientTurnId.startsWith(
+                  where.clientTurnId?.startsWith ?? "",
+                ),
+        ),
+    );
+    prisma.sokoBotToolCall.findMany.mockImplementation(
+      async ({ where }: { where: { turnId: { in: string[] } } }) =>
+        waits.filter((wait) => where.turnId.in.includes(wait.turnId)),
+    );
+    prisma.sokoBotWatch.findMany.mockImplementation(
+      async ({ where }: { where: { id: { in: string[] } } }) =>
+        watches.filter((watch) => where.id.in.includes(watch.id)),
+    );
+    try {
+      const turns = await monthProductionTurns("bot", PREFIX);
+      expect(turns.map((turn) => turn.id).sort()).toEqual([
+        "make",
+        "wake",
+        "wake-run",
+      ]);
+    } finally {
+      for (const findMany of [
+        prisma.sokoBotTurn.findMany,
+        prisma.sokoBotToolCall.findMany,
+        prisma.sokoBotWatch.findMany,
+      ]) {
+        findMany.mockReset();
+        findMany.mockResolvedValue([]);
+      }
+    }
   });
 });

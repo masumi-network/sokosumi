@@ -1,11 +1,16 @@
 "use client";
 
 import { Eye, EyeOff, Trash2 } from "lucide-react";
-import type { useTranslations } from "next-intl";
+import { useFormatter, type useTranslations } from "next-intl";
 
+import {
+  useFormatShortTimeAgo,
+  useSharedNow,
+} from "@/components/short-time-ago";
 import { Button } from "@/components/ui/button";
 
 import type { ApiKeyRecord } from "./types";
+import { lastUsedAt } from "./utils";
 
 // Shared by the API keys table and the stacked phone list.
 type Translate = ReturnType<typeof useTranslations>;
@@ -21,6 +26,32 @@ export function ApiKeyStatus({
     <span className="bg-quinary text-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
       {apiKey.enabled ? t("Status.enabled") : t("Status.disabled")}
     </span>
+  );
+}
+
+/** "Used 2h ago" (or bare "2h ago" under a Last used heading). */
+export function ApiKeyLastUsed({
+  apiKey,
+  t,
+  bare = false,
+}: {
+  apiKey: ApiKeyRecord;
+  t: Translate;
+  bare?: boolean;
+}) {
+  const now = useSharedNow();
+  const timeAgo = useFormatShortTimeAgo();
+  const format = useFormatter();
+  const at = lastUsedAt(apiKey);
+  if (!at) return <span>{t("LastUsed.none")}</span>;
+  const when = timeAgo(at, now);
+  return (
+    <time
+      dateTime={at.toISOString()}
+      title={format.dateTime(at, "dateTimeMedium")}
+    >
+      {bare ? when : t("LastUsed.used", { when })}
+    </time>
   );
 }
 

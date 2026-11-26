@@ -51,6 +51,27 @@ describe("version integrity", () => {
     ).toBe(false);
   });
 
+  it("checks a version that carries every skill up front too", () => {
+    const v23 = getSokoBotVersion("cmo-v23");
+    const tools = everyTurn(v23).filter((tool) => tool !== "read_file");
+    expect(versionIntegrityProblems(v23, tools)).toContain(
+      "every turn: cmo-site-pages requires read_file, not offered",
+    );
+  });
+
+  it("needs read_skill wherever an on-demand version's turns run", () => {
+    const v24 = getSokoBotVersion("cmo-v24");
+    const withoutRead: TurnToolProfile = {
+      id: "production",
+      appliesTo: (version) => version.id === "cmo-v24",
+      occasion: "production",
+      tools: everyTurn(v24).filter((tool) => tool !== "read_skill"),
+    };
+    expect(
+      versionIntegrityProblems(v24, everyTurn(v24), [withoutRead]),
+    ).toContain("production: read_skill not offered, the index cannot be read");
+  });
+
   it("finds a skill without its index line and a skill listed twice", () => {
     const v24 = getSokoBotVersion("cmo-v24");
     const broken = {

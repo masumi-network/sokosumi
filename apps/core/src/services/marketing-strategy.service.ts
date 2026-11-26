@@ -33,6 +33,12 @@ import {
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 import {
+  clipText,
+  placeholderText,
+  postWritten,
+  spokenChanged,
+} from "@/helpers/cmo-post-plan";
+import {
   conflict,
   forbidden,
   internalServerError,
@@ -470,23 +476,6 @@ export function parseSocialPostPlanning(
   return parsed.success ? parsed.data : null;
 }
 
-function clipText(text: string, provider: string): string {
-  return text
-    .trim()
-    .slice(0, SOCIAL_POST_TEXT_LIMITS[provider as SocialPostProvider] ?? 280);
-}
-
-/**
- * Until a piece is written its text is the entry's brief (or title); a post
- * whose text differs has its words.
- */
-function placeholderText(
-  entry: Pick<CmoCalendarEntry, "brief" | "title">,
-  provider: string,
-): string {
-  return clipText(entry.brief ?? entry.title, provider);
-}
-
 /** `planTimeZone` for many Projects at once; a Project without bot rhythms is left out (UTC). */
 export async function planTimeZones(
   projectIds: string[],
@@ -767,6 +756,9 @@ export async function planMarketingStrategyPosts(
           channel: target.channel,
           format: target.format,
           alsoOn: undefined,
+          // The marks of the owner's change ops belong to the post they made.
+          applyOpId: undefined,
+          applyCreateOpId: undefined,
           videoOf: planning.id,
           videoOfTalking: isCmoShapedVideoFormat(target.channel, target.format)
             ? isCmoTalkingFormat(provider, planning.format ?? entry.format)
@@ -852,20 +844,6 @@ export async function planMarketingStrategyPosts(
     });
   }
   if (drafts.length > 0) await db.socialPost.createMany({ data: drafts });
-}
-
-/** Whether a talking video's post now speaks other words, or with another presenter or voice. */
-export function spokenChanged(
-  before: SocialPostPlanning | null | undefined,
-  after: Pick<SocialPostPlanning, "script" | "presenter" | "voice">,
-): boolean {
-  if (!before?.script?.trim()) return false;
-  return (
-    before.script.trim() !== after.script?.trim() ||
-    (before.presenter ?? "").toLowerCase() !==
-      (after.presenter ?? "").toLowerCase() ||
-    (before.voice ?? "").toLowerCase() !== (after.voice ?? "").toLowerCase()
-  );
 }
 
 /** A version's Social post, as a calendar entry and the media it carries. */
@@ -967,9 +945,7 @@ export async function listMarketingStrategyPosts(
     const at = post.scheduledAt ?? post.createdAt;
     const { hour, minute } = getLocalTimeParts(at, timeZone);
     const title = planning?.title ?? post.text.slice(0, 80);
-    const written =
-      post.text.trim() !== "" &&
-      post.text !== placeholderText({ ...planning, title }, post.provider);
+    const written = postWritten(post, planning);
     const status = CALENDAR_STATUS[post.status];
     const notSent = socialPostNotSent(post);
     return {

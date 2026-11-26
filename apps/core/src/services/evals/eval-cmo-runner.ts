@@ -82,6 +82,7 @@ import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
+  wokenTurnIds,
 } from "./eval-infrastructure";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
@@ -863,9 +864,11 @@ async function cancelMonthPosts(strategyId: string) {
   });
 }
 
-// Scoped by the approval's id prefix and the parent chain, not by time: the
-// turns' createdAt is PostgreSQL time and the case start is the host's.
-async function monthProductionTurns(botId: string, prefix: string) {
+// Scoped by the approval's id prefix, the parent chain and the runs' own
+// waits, not by time: the turns' createdAt is PostgreSQL time and the case
+// start is the host's. A run's wake is its sibling under the chat turn, so it
+// is found through the run's wait_for, and another case's watch never is.
+export async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
     clientTurnId: true,
@@ -890,7 +893,16 @@ async function monthProductionTurns(botId: string, prefix: string) {
       },
       select,
     });
-    frontier = children.filter((turn) => !turns.has(turn.id));
+    const woken = (await wokenTurnIds(frontier.map((turn) => turn.id))).filter(
+      (id) => !turns.has(id),
+    );
+    const wakes = woken.length
+      ? await prisma.sokoBotTurn.findMany({
+          where: { sokoBotId: botId, id: { in: woken } },
+          select,
+        })
+      : [];
+    frontier = [...children, ...wakes].filter((turn) => !turns.has(turn.id));
     for (const turn of frontier) turns.set(turn.id, turn);
   }
   return [...turns.values()];
@@ -1190,13 +1202,6 @@ async function pollMonth(
   if (!reviewed && !timedOut && production.state !== "stuck")
     return { kind: "waiting" };
 
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: {
-      sokoBotId: lane.cusoBotId,
-      createdAt: { gte: context.startedAt },
-    },
-    select: { id: true },
-  });
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
     select: {
@@ -1349,7 +1354,9 @@ async function pollMonth(
         files: files.filter((file) => file !== null),
         production: { pieces, ...metrics },
       },
-      turnIds: turns.map((turn) => turn.id),
+      // The month's own turns and every run or watch follow-up they started;
+      // a watch another case left on the lane is not this month's.
+      turnIds: productionTurns.map((turn) => turn.id),
     },
   };
 }

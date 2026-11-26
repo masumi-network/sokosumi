@@ -139,9 +139,6 @@ const studioStart = (command: string, body: Record<string, unknown>) => ({
     JSON.stringify({ ...body, idempotencyKey: "intent-0001" }),
   ],
 });
-const AGENTS_HIRE = {
-  argv: [...API, "agents", "hire", "agent-1", "--input-json", "{}", "--json"],
-};
 const ADD_MEMBER = {
   argv: [
     ...ADMIN,
@@ -210,8 +207,12 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "POST /admin/evals/runs": EVALS_RUN,
   "POST /admin/evals/tick": EVALS_RUN,
   "GET /agents": { argv: [...API, "agents", "list", "--json"] },
-  "GET /agents/{id}/input-schema": AGENTS_HIRE,
-  "POST /agents/{id}/jobs": AGENTS_HIRE,
+  "GET /agents/{id}/input-schema": {
+    argv: [...API, "agents", "input-schema", "agent-1"],
+  },
+  "POST /agents/{id}/jobs": {
+    argv: [...API, "agents", "hire", "agent-1", "--input-json", "{}", "--json"],
+  },
   "GET /agents/{id}": { argv: [...API, "agents", "get", "agent-1"] },
   "GET /agents/{id}/jobs": {
     argv: [...API, "agents", "jobs", "agent-1", "--query", "scope=workspace"],

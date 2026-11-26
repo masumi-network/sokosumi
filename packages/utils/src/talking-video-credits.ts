@@ -142,8 +142,24 @@ export const SHORT_VIDEO_FORMATS = [
   "top_three",
   /** The brand's pictures to music, a short line on each. */
   "slideshow",
+  /** A voice announces something new, with its date on a card. */
+  "launch",
 ] as const;
 export type ShortVideoFormat = (typeof SHORT_VIDEO_FORMATS)[number];
+
+/**
+ * The formats Cuso writes shorts in. A template joins this list once Cuso's
+ * guide can check what it needs (a launch needs a real date).
+ */
+export const CMO_WRITTEN_SHORT_VIDEO_FORMATS = [
+  "voiceover",
+  "site_tour",
+  "top_three",
+  "slideshow",
+] as const satisfies readonly ShortVideoFormat[];
+
+/** The longest date a launch card shows, such as "Saturday 3 December". */
+export const SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH = 32;
 
 /** Formats whose words are shown, not spoken. */
 export const SHORT_VIDEO_TEXT_FORMATS: readonly ShortVideoFormat[] = [
@@ -163,6 +179,8 @@ export const SHORT_VIDEO_FORMAT_GUIDE: Record<ShortVideoFormat, string> = {
     'A voice gives three numbered points. Exactly 5 sentences: the first names the list ("Three ways to..."), then one sentence per point, then one next step. Each point sentence says one concrete thing. 15 to 30 seconds spoken.',
   slideshow:
     "No voice: the brand's pictures play to music with one line of text on each. Write 4 to 7 lines, one per row, each at most 6 words and read in a second: a first line that stops the scroll, then the story, then a last line with the next step.",
+  launch:
+    "A voice announces one real thing that is new: a product, a feature, an opening, an event. 3 to 5 short sentences: the first says what is new, the second says when, naming the date, the next one says why it matters, the last is one next step. 15 to 25 seconds spoken. Never invent a date or a launch: only what the brand has told you.",
 };
 
 /** A short shows at most this many of the brand's pictures. */

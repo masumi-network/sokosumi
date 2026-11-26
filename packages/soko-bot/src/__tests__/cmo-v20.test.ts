@@ -59,6 +59,8 @@ describe("cmo-v20", () => {
     expect(strategy).toContain("A short video costs about 15 credits");
     for (const format of ["voiceover", "site_tour", "top_three", "slideshow"])
       expect(CMO_SHORTS_WRITING_GUIDE).toContain(`  - ${format}: `);
+    // A launch needs the owner's real date, which Cuso cannot check yet.
+    expect(CMO_SHORTS_WRITING_GUIDE).not.toContain("launch");
   });
 
   it("reports on SEO in plain words and hands technical fixes to whoever builds the site", () => {

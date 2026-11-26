@@ -247,6 +247,10 @@ Evals (platform admin; Core runs them on the deployment you select):
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
   --markdown prints the table for a PR's Evidence. The weekly run on mainnet is the baseline every run is compared with.
 
+Marketplace agents:
+  agents input-schema AGENT_ID prints the input fields an agent takes, without starting a Job or spending credits.
+  agents hire starts a paid Job: build its --input-json from agents input-schema, and confirm the credit cap first.
+
 Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,

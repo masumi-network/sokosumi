@@ -11,6 +11,7 @@ import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
 import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
@@ -958,6 +959,21 @@ export function organizerJev(
 }
 
 /**
+ * Which Jev answered the journey's questions on a plan run: real Jev, or the
+ * stand-in (all of it, or for part of the journey after real Jev paused).
+ * Null off the plan. A stand-in result is never compared with a real-Jev one.
+ */
+export function journeyJev(
+  state: Pick<JourneyState, "journeyStartedAt">,
+  now: Date = new Date(),
+): "real" | "stand-in" | null {
+  if (planJevMode() === null) return null;
+  return planJevStandInDuring(new Date(state.journeyStartedAt), now)
+    ? "stand-in"
+    : "real";
+}
+
+/**
  * Classifier calls of the journey's turns, and how many failed. A failed
  * route pick sends the turn down a fallback (read-only clarification), so a
  * journey with any is an infrastructure error, not a verdict on the bot.
@@ -1145,6 +1161,7 @@ async function journeyOutcome(
       journey: journey.id,
       level: journey.level,
       runtime: journeyRuntime(),
+      jev: journeyJev(state),
       score,
       totals,
       answer: state.steps.at(-1)?.answer ?? null,

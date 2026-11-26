@@ -3,6 +3,7 @@ import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
   MAX_STUDIO_HEADLINE_LENGTH,
   SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH,
   SHORT_VIDEO_MAX_PICTURES,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
@@ -492,8 +493,23 @@ export const createShortVideoJobRequestSchema = z
       .array(z.string().uuid())
       .max(SHORT_VIDEO_MAX_PICTURES)
       .default([]),
+    /**
+     * When a `launch` short's new thing arrives, as the card shows it
+     * ("3 December", "Saturday at 10"). Required for a launch, and only
+     * the owner's real date: it is never written for them.
+     */
+    launchDate: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH)
+      .optional(),
     shapes: videoShapesSchema,
     idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .refine((request) => request.format !== "launch" || request.launchDate, {
+    message: "A launch needs the date of what it announces.",
+    path: ["launchDate"],
   })
   .openapi("CreateProjectShortVideoJobRequest");
 

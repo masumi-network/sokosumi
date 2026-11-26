@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
+import { Markdown } from "../../shell/Markdown.tsx";
 import {
   groupsOf,
   type InputData,
@@ -202,9 +203,20 @@ export function InputRequest({
           >
             {t("jobStatus.input.question")}
           </h2>
-          <p className="text-sm break-words whitespace-pre-wrap">
-            {question.message}
-          </p>
+          <div className="bg-card-background border-border rounded-lg border p-3">
+            <Markdown
+              text={question.message}
+              webBaseUrl={context.webBaseUrl}
+              onOpenLink={(url) =>
+                context.app.openLink({ url }).catch((error: unknown) =>
+                  context.app.sendLog({
+                    level: "warning",
+                    data: `ui/open-link failed: ${String(error)}`,
+                  }),
+                )
+              }
+            />
+          </div>
         </div>
       )}
       <SchemaForm

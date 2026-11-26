@@ -54,6 +54,8 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // No Task in scope holds the hidden `seo_audit` line.
+    task: { findMany: () => Promise.resolve([]) },
     taskFile: {
       findMany: prismaTaskFileFindManyMock,
       findFirst: prismaTaskFileFindFirstMock,
@@ -66,6 +68,20 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+
+// The Coworker grant check reads the database; a bound context passes here.
+vi.mock("@/helpers/coworker-user-context-binding", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/helpers/coworker-user-context-binding")
+    >();
+  const { requireUserContext } = await import("@/middleware/auth");
+  return {
+    ...actual,
+    requireAuthorizedUserContext: async (authContext: AuthenticationContext) =>
+      requireUserContext(authContext),
+  };
+});
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: vi.fn(),
@@ -318,6 +334,22 @@ describe("GET /v1/drive/recents", () => {
     const app = createRecentsApp();
     const response = await app.request("/?scope=org&limit=20");
     expect(response.status).toBe(422);
+  });
+
+  it("lets the authenticated Coworker find its own Tasks by their raw description", async () => {
+    const app = createRecentsApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "ven_123",
+      context: { userId: "user_123", organizationId: null },
+    });
+    const response = await app.request("/?scope=me&limit=20&q=markup");
+    expect(response.status).toBe(200);
+
+    const [{ where }] = prismaTaskFileFindManyMock.mock.calls[0];
+    expect(JSON.stringify(where)).toContain(
+      '"assigneeId":{"equals":"cow_123","not":null}',
+    );
   });
 
   it("filters drive files and task outputs when q is set", async () => {

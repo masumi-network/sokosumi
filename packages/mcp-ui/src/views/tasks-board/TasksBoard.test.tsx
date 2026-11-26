@@ -16,7 +16,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BOARD } from "../../../harness/fixtures.ts";
 import { Shell } from "../../shell/Shell.tsx";
 import { BOARD_EMPTY, TasksBoard, TasksList } from "./TasksBoard.tsx";
@@ -98,8 +98,27 @@ const column = (name: string) =>
   screen.getByRole("region", { name: new RegExp(`^${name}`) });
 const taskButton = (name: string) =>
   screen.getByRole("button", { name: new RegExp(name) });
+/** The whole card around a Task's title. */
+const card = (name: string) =>
+  taskButton(name).closest("article") as HTMLElement;
 
-afterEach(cleanup);
+/** The iframe's width: the board below 640px, Web's phone list above. */
+function setWidth(width: number) {
+  const { happyDOM } = window as unknown as {
+    happyDOM: { setViewport(size: { width: number; height: number }): void };
+  };
+  happyDOM.setViewport({ width, height: 900 });
+}
+
+beforeEach(() => {
+  // Before the fixture's due days, so none is overdue.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-25T12:00:00Z") });
+  setWidth(1024);
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("TasksBoard inline", () => {
   it("shows the workspace, how many Tasks it shows, and a count per column in Web's order", async () => {
@@ -119,34 +138,51 @@ describe("TasksBoard inline", () => {
     ]);
   });
 
-  it("shows the top three Tasks per column with identifier, initials and due date", async () => {
+  it("shows the top three Tasks per column as Web's cards", async () => {
     await openBoard(BOARD.result);
     const todo = within(column("Todo"));
 
-    expect(todo.getAllByRole("listitem")).toHaveLength(3);
+    expect(todo.getAllByRole("article")).toHaveLength(3);
     expect(todo.getByText("1 more")).toBeTruthy();
     expect(screen.queryByText("Audit the pricing page copy")).toBeNull();
 
-    const research = taskButton("Research competitor pricing");
-    expect(research.textContent).toContain("ACME-39");
-    expect(research.textContent).toContain("Due Nov 28, 2026");
-    expect(research.textContent).toContain("MA");
-    expect(research.textContent).toContain("Assigned to Market Analyst");
+    const research = within(card("Research competitor pricing"));
+    expect(research.getByText("ACME-39")).toBeTruthy();
+    expect(research.getByText("Due Nov 28")).toBeTruthy();
+    expect(research.getByText("MA")).toBeTruthy();
+    expect(research.getByText("Assigned to Market Analyst")).toBeTruthy();
+    expect(
+      research.getByRole("img", { name: "Priority: Medium" }),
+    ).toBeTruthy();
   });
 
-  it("names a status only where the column title does not", async () => {
+  it("names a status only where the column title does not, as Web does", async () => {
     await openBoard(BOARD.result);
-    const meta = (name: string) => taskButton(name).textContent;
+    const named = (task: string, status: string) =>
+      within(card(task)).queryByText(status);
+    const marker = (task: string, status: string) =>
+      within(card(task)).queryByRole("img", { name: status });
 
-    expect(meta("Send the December newsletter")).toContain(
-      "ACME-40 · Scheduled",
-    );
-    expect(meta("Draft the Q1 launch plan")).not.toContain("ACME-41 · Draft");
-    expect(meta("Export the November ad report")).toContain("· Failed");
-    expect(meta("Research competitor pricing")).not.toContain("Ready");
-    expect(meta("Approve the January social posts")).toContain(
-      "· Approval required",
-    );
+    expect(named("Send the December newsletter", "Scheduled")).toBeTruthy();
+    expect(named("Export the November ad report", "Failed")).toBeTruthy();
+    expect(
+      named("Approve the January social posts", "Approval required"),
+    ).toBeTruthy();
+    expect(named("Research competitor pricing", "Ready")).toBeNull();
+    expect(marker("Research competitor pricing", "Ready")).toBeTruthy();
+    expect(marker("Draft the Q1 launch plan", "Draft")).toBeTruthy();
+  });
+
+  it("says Overdue once a due day has passed in the host's time zone", async () => {
+    vi.setSystemTime(new Date("2026-11-29T12:00:00Z"));
+    await openBoard(BOARD.result);
+
+    expect(
+      within(card("Research competitor pricing")).getByText("Overdue · Nov 28"),
+    ).toBeTruthy();
+    expect(
+      within(card("Send the December newsletter")).getByText("Due Dec 1"),
+    ).toBeTruthy();
   });
 
   it("never shows a Task's description", async () => {
@@ -169,6 +205,28 @@ describe("TasksBoard inline", () => {
   });
 });
 
+describe("TasksBoard on a narrow screen", () => {
+  beforeEach(() => setWidth(402));
+
+  it("shows Web's phone list: the first five cards, each with its status", async () => {
+    await openBoard(BOARD.result);
+
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    const cards = screen.getAllByRole("article");
+    expect(cards).toHaveLength(5);
+    expect(within(cards[0]).getByText("Draft")).toBeTruthy();
+    expect(within(cards[2]).getByText("Ready")).toBeTruthy();
+    expect(screen.getByText("8 more")).toBeTruthy();
+  });
+
+  it("shows every card in full screen", async () => {
+    await openBoard(BOARD.result, { displayMode: "fullscreen" });
+
+    expect(screen.getAllByRole("article")).toHaveLength(13);
+    expect(screen.queryByText(/more$/)).toBeNull();
+  });
+});
+
 describe("TasksBoard fullscreen", () => {
   it("asks the host for full screen, then shows every Task in its column", async () => {
     const { sent } = await openBoard(BOARD.result);
@@ -179,7 +237,7 @@ describe("TasksBoard fullscreen", () => {
 
     expect(sent.modes).toHaveBeenCalledWith("fullscreen");
     await waitFor(() =>
-      expect(within(column("Todo")).getAllByRole("listitem")).toHaveLength(4),
+      expect(within(column("Todo")).getAllByRole("article")).toHaveLength(4),
     );
     expect(screen.queryByText("1 more")).toBeNull();
     expect(screen.getByRole("button", { name: "Exit full screen" }));

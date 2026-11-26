@@ -7,6 +7,7 @@ import {
 } from "./SocialPosts.tsx";
 
 mountView("social-posts", {
+  skeleton: "cards",
   schema: SocialPostsList,
   isEmpty,
   empty: SOCIAL_EMPTY,

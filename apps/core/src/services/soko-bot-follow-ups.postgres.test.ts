@@ -6,6 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { Channel } from "@sokosumi/database";
+import type { SokoBotCapability } from "@sokosumi/soko-bot";
 import {
   afterAll,
   afterEach,
@@ -17,13 +18,38 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import {
+  checkGrantSpendPreflight,
+  reserveAuthoritySpend,
+  settleAuthoritySpend,
+} from "@/lib/soko-bot/authority-spend";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
   evaluateSocialWriteAuthority,
+  resolveSocialWriteOrigin,
   resolveSocialWriteOriginSource,
+  SCHEDULE_AUTHORITY_EXPIRED_MESSAGE,
+  SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+  SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE,
+  SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE,
+  SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE,
+  WATCH_AUTHORITY_EXPIRED_MESSAGE,
+  WATCH_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+  WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+  WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
 } from "@/lib/soko-bot/owner-authority";
 import { inheritedScheduleRoute } from "@/lib/soko-bot/system-routes";
+import { mayMakeMediaForOwner } from "@/services/soko-bot-runtime/media-checks";
 import { expectCoreLog } from "@/test/core-log";
+
+vi.mock("@/services/x-subscription-tier.service", async (original) => ({
+  ...(await original<object>()),
+  resolveXSubscriptionType: async (connection: {
+    subscriptionType: string | null;
+  }) => connection.subscriptionType,
+}));
 
 // The flow publishes over Ably; the test env has no real key.
 vi.mock("@/lib/ably/client", async () =>
@@ -108,6 +134,8 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.socialPost.deleteMany({ where: { project: { workspaceId } } });
+    await prisma.project.deleteMany({ where: { workspaceId } });
     await prisma.task.deleteMany({ where: { workspaceId } });
     await prisma.chatRoom.deleteMany({ where: { createdByUserId: userId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });
@@ -1627,6 +1655,2115 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(startedCaps.get(`watch:${expiredWatch.id}`)).toEqual([
         "get_image",
       ]);
+    });
+
+    it("enforces SokoBotSchedule.authority on scheduled runs and admin retries across draft_only, schedule_posts, Project scope, and expiry on PostgreSQL", async () => {
+      const { failedRetryInput, loadAdminScheduleRun, scheduleRetryInput } =
+        await import("@/services/soko-bot-admin-retry.service");
+      const { withFixtureSchemas } = await import("@/test/split-layout");
+
+      const [projectA, projectB] = await withFixtureSchemas(async (tx) => [
+        await tx.project.create({
+          data: { workspaceId, name: "Schedule Authority Project A" },
+        }),
+        await tx.project.create({
+          data: { workspaceId, name: "Schedule Authority Project B" },
+        }),
+      ]);
+      const connA = await prisma.projectSocialConnection.create({
+        data: {
+          projectId: projectA.id,
+          provider: "x",
+          externalAccountId: randomUUID(),
+          externalHandle: "project_a_handle",
+          composioConnectedAccountId: randomUUID(),
+          status: "active",
+          connectorUserId: userId,
+          connectedAt: new Date(),
+        },
+      });
+      const connB = await prisma.projectSocialConnection.create({
+        data: {
+          projectId: projectB.id,
+          provider: "x",
+          externalAccountId: randomUUID(),
+          externalHandle: "project_b_handle",
+          composioConnectedAccountId: randomUUID(),
+          status: "active",
+          connectorUserId: userId,
+          connectedAt: new Date(),
+        },
+      });
+      const bot = await prisma.sokoBot.findUniqueOrThrow({
+        where: { id: botId },
+      });
+
+      const storedCaps = [
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+        "publish_social_post",
+        "cancel_social_post",
+      ];
+      const scheduledAt = new Date(Date.now() + 24 * HOUR).toISOString();
+      const baseAuthority = (
+        scheduleId: string,
+        overrides: Record<string, unknown> = {},
+      ) => ({
+        version: 1,
+        grantId: randomUUID(),
+        origin: "owner_chat",
+        sokoBotId: botId,
+        workspaceId,
+        ownerUserId: userId,
+        rootTurnId: randomUUID(),
+        targetScope: { kind: "project", projectId: projectA.id },
+        scheduleId,
+        scope: "owner_writes",
+        socialMode: "draft_only",
+        stopRule: { mode: "never" },
+        ...overrides,
+      });
+
+      const createTurnForRun = async (input: {
+        source: "SCHEDULE" | "ADMIN_RETRY";
+        clientTurnId: string;
+        capabilityNames: string[];
+      }) => {
+        const sessionId = randomUUID();
+        await prisma.sokoBot.update({
+          where: { id: botId },
+          data: { eveSessionId: sessionId },
+        });
+        const turn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            requestedByUserId: userId,
+            workspaceId,
+            source: input.source,
+            status: "RUNNING",
+            clientTurnId: input.clientTurnId,
+            versionId: "v36",
+            userMessage: "Run scheduled social task.",
+            capabilityNames: input.capabilityNames,
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+            contextSnapshot: {
+              create: {
+                generatedAt: new Date(),
+                schemaVersion: 1,
+                hash: randomUUID(),
+                packet: { trigger: { askedBy: { kind: "OWNER" } } },
+                byteSize: 2,
+                tokenEstimate: 1,
+                counts: {},
+                omissions: {},
+              },
+            },
+          },
+        });
+        return { turn, sessionId };
+      };
+
+      const callSocial = async (
+        turnId: string,
+        sessionId: string,
+        capability:
+          | "create_social_post"
+          | "schedule_social_post"
+          | "publish_social_post",
+        payload: Record<string, unknown>,
+      ) =>
+        sokoBotRuntimeService.executeTool({
+          turnId,
+          sessionId,
+          toolCallId: `call-${randomUUID()}`,
+          capability,
+          input: payload,
+        });
+
+      const fireRouteForSchedule = async (scheduleId: string) => {
+        let capturedCapabilities: readonly SokoBotCapability[] = [];
+        const spy = vi
+          .spyOn(sokoBotControlPlane, "startTurn")
+          .mockImplementation(async (input) => {
+            capturedCapabilities = input.presetRoute?.capabilities ?? [];
+            const turn = await prisma.sokoBotTurn.create({
+              data: {
+                sokoBotId: botId,
+                requestedByUserId: userId,
+                workspaceId,
+                source: "SCHEDULE",
+                status: "COMPLETED",
+                clientTurnId: input.clientTurnId,
+                versionId: "v36",
+                userMessage: input.message,
+                capabilityNames: [...capturedCapabilities],
+                deadlineAt: new Date(Date.now() + HOUR),
+              },
+              select: { id: true },
+            });
+            return {
+              turnId: turn.id,
+              sokoBotId: botId,
+              sessionId: "fixture",
+              status: "COMPLETED",
+              route: "DELEGATE_TASK",
+              capabilities: [...capturedCapabilities],
+              duplicate: false,
+            };
+          });
+        try {
+          await new SokoBotSchedulesSyncService().syncDueSchedules({
+            shouldContinue: () => true,
+            scheduleId,
+          });
+        } finally {
+          spy.mockRestore();
+        }
+        return capturedCapabilities;
+      };
+
+      // 1. Positive + negative control: ordinary personal draft_only schedule
+      //    keeps create_social_post, creates a NEEDS_APPROVAL draft (scheduledAt=null),
+      //    and refuses scheduledAt / schedule_social_post.
+      const draftScheduleId = randomUUID();
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: draftScheduleId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Weekly draft post",
+          prompt: "Draft a weekly post for Project A.",
+          cronExpression: "0 9 * * 1",
+          timezone: "UTC",
+          enabled: true,
+          nextRunAt: new Date(Date.now() - 60_000),
+          capabilityNames: storedCaps,
+          authority: baseAuthority(draftScheduleId, {
+            socialMode: "draft_only",
+          }),
+        },
+      });
+      const draftRouteCaps = await fireRouteForSchedule(draftScheduleId);
+      expect(draftRouteCaps).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+      ]);
+
+      const draftRunTurn = await createTurnForRun({
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${draftScheduleId}:${new Date().toISOString()}`,
+        capabilityNames: storedCaps,
+      });
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: draftScheduleId,
+          scheduledFor: new Date(Date.now() - 30_000),
+          status: "RUNNING",
+          attempt: 1,
+          prompt: "Draft a weekly post for Project A.",
+          turnId: draftRunTurn.turn.id,
+        },
+      });
+      const createdDraft = (await callSocial(
+        draftRunTurn.turn.id,
+        draftRunTurn.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Weekly product note awaiting owner approval.",
+        },
+      )) as { id: string; revision: number };
+      const persistedDraft = await prisma.socialPost.findUniqueOrThrow({
+        where: { id: createdDraft.id },
+      });
+      expect(persistedDraft).toMatchObject({
+        projectId: projectA.id,
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+      });
+      await expect(
+        callSocial(
+          draftRunTurn.turn.id,
+          draftRunTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Should not schedule on draft_only.",
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE);
+      await expect(
+        callSocial(
+          draftRunTurn.turn.id,
+          draftRunTurn.sessionId,
+          "schedule_social_post",
+          {
+            projectId: projectA.id,
+            postId: createdDraft.id,
+            revision: createdDraft.revision,
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_SOCIAL_DRAFT_ONLY_MESSAGE);
+
+      // 2. Positive + negative control: explicitly authorized schedule_posts
+      //    scoped to Project A succeeds on Project A directly AND after BOTH
+      //    admin-schedule-retry and admin-retry, while refusing publish and Project B.
+      const schedPostsId = randomUUID();
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: schedPostsId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Authorized Project A scheduler",
+          prompt: "Create and schedule the Project A update.",
+          cronExpression: "0 10 * * 1",
+          timezone: "UTC",
+          enabled: true,
+          nextRunAt: new Date(Date.now() - 60_000),
+          capabilityNames: storedCaps,
+          authority: baseAuthority(schedPostsId, {
+            socialMode: "schedule_posts",
+          }),
+        },
+      });
+      const schedPostsRouteCaps = await fireRouteForSchedule(schedPostsId);
+      expect(schedPostsRouteCaps).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ]);
+
+      const directTurn = await createTurnForRun({
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${schedPostsId}:${new Date().toISOString()}`,
+        capabilityNames: storedCaps,
+      });
+      const directRun = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: schedPostsId,
+          scheduledFor: new Date(Date.now() - 25_000),
+          status: "FAILED",
+          attempt: 1,
+          prompt: "Create and schedule the Project A update.",
+          turnId: directTurn.turn.id,
+        },
+      });
+
+      const directScheduled = (await callSocial(
+        directTurn.turn.id,
+        directTurn.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Scheduled update on Project A from direct schedule run.",
+          scheduledAt,
+        },
+      )) as { id: string; revision: number };
+      expect(
+        await prisma.socialPost.findUniqueOrThrow({
+          where: { id: directScheduled.id },
+          select: { projectId: true, scheduledAt: true },
+        }),
+      ).toEqual({
+        projectId: projectA.id,
+        scheduledAt: new Date(scheduledAt),
+      });
+      await expect(
+        callSocial(
+          directTurn.turn.id,
+          directTurn.sessionId,
+          "publish_social_post",
+          {
+            projectId: projectA.id,
+            postId: directScheduled.id,
+            revision: directScheduled.revision,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_SOCIAL_PUBLISH_BLOCKED_MESSAGE);
+      await expect(
+        callSocial(
+          directTurn.turn.id,
+          directTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectB.id,
+            socialConnectionId: connB.id,
+            text: "Cross-project post must be refused.",
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE);
+
+      // Admin schedule retry (RETRY_SCHEDULE_RUN -> admin-schedule-retry:<runId>:<op>)
+      const loadedRun = await loadAdminScheduleRun(botId, directRun.id);
+      expect(loadedRun).not.toBeNull();
+      const retryRoute = (await scheduleRetryInput(bot, loadedRun!, null))
+        .presetRoute;
+      expect(retryRoute?.capabilities).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ]);
+      const adminScheduleRetryTurn = await createTurnForRun({
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-schedule-retry:${directRun.id}:op-retry-1`,
+        capabilityNames: storedCaps,
+      });
+      const retriedRunPost = (await callSocial(
+        adminScheduleRetryTurn.turn.id,
+        adminScheduleRetryTurn.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Scheduled update on Project A after admin-schedule-retry.",
+          scheduledAt,
+        },
+      )) as { id: string };
+      expect(
+        await prisma.socialPost.findUniqueOrThrow({
+          where: { id: retriedRunPost.id },
+          select: { projectId: true, scheduledAt: true },
+        }),
+      ).toEqual({
+        projectId: projectA.id,
+        scheduledAt: new Date(scheduledAt),
+      });
+      await expect(
+        callSocial(
+          adminScheduleRetryTurn.turn.id,
+          adminScheduleRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectB.id,
+            socialConnectionId: connB.id,
+            text: "Cross-project post after admin-schedule-retry must fail.",
+            scheduledAt,
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_SCOPE_MISMATCH_MESSAGE);
+
+      // Admin turn retry (RETRY_LAST_FAILED -> admin-retry:<scheduleTurnId>:<op>),
+      // even after directRun.turnId was rebound to the earlier admin retry turn.
+      await prisma.sokoBotScheduleRun.update({
+        where: { id: directRun.id },
+        data: { turnId: adminScheduleRetryTurn.turn.id },
+      });
+      const activeFailedTurn = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: directTurn.turn.id },
+      });
+      expect(
+        (
+          await failedRetryInput(
+            bot,
+            activeFailedTurn,
+            `admin-retry:${directTurn.turn.id}:op-retry-2`,
+          )
+        ).presetRoute?.capabilities,
+      ).toEqual([
+        "list_social_posts",
+        "create_task",
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ]);
+      const adminTurnRetry = await createTurnForRun({
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-retry:${directTurn.turn.id}:op-retry-2`,
+        capabilityNames: storedCaps,
+      });
+      const retriedTurnPost = (await callSocial(
+        adminTurnRetry.turn.id,
+        adminTurnRetry.sessionId,
+        "create_social_post",
+        {
+          projectId: projectA.id,
+          socialConnectionId: connA.id,
+          text: "Scheduled update on Project A after admin-retry.",
+          scheduledAt,
+        },
+      )) as { id: string };
+      expect(
+        await prisma.socialPost.findUniqueOrThrow({
+          where: { id: retriedTurnPost.id },
+          select: { projectId: true, scheduledAt: true },
+        }),
+      ).toEqual({
+        projectId: projectA.id,
+        scheduledAt: new Date(scheduledAt),
+      });
+
+      // Zero posts ever leaked into Project B.
+      expect(
+        await prisma.socialPost.count({ where: { projectId: projectB.id } }),
+      ).toBe(0);
+
+      // 3. Negative control: schedule expiry clamps both sync and admin retry
+      //    routes to read-only and blocks social writes even on prior retries.
+      await prisma.sokoBotSchedule.update({
+        where: { id: schedPostsId },
+        data: {
+          nextRunAt: new Date(Date.now() - 60_000),
+          authority: baseAuthority(schedPostsId, {
+            socialMode: "schedule_posts",
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          }),
+        },
+      });
+      expect(await fireRouteForSchedule(schedPostsId)).toEqual([
+        "list_social_posts",
+      ]);
+      const expiredRun = await loadAdminScheduleRun(botId, directRun.id);
+      expect(
+        (await scheduleRetryInput(bot, expiredRun!, null)).presetRoute
+          ?.capabilities,
+      ).toEqual(["list_social_posts"]);
+      const expiredFailedTurn = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: directTurn.turn.id },
+      });
+      expect(
+        (
+          await failedRetryInput(
+            bot,
+            expiredFailedTurn,
+            `admin-retry:${directTurn.turn.id}:op-expired-turn-retry`,
+          )
+        ).presetRoute?.capabilities,
+      ).toEqual(["list_social_posts"]);
+      await expect(
+        callSocial(
+          adminScheduleRetryTurn.turn.id,
+          adminScheduleRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Expired retry draft must fail.",
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_EXPIRED_MESSAGE);
+
+      // 4. Negative control: malformed non-null authority & missing run fail closed.
+      await prisma.sokoBotSchedule.update({
+        where: { id: schedPostsId },
+        data: { authority: { broken: true } },
+      });
+      await expect(
+        callSocial(
+          adminScheduleRetryTurn.turn.id,
+          adminScheduleRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Malformed schedule authority must fail.",
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_INVALID_MESSAGE);
+      const orphanRetryTurn = await createTurnForRun({
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-schedule-retry:${randomUUID()}:op-missing`,
+        capabilityNames: storedCaps,
+      });
+      await expect(
+        callSocial(
+          orphanRetryTurn.turn.id,
+          orphanRetryTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Missing schedule run must fail closed.",
+          },
+        ),
+      ).rejects.toThrow(
+        "Cannot recover the original occurrence for this retry",
+      );
+
+      const deletedScheduleTurn = await createTurnForRun({
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${randomUUID()}:${new Date().toISOString()}`,
+        capabilityNames: storedCaps,
+      });
+      await expect(
+        callSocial(
+          deletedScheduleTurn.turn.id,
+          deletedScheduleTurn.sessionId,
+          "create_social_post",
+          {
+            projectId: projectA.id,
+            socialConnectionId: connA.id,
+            text: "Deleted schedule must fail closed.",
+          },
+        ),
+      ).rejects.toThrow(SCHEDULE_AUTHORITY_UNAVAILABLE_MESSAGE);
+    });
+
+    it("refuses recurring write schedules whose first run cannot perform the write while allowing direct personal writes and read-only checks", async () => {
+      const fireScheduleRun = async (
+        targetBotId: string,
+        targetWorkspaceId: string,
+        scheduleId: string,
+        versionId: string,
+      ) => {
+        await prisma.sokoBotSchedule.update({
+          where: { id: scheduleId },
+          data: { nextRunAt: new Date(Date.now() - 60_000) },
+        });
+        let captured: {
+          userId: string | null;
+          capabilities: readonly SokoBotCapability[];
+        } | null = null;
+        const spy = vi
+          .spyOn(sokoBotControlPlane, "startTurn")
+          .mockImplementation(async (input) => {
+            const caps = input.presetRoute?.capabilities ?? [];
+            captured = {
+              userId: input.userId,
+              capabilities: caps,
+            };
+            const turn = await prisma.sokoBotTurn.create({
+              data: {
+                sokoBotId: targetBotId,
+                requestedByUserId: input.userId,
+                workspaceId: targetWorkspaceId,
+                source: "SCHEDULE",
+                status: "COMPLETED",
+                clientTurnId: input.clientTurnId,
+                versionId,
+                userMessage: input.message,
+                capabilityNames: [...caps],
+                deadlineAt: new Date(Date.now() + HOUR),
+              },
+              select: { id: true },
+            });
+            return {
+              turnId: turn.id,
+              sokoBotId: targetBotId,
+              sessionId: "fixture",
+              status: "COMPLETED",
+              route: "DELEGATE_TASK",
+              capabilities: [...caps],
+              duplicate: false,
+            };
+          });
+        try {
+          await new SokoBotSchedulesSyncService().syncDueSchedules({
+            shouldContinue: () => true,
+            scheduleId,
+          });
+        } finally {
+          spy.mockRestore();
+        }
+        return captured as {
+          userId: string | null;
+          capabilities: readonly SokoBotCapability[];
+        } | null;
+      };
+
+      // 1. Direct top-level personal owner chat creating a recurring table write succeeds
+      //    and keeps write_table_rows on its first run.
+      const ownerSessionId = randomUUID();
+      await prisma.sokoBot.update({
+        where: { id: botId },
+        data: { eveSessionId: ownerSessionId, versionId: "v36" },
+      });
+      const directChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Update our pipeline table every morning.",
+          capabilityNames: [
+            "read_table",
+            "write_table_rows",
+            "create_schedule",
+            "update_schedule",
+            "delete_schedule",
+          ],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      const directSchedule = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `direct-${randomUUID()}`,
+        input: {
+          name: "Daily pipeline table update",
+          cronExpression: "0 9 * * *",
+          timezone: "UTC",
+          prompt: "Update the pipeline table rows.",
+        },
+      })) as { id: string };
+      const directFirstRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        directSchedule.id,
+        "v36",
+      );
+      expect(directFirstRun?.userId).toBe(userId);
+      expect(directFirstRun?.capabilities).toContain("write_table_rows");
+
+      // 2. Authorized personal background task (`parentTurnId !== null`) holding
+      //    BOTH read_table and write_table_rows:
+      //    - creating a recurring table write (explicit or inherited) is refused;
+      //    - creating a read-only check via capabilities: ["read_table"] from THAT
+      //      SAME broader turn succeeds and fires with read_table;
+      //    - editing that read-only schedule from the background run to request
+      //      write_table_rows is refused (prompt and capabilities stay unchanged);
+      //    - requesting a capability outside the authoring turn's grant is refused;
+      //    - direct top-level owner chat upgrading the same schedule with
+      //      capabilities: ["read_table", "write_table_rows"] succeeds and fires
+      //      with write_table_rows.
+      const bgBroadTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          parentTurnId: directChat.id,
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage:
+            "Background run with both table read and write tools creating schedules.",
+          capabilityNames: [
+            "read_table",
+            "write_table_rows",
+            "create_schedule",
+            "update_schedule",
+            "delete_schedule",
+          ],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "create_schedule",
+          toolCallId: `bg-write-${randomUUID()}`,
+          input: {
+            name: "Background table write",
+            cronExpression: "0 10 * * *",
+            timezone: "UTC",
+            prompt: "Update the pipeline table rows.",
+            capabilities: ["read_table", "write_table_rows"],
+          },
+        }),
+      ).rejects.toThrow(/write_table_rows/);
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "create_schedule",
+          toolCallId: `bg-write-default-${randomUUID()}`,
+          input: {
+            name: "Background table write",
+            cronExpression: "0 10 * * *",
+            timezone: "UTC",
+            prompt: "Update the pipeline table rows.",
+          },
+        }),
+      ).rejects.toThrow(/write_table_rows/);
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "create_schedule",
+          toolCallId: `bg-ungranted-${randomUUID()}`,
+          input: {
+            name: "Escalated schedule",
+            cronExpression: "0 10 * * *",
+            timezone: "UTC",
+            prompt: "Read memory.",
+            capabilities: ["read_memory"],
+          },
+        }),
+      ).rejects.toThrow(/read_memory/);
+      expect(
+        await prisma.sokoBotSchedule.count({
+          where: {
+            sokoBotId: botId,
+            name: { in: ["Background table write", "Escalated schedule"] },
+          },
+        }),
+      ).toBe(0);
+
+      // Same broad background turn CAN create a read-only check by declaring capabilities: ["read_table"].
+      const bgReadSchedule = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgBroadTurn.id,
+        capability: "create_schedule",
+        toolCallId: `bg-ro-${randomUUID()}`,
+        input: {
+          name: "Background table check",
+          cronExpression: "0 11 * * *",
+          timezone: "UTC",
+          prompt: "Check the pipeline table and report anomalies.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      const bgFirstRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        bgReadSchedule.id,
+        "v36",
+      );
+      expect(bgFirstRun?.capabilities).toContain("read_table");
+      expect(bgFirstRun?.capabilities).not.toContain("write_table_rows");
+
+      // Background run cannot replace a read-only schedule's prompt without declaring
+      // capabilities or keepCapabilities: true, and cannot add write_table_rows.
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "update_schedule",
+          toolCallId: `bg-edit-undeclared-${randomUUID()}`,
+          input: {
+            scheduleId: bgReadSchedule.id,
+            prompt: "Update the pipeline table rows.",
+          },
+        }),
+      ).rejects.toThrow(/capabilities|keepCapabilities/);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: bgReadSchedule.id },
+          select: { prompt: true, capabilityNames: true },
+        }),
+      ).toEqual({
+        prompt: "Check the pipeline table and report anomalies.",
+        capabilityNames: ["read_table"],
+      });
+
+      // Timing/name edits without prompt still work without capabilities or keepCapabilities,
+      // and replacing prompt with keepCapabilities: true succeeds while keeping ["read_table"].
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgBroadTurn.id,
+        capability: "update_schedule",
+        toolCallId: `bg-edit-cron-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          cronExpression: "0 12 * * *",
+        },
+      });
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgBroadTurn.id,
+        capability: "update_schedule",
+        toolCallId: `bg-edit-keep-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          prompt: "Check the pipeline table and report anomalies clearly.",
+          keepCapabilities: true,
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: bgReadSchedule.id },
+          select: { cronExpression: true, prompt: true, capabilityNames: true },
+        }),
+      ).toEqual({
+        cronExpression: "0 12 * * *",
+        prompt: "Check the pipeline table and report anomalies clearly.",
+        capabilityNames: ["read_table"],
+      });
+
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: bgBroadTurn.id,
+          capability: "update_schedule",
+          toolCallId: `bg-edit-write-${randomUUID()}`,
+          input: {
+            scheduleId: bgReadSchedule.id,
+            prompt: "Update the pipeline table rows.",
+            capabilities: ["read_table", "write_table_rows"],
+          },
+        }),
+      ).rejects.toThrow(/write_table_rows/);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: bgReadSchedule.id },
+          select: { prompt: true, capabilityNames: true },
+        }),
+      ).toEqual({
+        prompt: "Check the pipeline table and report anomalies clearly.",
+        capabilityNames: ["read_table"],
+      });
+
+      // Direct top-level owner chat declaring BOTH create_social_post and schedule_social_post:
+      // - refused without allowScheduledPosts: true (0 schedules created);
+      // - succeeds with allowScheduledPosts: true, and first run gets BOTH tools;
+      // - refused when explicitly declaring publish_social_post even with allowScheduledPosts: true.
+      const directSocialChat = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Draft and schedule a weekly LinkedIn post.",
+          capabilityNames: [
+            "create_social_post",
+            "schedule_social_post",
+            "publish_social_post",
+            "create_schedule",
+          ],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+          contextSnapshot: {
+            create: {
+              generatedAt: new Date(),
+              schemaVersion: 1,
+              hash: randomUUID(),
+              packet: { trigger: { askedBy: { kind: "OWNER" } } },
+              byteSize: 2,
+              tokenEstimate: 1,
+              counts: {},
+              omissions: {},
+            },
+          },
+        },
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directSocialChat.id,
+          capability: "create_schedule",
+          toolCallId: `direct-social-no-perm-${randomUUID()}`,
+          input: {
+            name: "Weekly social schedule",
+            cronExpression: "0 9 * * 1",
+            timezone: "UTC",
+            prompt: "Draft and schedule our weekly post.",
+            capabilities: ["create_social_post", "schedule_social_post"],
+          },
+        }),
+      ).rejects.toThrow(/schedule_social_post.*allowScheduledPosts/i);
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directSocialChat.id,
+          capability: "create_schedule",
+          toolCallId: `direct-social-publish-${randomUUID()}`,
+          input: {
+            name: "Weekly social publish",
+            cronExpression: "0 9 * * 1",
+            timezone: "UTC",
+            prompt: "Draft and publish immediately.",
+            allowScheduledPosts: true,
+            capabilities: ["create_social_post", "publish_social_post"],
+          },
+        }),
+      ).rejects.toThrow(/publish_social_post/);
+      expect(
+        await prisma.sokoBotSchedule.count({
+          where: {
+            sokoBotId: botId,
+            name: { in: ["Weekly social schedule", "Weekly social publish"] },
+          },
+        }),
+      ).toBe(0);
+
+      const authorizedSocialSchedule = (await sokoBotRuntimeService.executeTool(
+        {
+          sessionId: ownerSessionId,
+          turnId: directSocialChat.id,
+          capability: "create_schedule",
+          toolCallId: `direct-social-with-perm-${randomUUID()}`,
+          input: {
+            name: "Weekly social schedule",
+            cronExpression: "0 9 * * 1",
+            timezone: "UTC",
+            prompt: "Draft and schedule our weekly post.",
+            allowScheduledPosts: true,
+            capabilities: ["create_social_post", "schedule_social_post"],
+          },
+        },
+      )) as { id: string };
+      const socialFirstRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        authorizedSocialSchedule.id,
+        "v36",
+      );
+      expect(socialFirstRun?.capabilities).toEqual(
+        expect.arrayContaining(["create_social_post", "schedule_social_post"]),
+      );
+      expect(socialFirstRun?.capabilities).not.toContain("publish_social_post");
+
+      // Built-in personal rhythm (standup): capability changes are refused
+      // (its fixed system route ignores stored capabilityNames), while timing-only
+      // updates still succeed.
+      const standup = await prisma.sokoBotSchedule.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Daily stand-up",
+          systemKey: "standup",
+          prompt: "Run the daily stand-up.",
+          cronExpression: "0 9 * * 1-5",
+          timezone: "UTC",
+          enabled: true,
+          nextRunAt: new Date(Date.now() + HOUR),
+          capabilityNames: [],
+        },
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "update_schedule",
+          toolCallId: `standup-caps-${randomUUID()}`,
+          input: {
+            scheduleId: standup.id,
+            capabilities: ["read_table"],
+          },
+        }),
+      ).rejects.toThrow(/built-in rhythm/);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: standup.id },
+          select: { capabilityNames: true, cronExpression: true },
+        }),
+      ).toEqual({
+        capabilityNames: [],
+        cronExpression: "0 9 * * 1-5",
+      });
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `standup-time-${randomUUID()}`,
+        input: {
+          scheduleId: standup.id,
+          cronExpression: "0 10 * * 1-5",
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: standup.id },
+          select: { capabilityNames: true, cronExpression: true },
+        }),
+      ).toEqual({
+        capabilityNames: [],
+        cronExpression: "0 10 * * 1-5",
+      });
+      // Creating a custom schedule with a built-in rhythm's name (same or
+      // different case) is refused instead of overwriting the built-in row.
+      for (const collidingName of ["Daily stand-up", "daily stand-up"]) {
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: ownerSessionId,
+            turnId: directChat.id,
+            capability: "create_schedule",
+            toolCallId: `standup-create-collide-${randomUUID()}`,
+            input: {
+              name: collidingName,
+              cronExpression: "0 8 * * 1-5",
+              timezone: "UTC",
+              prompt: "Read the daily KPI table.",
+              capabilities: ["read_table"],
+            },
+          }),
+        ).rejects.toThrow(/built-in rhythm.*different name/i);
+      }
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: standup.id },
+          select: {
+            name: true,
+            prompt: true,
+            capabilityNames: true,
+            cronExpression: true,
+            authority: true,
+          },
+        }),
+      ).toEqual({
+        name: "Daily stand-up",
+        prompt: "Run the daily stand-up.",
+        capabilityNames: [],
+        cronExpression: "0 10 * * 1-5",
+        authority: null,
+      });
+      const distinctReadOnly = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `standup-distinct-${randomUUID()}`,
+        input: {
+          name: "Daily KPI table check",
+          cronExpression: "0 8 * * 1-5",
+          timezone: "UTC",
+          prompt: "Read the daily KPI table.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      expect(distinctReadOnly.id).not.toBe(standup.id);
+      const distinctRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        distinctReadOnly.id,
+        "v36",
+      );
+      expect(distinctRun?.capabilities).toContain("read_table");
+      expect(distinctRun?.capabilities).not.toContain("write_table_rows");
+
+      // Creating a custom schedule always inserts a new row (never upserts or
+      // overwrites by name, including SQL LIKE wildcard names like "Margin 5%"
+      // alongside "Margin 50%" or exact same-name creates with new instructions).
+      const margin50Input = {
+        name: "Margin 50%",
+        cronExpression: "0 9 * * 1",
+        timezone: "UTC",
+        prompt: "Check 50% margin threshold.",
+        capabilities: ["read_table"],
+      };
+      const margin50 = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-50-create-${randomUUID()}`,
+        input: margin50Input,
+      })) as { id: string };
+      // Same-turn identical retry still replays the original receipt id.
+      const margin50Retry = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-50-retry-${randomUUID()}`,
+        input: margin50Input,
+      })) as { id: string };
+      expect(margin50Retry.id).toBe(margin50.id);
+      // "Margin 5%" inserts its own row and leaves "Margin 50%" untouched.
+      const margin5 = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-5-create-${randomUUID()}`,
+        input: {
+          name: "Margin 5%",
+          cronExpression: "0 10 * * 1",
+          timezone: "UTC",
+          prompt: "Check 5% margin threshold.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      expect(margin5.id).not.toBe(margin50.id);
+      // Even an exact same-name create with different instructions inserts a
+      // new row; updates go only through update_schedule.
+      const margin50Second = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "create_schedule",
+        toolCallId: `margin-50-second-${randomUUID()}`,
+        input: {
+          name: "Margin 50%",
+          cronExpression: "0 11 * * 1",
+          timezone: "UTC",
+          prompt: "Check quarterly 50% margin threshold.",
+          capabilities: ["read_table"],
+        },
+      })) as { id: string };
+      expect(margin50Second.id).not.toBe(margin50.id);
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50.id },
+          select: { name: true, prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        name: "Margin 50%",
+        prompt: "Check 50% margin threshold.",
+        cronExpression: "0 9 * * 1",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin5.id },
+          select: { name: true, prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        name: "Margin 5%",
+        prompt: "Check 5% margin threshold.",
+        cronExpression: "0 10 * * 1",
+      });
+      // Updating by name uses literal exact matching (never SQL % wildcards)
+      // and refuses ambiguous duplicate names until a scheduleId is supplied.
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "update_schedule",
+          toolCallId: `margin-wildcard-miss-${randomUUID()}`,
+          input: {
+            scheduleName: "Margin %",
+            cronExpression: "45 9 * * 1",
+          },
+        }),
+      ).rejects.toThrow(/Schedule not found/);
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `margin-5-by-name-${randomUUID()}`,
+        input: {
+          scheduleName: "margin 5%",
+          cronExpression: "15 10 * * 1",
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin5.id },
+          select: { name: true, prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        name: "Margin 5%",
+        prompt: "Check 5% margin threshold.",
+        cronExpression: "15 10 * * 1",
+      });
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "update_schedule",
+          toolCallId: `margin-50-ambiguous-update-${randomUUID()}`,
+          input: {
+            scheduleName: "Margin 50%",
+            cronExpression: "45 9 * * 1",
+          },
+        }),
+      ).rejects.toThrow(
+        new RegExp(
+          `Multiple schedules are named "Margin 50%".*${margin50.id}.*${margin50Second.id}.*scheduleId`,
+        ),
+      );
+      await expect(
+        sokoBotRuntimeService.executeTool({
+          sessionId: ownerSessionId,
+          turnId: directChat.id,
+          capability: "delete_schedule",
+          toolCallId: `margin-50-ambiguous-delete-${randomUUID()}`,
+          input: {
+            scheduleName: "Margin 50%",
+          },
+        }),
+      ).rejects.toThrow(
+        new RegExp(
+          `Multiple schedules are named "Margin 50%".*${margin50.id}.*${margin50Second.id}.*scheduleId`,
+        ),
+      );
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check 50% margin threshold.",
+        cronExpression: "0 9 * * 1",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50Second.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check quarterly 50% margin threshold.",
+        cronExpression: "0 11 * * 1",
+      });
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `margin-50-update-${randomUUID()}`,
+        input: {
+          scheduleId: margin50.id,
+          cronExpression: "30 9 * * 1",
+        },
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check 50% margin threshold.",
+        cronExpression: "30 9 * * 1",
+      });
+      expect(
+        await prisma.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: margin50Second.id },
+          select: { prompt: true, cronExpression: true },
+        }),
+      ).toEqual({
+        prompt: "Check quarterly 50% margin threshold.",
+        cronExpression: "0 11 * * 1",
+      });
+
+      // Direct top-level owner chat CAN upgrade that read-only schedule to write_table_rows,
+      // and its next run actually carries write_table_rows.
+      await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: directChat.id,
+        capability: "update_schedule",
+        toolCallId: `direct-upgrade-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          prompt: "Update the pipeline table rows.",
+          capabilities: ["read_table", "write_table_rows"],
+        },
+      });
+      const upgradedRun = await fireScheduleRun(
+        botId,
+        workspaceId,
+        bgReadSchedule.id,
+        "v36",
+      );
+      expect(upgradedRun?.userId).toBe(userId);
+      expect(upgradedRun?.capabilities).toContain("write_table_rows");
+
+      // 3. Teammate on a shared Cuso org bot holding BOTH read_memory and update_memory:
+      //    - creating a custom recurring memory write is refused;
+      //    - creating a read-only check via capabilities: ["read_memory"] from THAT
+      //      SAME broader turn succeeds and runs as Cuso (`actingUserId: null`);
+      //    - editing that read-only schedule to add update_memory is refused.
+      const { withFixtureSchemas } = await import("@/test/split-layout");
+      const orgId = randomUUID();
+      const teammateId = randomUUID();
+      const cusoSessionId = randomUUID();
+      let orgWorkspaceId: string | null = null;
+      let cusoBotId: string | null = null;
+      try {
+        const orgWorkspace = await withFixtureSchemas(async (tx) => {
+          await tx.organization.create({
+            data: { id: orgId, name: "Cuso Schedule Org", slug: orgId },
+          });
+          await tx.user.create({
+            data: {
+              id: teammateId,
+              name: "Cuso Teammate",
+              email: `${teammateId}@example.test`,
+              emailVerified: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          await tx.member.create({
+            data: {
+              userId: teammateId,
+              organizationId: orgId,
+              role: "member",
+              seatAssignedAt: new Date(),
+            },
+          });
+          return tx.workspace.create({
+            data: { organizationId: orgId },
+          });
+        });
+        orgWorkspaceId = orgWorkspace.id;
+        const cusoBot = await prisma.sokoBot.create({
+          data: {
+            userId: null,
+            workspaceId: orgWorkspaceId,
+            versionId: "cmo-v24",
+            eveSessionId: cusoSessionId,
+            proactiveDailyLimit: 10_000,
+          },
+        });
+        cusoBotId = cusoBot.id;
+
+        const cusoBroadTurn = await prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: cusoBotId,
+            requestedByUserId: teammateId,
+            askedByUserId: teammateId,
+            workspaceId: orgWorkspaceId,
+            source: "CHAT",
+            status: "RUNNING",
+            clientTurnId: randomUUID(),
+            versionId: "cmo-v24",
+            userMessage: "Manage recurring brand memory checks for our team.",
+            capabilityNames: [
+              "read_memory",
+              "update_memory",
+              "create_schedule",
+              "update_schedule",
+            ],
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+            contextSnapshot: {
+              create: {
+                generatedAt: new Date(),
+                schemaVersion: 1,
+                hash: randomUUID(),
+                packet: { trigger: { askedBy: { kind: "TEAMMATE" } } },
+                byteSize: 2,
+                tokenEstimate: 1,
+                counts: {},
+                omissions: {},
+              },
+            },
+          },
+        });
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: cusoSessionId,
+            turnId: cusoBroadTurn.id,
+            capability: "create_schedule",
+            toolCallId: `cuso-write-${randomUUID()}`,
+            input: {
+              name: "Weekly org memory update",
+              cronExpression: "0 9 * * 1",
+              timezone: "UTC",
+              prompt: "Update our brand memory each Monday.",
+              capabilities: ["read_memory", "update_memory"],
+            },
+          }),
+        ).rejects.toThrow(/update_memory/);
+        expect(
+          await prisma.sokoBotSchedule.count({
+            where: { sokoBotId: cusoBotId, name: "Weekly org memory update" },
+          }),
+        ).toBe(0);
+
+        // Same broad Cuso teammate turn CAN create a read-only check by passing capabilities: ["read_memory"].
+        const cusoReadSchedule = (await sokoBotRuntimeService.executeTool({
+          sessionId: cusoSessionId,
+          turnId: cusoBroadTurn.id,
+          capability: "create_schedule",
+          toolCallId: `cuso-ro-${randomUUID()}`,
+          input: {
+            name: "Weekly org memory check",
+            cronExpression: "0 10 * * 1",
+            timezone: "UTC",
+            prompt: "Review our brand memory and flag stale facts.",
+            capabilities: ["read_memory"],
+          },
+        })) as { id: string };
+        const cusoFirstRun = await fireScheduleRun(
+          cusoBotId,
+          orgWorkspaceId,
+          cusoReadSchedule.id,
+          "cmo-v24",
+        );
+        // Cuso keeps its shared execution identity (actingUserId === null) and read_memory.
+        expect(cusoFirstRun?.userId).toBeNull();
+        expect(cusoFirstRun?.capabilities).toContain("read_memory");
+        expect(cusoFirstRun?.capabilities).not.toContain("update_memory");
+
+        // Editing that read-only Cuso schedule to require update_memory is refused.
+        await expect(
+          sokoBotRuntimeService.executeTool({
+            sessionId: cusoSessionId,
+            turnId: cusoBroadTurn.id,
+            capability: "update_schedule",
+            toolCallId: `cuso-edit-write-${randomUUID()}`,
+            input: {
+              scheduleId: cusoReadSchedule.id,
+              prompt: "Update our brand memory each Monday.",
+              capabilities: ["read_memory", "update_memory"],
+            },
+          }),
+        ).rejects.toThrow(/update_memory/);
+        expect(
+          await prisma.sokoBotSchedule.findUniqueOrThrow({
+            where: { id: cusoReadSchedule.id },
+            select: { prompt: true, capabilityNames: true },
+          }),
+        ).toEqual({
+          prompt: "Review our brand memory and flag stale facts.",
+          capabilityNames: ["read_memory"],
+        });
+      } finally {
+        await withFixtureSchemas(async (tx) => {
+          if (cusoBotId) {
+            await tx.sokoBotSchedule.deleteMany({
+              where: { sokoBotId: cusoBotId },
+            });
+            await tx.sokoBot.deleteMany({ where: { id: cusoBotId } });
+          }
+          if (orgWorkspaceId) {
+            await tx.workspace.deleteMany({ where: { id: orgWorkspaceId } });
+          }
+          await tx.organization.deleteMany({ where: { id: orgId } });
+          await tx.user.deleteMany({ where: { id: teammateId } });
+        });
+      }
+    });
+
+    it("enforces SokoBotWatch social authority and watch/schedule media limits across occurrences and admin retries on PostgreSQL", async () => {
+      const rootChatTurn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: randomUUID(),
+          versionId: "v36",
+          userMessage: "Watch the reply and generate visuals on Project A.",
+          capabilityNames: ["create_social_post", "generate_image"],
+          deadlineAt: new Date(Date.now() + HOUR),
+          leaseExpiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+      const projectA = randomUUID();
+      const projectB = randomUUID();
+      const sharedWatchGrantId = `watch-shared-${randomUUID()}`;
+      const baseWatchAuth = {
+        version: 1 as const,
+        grantId: sharedWatchGrantId,
+        origin: "owner_chat" as const,
+        sokoBotId: botId,
+        workspaceId,
+        ownerUserId: userId,
+        rootTurnId: rootChatTurn.id,
+        targetScope: { kind: "project" as const, projectId: projectA },
+        scope: "draft_and_workspace" as const,
+        socialMode: "full" as const,
+        limits: {
+          grantId: sharedWatchGrantId,
+          period: "lifetime" as const,
+          images: 1,
+          maxMediaCredits: 10,
+        },
+        stopRule: { mode: "never" as const },
+      };
+
+      const chatReplyWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Draft a social post and make 1 image.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: baseWatchAuth,
+        },
+      });
+      const siblingWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Make an image under the same shared grant.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: baseWatchAuth,
+        },
+      });
+      const expiredWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Expired follow-up.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: {
+            ...baseWatchAuth,
+            grantId: `expired-${randomUUID()}`,
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          },
+        },
+      });
+      const corruptWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "studio_job",
+          targetId: randomUUID(),
+          projectId: projectA,
+          then: "Corrupt authority payload.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+          authority: { invalid: true },
+        },
+      });
+      const legacyWatch = await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId: rootChatTurn.id,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          projectId: null,
+          then: "Pre-migration legacy chat_reply watch.",
+          status: "FIRED",
+          expiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+
+      const makeTurn = (
+        source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY",
+        clientTurnId: string,
+      ) =>
+        prisma.sokoBotTurn.create({
+          data: {
+            sokoBotId: botId,
+            requestedByUserId: userId,
+            workspaceId,
+            source,
+            status: "RUNNING",
+            clientTurnId,
+            versionId: "v36",
+            userMessage: "Follow-up execution",
+            capabilityNames: ["create_social_post", "generate_image"],
+            deadlineAt: new Date(Date.now() + HOUR),
+            leaseExpiresAt: new Date(Date.now() + HOUR),
+          },
+        });
+
+      const wakeTurn = await makeTurn("CHAT", `watch:${chatReplyWatch.id}`);
+      const wakeAdminRetry = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-retry:${wakeTurn.id}:op1`,
+      );
+      const siblingWakeTurn = await makeTurn(
+        "CHAT",
+        `watch:${siblingWatch.id}`,
+      );
+      const expiredWakeTurn = await makeTurn(
+        "CHAT",
+        `watch:${expiredWatch.id}`,
+      );
+      const corruptWakeTurn = await makeTurn(
+        "CHAT",
+        `watch:${corruptWatch.id}`,
+      );
+      const legacyWakeTurn = await makeTurn("CHAT", `watch:${legacyWatch.id}`);
+      const deletedWakeTurn = await makeTurn("CHAT", `watch:${randomUUID()}`);
+      const malformedWakeTurn = await makeTurn("CHAT", "watch:not-a-uuid");
+
+      // 1. Social write enforcement on watch wakes and their ADMIN_RETRY chains.
+      for (const candidate of [wakeTurn, wakeAdminRetry]) {
+        const origin = await resolveSocialWriteOrigin({
+          id: candidate.id,
+          sokoBotId: botId,
+          source: candidate.source,
+          clientTurnId: candidate.clientTurnId,
+        });
+        expect(origin.watchAuthority?.kind).toBe("watch");
+        const turnInfo = {
+          id: candidate.id,
+          sokoBotId: botId,
+          workspaceId,
+          versionId: "v36",
+          source: origin.source,
+          actingUserId: userId,
+          askedByKind: "OWNER" as const,
+          sharedBot: false,
+        };
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: turnInfo,
+            capability: "create_social_post",
+            rawInput: { projectId: projectA, text: "Draft only" },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({ allowed: true, requireUnapprovedDraft: false });
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: turnInfo,
+            capability: "create_social_post",
+            rawInput: {
+              projectId: projectA,
+              text: "Scheduled",
+              scheduledAt: "2026-12-01T10:00:00Z",
+            },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+        });
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: turnInfo,
+            capability: "create_social_post",
+            rawInput: { projectId: projectB, text: "Wrong Project" },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: WATCH_AUTHORITY_SCOPE_MISMATCH_MESSAGE,
+        });
+      }
+
+      // Expired, corrupt, legacy, deleted, and malformed watches on real PostgreSQL.
+      for (const [turnRow, expectedDetail] of [
+        [expiredWakeTurn, WATCH_AUTHORITY_EXPIRED_MESSAGE],
+        [corruptWakeTurn, WATCH_AUTHORITY_INVALID_MESSAGE],
+        [deletedWakeTurn, WATCH_AUTHORITY_UNAVAILABLE_MESSAGE],
+        [malformedWakeTurn, WATCH_AUTHORITY_UNAVAILABLE_MESSAGE],
+      ] as const) {
+        const origin = await resolveSocialWriteOrigin({
+          id: turnRow.id,
+          sokoBotId: botId,
+          source: turnRow.source,
+          clientTurnId: turnRow.clientTurnId,
+        });
+        expect(
+          evaluateSocialWriteAuthority({
+            turn: {
+              id: turnRow.id,
+              sokoBotId: botId,
+              workspaceId,
+              versionId: "v36",
+              source: origin.source,
+              actingUserId: userId,
+              askedByKind: "OWNER",
+              sharedBot: false,
+            },
+            capability: "create_social_post",
+            rawInput: { projectId: projectA, text: "Blocked" },
+            tainted: false,
+            watchAuthority: origin.watchAuthority,
+          }),
+        ).toEqual({
+          allowed: false,
+          kind: "watch_authority",
+          detail: expectedDetail,
+        });
+      }
+
+      const legacyOrigin = await resolveSocialWriteOrigin({
+        id: legacyWakeTurn.id,
+        sokoBotId: botId,
+        source: legacyWakeTurn.source,
+        clientTurnId: legacyWakeTurn.clientTurnId,
+      });
+      expect(
+        evaluateSocialWriteAuthority({
+          turn: {
+            id: legacyWakeTurn.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: legacyOrigin.source,
+            actingUserId: userId,
+            askedByKind: "OWNER",
+            sharedBot: false,
+          },
+          capability: "schedule_social_post",
+          rawInput: { projectId: projectA, postId: randomUUID() },
+          tainted: false,
+          watchAuthority: legacyOrigin.watchAuthority,
+        }),
+      ).toEqual({
+        allowed: false,
+        kind: "watch_authority",
+        detail: WATCH_SOCIAL_DRAFT_ONLY_MESSAGE,
+      });
+
+      // 2. Shared watch media limits across parallel watches & ADMIN_RETRY on PostgreSQL.
+      const mediaRuntime = {
+        mayActForOwner: async (auth: { turn: { source: string | null } }) =>
+          auth.turn.source === "CHAT",
+      };
+      const asAuthorized = (row: {
+        id: string;
+        source: string | null;
+        clientTurnId: string;
+      }) =>
+        ({
+          askedByKind: "OWNER",
+          reader: { sharedScope: null },
+          turn: {
+            id: row.id,
+            sokoBotId: botId,
+            workspaceId,
+            versionId: "v36",
+            source: row.source,
+            clientTurnId: row.clientTurnId,
+            actingUserId: userId,
+            chainDepth: 0,
+          },
+        }) as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+      const watch1Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(wakeTurn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      expect(watch1Allowance?.grants).toHaveLength(1);
+      await prisma.$transaction(async (tx) => {
+        await reserveAuthoritySpend(tx, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: wakeTurn.id,
+          toolCallId: "watch-img-1",
+          operationKey: "op-watch-img-1",
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: watch1Allowance!.grants!,
+        });
+      });
+      await settleAuthoritySpend(
+        prisma,
+        {
+          turnId: wakeTurn.id,
+          toolCallId: "watch-img-1",
+        },
+        "SETTLED",
+      );
+
+      // Parallel sibling watch AND ADMIN_RETRY sharing the same grantId are now refused.
+      for (const blockedTurn of [siblingWakeTurn, wakeAdminRetry]) {
+        const allowance = await mayMakeMediaForOwner(
+          mediaRuntime,
+          asAuthorized(blockedTurn),
+          { projectId: projectA, capability: "generate_image" },
+        );
+        await expect(
+          checkGrantSpendPreflight(prisma, {
+            sokoBotId: botId,
+            workspaceId,
+            turnId: blockedTurn.id,
+            toolCallId: `blocked-${randomUUID()}`,
+            operationKey: null,
+            capability: "generate_image",
+            projectId: projectA,
+            images: 1,
+            videos: 0,
+            credits: 4,
+            grants: allowance!.grants!,
+          }),
+        ).rejects.toThrow("The owner asked for 1 image in this plan");
+      }
+
+      // 3. Schedule per_occurrence vs lifetime media limits across occurrences and retries.
+      const perOccSchedId = randomUUID();
+      const perOccGrantId = `sched-occ-${randomUUID()}`;
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: perOccSchedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Weekly hero image",
+          cronExpression: "0 9 * * 1",
+          timezone: "UTC",
+          prompt: "Generate 1 weekly hero image.",
+          nextRunAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+          authority: {
+            version: 1,
+            grantId: perOccGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: rootChatTurn.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: perOccSchedId,
+            scope: "owner_writes",
+            socialMode: "draft_only",
+            limits: {
+              grantId: perOccGrantId,
+              period: "per_occurrence",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const slot1 = new Date("2026-11-30T09:00:00.000Z");
+      const slot2 = new Date("2026-12-07T09:00:00.000Z");
+      const occ1Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${perOccSchedId}:${slot1.toISOString()}`,
+      );
+      const occ1Run = await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: perOccSchedId,
+          scheduledFor: slot1,
+          status: "RUNNING",
+          turnId: occ1Turn.id,
+        },
+      });
+      const occ1AdminRetry = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-retry:${occ1Turn.id}:op1`,
+      );
+      const occ1SchedRetry = await makeTurn(
+        "ADMIN_RETRY",
+        `admin-schedule-retry:${occ1Run.id}:op1`,
+      );
+      const occ2Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${perOccSchedId}:${slot2.toISOString()}`,
+      );
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: perOccSchedId,
+          scheduledFor: slot2,
+          status: "RUNNING",
+          turnId: occ2Turn.id,
+        },
+      });
+
+      const occ1Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(occ1Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      expect(occ1Allowance?.grants?.[0]?.grantId).toBe(
+        `${perOccGrantId}:slot:${slot1.toISOString()}`,
+      );
+      // Image-only schedule refuses generate_video.
+      expect(
+        await mayMakeMediaForOwner(mediaRuntime, asAuthorized(occ1Turn), {
+          projectId: projectA,
+          capability: "generate_video",
+        }),
+      ).toBeNull();
+      // Spend 1/1 on Occurrence 1.
+      await prisma.$transaction(async (tx) => {
+        await reserveAuthoritySpend(tx, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: occ1Turn.id,
+          toolCallId: "occ1-img-1",
+          operationKey: "op-occ1-img-1",
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: occ1Allowance!.grants!,
+        });
+      });
+      await settleAuthoritySpend(
+        prisma,
+        {
+          turnId: occ1Turn.id,
+          toolCallId: "occ1-img-1",
+        },
+        "SETTLED",
+      );
+      // Both admin-retry and admin-schedule-retry of Occurrence 1 are refused.
+      for (const retryRow of [occ1AdminRetry, occ1SchedRetry]) {
+        const retryAllowance = await mayMakeMediaForOwner(
+          mediaRuntime,
+          asAuthorized(retryRow),
+          { projectId: projectA, capability: "generate_image" },
+        );
+        await expect(
+          checkGrantSpendPreflight(prisma, {
+            sokoBotId: botId,
+            workspaceId,
+            turnId: retryRow.id,
+            toolCallId: `occ1-retry-${randomUUID()}`,
+            operationKey: null,
+            capability: "generate_image",
+            projectId: projectA,
+            images: 1,
+            videos: 0,
+            credits: 4,
+            grants: retryAllowance!.grants!,
+          }),
+        ).rejects.toThrow("The owner asked for 1 image in this plan");
+      }
+      // Occurrence 2 gets its own fresh bucket and succeeds at preflight.
+      const occ2Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(occ2Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      expect(occ2Allowance?.grants?.[0]?.grantId).toBe(
+        `${perOccGrantId}:slot:${slot2.toISOString()}`,
+      );
+      await expect(
+        checkGrantSpendPreflight(prisma, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: occ2Turn.id,
+          toolCallId: "occ2-img-1",
+          operationKey: null,
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: occ2Allowance!.grants!,
+        }),
+      ).resolves.toBeUndefined();
+
+      // Lifetime schedule shares ONE grantId across occurrences: Occurrence 2 is refused.
+      const lifetimeSchedId = randomUUID();
+      const lifetimeGrantId = `sched-life-${randomUUID()}`;
+      await prisma.sokoBotSchedule.create({
+        data: {
+          id: lifetimeSchedId,
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          name: "Campaign lifetime cap",
+          cronExpression: "0 9 * * 2",
+          timezone: "UTC",
+          prompt: "Generate up to 1 image total across the campaign.",
+          nextRunAt: new Date(Date.now() + HOUR),
+          capabilityNames: ["generate_image"],
+          authority: {
+            version: 1,
+            grantId: lifetimeGrantId,
+            origin: "owner_chat",
+            sokoBotId: botId,
+            workspaceId,
+            ownerUserId: userId,
+            rootTurnId: rootChatTurn.id,
+            targetScope: { kind: "project", projectId: projectA },
+            scheduleId: lifetimeSchedId,
+            scope: "owner_writes",
+            socialMode: "draft_only",
+            limits: {
+              grantId: lifetimeGrantId,
+              period: "lifetime",
+              images: 1,
+              maxMediaCredits: 10,
+            },
+            stopRule: { mode: "never" },
+          },
+        },
+      });
+      const life1Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${lifetimeSchedId}:${slot1.toISOString()}`,
+      );
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: lifetimeSchedId,
+          scheduledFor: slot1,
+          status: "RUNNING",
+          turnId: life1Turn.id,
+        },
+      });
+      const life2Turn = await makeTurn(
+        "SCHEDULE",
+        `schedule:${lifetimeSchedId}:${slot2.toISOString()}`,
+      );
+      await prisma.sokoBotScheduleRun.create({
+        data: {
+          scheduleId: lifetimeSchedId,
+          scheduledFor: slot2,
+          status: "RUNNING",
+          turnId: life2Turn.id,
+        },
+      });
+      const life1Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(life1Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      await prisma.$transaction(async (tx) => {
+        await reserveAuthoritySpend(tx, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: life1Turn.id,
+          toolCallId: "life1-img-1",
+          operationKey: "op-life1-img-1",
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: life1Allowance!.grants!,
+        });
+      });
+      await settleAuthoritySpend(
+        prisma,
+        {
+          turnId: life1Turn.id,
+          toolCallId: "life1-img-1",
+        },
+        "SETTLED",
+      );
+      const life2Allowance = await mayMakeMediaForOwner(
+        mediaRuntime,
+        asAuthorized(life2Turn),
+        { projectId: projectA, capability: "generate_image" },
+      );
+      await expect(
+        checkGrantSpendPreflight(prisma, {
+          sokoBotId: botId,
+          workspaceId,
+          turnId: life2Turn.id,
+          toolCallId: "life2-img-1",
+          operationKey: null,
+          capability: "generate_image",
+          projectId: projectA,
+          images: 1,
+          videos: 0,
+          credits: 4,
+          grants: life2Allowance!.grants!,
+        }),
+      ).rejects.toThrow("The owner asked for 1 image in this plan");
     });
   });
 });

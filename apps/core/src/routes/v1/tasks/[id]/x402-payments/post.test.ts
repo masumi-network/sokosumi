@@ -198,7 +198,7 @@ const SOKO_BOT_CONTEXT: AuthenticationContext = {
 };
 
 interface TxMock {
-  projectSeoAnalysis: { findFirst: ReturnType<typeof vi.fn> };
+  projectSeoAnalysis: { findUnique: ReturnType<typeof vi.fn> };
   $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -495,7 +495,7 @@ function createTxMock(): TxMock {
   return {
     // VERIFIED replay takes FOR UPDATE before returning the stored header.
     $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
-    projectSeoAnalysis: { findFirst: vi.fn().mockResolvedValue(null) },
+    projectSeoAnalysis: { findUnique: vi.fn().mockResolvedValue(null) },
     taskX402Payment: {
       findUnique: vi
         .fn()
@@ -1746,7 +1746,10 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("rejects a separate x402 purchase on a full audit that pays only at completion", async () => {
-      tx.projectSeoAnalysis.findFirst.mockResolvedValue({ id: TASK_ID });
+      tx.projectSeoAnalysis.findUnique.mockResolvedValue({
+        kind: "audit_full",
+        request: { price: { kind: "cost_plus" } },
+      });
       const response = await postPayment(
         createApp(COWORKER_AGENT_CONTEXT),
         validBody(),
@@ -1754,6 +1757,34 @@ describe("POST /{id}/x402-payments", () => {
       expect(response.status).toBe(422);
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an x402 purchase on a focused check frozen with no provider budget", async () => {
+      tx.projectSeoAnalysis.findUnique.mockResolvedValue({
+        kind: "page_check",
+        request: { budget: { maxProviderCalls: 0 } },
+      });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      await expectRejectedBeforeCharge(response, 422);
+      expect((await response.json()) as { message: string }).toMatchObject({
+        message: expect.stringContaining("no provider budget"),
+      });
+    });
+
+    it("still charges a focused check that has a provider budget", async () => {
+      tx.projectSeoAnalysis.findUnique.mockResolvedValue({
+        kind: "rankings",
+        request: { budget: { maxProviderCalls: 20 } },
+      });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(createTaskEventTransactionMock).toHaveBeenCalledOnce();
     });
 
     it("charges a demand priced exactly at maxCredits", async () => {

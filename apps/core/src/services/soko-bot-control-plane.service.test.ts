@@ -5338,6 +5338,115 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(scheduleRunUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("intersects persisted schedule OwnerAuthority on RETRY_SCHEDULE_RUN for schedule_posts and expired grants", async () => {
+    const scheduleId = "01960000-0000-7000-8000-000000000701";
+    const projectA = "01960000-0000-7000-8000-000000000702";
+    const storedCaps = [
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+      "cancel_social_post",
+    ];
+    const baseAuthority = {
+      version: 1,
+      grantId: "grant-retry-1",
+      origin: "owner_chat",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace_1",
+      ownerUserId: "user_1",
+      rootTurnId: "turn-root-retry",
+      targetScope: { kind: "project", projectId: projectA },
+      scheduleId,
+      scope: "owner_writes",
+      socialMode: "schedule_posts",
+      stopRule: { mode: "never" },
+    };
+
+    const runRetryWithAuthority = async (
+      operationId: string,
+      authority: unknown,
+    ) => {
+      const controlPlane = new SokoBotControlPlane();
+      const startTurn = vi.spyOn(controlPlane, "startTurn").mockResolvedValue({
+        turnId: `turn_${operationId}`,
+        sokoBotId: BOT_ID,
+        sessionId: `session_${operationId}`,
+        status: "COMPLETED",
+        route: "DELEGATE_TASK",
+        capabilities: [],
+        duplicate: false,
+      });
+      botFindUniqueMock.mockResolvedValue({
+        ...adminBot(),
+        userId: "user_1",
+        projectId: null,
+        versionId: "v36",
+      });
+      adminActionFindUniqueMock.mockResolvedValue(null);
+      adminActionFindFirstMock.mockResolvedValue(null);
+      turnFindUniqueMock.mockResolvedValue(null);
+      scheduleRunFindFirstMock.mockResolvedValue({
+        id: "run_auth_1",
+        status: "FAILED",
+        attempt: 1,
+        turnId: "turn_failed_1",
+        prompt: "Schedule the daily Project A post.",
+        schedule: {
+          id: scheduleId,
+          sokoBotId: BOT_ID,
+          requestedByUserId: "user_1",
+          workspaceId: "workspace_1",
+          systemKey: null,
+          prompt: "Schedule the daily Project A post.",
+          capabilityNames: storedCaps,
+          authority,
+        },
+        turn: {
+          id: "turn_failed_1",
+          source: "SCHEDULE",
+          clientTurnId: `schedule:${scheduleId}:2026-11-26T12:00:00.000Z`,
+          status: "FAILED",
+        },
+      });
+      await controlPlane.performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action: "RETRY_SCHEDULE_RUN",
+        targetId: "run_auth_1",
+        reason: "Retry scheduled posting run",
+        operationId,
+      });
+      return startTurn.mock.calls[0]?.[0]?.presetRoute as {
+        capabilities?: string[];
+        sandbox?: boolean;
+      };
+    };
+
+    const allowedRoute = await runRetryWithAuthority(
+      "op_sched_ok",
+      baseAuthority,
+    );
+    expect(allowedRoute.capabilities).toEqual([
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+    ]);
+    expect(allowedRoute.capabilities).not.toContain("publish_social_post");
+    expect(allowedRoute.capabilities).not.toContain("cancel_social_post");
+
+    const expiredRoute = await runRetryWithAuthority("op_sched_expired", {
+      ...baseAuthority,
+      expiresAt: "2020-01-01T00:00:00.000Z",
+    });
+    expect(expiredRoute.capabilities).toEqual(["list_social_posts"]);
+    expect(expiredRoute.sandbox).toBe(false);
+  });
+
   it("resumes the same admin operation after its retry turn was atomically bound", async () => {
     const operationId = "operation_replay";
     const clientTurnId = `admin-schedule-retry:run_1:${adminRetryOperationKey(operationId)}`;

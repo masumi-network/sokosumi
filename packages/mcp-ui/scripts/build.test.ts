@@ -77,6 +77,15 @@ describe("buildViews", () => {
     }
   });
 
+  it("embeds Inter in every view, so no font is fetched", () => {
+    for (const id of ids) {
+      const html = readFileSync(join(outDir, "views", `${id}.html`), "utf8");
+      // A WOFF2 file starts with "wOF2", "d09GMg" in base64.
+      expect(html, id).toContain("data:font/woff2;base64,d09GMg");
+      expect(html, id).not.toMatch(/@font-face/);
+    }
+  });
+
   // Each view ships React, zod and the MCP client (about 465 KB in Nov 2026).
   // Raise this only on purpose: every byte is in Core's bundle and every read.
   it("keeps every view under the 600 KB size budget", () => {

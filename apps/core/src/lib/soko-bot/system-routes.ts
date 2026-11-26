@@ -14,6 +14,7 @@ import {
 import {
   capabilitiesForDelegationFollowUp,
   DELEGATION_EVENT_TURN_PREFIX,
+  intersectScheduleRouteCapabilities,
 } from "./owner-authority";
 
 export { DELEGATION_EVENT_TURN_PREFIX };
@@ -297,6 +298,58 @@ export function inheritedScheduleRoute(
     reason: "Schedule run, with the tools of whoever wrote it.",
     capabilities,
     sandbox: capabilities.some(isSokoBotSandboxCapability),
+  };
+}
+
+export interface ScheduleAuthorityRouteInput {
+  id: string;
+  sokoBotId: string;
+  workspaceId: string;
+  capabilityNames: readonly string[];
+  authority: unknown;
+  actingUserId: string | null;
+  botUserId: string | null;
+  botProjectId: string | null;
+  botVersionId: string | null;
+  now?: Date;
+}
+
+/**
+ * Computes the route for a user- or bot-created schedule run, intersecting its
+ * stored capabilities with persisted `SokoBotSchedule.authority`. Legacy rows
+ * (`authority == null`) preserve `inheritedScheduleRoute`; non-null expired,
+ * mismatched, or malformed authorities fail closed without falling back to
+ * `PERSON_SCHEDULE_CAPABILITIES`.
+ */
+export function scheduleAuthorityRoute(
+  input: ScheduleAuthorityRouteInput,
+): PresetRoute {
+  if (input.authority === null || input.authority === undefined) {
+    return inheritedScheduleRoute(input.capabilityNames);
+  }
+  const stored = input.capabilityNames.filter(isSokoBotCapability);
+  const baseCapabilities = stored.length
+    ? stored
+    : PERSON_SCHEDULE_CAPABILITIES;
+  const result = intersectScheduleRouteCapabilities({
+    scheduleId: input.id,
+    sokoBotId: input.sokoBotId,
+    workspaceId: input.workspaceId,
+    authority: input.authority,
+    actingUserId: input.actingUserId,
+    botUserId: input.botUserId,
+    botProjectId: input.botProjectId,
+    botVersionId: input.botVersionId,
+    offeredCapabilities: baseCapabilities,
+    now: input.now,
+  });
+  return {
+    route: "DELEGATE_TASK",
+    reason: result.effective
+      ? "Schedule run, intersected with its persisted owner authority."
+      : `Schedule run restricted by persisted owner authority (${result.denialReason ?? "denied"}).`,
+    capabilities: result.capabilities,
+    sandbox: result.capabilities.some(isSokoBotSandboxCapability),
   };
 }
 

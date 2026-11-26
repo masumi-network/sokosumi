@@ -33,7 +33,16 @@ export const CLI_COMMAND_CATALOG = [
   { command: "evals list", usage: "[--limit N]" },
   { command: "evals cases", usage: "" },
   { command: "agents list", usage: "" },
-  { command: "agents hire", usage: "AGENT_ID" },
+  {
+    command: "agents input-schema",
+    usage: "AGENT_ID",
+    operation: "GET /agents/{id}/input-schema",
+  },
+  {
+    command: "agents hire",
+    usage:
+      "AGENT_ID --input-json JSON|--input-file FILE [--max-credits N] [--name NAME]",
+  },
   { command: "agents get", usage: "AGENT_ID", operation: "GET /agents/{id}" },
   {
     command: "agents jobs",

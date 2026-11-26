@@ -1,9 +1,10 @@
 import type { Transport } from "@modelcontextprotocol/client";
 import type { App, McpUiDisplayMode } from "@modelcontextprotocol/ext-apps";
+import { Inbox, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { z } from "zod";
 import { isUnderBase, type MessageKey, t } from "./text.ts";
-import { Message, PrimaryButton, Skeleton } from "./ui.tsx";
+import { PrimaryButton, Skeleton, StateMessage } from "./ui.tsx";
 import {
   type ConnectionState,
   useViewConnection,
@@ -49,6 +50,8 @@ export interface ShellProps<T> {
   empty?: { title: MessageKey; body: MessageKey };
   /** The data twin `context.refresh` re-runs. */
   refreshTool?: string;
+  /** The loading skeleton's shape, like the view's layout. */
+  skeleton?: "cards" | "detail" | "form";
   children: (data: T, context: ViewContext) => ReactNode;
 }
 
@@ -105,6 +108,7 @@ export function Shell<T>({
   isEmpty,
   empty = { title: "shell.empty.title", body: "shell.empty.body" },
   refreshTool,
+  skeleton,
   children,
 }: ShellProps<T>) {
   const [connection, rerun] = useViewConnection(app, transport);
@@ -122,15 +126,23 @@ export function Shell<T>({
 
   return (
     <main data-state={view.kind} className="p-4">
-      {view.kind === "loading" && <Skeleton />}
+      {view.kind === "loading" && <Skeleton shape={skeleton} />}
       {view.kind === "error" && (
-        <Message title={t("shell.error.title")} body={t("shell.error.body")} />
+        <StateMessage
+          icon={TriangleAlert}
+          title={t("shell.error.title")}
+          body={t("shell.error.body")}
+        />
       )}
       {view.kind === "approval" && (
         <PersonStep app={app} webUrl={view.webUrl} />
       )}
       {view.kind === "empty" && (
-        <Message title={t(empty.title)} body={t(empty.body)} />
+        <StateMessage
+          icon={Inbox}
+          title={t(empty.title)}
+          body={t(empty.body)}
+        />
       )}
       {view.kind === "ready" &&
         children(view.data, {
@@ -152,25 +164,26 @@ export function Shell<T>({
 /** A step only a person takes (ADR 0077): no control here, a link to Sokosumi. */
 function PersonStep({ app, webUrl }: { app: App; webUrl?: string }) {
   return (
-    <div className="flex flex-col gap-4">
-      <Message
-        title={t("shell.approval.title")}
-        body={t("shell.approval.body")}
-      />
-      {webUrl && (
-        <PrimaryButton
-          onClick={() =>
-            app.openLink({ url: webUrl }).catch((error: unknown) =>
-              app.sendLog({
-                level: "warning",
-                data: `ui/open-link failed: ${String(error)}`,
-              }),
-            )
-          }
-        >
-          {t("shell.approval.open")}
-        </PrimaryButton>
-      )}
-    </div>
+    <StateMessage
+      icon={ShieldCheck}
+      title={t("shell.approval.title")}
+      body={t("shell.approval.body")}
+      action={
+        webUrl && (
+          <PrimaryButton
+            onClick={() =>
+              app.openLink({ url: webUrl }).catch((error: unknown) =>
+                app.sendLog({
+                  level: "warning",
+                  data: `ui/open-link failed: ${String(error)}`,
+                }),
+              )
+            }
+          >
+            {t("shell.approval.open")}
+          </PrimaryButton>
+        )
+      }
+    />
   );
 }

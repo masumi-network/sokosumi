@@ -24,6 +24,7 @@ import {
   comparableRuns,
   evalCommit,
   evalEnvironment,
+  isPlanEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
 import {
@@ -55,7 +56,10 @@ import {
   minimumEvalRepeats,
   selectEvalCases,
 } from "./eval-cases";
-import { stopPendingAfterBudgetError } from "./eval-infrastructure";
+import {
+  guardOrganizer,
+  stopPendingAfterBudgetError,
+} from "./eval-infrastructure";
 import {
   defaultEvalVersions,
   EVAL_LANE_COUNT,
@@ -139,7 +143,7 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   const lanes = Math.max(...cases.map(repeatsOf));
   const commit = evalCommit();
   const environment = evalEnvironment();
-  const local = environment === "local" || environment === "local-chatgpt-plan";
+  const local = environment === "local" || isPlanEnvironment(environment);
   const commitSha =
     commit.commitSha ?? (local ? (input.commit?.sha ?? null) : null);
   const commitMessage =
@@ -160,9 +164,11 @@ export async function createEvalRun(input: CreateEvalRunInput) {
       environment,
       label:
         input.label ??
-        (environment === "local-chatgpt-plan"
-          ? "local, ChatGPT plan (approximate)"
-          : null),
+        (environment === "local-chatgpt-plan-real-jev"
+          ? "local, ChatGPT plan + real Jev"
+          : environment === "local-chatgpt-plan"
+            ? "local, ChatGPT plan (approximate)"
+            : null),
       startedByUserId: input.startedByUserId ?? null,
       models: {
         sokoBotVersionId: input.sokoBotVersionId ?? defaults.sokoBot,
@@ -349,9 +355,10 @@ async function turnsCost(turnIds: readonly string[]) {
 
 async function finish(
   resultId: string,
-  outcome: CaseOutcome,
+  polled: CaseOutcome,
   startedAt: Date | null,
 ) {
+  const outcome = await guardOrganizer(polled);
   const turnId = outcome.turnIds.at(0);
   await prisma.evalResult.update({
     where: { id: resultId },

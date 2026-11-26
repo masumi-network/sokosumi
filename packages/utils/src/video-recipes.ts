@@ -41,6 +41,8 @@ export interface VideoRecipeNeeds {
   website?: boolean;
   /** The fewest of the brand's own pictures it takes. */
   pictures?: number;
+  /** The real date of what it announces. */
+  launchDate?: boolean;
 }
 
 export interface VideoRecipe {
@@ -75,6 +77,7 @@ export const VIDEO_RECIPES: Record<VideoKind, VideoRecipe> = {
   site_tour: short("site_tour", { website: true }, ["9:16", "4:5", "16:9"]),
   top_three: short("top_three", {}),
   slideshow: short("slideshow", { pictures: 1 }),
+  launch: short("launch", { launchDate: true }),
 };
 
 /** The recipe a stored job follows: a short's format, or the presenter's. */

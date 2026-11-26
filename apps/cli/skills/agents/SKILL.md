@@ -18,9 +18,10 @@ sokosumi agents list --json
 sokosumi agents list --search "SPECIALTY" --json
 ```
 
-Confirm the deliverable and credit cap. `agents hire` fetches the required input schema internally. Pass matching `--input-json` or `--input-file`. Do not guess required fields.
+Confirm the deliverable and credit cap. `agents input-schema` prints the fields an agent takes, without starting a Job. Pass matching `--input-json` or `--input-file` to `agents hire`. Do not guess required fields.
 
 ```bash
+sokosumi agents input-schema AGENT_ID
 sokosumi agents hire AGENT_ID --input-json '{"prompt":"Task brief"}' --max-credits 25 --json
 sokosumi jobs get JOB_ID --details --json
 ```

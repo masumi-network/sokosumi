@@ -1,6 +1,24 @@
+import {
+  Ban,
+  Check,
+  CirclePlay,
+  CircleX,
+  Clock,
+  File,
+  Handshake,
+  Link2,
+  LoaderCircle,
+  type LucideIcon,
+  MessageSquareWarning,
+  PackageX,
+  RotateCcw,
+  Scale,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { z } from "zod";
+import { Markdown } from "../../shell/Markdown.tsx";
 import type { ViewContext } from "../../shell/Shell.tsx";
+import { type MarkerSpec, StatusBadge } from "../../shell/status.tsx";
 import {
   formatDateTime,
   isMessageKey,
@@ -8,7 +26,7 @@ import {
   type MessageKey,
   t,
 } from "../../shell/text.ts";
-import { PrimaryButton, QuietButton } from "../../shell/ui.tsx";
+import { Button, PrimaryButton } from "../../shell/ui.tsx";
 import { InputRequest } from "./InputRequest.tsx";
 import { usePolling } from "./polling.ts";
 
@@ -59,6 +77,23 @@ const FINISHED = new Set([
   "dispute_resolved",
 ]);
 
+/** Web's job-status-styles.ts table, on the shared marker. */
+const MARKERS: Record<string, MarkerSpec> = {
+  payment_pending: { icon: Handshake, hue: "staged", weight: "outline" },
+  started: { icon: CirclePlay, hue: "staged" },
+  processing: { icon: LoaderCircle, hue: "active", spin: true },
+  refund_pending: { icon: RotateCcw, hue: "active", weight: "outline" },
+  result_pending: { icon: PackageX, hue: "fault" },
+  dispute_pending: { icon: Scale, hue: "fault", weight: "outline" },
+  input_required: { icon: MessageSquareWarning, hue: "blocked" },
+  completed: { icon: Check, hue: "resolved" },
+  failed: { icon: CircleX, hue: "fault", weight: "solid" },
+  payment_failed: { icon: Ban, hue: "fault", weight: "solid" },
+  refund_resolved: { icon: RotateCcw, hue: "dormant", weight: "outline" },
+  dispute_resolved: { icon: Scale, hue: "dormant", weight: "outline" },
+};
+const UNKNOWN: MarkerSpec = { icon: Clock, hue: "dormant", weight: "outline" };
+
 /** The Job's status in plain words, and a line on what it means. */
 function describeStatus(status: string): { word: string; hint?: string } {
   const word = `jobStatus.status.${status}`;
@@ -101,6 +136,19 @@ function pendingRequestId(job: Job): string | undefined {
 /** Longer results start folded, so the view stays a summary in the chat. */
 const FOLDED_RESULT_CHARS = 1200;
 
+/**
+ * The start of a long result, cut at the last paragraph break that keeps
+ * most of it, and before a code fence the cut would leave open.
+ */
+export function foldResult(text: string): string {
+  let head = Array.from(text).slice(0, FOLDED_RESULT_CHARS).join("");
+  const blank = head.lastIndexOf("\n\n");
+  if (blank > FOLDED_RESULT_CHARS / 3) head = head.slice(0, blank);
+  const fences = [...head.matchAll(/^ {0,3}(?:```|~~~)/gm)];
+  if (fences.length % 2 === 1) head = head.slice(0, fences.at(-1)?.index);
+  return `${head.trimEnd()}…`;
+}
+
 export function JobStatus({
   data,
   context,
@@ -125,6 +173,11 @@ export function JobStatus({
   // Say it updates only while it can: a host without server tools gives no refresh.
   const live = following && context.refresh !== undefined;
   const status = describeStatus(job.status);
+  const spec = Object.hasOwn(MARKERS, job.status)
+    ? MARKERS[job.status]
+    : UNKNOWN;
+  // The running glyph spins only while the view follows the Job.
+  const marker = { ...spec, spin: spec.spin && live };
   const agentName = job.agent?.overrideName || job.agent?.name;
   const { files, links } = outputsOf(job);
 
@@ -144,9 +197,9 @@ export function JobStatus({
     );
 
   return (
-    <article className="flex flex-col gap-5">
-      <header className="flex min-w-0 flex-col gap-0.5">
-        <h1 className="text-base font-semibold tracking-tight break-words">
+    <article className="flex flex-col gap-6">
+      <header className="flex min-w-0 flex-col gap-1">
+        <h1 className="text-xl leading-tight font-semibold tracking-tight break-words">
           {job.name || agentName || t("jobStatus.title")}
         </h1>
         {agentName && (
@@ -154,16 +207,8 @@ export function JobStatus({
         )}
       </header>
 
-      <section role="status" className="flex flex-col gap-1">
-        <p className="flex items-center gap-2 font-medium">
-          {live && (
-            <span
-              aria-hidden="true"
-              className="bg-muted-foreground size-1.5 shrink-0 rounded-full motion-safe:animate-pulse"
-            />
-          )}
-          {status.word}
-        </p>
+      <section role="status" className="flex flex-col items-start gap-2">
+        <StatusBadge spec={marker} label={status.word} />
         {(status.hint || live) && (
           <p className="text-muted-foreground text-sm">
             {[status.hint, live && t("jobStatus.live")]
@@ -201,14 +246,20 @@ export function JobStatus({
         </section>
       )}
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">{t("jobStatus.started")}</dt>
-        <dd>{formatDateTime(job.createdAt, context)}</dd>
+      <dl className="divide-border flex flex-col divide-y text-sm">
+        <div className="flex justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">{t("jobStatus.started")}</dt>
+          <dd className="tabular-nums">
+            {formatDateTime(job.createdAt, context)}
+          </dd>
+        </div>
         {job.completedAt && (
-          <>
+          <div className="flex justify-between gap-4 py-2">
             <dt className="text-muted-foreground">{t("jobStatus.finished")}</dt>
-            <dd>{formatDateTime(job.completedAt, context)}</dd>
-          </>
+            <dd className="tabular-nums">
+              {formatDateTime(job.completedAt, context)}
+            </dd>
+          </div>
         )}
       </dl>
 
@@ -233,17 +284,21 @@ export function JobStatus({
           />
         ))}
 
-      {job.result && <ResultText text={job.result} />}
+      {job.result && (
+        <ResultText text={job.result} webBaseUrl={base} onOpenLink={openJob} />
+      )}
 
       {files.length > 0 && (
         <Outputs
           title="jobStatus.files"
+          icon={File}
           names={files.map(({ name }) => name || t("jobStatus.unnamedFile"))}
         />
       )}
       {links.length > 0 && (
         <Outputs
           title="jobStatus.links"
+          icon={Link2}
           names={links.map(({ title, url }) => title || url)}
         />
       )}
@@ -264,50 +319,78 @@ export function JobStatus({
   );
 }
 
-function ResultText({ text }: { text: string }) {
+/** The result as Markdown, as on Web's Job page, in a card. */
+function ResultText({
+  text,
+  webBaseUrl,
+  onOpenLink,
+}: {
+  text: string;
+  webBaseUrl?: string;
+  onOpenLink: (url: string) => void;
+}) {
   const headingId = useId();
   // Code points, so a fold never splits an emoji.
   const chars = Array.from(text);
   const long = chars.length > FOLDED_RESULT_CHARS;
   const [expanded, setExpanded] = useState(false);
-  const shown =
-    long && !expanded
-      ? `${chars.slice(0, FOLDED_RESULT_CHARS).join("").trimEnd()}…`
-      : text;
+  const shown = long && !expanded ? foldResult(text) : text;
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h2 id={headingId} className="text-muted-foreground text-xs font-medium">
         {t("jobStatus.result")}
       </h2>
-      <p className="text-sm break-words whitespace-pre-wrap">{shown}</p>
+      <div className="bg-card-background border-border rounded-lg border p-3">
+        <Markdown
+          text={shown}
+          webBaseUrl={webBaseUrl}
+          onOpenLink={onOpenLink}
+        />
+      </div>
       {long && (
         <div className="-mx-3">
-          <QuietButton
+          <Button
+            variant="ghost"
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
             {expanded ? t("jobStatus.showLess") : t("jobStatus.showAll")}
-          </QuietButton>
+          </Button>
         </div>
       )}
     </section>
   );
 }
 
-/** A Job's files or links, by name only: they open in Sokosumi (ADR 0083). */
-function Outputs({ title, names }: { title: MessageKey; names: string[] }) {
+/** A Job's files or links as Web's chips, by name only: they open in Sokosumi (ADR 0083). */
+function Outputs({
+  title,
+  icon: Icon,
+  names,
+}: {
+  title: MessageKey;
+  icon: LucideIcon;
+  names: string[];
+}) {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-1">
+    <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h2 id={headingId} className="text-muted-foreground text-xs font-medium">
         {t(title)}
       </h2>
-      <ul className="flex flex-col gap-1 text-sm">
+      <ul className="flex flex-wrap gap-2 text-sm">
         {names.map((name, index) => (
           // Names may repeat, and the list never reorders: the index keys it.
-          <li key={index} className="truncate">
-            {name}
+          <li
+            key={index}
+            className="bg-background border-border flex max-w-full min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5"
+          >
+            <Icon
+              aria-hidden="true"
+              className="text-muted-foreground size-4 shrink-0"
+            />
+            <span className="truncate">{name}</span>
           </li>
         ))}
       </ul>

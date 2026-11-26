@@ -7029,7 +7029,7 @@ export type ProjectTalkingVideo = {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch' | null;
     shape: '9:16' | '4:5' | '1:1' | '16:9';
     sourceJobId: string | null;
 };
@@ -9693,6 +9693,34 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             costUsd?: number;
             floorAlertAt?: string;
         };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -10044,6 +10072,34 @@ export type MarketingStrategyRequest = {
             error?: string;
             costUsd?: number;
             floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
         };
         patched?: Array<{
             id: string;
@@ -12315,13 +12371,14 @@ export type CreateProjectTalkingVideoJobRequest = {
 };
 
 export type CreateProjectShortVideoJobRequest = {
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     script: string;
     hookLine?: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    launchDate?: string;
     shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
@@ -12336,7 +12393,7 @@ export type ProjectTalkingVideoScripts = {
 
 export type WriteProjectTalkingVideoScriptsRequest = {
     topic?: string;
-    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     languageCode?: string;
 };
 
@@ -13944,6 +14001,10 @@ export type CreateSeoAuditRequest = {
         relationship?: 'primary' | 'related';
     };
     projectId?: string;
+    /**
+     * Send the same key to retry a create: the first Audit comes back and no second one is made
+     */
+    idempotencyKey?: string;
 };
 
 export type SeoAuditWorkspaceMapping = {
@@ -15608,6 +15669,34 @@ export type CmoPlan = {
         error?: string;
         costUsd?: number;
         floorAlertAt?: string;
+    };
+    applyLog?: {
+        baseVersionId: string;
+        baseUpdatedAt: string;
+        state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+        startedAt: string;
+        updatedAt: string;
+        endedAt?: string;
+        ops?: Array<{
+            opId: string;
+            entryId: string;
+            kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+            postId: string | null;
+            prior: {
+                status: string;
+                scheduledAt: string | null;
+                text: string;
+                planning: string | null;
+                socialConnectionId: string | null;
+                revision: number;
+            } | null;
+            state: 'intent' | 'done' | 'refused';
+            reason?: string;
+            after?: {
+                revision: number | null;
+                postId: string | null;
+            };
+        }>;
     };
     patched?: Array<{
         id: string;
