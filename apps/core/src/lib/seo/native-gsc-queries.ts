@@ -331,7 +331,9 @@ export function normalizeGscKeywordSeries(
       throw new Error("Search Console returned a date outside the period");
     const byDate = days.get(normalizeSeoQuery(text));
     if (!byDate) {
-      if (filters.some((filter) => filter.test(normalizeSeoQuery(text))))
+      // Search Console matched the text as written: normalizing can compose it out of the match ("α\u0345" to "ᾳ").
+      const forms = [text, normalizeSeoQuery(text)];
+      if (filters.some((filter) => forms.some((form) => filter.test(form))))
         continue;
       throw new Error("Search Console returned a query outside the keywords");
     }

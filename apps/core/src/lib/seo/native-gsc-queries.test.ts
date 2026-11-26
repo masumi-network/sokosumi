@@ -370,6 +370,18 @@ describe("tracked keyword daily rows", () => {
     ]);
   });
 
+  it("leaves out a case-fold twin that normalizing composes into another letter", () => {
+    // The filter matches "\u03b1\u0345" for "\u03b1\u03b9" as written; normalized it is "\u1fb3", which no longer matches.
+    const result = normalizeGscKeywordSeries(
+      query,
+      { countryCode: "US", keywords: ["\u03b1\u03b9"] },
+      { rows: [day("2026-10-10", "\u03b1\u0345", 9, 9)] },
+    );
+    expect(result.keywords).toEqual([
+      { keyword: "\u03b1\u03b9", countryCode: "US", points: [] },
+    ]);
+  });
+
   it("refuses a query outside the set, a date outside the period, duplicates and other groupings", () => {
     const read = (rows: unknown[]) => () =>
       normalizeGscKeywordSeries(
