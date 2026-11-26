@@ -34,7 +34,7 @@ export function SidebarToggle() {
           aria-keyshortcuts="Meta+B Control+B"
           id="app-sidebar-toggle"
           onClick={toggleSidebar}
-          className="size-10 shrink-0 md:size-8"
+          className="size-10 shrink-0 md:-ml-2 md:size-8"
         >
           <PanelLeft aria-hidden />
         </Button>

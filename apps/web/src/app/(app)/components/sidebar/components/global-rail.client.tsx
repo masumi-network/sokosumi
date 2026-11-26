@@ -83,7 +83,7 @@ function RailControls({ mobile }: { mobile: boolean }) {
         "bg-sidebar text-sidebar-foreground border-sidebar-border items-center gap-1",
         mobile
           ? "flex shrink-0 justify-around gap-0.5 border-b px-1 py-1 md:hidden"
-          : "relative z-20 max-lg:z-[41] hidden mt-16 h-[calc(100dvh-4rem)] w-(--app-rail-width) shrink-0 flex-col border-e pt-15 md:flex sidebar-hidden:pt-3",
+          : "relative z-20 max-lg:z-[41] hidden mt-16 h-[calc(100dvh-4rem)] w-(--app-rail-width) shrink-0 flex-col border-e pt-3 md:flex",
       )}
     >
       {sections

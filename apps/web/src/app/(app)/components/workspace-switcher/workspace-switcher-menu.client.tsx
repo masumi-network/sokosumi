@@ -39,12 +39,12 @@ import {
 const SIDEBAR_TRIGGER_CLASS = cn(
   WORKSPACE_SWITCHER_ROW_CLASS,
   SIDEBAR_CONTROL_INTERACTION_CLASS,
-  "text-foreground press w-full rounded-full transition-[opacity,background-color]",
+  "text-foreground press rounded-full transition-[opacity,background-color]",
 );
 
 const TRIGGER_CLASS: Record<WorkspaceSwitcherPlacement, string> = {
   sidebar: SIDEBAR_TRIGGER_CLASS,
-  drawer: SIDEBAR_TRIGGER_CLASS,
+  drawer: cn(SIDEBAR_TRIGGER_CLASS, "w-full"),
   topBar: cn(
     WORKSPACE_SWITCHER_ROW_CLASS,
     "text-foreground press w-full justify-start transition-opacity hover:opacity-80",
@@ -256,7 +256,12 @@ export default function WorkspaceSwitcherMenu({
                   logoSize={12}
                   decorative
                 />
-                <span className={WORKSPACE_SWITCHER_NAME_CLASS}>
+                <span
+                  className={cn(
+                    WORKSPACE_SWITCHER_NAME_CLASS,
+                    placement !== "sidebar" && "flex-1",
+                  )}
+                >
                   {activeWorkspace.name}
                 </span>
               </>

@@ -26,7 +26,15 @@ interface AppShellLoadingFrameProps {
 export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
     <LiveChatRoomsProvider>
-      <SidebarWorkspaceRow>
+      <SidebarWorkspaceRow
+        actions={["search", "new-task"].map((action) => (
+          <span
+            key={action}
+            aria-hidden
+            className="bg-muted size-8 shrink-0 animate-pulse rounded-md"
+          />
+        ))}
+      >
         <WorkspaceSwitcherSkeleton placement="sidebar" />
       </SidebarWorkspaceRow>
       <GlobalRail />

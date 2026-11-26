@@ -64,21 +64,22 @@ vi.mock("@/app/components/header/header-mobile-search.client", () => ({
 }));
 
 describe("Header", () => {
-  it("keeps the workspace switcher, panel toggle, Search and New task together", () => {
+  it("keeps the toggle in the main header and puts Search and New task there only on phones", () => {
     render(<Header />);
     const controls = within(screen.getByTestId("header-workspace-controls"));
     expect(
-      controls.getAllByRole("button").map((button) => button.textContent ?? ""),
-    ).toEqual(["Acme", "toggle", "", "Mobile search", "New task"]);
+      controls.getAllByRole("button").map((button) => button.textContent),
+    ).toEqual(["toggle", "Acme", "Mobile search", "New task"]);
     expect(
       controls.getByRole("button", { name: "Acme" }).parentElement,
     ).toHaveClass("md:sidebar-hidden:block");
-    expect(controls.getByRole("button", { name: "open" })).toHaveClass(
-      "md:inline-flex",
-    );
-    expect(controls.getByRole("button", { name: "Mobile search" })).toHaveClass(
-      "md:hidden",
-    );
+    expect(
+      controls.getByRole("button", { name: "Mobile search" }).parentElement,
+    ).toHaveClass("md:hidden");
+    expect(
+      controls.getByRole("button", { name: "New task" }).parentElement,
+    ).toHaveClass("md:hidden");
+    expect(controls.queryByRole("button", { name: "open" })).toBeNull();
     expect(
       within(screen.getByRole("banner")).getByRole("button", {
         name: "notifications",

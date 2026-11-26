@@ -27,15 +27,15 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         className="flex min-w-0 shrink-0 items-center gap-1"
         data-testid="header-workspace-controls"
       >
+        <SidebarToggle />
         <div className="hidden min-w-0 max-w-48 md:sidebar-hidden:block">
           <WorkspaceSwitcherSkeleton placement="topBar" />
         </div>
-        <SidebarToggle />
         {["search", "new-task"].map((action) => (
           <span
             key={action}
             aria-hidden
-            className="bg-muted size-10 shrink-0 animate-pulse rounded-md md:size-8"
+            className="bg-muted size-10 shrink-0 animate-pulse rounded-md md:hidden"
           />
         ))}
       </div>

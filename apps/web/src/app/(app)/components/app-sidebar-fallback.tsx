@@ -29,7 +29,7 @@ export function AppSidebarFallback() {
   return (
     <Sidebar
       mobileTriggerId="app-sidebar-toggle"
-      className="md:top-16 md:h-[calc(100dvh-4rem)] md:pt-12 md:left-(--app-rail-width) md:group-data-[collapsible=offcanvas]:left-[calc(var(--app-rail-width)-var(--sidebar-width))]"
+      className="md:top-16 md:h-[calc(100dvh-4rem)] md:left-(--app-rail-width) md:group-data-[collapsible=offcanvas]:left-[calc(var(--app-rail-width)-var(--sidebar-width))]"
     >
       <SidebarWorkspaceRow mobile>
         <WorkspaceSwitcherSkeleton placement="drawer" />

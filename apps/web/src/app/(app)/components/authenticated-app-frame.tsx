@@ -43,6 +43,8 @@ import {
   type BadgeCampaignSummary,
   FeatureBadgesProvider,
 } from "./sidebar/components/feature-badges";
+import { SidebarNewTaskButton } from "./sidebar/components/sidebar-new-task-button.client";
+import { SidebarSearchButton } from "./sidebar/components/sidebar-search-button.client";
 import { SidebarWorkspaceRow } from "./workspace-switcher/sidebar-workspace-row";
 import WorkspaceSwitcherMenu from "./workspace-switcher/workspace-switcher-menu.client";
 
@@ -161,7 +163,14 @@ export default async function AuthenticatedAppFrame({
                             userId={session.user.id}
                             campaigns={loadBadgeCampaigns()}
                           >
-                            <SidebarWorkspaceRow>
+                            <SidebarWorkspaceRow
+                              actions={
+                                <>
+                                  <SidebarSearchButton />
+                                  <SidebarNewTaskButton mobile={false} />
+                                </>
+                              }
+                            >
                               <WorkspaceSwitcherMenu placement="sidebar" />
                             </SidebarWorkspaceRow>
                             <GlobalRail />

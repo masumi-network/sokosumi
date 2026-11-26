@@ -71,7 +71,10 @@ export function WorkspaceSwitcherSkeleton({
 }: WorkspaceSwitcherPlacementProps) {
   return (
     <div
-      className={cn(WORKSPACE_SWITCHER_ROW_CLASS, "w-full")}
+      className={cn(
+        WORKSPACE_SWITCHER_ROW_CLASS,
+        placement !== "sidebar" && "w-full",
+      )}
       aria-hidden
       data-testid="workspace-switcher-chrome-skeleton"
     >
