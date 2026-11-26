@@ -59,6 +59,10 @@ const labResult = z
 function gap(raw: unknown, isField: boolean) {
   const row = reportObject(raw);
   const reason = typeof row?.none === "string" ? row.none.toLowerCase() : "";
+  // The worker's sentence for a template that has its lab test. It ends with a template and a page: their
+  // words are no reason.
+  if (reason.startsWith("one lab page per template"))
+    return { status: "not_checked" as const };
   if (/request budget|call budget/.test(reason))
     return { status: "budget" as const };
   if (reason.includes("could not verify a public landing page"))
@@ -70,9 +74,6 @@ function gap(raw: unknown, isField: boolean) {
     /not checked|was not collected|excluded|not enabled|not configured|no speed reads/.test(
       reason,
     ) ||
-    // The worker's words for a read it did not send: no read at all, or a template that has its lab test.
-    reason === "not read" ||
-    reason.startsWith("one lab page per template") ||
     !row
   )
     return { status: "not_checked" as const };
@@ -86,6 +87,8 @@ function gap(raw: unknown, isField: boolean) {
     )
   )
     return { status: "unavailable" as const };
+  // The worker's words for a read it did not send. A read with a failed source was sent (the check above).
+  if (reason === "not read") return { status: "not_checked" as const };
   if (
     isField &&
     row?.failed !== true &&
@@ -176,6 +179,7 @@ function boundSource(
         port === "crux" &&
         !measured &&
         request?.device === undefined &&
+        reportObject(request?.params)?.kind === "record" &&
         reportObject(request?.params)?.formFactor === "all";
       if (
         ref?.port !== port ||

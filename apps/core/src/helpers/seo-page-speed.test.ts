@@ -145,6 +145,32 @@ describe("imported full-audit PageSpeed evidence", () => {
       "not_checked",
       "not_checked",
     ]);
+    // A read with a failed source was sent: it is no skipped read.
+    expect(
+      status({
+        none: "not read",
+        failed: true,
+        sourceRefs: [ref(own, { kind: "error", message: "x" })],
+      })[0],
+    ).toBe("unavailable");
+    // The History of all devices does not say that the current record holds no data.
+    expect(
+      status({
+        none: "no CrUX data for this URL",
+        sourceRefs: [
+          ref(
+            { params: { kind: "history", level: "url", formFactor: "all" } },
+            { kind: "no-data", status: 404 },
+          ),
+        ],
+      })[0],
+    ).toBe("unavailable");
+    // A template or a page with a failure word in its name is no failure.
+    for (const none of [
+      "one lab page per template: /quota/* is measured on p1",
+      "one lab page per template: /docs/* is measured on https://example.com/timeout",
+    ])
+      expect(status({ none: "not read" }, { none })[1]).toBe("not_checked");
     // Words that only hold "not read" are no skipped read.
     expect(status({ none: "not read" }, { none: "could not read" })[1]).toBe(
       "unavailable",
