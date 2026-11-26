@@ -135,11 +135,22 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await dialog.getByRole("button", { name: "Close" }).click();
       if (openedSidebar) {
         await page.getByRole("button", { name: "Hide sidebar" }).click();
+        // Shoot only once the sidebar has finished sliding away.
+        const closed = page.locator(
+          '[data-slot="sidebar"][data-state="collapsed"]',
+        );
+        await closed.waitFor({ state: "attached" });
+        await closed.evaluate((el) =>
+          Promise.all(
+            el.getAnimations({ subtree: true }).map((a) => a.finished),
+          ),
+        );
       }
 
       // The board card names it Unassigned, with an outline, not "?".
       const backlog = page.getByRole("region", { name: "Backlog" });
-      await backlog.getByRole("link", { name: TASK }).waitFor();
+      // A trial click fails while anything still covers the card.
+      await backlog.getByRole("link", { name: TASK }).click({ trial: true });
       const nobody = backlog.getByRole("img", { name: "Unassigned" });
       assert.equal(await nobody.locator("svg").count(), 1);
       assert.equal((await nobody.textContent())?.trim(), "");
