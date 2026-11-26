@@ -38,6 +38,13 @@ describe("OfferDetailDialog", () => {
     // vanished on a white document in dark mode.
     expect(close).toHaveClass("bg-background", "border-border");
     expect(close).not.toHaveClass("opacity-70");
+    // Focus: the inner band takes the ring colour, the outer ring the page
+    // colour. In dark mode the default near-white ring vanished on a white
+    // document; this way the band always contrasts with the chip.
+    expect(close).toHaveClass(
+      "focus-visible:ring-offset-ring",
+      "focus-visible:ring-background",
+    );
 
     fireEvent.click(close);
     expect(onClose).toHaveBeenCalledTimes(1);

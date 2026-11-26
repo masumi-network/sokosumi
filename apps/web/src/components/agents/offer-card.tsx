@@ -603,12 +603,14 @@ export function OfferDetailDialog({
         className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl"
       >
         {/* On phones the preview fills the top of the dialog, so the X needs
-            its own surface; the default faded X vanished on a white page. */}
+            its own surface; the default faded X vanished on a white page.
+            Its focus ring swaps the two tokens so the band next to the chip
+            always contrasts, whatever page shows behind it. */}
         <DialogClose asChild>
           <Button
             variant="default"
             size="icon"
-            className="absolute top-3 right-3 z-10 md:size-8"
+            className="focus-visible:ring-background focus-visible:ring-offset-ring absolute top-3 right-3 z-10 focus-visible:ring-2 md:size-8"
           >
             <X aria-hidden />
             <span className="sr-only">{t("close")}</span>
