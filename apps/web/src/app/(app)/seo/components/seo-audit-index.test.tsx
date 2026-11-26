@@ -287,10 +287,33 @@ describe("SEO audit list", () => {
         .map((link) => link.textContent);
       expect(names[0]).toContain(other.name);
       expect(names[1]).toContain(AUDIT.name);
+      // Pages of Core's largest size: 1,000 active audits take 10 reads per poll.
       expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-        "/api/seo/audits?",
-        "/api/seo/audits?cursor=page-2",
+        "/api/seo/audits?limit=100",
+        "/api/seo/audits?cursor=page-2&limit=100",
       ]);
+    });
+
+    it("drops a search row that a successful read no longer returns", async () => {
+      const archived = { ...AUDIT, id: "archived", name: "Battery archived" };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json({
+            audits: [{ ...AUDIT, lastCheck: check("completed") }],
+            pagination: null,
+          }),
+        ),
+      );
+      show([{ ...archived, lastCheck: check("running") }, AUDIT], false, {
+        searching: true,
+      });
+      expect(screen.getByText(archived.name)).toBeVisible();
+      await tick();
+      await waitFor(() =>
+        expect(screen.queryByText(archived.name)).not.toBeInTheDocument(),
+      );
+      expect(screen.getByText(AUDIT.name)).toBeVisible();
     });
   });
 

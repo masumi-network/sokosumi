@@ -5,7 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/auth.client";
 import { seoViewerHeaders } from "@/lib/seo/owner";
 import { collectCursorPages } from "@/lib/utils/collect-cursor-pages";
-import { seoAuditListRefetchMs } from "./seo-audit-status";
+import {
+  SEO_AUDIT_LIST_PAGE_MAX,
+  seoAuditListRefetchMs,
+} from "./seo-audit-status";
 
 type AuditListScope = {
   projectId: string | null;
@@ -42,11 +45,13 @@ export function useSeoAuditList(
   const read = async (
     pageCursor: string | null,
     signal: AbortSignal,
+    limit?: number,
   ): Promise<SeoAuditListPage> => {
     const search = new URLSearchParams();
     if (projectId) search.set("projectId", projectId);
     if (archived) search.set("status", "archived");
     if (pageCursor) search.set("cursor", pageCursor);
+    if (limit) search.set("limit", String(limit));
     const response = await fetch(`/api/seo/audits?${search}`, {
       signal,
       credentials: "same-origin",
@@ -78,19 +83,20 @@ export function useSeoAuditList(
     ],
     queryFn: async ({ signal }): Promise<SeoAuditListPage> => {
       if (!searching) return read(cursor, signal);
-      // The search ranked every Audit on the server: read them all, show the same rows in the same order.
-      const first = await read(null, signal);
+      // The search ranked every Audit on the server: read them all in the largest pages, show the same rows in
+      // the same order. A row the read no longer returns (archived, deleted) leaves the list.
+      const first = await read(null, signal, SEO_AUDIT_LIST_PAGE_MAX);
       const all = await collectCursorPages(
         first.audits,
         first.nextCursor,
         async (pageCursor) => {
-          const page = await read(pageCursor, signal);
+          const page = await read(pageCursor, signal, SEO_AUDIT_LIST_PAGE_MAX);
           return { items: page.audits, nextCursor: page.nextCursor };
         },
       );
       const byId = new Map(all.map((audit) => [audit.id, audit]));
       return {
-        audits: server.audits.map((audit) => byId.get(audit.id) ?? audit),
+        audits: server.audits.flatMap((audit) => byId.get(audit.id) ?? []),
         nextCursor: server.nextCursor,
       };
     },

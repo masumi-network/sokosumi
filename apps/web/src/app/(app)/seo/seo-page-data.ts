@@ -7,6 +7,7 @@ import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-co
 import { seoService } from "@/lib/services/seo.service";
 
 import { collectCursorPages } from "@/lib/utils/collect-cursor-pages";
+import { SEO_AUDIT_LIST_PAGE_MAX } from "./components/seo-audit-status";
 
 type SeoAuditIndexInput = NonNullable<
   Parameters<typeof seoService.listAudits>[0]
@@ -42,7 +43,7 @@ export async function loadSeoAuditSearch(
   input: Pick<SeoAuditIndexInput, "projectId" | "status">,
 ) {
   const load = (cursor?: string) =>
-    loadSeoAuditIndex({ ...input, limit: 100, cursor });
+    loadSeoAuditIndex({ ...input, limit: SEO_AUDIT_LIST_PAGE_MAX, cursor });
   const first = await load();
   return collectCursorPages(
     first.audits,

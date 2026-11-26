@@ -1,6 +1,9 @@
 import type { SeoAuditSummary } from "@sokosumi/core-client";
 import { SEO_CHECK_STALE_MS } from "./seo-setup-model";
 
+/** Core's largest Audit list page. */
+export const SEO_AUDIT_LIST_PAGE_MAX = 100;
+
 export type SeoAuditLastCheck = NonNullable<SeoAuditSummary["lastCheck"]>;
 export type SeoAuditCheckState =
   | "running"

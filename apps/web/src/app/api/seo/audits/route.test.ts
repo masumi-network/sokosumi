@@ -39,7 +39,7 @@ beforeEach(() => {
 describe("SEO audit list read", () => {
   it("passes the list scope to Core and never caches the answer", async () => {
     const response = await read(
-      `?projectId=${PROJECT}&status=archived&cursor=c1`,
+      `?projectId=${PROJECT}&status=archived&cursor=c1&limit=100`,
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
@@ -47,7 +47,13 @@ describe("SEO audit list read", () => {
       projectId: PROJECT,
       status: "archived",
       cursor: "c1",
+      limit: 100,
     });
+  });
+
+  it("rejects a page larger than Core's largest", async () => {
+    expect((await read("?limit=101")).status).toBe(400);
+    expect(mocks.listAudits).not.toHaveBeenCalled();
   });
 
   it("rejects a viewer left over from another organization", async () => {

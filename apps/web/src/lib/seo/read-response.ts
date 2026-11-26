@@ -2,6 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { SEO_AUDIT_LIST_PAGE_MAX } from "@/app/seo/components/seo-audit-status";
 import { canImportSeoTask } from "@/app/seo/seo-import-model";
 import { seoFilterQuerySchema } from "@/app/seo/seo-query";
 import {
@@ -95,6 +96,7 @@ const auditListQuerySchema = z.object({
   projectId: z.uuid().optional(),
   status: z.enum(["active", "archived"]).optional(),
   cursor: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(SEO_AUDIT_LIST_PAGE_MAX).optional(),
 });
 
 export function readSeoAuditListResponse(request: Request) {
