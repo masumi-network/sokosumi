@@ -84,6 +84,10 @@ import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import { acknowledgeSeoReview } from "./seo-action-reviews";
 import { getSeoBrief } from "./seo-audit-brief.service";
 import {
+  connectionVersion,
+  resolveSeoStatisticsIntegration,
+} from "./seo-connections.service";
+import {
   changeTaskScheduleState,
   createTaskSchedule,
   runTaskScheduleNow,
@@ -3419,6 +3423,20 @@ describe.skipIf(!enabled)(
           url: "https://example.test/shared-audit",
           relationship: "primary",
         });
+        // A retry reads Google through the connection the audit approved.
+        await prisma.seoConnection.create({
+          data: {
+            workspaceId: sharedWorkspaceId,
+            userId,
+            provider: "search_console",
+            status: "ACTIVE",
+            composioAccountId: randomUUID(),
+            entityId: randomUUID(),
+          },
+        });
+        const approved = connectionVersion(
+          (await resolveSeoStatisticsIntegration(requester, "search_console"))!,
+        );
         const audits: Record<"PUBLIC" | "PRIVATE", string> = {
           PUBLIC: "",
           PRIVATE: "",
@@ -3448,7 +3466,7 @@ describe.skipIf(!enabled)(
               request: {
                 searchConsoleAccess: {
                   propertyId: "sc-domain:example.test",
-                  connectionVersion: "a".repeat(64),
+                  connectionVersion: approved,
                 },
               },
               requestedBy: userId,

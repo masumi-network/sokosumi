@@ -40,7 +40,11 @@ vi.mock("@/lib/db/transaction", () => ({
     run({
       projectSeoObservation: {
         upsert: boundary.upsert,
-        findFirst: boundary.latest,
+        // The audit's own snapshot is the same row inside the write as before it.
+        findFirst: (query: { where: { kind: string } }) =>
+          query.where.kind === AUDIT_PERFORMANCE_KIND
+            ? boundary.findFirst(query)
+            : boundary.latest(query),
       },
       projectSeoPage: { findMany: boundary.owned },
     }),
@@ -353,6 +357,7 @@ describe("collectSeoAuditPageSeries", () => {
   const measured = (
     stored: unknown = null,
     basis: [string, string] = ["selected", "selected"],
+    addresses: [string, string] = [pageA, pageB],
   ) =>
     boundary.findFirst.mockImplementation(async ({ where }) =>
       where.kind === AUDIT_PERFORMANCE_KIND
@@ -372,7 +377,7 @@ describe("collectSeoAuditPageSeries", () => {
               metrics: [],
               auditMeasuredPages: [pageA, pageB].map((pageUrl, index) => ({
                 pageUrl,
-                measuredUrl: pageUrl,
+                measuredUrl: addresses[index],
                 basis: basis[index],
               })),
             },
@@ -577,10 +582,8 @@ describe("collectSeoAuditPageSeries", () => {
     expect(JSON.stringify(boundary.read.mock.calls[0][2])).toContain(
       '"expression":"https://example.test/a"',
     );
-    const range = { from: "2025-06-01", to: binding.period.to };
-    expect(boundary.upsert.mock.calls[0][0].update.payload.pages).toEqual(
-      longer.payload.pages.map((page) => ({ ...range, ...page })),
-    );
+    // The stored read stays as it is: nothing is written.
+    expect(boundary.upsert).not.toHaveBeenCalled();
 
     // Stored meanwhile under the old address only: the new read replaces it.
     vi.clearAllMocks();
@@ -596,11 +599,27 @@ describe("collectSeoAuditPageSeries", () => {
       },
     ]);
 
+    // Google named the www address again while this read ran. The read of the bare address is not stored.
+    vi.clearAllMocks();
+    boundary.latest.mockResolvedValue(null);
+    boundary.read.mockImplementationOnce(async () => {
+      measured(
+        row("2025-04-30", [pageA, www], [pageB, pageB]),
+        ["google_canonical", "selected"],
+        [www, pageB],
+      );
+      return { rows: [] };
+    });
+    await collectSeoAuditPageSeries("task", binding, authorize);
+    expect(boundary.read).toHaveBeenCalledTimes(1);
+    expect(boundary.upsert).not.toHaveBeenCalled();
+
     expectCoreLog(
       "warn",
       "Could not read every audit page's daily Search Console rows",
     );
     vi.clearAllMocks();
+    measured(row("2025-04-30", [pageA, www], [pageB, pageB]));
     boundary.read.mockRejectedValue(new Error("quota"));
     await collectSeoAuditPageSeries("task", binding, authorize);
     expect(boundary.upsert).not.toHaveBeenCalled();

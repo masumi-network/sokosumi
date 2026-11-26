@@ -89,9 +89,11 @@ export async function collectSeoAuditPageSeries(
     }),
   ]);
   // An unverified address is a guess: Google can count the page's traffic under another address.
-  const measured = nativeSeoMetricsSchema
-    .safeParse(performance?.payload)
-    .data?.auditMeasuredPages?.filter((page) => page.basis !== "unverified");
+  const verifiedPages = (payload: unknown) =>
+    nativeSeoMetricsSchema
+      .safeParse(payload)
+      .data?.auditMeasuredPages?.filter((page) => page.basis !== "unverified");
+  const measured = verifiedPages(performance?.payload);
   if (!performance || !measured?.length) return;
   // A stored page keeps the range it was read for. A late retry reads fewer days and must not shorten it.
   const storedPages = (payload: unknown) => {
@@ -193,15 +195,31 @@ export async function collectSeoAuditPageSeries(
     const merged = new Map(
       storedPages(latest?.payload).map((page) => [page.pageUrl, page]),
     );
+    // A retry can have verified another address since this read began. A read of the old address is dropped.
+    const current = await tx.projectSeoObservation.findFirst({
+      where: { ...where, kind: AUDIT_PERFORMANCE_KIND },
+      select: { payload: true },
+    });
+    const verified = new Map(
+      verifiedPages(current?.payload)?.map((page) => [
+        page.pageUrl,
+        page.measuredUrl,
+      ]),
+    );
+    let changed = false;
     for (const page of fresh.values()) {
       const held = merged.get(page.pageUrl);
+      if (verified.get(page.pageUrl) !== page.measuredUrl) continue;
       if (
         !held ||
         held.measuredUrl !== page.measuredUrl ||
         page.from < held.from
-      )
+      ) {
         merged.set(page.pageUrl, page);
+        changed = true;
+      }
     }
+    if (!changed) return;
     const payload: AuditPageSeries = {
       propertyId: access.propertyId,
       ...period,
