@@ -105,6 +105,7 @@ src/services/seo-console-export.postgres.test.ts 19  # part 2: sync_history_from
 src/services/seo-credit-gate.postgres.test.ts 19  # slice B: sync_history_from_transaction cannot find Job
 src/services/seo-shared-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-task-execution.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
+src/services/soko-bot-follow-up-media.postgres.test.ts 17  # unqualified raw SQL (runtime authorize locks "soko_bot")
 src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reaches the Network table Transaction
 src/services/soko-bot-integrations.service.postgres.test.ts 30  # the shared client reaches the Network table soko_bot_usage (from the server log; the test reports AssertionError: expected 1 to be +0 // Object.is equality)
 src/services/soko-bot-lease-clock.postgres.test.ts 27  # the shared client reaches the Network table Transaction

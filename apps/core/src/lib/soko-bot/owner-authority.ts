@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { type Prisma } from "@sokosumi/database";
 import {
   assertDirectOwnerScheduleEdit,
   bindScheduleStopRule,
@@ -27,11 +28,14 @@ import {
   type SokoBotCapability,
   sameOwnerAuthorityTargetScope,
 } from "@sokosumi/soko-bot";
+import { z } from "zod";
+import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
   isExternalEffectToolCall,
 } from "./action-receipts";
 import { type OwnerRequestTurn, ownerAskedIn } from "./owner-request";
+import { DELEGATION_EVENT_TURN_PREFIX } from "./system-routes";
 
 /**
  * Core-owned minting, child attenuation ceilings, and live execution-time
@@ -554,6 +558,13 @@ function capabilityAllowed(
   authority: OwnerAuthority,
   tainted: boolean,
 ): boolean {
+  if (
+    tainted &&
+    authority.origin === "system" &&
+    TAINTED_BLOCKED.has(capability)
+  ) {
+    return false;
+  }
   if (authority.scope === "read_only") {
     return isReadOnlyCapability(capability);
   }
@@ -791,4 +802,478 @@ export function intersectOwnerAuthority(
       capabilityAllowed(capability, authority, tainted),
     ),
   };
+}
+
+export const MAX_OWNER_AUTHORITY_PARENT_HOPS = 8;
+
+export const OWNER_AUTHORITY_TURN_SELECT = {
+  id: true,
+  sokoBotId: true,
+  workspaceId: true,
+  versionId: true,
+  source: true,
+  clientTurnId: true,
+  parentTurnId: true,
+  askedByUserId: true,
+  requestedByUserId: true,
+  chainDepth: true,
+  sokoBot: { select: { userId: true } },
+} as const;
+
+export interface TurnAuthorityNode extends OwnerRequestTurn {
+  id: string;
+  sokoBotId: string;
+  workspaceId: string;
+  versionId: string | null;
+  clientTurnId?: string | null;
+  parentTurnId: string | null;
+  sokoBot?: { userId?: string | null } | null;
+}
+
+export type OwnerAuthorityTurnClient = Pick<
+  Prisma.TransactionClient,
+  "sokoBotTurn"
+>;
+
+export interface ResolvedTurnOwnerAuthority {
+  turn: TurnAuthorityNode;
+  authority: OwnerAuthority;
+}
+
+function isNonEmptyId(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function systemTurnAuthority(leaf: TurnAuthorityNode): OwnerAuthority {
+  return mintTurnOwnerAuthority({
+    turn: {
+      ...leaf,
+      source: "INGEST",
+      parentTurnId: null,
+    },
+    actingUserId: null,
+    askedByKind: "ASSISTANT",
+  });
+}
+
+function turnActorFromNode(node: TurnAuthorityNode): {
+  actingUserId: string | null;
+  askedByKind: OwnerAuthorityAskedByKind;
+  sharedBot: boolean;
+} {
+  const sharedBot = node.sokoBot?.userId === null;
+  if (node.chainDepth > 0) {
+    return { actingUserId: null, askedByKind: "ASSISTANT", sharedBot };
+  }
+  if (ownerAskedIn(node)) {
+    return {
+      actingUserId: node.requestedByUserId,
+      askedByKind: "OWNER",
+      sharedBot,
+    };
+  }
+  // On a shared Cuso bot, any workspace member can direct Cuso (ADR 0061);
+  // on a personal bot, another member is a teammate and cannot mint owner authority.
+  const isSharedCmo =
+    sharedBot && getSokoBotVersion(node.versionId).profile === "cmo";
+  return {
+    actingUserId: isSharedCmo ? node.askedByUserId : null,
+    askedByKind: "TEAMMATE",
+    sharedBot,
+  };
+}
+
+/**
+ * Pure chain derivation: walks from root (`chainFromLeafToRoot[last]`) down to
+ * leaf (`chainFromLeafToRoot[0]`), minting at the root via
+ * `mintTurnOwnerAuthority` and attenuating each `CHAT` background child via
+ * `attenuateForChildWork(..., "background_run")`. Broken chains, cycles,
+ * mismatched bot/workspace hops, non-`CHAT` hops, or actor changes fail closed
+ * to `system` authority (`read_only`, `none`).
+ */
+export function deriveTurnOwnerAuthority(
+  chainFromLeafToRoot: readonly TurnAuthorityNode[],
+): OwnerAuthority | null {
+  const leaf = chainFromLeafToRoot[0];
+  const root = chainFromLeafToRoot[chainFromLeafToRoot.length - 1];
+  if (
+    !leaf ||
+    !root ||
+    !isNonEmptyId(leaf.id) ||
+    !isNonEmptyId(leaf.sokoBotId) ||
+    !isNonEmptyId(leaf.workspaceId)
+  ) {
+    return null;
+  }
+  if (root.parentTurnId !== null) {
+    return systemTurnAuthority(leaf);
+  }
+  for (const hop of chainFromLeafToRoot) {
+    if (
+      hop.sokoBotId !== leaf.sokoBotId ||
+      hop.workspaceId !== leaf.workspaceId
+    ) {
+      return systemTurnAuthority(leaf);
+    }
+  }
+  const rootActor = turnActorFromNode(root);
+  let current = mintTurnOwnerAuthority({
+    turn: root,
+    actingUserId: rootActor.actingUserId,
+    askedByKind: rootActor.askedByKind,
+  });
+  if (current.origin === "system") {
+    return systemTurnAuthority(leaf);
+  }
+  for (let index = chainFromLeafToRoot.length - 2; index >= 0; index -= 1) {
+    const child = chainFromLeafToRoot[index];
+    if (!child || child.source !== "CHAT" || child.chainDepth > 0) {
+      return systemTurnAuthority(leaf);
+    }
+    const childActor = turnActorFromNode(child);
+    const isSharedCmo =
+      childActor.sharedBot &&
+      getSokoBotVersion(child.versionId).profile === "cmo";
+    if (!childActor.actingUserId) {
+      return systemTurnAuthority(leaf);
+    }
+    if (!isSharedCmo && childActor.askedByKind !== "OWNER") {
+      return systemTurnAuthority(leaf);
+    }
+    if (!isSharedCmo && childActor.actingUserId !== current.ownerUserId) {
+      return systemTurnAuthority(leaf);
+    }
+    current = attenuateForChildWork(current, "background_run", {
+      versionId: child.versionId,
+    });
+  }
+  return current;
+}
+
+/**
+ * Loads a turn and its parent chain (bounded by `MAX_OWNER_AUTHORITY_PARENT_HOPS`,
+ * cycle-safe) and derives its monotonic `OwnerAuthority`.
+ */
+export async function resolveTurnOwnerAuthority(
+  turnId: string,
+  client: OwnerAuthorityTurnClient = prisma,
+): Promise<ResolvedTurnOwnerAuthority | null> {
+  const turn = await client.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: {
+      ...OWNER_AUTHORITY_TURN_SELECT,
+      parentTurn: { select: OWNER_AUTHORITY_TURN_SELECT },
+    },
+  });
+  if (!turn) return null;
+  const leaf: TurnAuthorityNode = {
+    id: turn.id,
+    sokoBotId: turn.sokoBotId,
+    workspaceId: turn.workspaceId,
+    versionId: turn.versionId,
+    source: turn.source,
+    clientTurnId: turn.clientTurnId,
+    parentTurnId: turn.parentTurnId,
+    askedByUserId: turn.askedByUserId,
+    requestedByUserId: turn.requestedByUserId,
+    chainDepth: turn.chainDepth,
+    sokoBot: turn.sokoBot,
+  };
+  const chain: TurnAuthorityNode[] = [leaf];
+  const seen = new Set<string>([turnId]);
+  if (turn.parentTurnId && !seen.has(turn.parentTurnId)) {
+    let ancestor: TurnAuthorityNode | null = turn.parentTurn ?? null;
+    if (ancestor) {
+      seen.add(turn.parentTurnId);
+      chain.push(ancestor);
+    }
+    let hops = 0;
+    while (ancestor?.parentTurnId) {
+      if (
+        seen.has(ancestor.parentTurnId) ||
+        ++hops >= MAX_OWNER_AUTHORITY_PARENT_HOPS
+      ) {
+        break;
+      }
+      seen.add(ancestor.parentTurnId);
+      ancestor = await client.sokoBotTurn.findUnique({
+        where: { id: ancestor.parentTurnId },
+        select: OWNER_AUTHORITY_TURN_SELECT,
+      });
+      if (ancestor) {
+        chain.push(ancestor);
+      }
+    }
+  }
+  const authority = deriveTurnOwnerAuthority(chain);
+  if (!authority) return null;
+  return { turn: leaf, authority };
+}
+
+export const DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE =
+  "This turn acts on delegated work that came back, so a post stays a draft for the owner's approval: create it without scheduledAt, and tell the owner it is ready to approve. Publishing and scheduling wait for their OK in chat.";
+
+export const TAINTED_SOCIAL_SCHEDULE_DETAIL =
+  "create_social_post can only create unapproved drafts (without scheduledAt) after this turn read the web or ran a command; scheduling posts waits for a clean turn. Say what you would schedule and ask the owner in chat; their reply starts a new turn that can schedule it.";
+
+export const TAINTED_SOCIAL_UPDATE_DETAIL =
+  "update_social_post can only edit unapproved drafts (DRAFT or NEEDS_APPROVAL) after this turn read the web or ran a command; scheduled or already-approved posts stay locked. Say what you would change and ask the owner in chat; their reply starts a new turn that can update them.";
+
+export function isSocialWriteCapability(
+  capability: SokoBotCapability,
+): boolean {
+  return SOCIAL_WRITE.has(capability);
+}
+
+function hasScheduledAtInput(
+  capability: SokoBotCapability,
+  rawInput: unknown,
+): boolean {
+  return (
+    capability === "create_social_post" &&
+    typeof rawInput === "object" &&
+    rawInput !== null &&
+    "scheduledAt" in rawInput &&
+    Boolean((rawInput as { scheduledAt?: unknown }).scheduledAt)
+  );
+}
+
+/**
+ * Fast predicate determining whether a capability/input pair is gated by web
+ * taint, avoiding DB lookups on clean read-only tools.
+ */
+export function isCapabilityWebTaintSensitive(
+  capability: SokoBotCapability,
+  rawInput?: unknown,
+): boolean {
+  if (TAINTED_BLOCKED.has(capability)) return true;
+  if (capability === "investor_warm_paths") {
+    return isExternalEffectToolCall(capability, rawInput);
+  }
+  return false;
+}
+
+/**
+ * Evaluates web-taint policy for a single tool call through
+ * `intersectOwnerAuthority` + `isToolCallAllowedByAuthority`.
+ */
+export function evaluateTurnWebTaint(
+  resolved: ResolvedTurnOwnerAuthority,
+  capability: SokoBotCapability,
+  rawInput?: unknown,
+): { blocked: boolean; detail?: string } {
+  const { turn, authority } = resolved;
+  const actor = turnActorFromNode(turn);
+  const effective = intersectOwnerAuthority(authority, {
+    sokoBotId: turn.sokoBotId,
+    workspaceId: turn.workspaceId,
+    versionId: turn.versionId,
+    actingUserId: actor.actingUserId,
+    askedByKind: actor.askedByKind,
+    sharedBot: actor.sharedBot,
+    source: turn.source,
+    hasWorkspaceAccess: true,
+    botAlive: true,
+    webTainted: true,
+    offeredCapabilities: [capability],
+  });
+  if (isToolCallAllowedByAuthority(effective, capability, rawInput)) {
+    return { blocked: false };
+  }
+  if (
+    hasScheduledAtInput(capability, rawInput) &&
+    effective.authority.socialMode === "edit_drafts"
+  ) {
+    return { blocked: true, detail: TAINTED_SOCIAL_SCHEDULE_DETAIL };
+  }
+  return { blocked: true };
+}
+
+export interface SocialWriteAuthorityInput {
+  turn: {
+    id: string;
+    sokoBotId: string;
+    workspaceId: string;
+    versionId: string | null;
+    source: string | null;
+    clientTurnId?: string | null;
+    actingUserId: string | null;
+    askedByKind?: OwnerAuthorityAskedByKind;
+    sharedBot?: boolean;
+  };
+  capability: SokoBotCapability;
+  rawInput?: unknown;
+  tainted: boolean;
+  turnAuthority?: OwnerAuthority | null;
+}
+
+export type SocialWriteAuthorityDecision =
+  | { allowed: true; requireUnapprovedDraft: boolean }
+  | {
+      allowed: false;
+      kind: "delegation_event_draft_only";
+      detail: string;
+    }
+  | {
+      allowed: false;
+      kind: "tainted";
+      detail?: string;
+    };
+
+/**
+ * Single OwnerAuthority evaluator for all social write tools (`social.ts`):
+ * 1. Enforces web-taint attenuation (owner-directed CHAT -> `edit_drafts`,
+ *    blocking `create_social_post({ scheduledAt })`, scheduling, publishing,
+ *    canceling, and requiring `DRAFT`/`NEEDS_APPROVAL` on edits; non-owner
+ *    turns -> `none`, blocking every social write).
+ * 2. Enforces non-CMO `EVENT` draft-only ceiling (`socialMode: "draft_only"`),
+ *    permitting unscheduled `create_social_post` drafts while refusing
+ *    `scheduledAt`, scheduling, publishing, canceling, and existing-post edits.
+ */
+export function evaluateSocialWriteAuthority(
+  input: SocialWriteAuthorityInput,
+): SocialWriteAuthorityDecision {
+  const { turn, capability, rawInput, tainted } = input;
+  if (!SOCIAL_WRITE.has(capability)) {
+    return { allowed: true, requireUnapprovedDraft: false };
+  }
+  const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
+
+  if (tainted) {
+    if (!input.turnAuthority) {
+      return { allowed: false, kind: "tainted" };
+    }
+    const effective = intersectOwnerAuthority(input.turnAuthority, {
+      sokoBotId: turn.sokoBotId,
+      workspaceId: turn.workspaceId,
+      versionId: turn.versionId,
+      actingUserId: turn.actingUserId,
+      askedByKind: turn.askedByKind ?? "OWNER",
+      sharedBot: turn.sharedBot ?? false,
+      source: turn.source,
+      hasWorkspaceAccess: true,
+      botAlive: true,
+      webTainted: true,
+      offeredCapabilities: [capability],
+    });
+    if (!isToolCallAllowedByAuthority(effective, capability, rawInput)) {
+      if (
+        hasScheduledAtInput(capability, rawInput) &&
+        effective.authority.socialMode === "edit_drafts"
+      ) {
+        return {
+          allowed: false,
+          kind: "tainted",
+          detail: TAINTED_SOCIAL_SCHEDULE_DETAIL,
+        };
+      }
+      return { allowed: false, kind: "tainted" };
+    }
+    return {
+      allowed: true,
+      requireUnapprovedDraft:
+        SOCIAL_EDIT.has(capability) &&
+        effective.authority.socialMode === "edit_drafts",
+    };
+  }
+
+  const isNonCmoEvent =
+    !isCmo &&
+    (turn.source === "EVENT" ||
+      (typeof turn.clientTurnId === "string" &&
+        turn.clientTurnId.startsWith(DELEGATION_EVENT_TURN_PREFIX)));
+  if (isNonCmoEvent) {
+    const actorId = turn.actingUserId;
+    if (!actorId) {
+      return {
+        allowed: false,
+        kind: "delegation_event_draft_only",
+        detail: DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
+      };
+    }
+    const delegationCeiling = ownerAuthoritySchema.parse({
+      version: 1,
+      grantId: randomUUID(),
+      origin: "owner_chat",
+      sokoBotId: turn.sokoBotId,
+      workspaceId: turn.workspaceId,
+      ownerUserId: actorId,
+      rootTurnId: turn.id,
+      targetScope: { kind: "workspace" },
+      scope: "draft_and_workspace",
+      socialMode: "draft_only",
+      stopRule: { mode: "never" },
+    });
+    const effective = intersectOwnerAuthority(delegationCeiling, {
+      sokoBotId: turn.sokoBotId,
+      workspaceId: turn.workspaceId,
+      versionId: turn.versionId,
+      actingUserId: actorId,
+      askedByKind: turn.askedByKind ?? "OWNER",
+      sharedBot: turn.sharedBot ?? false,
+      source: "EVENT",
+      hasWorkspaceAccess: true,
+      botAlive: true,
+      offeredCapabilities: [capability],
+    });
+    if (!isToolCallAllowedByAuthority(effective, capability, rawInput)) {
+      return {
+        allowed: false,
+        kind: "delegation_event_draft_only",
+        detail: DELEGATION_EVENT_SOCIAL_DRAFT_ONLY_MESSAGE,
+      };
+    }
+  }
+
+  return { allowed: true, requireUnapprovedDraft: false };
+}
+
+const ADMIN_RETRY_TURN_KIND = "admin-retry";
+const ADMIN_SCHEDULE_RETRY_KIND = "admin-schedule-retry";
+const uuidSchema = z.string().uuid();
+
+/**
+ * Resolves the underlying `SokoBotTurnSource` behind an `ADMIN_RETRY` chain
+ * (`admin-retry:<turnId>:<operationKey>` or `admin-schedule-retry:<runId>:<op>`,
+ * mirroring `soko-bot-admin-retry.service.ts`), validating the UUID segment and
+ * scoping lookup to `turn.sokoBotId`. Fails closed to `"EVENT"` on missing,
+ * malformed, cross-bot, or cyclic targets so an admin retry of a failed
+ * delegation EVENT turn can never widen past `draft_only`.
+ */
+export async function resolveSocialWriteOriginSource(
+  turn: { id: string; sokoBotId: string; source: string | null },
+  client: OwnerAuthorityTurnClient = prisma,
+): Promise<string | null> {
+  if (turn.source !== "ADMIN_RETRY") return turn.source;
+  const seen = new Set<string>([turn.id]);
+  let current = await client.sokoBotTurn.findFirst({
+    where: { id: turn.id, sokoBotId: turn.sokoBotId },
+    select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
+  });
+  let hops = 0;
+  while (current?.source === "ADMIN_RETRY") {
+    const [kind, targetId] = current.clientTurnId.split(":");
+    if (kind === ADMIN_SCHEDULE_RETRY_KIND) {
+      return "SCHEDULE";
+    }
+    if (
+      kind !== ADMIN_RETRY_TURN_KIND ||
+      !targetId ||
+      !uuidSchema.safeParse(targetId).success ||
+      seen.has(targetId) ||
+      ++hops > MAX_OWNER_AUTHORITY_PARENT_HOPS
+    ) {
+      return "EVENT";
+    }
+    seen.add(targetId);
+    const next = await client.sokoBotTurn.findFirst({
+      where: { id: targetId, sokoBotId: turn.sokoBotId },
+      select: { id: true, sokoBotId: true, source: true, clientTurnId: true },
+    });
+    if (!next) {
+      return "EVENT";
+    }
+    current = next;
+  }
+  return current?.source ?? "EVENT";
 }

@@ -686,7 +686,10 @@ vi.mock("@/lib/db/transaction", () => ({
         sokoBotContextSnapshot: {
           findUnique: transactionSnapshotFindUniqueMock,
         },
-        sokoBotRuntimeEvent: { findMany: vi.fn().mockResolvedValue([]) },
+        sokoBotRuntimeEvent: {
+          findFirst: runtimeEventFindFirstMock,
+          findMany: vi.fn().mockResolvedValue([]),
+        },
         sokoBotDelegation: {
           create: delegationCreateMock,
           update: delegationUpdateMock,
@@ -709,7 +712,7 @@ vi.mock("@/lib/db/transaction", () => ({
         project: { findFirst: transactionProjectFindFirstMock },
         workspace: { findFirst: transactionWorkspaceFindFirstMock },
         sokoBotTurn: {
-          findUnique: vi.fn().mockResolvedValue(null),
+          findUnique: turnFindUniqueMock,
           findFirst: transactionTurnFindFirstMock,
           updateMany: transactionTurnUpdateManyMock,
         },
@@ -8958,6 +8961,7 @@ describe("post_chat chain depth", () => {
       async (run: (tx: unknown) => unknown) =>
         await run({
           $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
           sokoBotTurn: {
             findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
             findUnique: turnFindUniqueMock,
@@ -9337,6 +9341,7 @@ describe("open_direct_chat", () => {
       async (run: (tx: unknown) => unknown) =>
         await run({
           $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
           sokoBotTurn: {
             findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
             findUnique: turnFindUniqueMock,
@@ -9774,6 +9779,7 @@ describe("ask_coworker", () => {
       async (run: (tx: unknown) => unknown) =>
         await run({
           $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
           sokoBotTurn: {
             findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
             findUnique: turnFindUniqueMock,
@@ -10464,9 +10470,10 @@ describe("Soko Bot project social tools", () => {
     $queryRaw: transactionTurnLockMock,
     user: { findUnique: social.owner },
     workspace: { findFirst: transactionWorkspaceFindFirstMock },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
     sokoBotTurn: {
       findFirst: transactionTurnFindFirstMock,
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: turnFindUniqueMock,
     },
     sokoBotToolCall: {
       findUnique: transactionToolCallFindUniqueMock,
@@ -10481,6 +10488,7 @@ describe("Soko Bot project social tools", () => {
     vi.clearAllMocks();
     for (const mock of Object.values(social)) mock.mockReset();
     availabilityMock.mockResolvedValue({ disabled: false });
+    runtimeEventFindFirstMock.mockResolvedValue(null);
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
     social.seat.mockResolvedValue(undefined);
@@ -10821,6 +10829,35 @@ describe("Soko Bot project social tools", () => {
           ...SCOPE,
           capability: "update_social_posts",
           toolCallId: "slow-access",
+          input: { projectId, posts: [{ postId, revision: 2, text: "Slow" }] },
+        })
+        .finally(() => {
+          answered = true;
+        });
+
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      expect(answered).toBe(true);
+      await expect(running).resolves.toMatchObject({ stillSaving: postId });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts a slow authority lookup into the batch's deadline", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      runtimeEventFindFirstMock.mockImplementationOnce(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+        return null;
+      });
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      let answered = false;
+      const running = new SokoBotRuntimeService()
+        .executeTool({
+          ...SCOPE,
+          capability: "update_social_posts",
+          toolCallId: "slow-authority",
           input: { projectId, posts: [{ postId, revision: 2, text: "Slow" }] },
         })
         .finally(() => {
@@ -13142,6 +13179,10 @@ describe("Soko Bot project social tools", () => {
       askedByUserId: null,
       parentTurnId: "ingest-root",
       parentTurn: {
+        id: "ingest-root",
+        sokoBotId: SCOPE.sokoBotId,
+        workspaceId: SCOPE.workspaceId,
+        versionId: null,
         source: "INGEST",
         parentTurnId: null,
         askedByUserId: null,
@@ -13184,6 +13225,286 @@ describe("Soko Bot project social tools", () => {
         },
       }),
     ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("allows unscheduled create_social_post on a tainted owner CHAT turn but blocks scheduledAt (including mid-flight taint TOCTOU)", async () => {
+    const connectionId = "01960001-0001-7001-8001-0000000000cc";
+    const ownerTurn = {
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: [
+        "create_social_post",
+        "update_social_post",
+        "update_social_posts",
+        "schedule_social_post",
+        "cancel_social_post",
+        "publish_social_post",
+      ],
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    };
+    turnFindUniqueMock.mockResolvedValue(ownerTurn);
+    social.create.mockResolvedValue({ ...post, status: "DRAFT" });
+
+    // Tainted direct owner CHAT: unscheduled create_social_post succeeds, scheduledAt is refused.
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-1" });
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "tainted-create-draft",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Draft from article",
+        },
+      }),
+    ).resolves.toMatchObject({ id: postId, status: "DRAFT" });
+    expect(social.create).toHaveBeenCalledTimes(1);
+
+    social.create.mockClear();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "tainted-create-scheduled",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Scheduled from article",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.create).not.toHaveBeenCalled();
+
+    // TOCTOU: clean during pre-check, tainted by the time serializableTransaction executes.
+    runtimeEventFindFirstMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "taint-midflight" });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "tainted-create-toctou",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Scheduled midflight",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.create).not.toHaveBeenCalled();
+  });
+
+  it("enforces draft-only OwnerAuthority on non-CMO EVENT turns across all social writes regardless of clientTurnId prefix", async () => {
+    const connectionId = "01960001-0001-7001-8001-0000000000cc";
+    runtimeEventFindFirstMock.mockResolvedValue(null);
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: SCOPE.userId,
+      id: SCOPE.turnId,
+      clientTurnId: "taskboard:42",
+      eveSessionId: SCOPE.sessionId,
+      versionId: "v36",
+      source: "EVENT",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: [
+        "create_social_post",
+        "update_social_post",
+        "update_social_posts",
+        "schedule_social_post",
+        "cancel_social_post",
+        "publish_social_post",
+      ],
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+    social.create.mockResolvedValue({ ...post, status: "DRAFT" });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "event-create-draft",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Draft from taskboard event",
+        },
+      }),
+    ).resolves.toMatchObject({ id: postId, status: "DRAFT" });
+
+    social.create.mockClear();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "event-create-scheduled",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Scheduled from event",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow("stays a draft");
+    for (const [capability, input] of [
+      ["update_social_post", { projectId, postId, revision: 2, text: "Edit" }],
+      [
+        "update_social_posts",
+        { projectId, posts: [{ postId, revision: 2, text: "Edit" }] },
+      ],
+      [
+        "schedule_social_post",
+        {
+          projectId,
+          postId,
+          revision: 2,
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      ],
+      ["cancel_social_post", { projectId, postId, revision: 2 }],
+      ["publish_social_post", { projectId, postId, revision: 2 }],
+    ] as const) {
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: `event-blocked-${capability}`,
+          input,
+        }),
+      ).rejects.toThrow("stays a draft");
+    }
+    expect(social.create).not.toHaveBeenCalled();
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("lets a shared Cuso workspace member create unscheduled drafts and edit DRAFT posts under taint, while blocking scheduledAt and SCHEDULED edits", async () => {
+    const connectionId = "01960001-0001-7001-8001-0000000000cc";
+    const memberId = "01960001-0001-7001-8001-0000000000dd";
+    runtimeEventFindFirstMock.mockResolvedValue({ id: "taint-cuso" });
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      requestedByUserId: memberId,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      versionId: "cmo-v24",
+      source: "CHAT",
+      chainDepth: 0,
+      askedByUserId: memberId,
+      parentTurnId: null,
+      parentTurn: null,
+      capabilityNames: [
+        "create_social_post",
+        "update_social_post",
+        "schedule_social_post",
+      ],
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+        },
+      },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        userId: null,
+        workspaceId: SCOPE.workspaceId,
+        projectId: null,
+        archivedAt: null,
+        adminPausedAt: null,
+        status: "RUNNING",
+      },
+    });
+    social.create.mockResolvedValue({ ...post, status: "DRAFT" });
+    social.get.mockResolvedValue({ ...post, status: "DRAFT" });
+    social.update.mockResolvedValue({ ...post, status: "DRAFT" });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "cuso-tainted-draft",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Shared Cuso draft",
+        },
+      }),
+    ).resolves.toMatchObject({ id: postId, status: "DRAFT" });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "cuso-tainted-edit-draft",
+        input: { projectId, postId, revision: 2, text: "Updated draft" },
+      }),
+    ).resolves.toMatchObject({ id: postId, status: "DRAFT" });
+
+    social.create.mockClear();
+    social.update.mockClear();
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "cuso-tainted-scheduled",
+        input: {
+          projectId,
+          socialConnectionId: connectionId,
+          text: "Scheduled under taint",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    social.get.mockResolvedValue({ ...post, status: "SCHEDULED" });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "cuso-tainted-edit-scheduled",
+        input: { projectId, postId, revision: 2, text: "Locked edit" },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(social.create).not.toHaveBeenCalled();
     expect(social.update).not.toHaveBeenCalled();
   });
 });

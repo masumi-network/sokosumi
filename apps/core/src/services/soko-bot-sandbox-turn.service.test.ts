@@ -920,11 +920,17 @@ describe("sandbox turn service", () => {
   it("lets work the owner asked for brief a Coworker after reading the web", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: null,
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: "mention",
+      sokoBot: { userId: "owner" },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -938,18 +944,28 @@ describe("sandbox turn service", () => {
   it("lets a background run save to Files after running a command, but not post to others", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: "parent",
       askedByUserId: null,
       requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: null,
+      sokoBot: { userId: "owner" },
       parentTurn: {
+        id: "parent",
+        sokoBotId: "bot",
+        workspaceId: "ws",
+        versionId: "v36",
         source: "CHAT",
         parentTurnId: null,
         askedByUserId: null,
         requestedByUserId: "owner",
         chainDepth: 0,
+        sokoBot: { userId: "owner" },
       },
     });
     executeToolMock.mockResolvedValue({ ok: true });
@@ -971,12 +987,17 @@ describe("sandbox turn service", () => {
   it("grants no upload where upload_file would be refused, nor past the cap", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "SCHEDULE",
       parentTurnId: null,
       askedByUserId: null,
       requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: null,
+      sokoBot: { userId: "owner" },
     });
     await expect(
       grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
@@ -995,15 +1016,20 @@ describe("sandbox turn service", () => {
     expect(grantUploadMock).not.toHaveBeenCalled();
   });
 
-  it("lets a member's own request to a shared bot make posts after a command", async () => {
+  it("allows sandbox preflight for a member's own request on a shared bot after a command", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: null,
       askedByUserId: "member",
       requestedByUserId: "member",
       chainDepth: 0,
       chatMentionId: "mention",
+      sokoBot: { userId: null },
     });
     executeToolMock.mockResolvedValue({ ok: true });
     await runSandboxTool(claims, {
@@ -1051,11 +1077,17 @@ describe("sandbox turn service", () => {
 
   describe("Social posts after running a command", () => {
     const ownerTurn = {
+      id: claims.turnId,
+      sokoBotId: "bot",
+      workspaceId: "ws",
+      versionId: "v36",
       source: "CHAT",
       parentTurnId: null,
       askedByUserId: null,
+      requestedByUserId: "owner",
       chainDepth: 0,
       chatMentionId: "mention",
+      sokoBot: { userId: "owner" },
     };
     const postId = "01a0f600-0000-7000-8000-000000000001";
     beforeEach(() => {
@@ -1079,6 +1111,20 @@ describe("sandbox turn service", () => {
         expect(executeToolMock).toHaveBeenCalledOnce();
       },
     );
+
+    it("refuses create_social_post with scheduledAt after running a command", async () => {
+      await expect(
+        runSandboxTool(claims, {
+          capability: "create_social_post",
+          toolCallId: "c11-scheduled",
+          toolInput: {
+            text: "Launch post",
+            scheduledAt: "2026-12-01T09:00:00.000Z",
+          },
+        }),
+      ).rejects.toThrow("without scheduledAt");
+      expect(executeToolMock).not.toHaveBeenCalled();
+    });
 
     it.each([
       "schedule_social_post",
