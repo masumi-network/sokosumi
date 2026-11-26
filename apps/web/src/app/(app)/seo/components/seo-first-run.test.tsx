@@ -1160,6 +1160,10 @@ describe("SEO audit first run", () => {
       screen.getByText((text) => text.startsWith(copy.setup.checkRequestedNow)),
     ).toBeVisible();
     expect(screen.queryByText(copy.setup.checkStartedNow)).toBeNull();
+    expect(screen.getByText(copy.setup.checkQueued)).toBeVisible();
+    // Neither the step, a badge, nor the status region says that it runs.
+    expect(screen.queryByText(copy.setup.checkRunning)).toBeNull();
+    expect(screen.queryByText(copy.setup.checkRunningBadge)).toBeNull();
     for (const button of screen.getAllByRole("button", {
       name: copy.runs.queued,
     }))

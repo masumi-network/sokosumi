@@ -14981,6 +14981,7 @@
         "check": "Inicia la primera comprobación",
         "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones. Tú apruebas cada una.",
         "checkRunning": "El agente está comprobando tus páginas. Puedes salir de esta página: los resultados aparecen aquí cuando termina la comprobación.",
+        "checkQueued": "El agente aún no ha empezado la comprobación. Puedes salir de esta página: los resultados aparecen aquí cuando termina la comprobación.",
         "checkStarted": "Iniciada {when}.",
         "checkStartedNow": "Iniciada ahora mismo.",
         "checkRequested": "Solicitada {when}.",

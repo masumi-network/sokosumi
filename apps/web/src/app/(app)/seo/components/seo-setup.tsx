@@ -236,7 +236,8 @@ export function SeoSetupCard({
             index={3}
             heading="h4"
             last
-            mark={MARK[setup.check]}
+            // A queued check has not started: the step is current, with no spinner.
+            mark={run?.queued ? "active" : MARK[setup.check]}
             title={t(full ? "setup.audit" : "setup.check")}
             body={
               pausedReason ? (
@@ -253,11 +254,13 @@ export function SeoSetupCard({
                 // A step that waits is a title only: the step before it has the action.
                 // Waiting steps are now hidden until the preceding step completes.
                 t(
-                  setup.check === "running"
-                    ? "setup.checkRunning"
-                    : full
-                      ? "setup.auditBody"
-                      : "setup.checkBody",
+                  run?.queued
+                    ? "setup.checkQueued"
+                    : setup.check === "running"
+                      ? "setup.checkRunning"
+                      : full
+                        ? "setup.auditBody"
+                        : "setup.checkBody",
                 )
               )
             }

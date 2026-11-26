@@ -45,7 +45,11 @@ import { SeoRunDiffCard } from "./seo-run-diff-card";
 import { seoRunDiffOf } from "./seo-run-diff-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
+import {
+  seoCheckRunning,
+  seoRunAction,
+  seoRunningCheck,
+} from "./seo-setup-model";
 import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
@@ -121,6 +125,7 @@ function SeoAgentPanel({
   // Before the first check the setup card leads; a filtered view has its own empty state.
   const setup = model.setup;
   const checkRunning = seoCheckRunning(model.data);
+  const checkQueued = seoRunningCheck(model.data)?.status === "requested";
   // A check that ran during this visit: its end is news for a screen reader.
   const [checkSeen, setCheckSeen] = useState(checkRunning);
   if (checkRunning && !checkSeen) setCheckSeen(true);
@@ -337,11 +342,13 @@ function SeoAgentPanel({
       </h2>
       {/* Present before a check starts, so its start and end are announced. */}
       <p role="status" className="sr-only">
-        {checkRunning
-          ? t("setup.checkRunningBadge")
-          : checkSeen
-            ? t("setup.checkEnded")
-            : ""}
+        {checkQueued
+          ? t("runs.queued")
+          : checkRunning
+            ? t("setup.checkRunningBadge")
+            : checkSeen
+              ? t("setup.checkEnded")
+              : ""}
       </p>
       {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
       {banner}

@@ -14981,6 +14981,7 @@
         "check": "Run the first check",
         "checkBody": "The agent reads your pages, finds issues and drafts fixes. You approve each one.",
         "checkRunning": "The agent is checking your pages. You can leave this page: the results show here when the check is done.",
+        "checkQueued": "The agent has not started the check yet. You can leave this page: the results show here when the check is done.",
         "checkStarted": "Started {when}.",
         "checkStartedNow": "Started just now.",
         "checkRequested": "Requested {when}.",

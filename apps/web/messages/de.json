@@ -14981,6 +14981,7 @@
         "check": "Erste Prüfung starten",
         "checkBody": "Der Agent liest deine Seiten, findet Probleme und entwirft Korrekturen. Du gibst jede einzeln frei.",
         "checkRunning": "Der Agent prüft deine Seiten. Du kannst diese Seite verlassen: Die Ergebnisse erscheinen hier, sobald die Prüfung fertig ist.",
+        "checkQueued": "Der Agent hat die Prüfung noch nicht gestartet. Du kannst diese Seite verlassen: Die Ergebnisse erscheinen hier, sobald die Prüfung fertig ist.",
         "checkStarted": "Gestartet {when}.",
         "checkStartedNow": "Gerade gestartet.",
         "checkRequested": "Angefordert {when}.",
