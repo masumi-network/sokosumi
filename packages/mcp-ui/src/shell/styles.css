@@ -1,6 +1,9 @@
 @import "tailwindcss" source("../");
 @import "./tokens.css";
 
+/* Dark is the host's theme, set as data-theme, never the system's alone. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * Web's colour utilities over Sokosumi's tokens (apps/web/src/app/globals.css).
  * No host style variable takes part: views look like Web in every host.

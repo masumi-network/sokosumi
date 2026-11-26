@@ -108,7 +108,9 @@ export function TaskStatus({
       aria-label={quiet ? word : undefined}
       className={`text-foreground inline-flex min-w-0 items-center gap-1.5 font-medium ${className}`}
     >
-      <StatusMarker spec={MARKERS[status] ?? UNKNOWN} />
+      <StatusMarker
+        spec={Object.hasOwn(MARKERS, status) ? MARKERS[status] : UNKNOWN}
+      />
       {!quiet && <span className="truncate">{word}</span>}
     </span>
   );

@@ -101,7 +101,7 @@ const ICONS: Record<string, (props: BrandIconProps) => React.JSX.Element> = {
 
 /** The provider's mark in Web's 36px bordered square; nothing for an unknown one. */
 export function ProviderIcon({ provider }: { provider: string }) {
-  const Icon = ICONS[provider];
+  const Icon = Object.hasOwn(ICONS, provider) ? ICONS[provider] : undefined;
   return (
     <span
       aria-hidden="true"

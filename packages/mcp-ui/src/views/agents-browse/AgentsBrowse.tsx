@@ -144,6 +144,7 @@ export function AgentsBrowse({
           <div className="-mx-3 -my-2.5 flex items-center">
             <Button
               variant="ghost"
+              className="min-w-11"
               onClick={() => scroll(-1)}
               aria-label={t("agentsBrowse.previous")}
             >
@@ -151,6 +152,7 @@ export function AgentsBrowse({
             </Button>
             <Button
               variant="ghost"
+              className="min-w-11"
               onClick={() => scroll(1)}
               aria-label={t("agentsBrowse.next")}
             >

@@ -136,6 +136,19 @@ function pendingRequestId(job: Job): string | undefined {
 /** Longer results start folded, so the view stays a summary in the chat. */
 const FOLDED_RESULT_CHARS = 1200;
 
+/**
+ * The start of a long result, cut at the last paragraph break that keeps
+ * most of it, and before a code fence the cut would leave open.
+ */
+export function foldResult(text: string): string {
+  let head = Array.from(text).slice(0, FOLDED_RESULT_CHARS).join("");
+  const blank = head.lastIndexOf("\n\n");
+  if (blank > FOLDED_RESULT_CHARS / 3) head = head.slice(0, blank);
+  const fences = [...head.matchAll(/^ {0,3}(?:```|~~~)/gm)];
+  if (fences.length % 2 === 1) head = head.slice(0, fences.at(-1)?.index);
+  return `${head.trimEnd()}…`;
+}
+
 export function JobStatus({
   data,
   context,
@@ -160,7 +173,9 @@ export function JobStatus({
   // Say it updates only while it can: a host without server tools gives no refresh.
   const live = following && context.refresh !== undefined;
   const status = describeStatus(job.status);
-  const spec = MARKERS[job.status] ?? UNKNOWN;
+  const spec = Object.hasOwn(MARKERS, job.status)
+    ? MARKERS[job.status]
+    : UNKNOWN;
   // The running glyph spins only while the view follows the Job.
   const marker = { ...spec, spin: spec.spin && live };
   const agentName = job.agent?.overrideName || job.agent?.name;
@@ -319,10 +334,7 @@ function ResultText({
   const chars = Array.from(text);
   const long = chars.length > FOLDED_RESULT_CHARS;
   const [expanded, setExpanded] = useState(false);
-  const shown =
-    long && !expanded
-      ? `${chars.slice(0, FOLDED_RESULT_CHARS).join("").trimEnd()}…`
-      : text;
+  const shown = long && !expanded ? foldResult(text) : text;
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
