@@ -20,7 +20,7 @@ import { pageLead } from "../../lib/page-lead";
 import {
   productionShare,
   productionSteps,
-  retryWhen,
+  stoppedNote,
   withoutPictureLine,
 } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
@@ -994,9 +994,7 @@ function ProductionCard({
           : planning
             ? "He plans every post your plan makes, topic by topic, then makes them. This takes a few minutes."
             : production.state === "stuck"
-              ? production.writerFailed
-                ? `${productionSteps(production, month.total)}. Something on our side stopped him. We're fixing it, and he tries again ${retryWhen(production.retryAt, timeZone)}.`
-                : `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
+              ? stoppedNote(production, month.total, timeZone)
               : production.state === "blocked"
                 ? "Something on our side keeps him from starting. He tries again every ten minutes."
                 : notStarted
