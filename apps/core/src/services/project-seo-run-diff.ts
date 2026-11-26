@@ -252,12 +252,23 @@ export function compareSeoRuns(
         ...(after.passed.get(key) ?? []),
         ...(after.noted.get(key) ?? []),
       ]);
-      // A finding that names no device failed on the devices a row fired on, and is fixed only where such a row
-      // exists. Every row that fired now has a note of its own, so no device failed.
-      const anyDevice = before.issued.get(key)?.has(null);
-      const failedOn = [...(before.failed.get(key) ?? [])].filter(
-        (device) => !anyDevice || device,
+      // A finding that names no device is open on every device a row fired on, also one a note answered, as the
+      // new issues read it, and is fixed only where such a row exists. Every row that fired now has a note of its
+      // own, so no device failed.
+      const failedBefore = [...(before.failed.get(key) ?? [])];
+      const firedOn = [...(before.fired.get(key) ?? [])].filter(
+        (device) => device,
       );
+      const failedOn = !before.issued.get(key)?.has(null)
+        ? failedBefore
+        : firedOn.length
+          ? [
+              ...new Set([
+                ...firedOn,
+                ...failedBefore.filter((device) => device),
+              ]),
+            ]
+          : [];
       if (
         failedOn.length > 0 &&
         failedOn.every((device) => read.has(device)) &&

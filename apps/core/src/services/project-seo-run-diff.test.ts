@@ -777,6 +777,48 @@ describe("withSeoRunDiffs edge cases", () => {
     expect(diff).toMatchObject({ fixedCount: 1, notCheckedAgain: 0 });
   });
 
+  it("counts no fix of a finding without a device until every device it fired on is read again", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A", device: "mobile" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(8, result([check("pass", { rowId: "A", device: "mobile" })])),
+      source(1, result([anyDevice, failed({ rowId: "A" }, "note")])),
+    ]);
+    expect(diff).toMatchObject({ fixedCount: 0, notCheckedAgain: 1 });
+  });
+
+  it("counts no fix of a finding without a device beside a finding of one device, with no row that fired", () => {
+    const diff = diffOf([
+      source(8, result([check("pass", { rowId: "A", device: "mobile" })])),
+      source(
+        1,
+        result([
+          { finding: { ...failed({ rowId: "A" }).finding, device: null } },
+          findingOnly({ rowId: "A", device: "mobile" }),
+          check("pass", { rowId: "B" }),
+        ]),
+      ),
+    ]);
+    expect(diff).toMatchObject({ fixedCount: 0, notCheckedAgain: 1 });
+  });
+
+  it("counts no fix of a finding without a device while a device its other finding names is not read again", () => {
+    const anyDevice = {
+      ...failed({ rowId: "A" }),
+      finding: { ...failed({ rowId: "A" }).finding, device: null },
+    };
+    const diff = diffOf([
+      source(8, result([check("pass", { rowId: "A" })])),
+      source(
+        1,
+        result([anyDevice, findingOnly({ rowId: "A", device: "mobile" })]),
+      ),
+    ]);
+    expect(diff).toMatchObject({ fixedCount: 0, notCheckedAgain: 1 });
+  });
+
   it("counts no fix of a finding without a device or a row that fired", () => {
     const diff = diffOf([
       source(8, result([check("pass", { rowId: "A" })])),
