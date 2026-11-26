@@ -7751,7 +7751,6 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByText("A descriptive search result"),
     ).toBeVisible();
-    // A blank value is not an empty box: the dialog says it in English words, as the copied text does.
     expect(
       within(dialog).getByText("No previous value recorded"),
     ).toHaveAttribute("lang", "en");

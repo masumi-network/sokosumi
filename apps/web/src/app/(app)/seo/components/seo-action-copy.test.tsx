@@ -6,7 +6,7 @@ import { expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { useSeoActionInstructions } from "./seo-action-copy";
 
-function instructions(before: string | null) {
+function instructions(before: string | null, target = "title") {
   const action: ProjectSeoAction = {
     id: "action-row",
     observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
@@ -16,7 +16,7 @@ function instructions(before: string | null) {
     why: "The title is too long",
     effort: "low",
     expectedEffect: "A full title in search",
-    edit: { target: "title", before, after: "<title>Short</title>" },
+    edit: { target, before, after: "<title>Short</title>" },
     taskId: null,
     status: "recommended",
     kind: "fix",
@@ -37,8 +37,8 @@ it("copies the recorded value as it is, before the suggested change", () => {
   );
 });
 
-it("says in words that a blank value was not recorded", () => {
-  expect(instructions("  \n")).toContain(
-    "Before:\nNo previous value recorded\n\nSuggested change:",
+it("leaves out a blank target", () => {
+  expect(instructions("<title>Old</title>", " ")).not.toContain(
+    "What to change",
   );
 });
