@@ -409,6 +409,35 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     expect(keyless.auditId).not.toBe(first.auditId);
   });
 
+  it("returns the first Audit for a retried create after its Project closed", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Closed after create" },
+    });
+    const request = {
+      name: "Replay on closed Project",
+      firstPage,
+      projectId: project.id,
+      idempotencyKey: `create-${randomUUID()}`,
+    };
+    const first = await createSeoAudit(actor, request);
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { closedAt: new Date() },
+    });
+    const retry = await createSeoAudit(actor, request);
+    expect(retry.auditId).toBe(first.auditId);
+    // A fresh create on the closed Project is still refused.
+    await expect(
+      createSeoAudit(actor, {
+        ...request,
+        idempotencyKey: `create-${randomUUID()}`,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      await prisma.seoAudit.count({ where: { projectId: project.id } }),
+    ).toBe(1);
+  });
+
   it("refuses a create key another member of the same workspace already used", async () => {
     const [owner, teammate, organizationId, orgWorkspaceId] = [
       randomUUID(),

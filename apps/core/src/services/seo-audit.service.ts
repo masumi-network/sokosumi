@@ -214,11 +214,6 @@ export async function createSeoAudit(
     )
       throw notFound("SEO workspace or linked Project not found");
     await requireSeoWorkspace(actor, tx);
-    if (input.projectId)
-      await requireScopedProject(
-        { projectId: input.projectId, workspaceId: actor.workspaceId },
-        { client: tx, requireOpen: true },
-      );
     if (idempotencyKey) {
       const previous = await tx.seoAudit.findUnique({
         where: {
@@ -237,6 +232,13 @@ export async function createSeoAudit(
         return previous;
       }
     }
+    // Only a fresh create needs an open Project: a replay returns the Audit
+    // the first create made, also after its Project closed.
+    if (input.projectId)
+      await requireScopedProject(
+        { projectId: input.projectId, workspaceId: actor.workspaceId },
+        { client: tx, requireOpen: true },
+      );
     return tx.seoAudit.create({
       data: {
         workspaceId: actor.workspaceId,
