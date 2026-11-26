@@ -39,7 +39,15 @@ The weekly run runs each case once, judged cases twice. A run you start runs onc
 
 ### On your own ChatGPT plan
 
-Local runs can send the bots' OpenAI calls through your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan usage) instead of the AI Gateway. Use it to check cases while you work. Gemini checks, the Claude judge and Jev stay on their usual path.
+Local runs can use your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan usage) instead of the AI Gateway. Use it to check cases while you work. A plan run sends nothing to the Gateway:
+
+- OpenAI models run on the plan as themselves.
+- Every other model (Gemini and Claude checks) and Jev's typed questions run on the plan's stand-in, `gpt-6-luna`. Jev answers are labelled `chatgpt-plan-jev` in the ledger.
+- Embeddings are computed in process from shared wording (`chatgpt-plan/local-token-overlap`).
+- The judge runs on Claude Code (`SOKO_BOT_JUDGE_RUNNER=claude-code`, unless you set another runner).
+- Any other call to the Gateway fails with "A ChatGPT plan run tried to call the AI Gateway". Nothing is sent.
+
+Stand-in answers, check results and similarity scores are approximate, so pass rates can differ from a Gateway run.
 
 ```bash
 pnpm chatgpt-plan:login                     # once per machine: sign in with YOUR ChatGPT account in the browser

@@ -14,6 +14,8 @@ import {
 } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import { recordCoreWarning } from "@/lib/evlog";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
@@ -302,6 +304,12 @@ const evaluateWithJev: RouteEvaluator = async ({
   hasPendingProposals,
   abortSignal,
 }) => {
+  if (localChatGptPlanEnabled())
+    return evaluateOnChatGptPlan({
+      state,
+      questions: routeQuestions(hasPendingProposals),
+      abortSignal,
+    });
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
     // Clipped text can end in half an emoji, which the Gateway refuses.

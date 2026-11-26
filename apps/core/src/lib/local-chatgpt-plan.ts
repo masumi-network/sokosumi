@@ -66,18 +66,63 @@ export function localChatGptPlanEnabled(
   return true;
 }
 
-/** The plan model for a Gateway `openai/…` id, or null to keep the Gateway. */
+/**
+ * The plan model that stands in for every non-OpenAI model (Gemini and Claude
+ * checks, Jev) on a plan run, so nothing reaches the paid Gateway. Their
+ * answers are approximate: a different model than production uses.
+ */
+export const CHATGPT_PLAN_STANDIN_MODEL = "openai/gpt-6-luna";
+
+const GATEWAY_HOST = "ai-gateway.vercel.sh";
+
+/** A plan run tried to call the paid AI Gateway; nothing was sent. */
+export class ChatGptPlanGatewayCallError extends Error {
+  constructor(path: string) {
+    super(
+      `A ChatGPT plan run tried to call the AI Gateway (${path}); nothing was sent. Route this call through the plan or skip it on plan runs.`,
+    );
+    this.name = "ChatGptPlanGatewayCallError";
+  }
+}
+
+let gatewayGuarded = false;
+
+/**
+ * Plan runs must spend nothing on the Gateway: every request to it fails
+ * before it leaves the process, whatever code path made it.
+ */
+export function installChatGptPlanGatewayGuard(): void {
+  if (gatewayGuarded || !localChatGptPlanEnabled()) return;
+  gatewayGuarded = true;
+  const send = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = new URL(
+      typeof input === "string" || input instanceof URL ? input : input.url,
+    );
+    if (url.hostname === GATEWAY_HOST)
+      return Promise.reject(new ChatGptPlanGatewayCallError(url.pathname));
+    return send(input, init);
+  };
+}
+
+/**
+ * The plan model for a Gateway id, or null to keep the Gateway (plan off).
+ * `openai/<slug>` runs as `<slug>`; any other model runs as the stand-in.
+ */
 export function localChatGptPlanModel(
   model: string,
 ): ReturnType<typeof wrapLanguageModel> | null {
-  if (!model.startsWith("openai/") || !localChatGptPlanEnabled()) return null;
+  if (!localChatGptPlanEnabled()) return null;
+  const planModel = model.startsWith("openai/")
+    ? model
+    : CHATGPT_PLAN_STANDIN_MODEL;
   const provider = createOpenAI({
     apiKey: "chatgpt-plan",
     baseURL: CHATGPT_PLAN_API_URL,
     fetch: chatGptPlanFetch,
   });
   return wrapLanguageModel({
-    model: provider.responses(model.slice("openai/".length)),
+    model: provider.responses(planModel.slice("openai/".length)),
     middleware: {
       transformParams: async ({ params }) => ({
         ...params,
