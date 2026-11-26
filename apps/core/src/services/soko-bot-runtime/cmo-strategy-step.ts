@@ -36,6 +36,7 @@ import {
 } from "@/services/cmo-plan-review.service";
 import {
   cmoStrategyBrief,
+  cmoStrategyStepTurn,
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import {
@@ -87,7 +88,7 @@ type Answer = z.infer<typeof answerSchema>;
 type StrategyAnswer = Answer["strategy"];
 const ANSWER_TOOL = "answer_strategy";
 
-type StepEnd =
+export type StepEnd =
   | {
       state: "saved";
       versionId: string;
@@ -493,26 +494,43 @@ async function awaitStep(
   }
 }
 
-function endAnswer(end: StepEnd): Record<string, unknown> {
+/**
+ * What `write_strategy` answers once the step ended. Only a strategy turn
+ * (`cmoStrategyStepTurn`) is the step and nothing else, so only it ends on
+ * the owner's sentence. In a chat the owner may have asked for more ("make
+ * LinkedIn weekly, then draft three posts"): the turn goes on.
+ */
+export function cmoStrategyStepAnswer(
+  end: StepEnd,
+  strategyTurn: boolean,
+): Record<string, unknown> {
   if (end.state === "failed")
     return {
       written: false,
       reason: end.reason,
-      next: "Core could not write the strategy. Save it yourself with save_strategy, as the brief in your message and your strategy skill say, then tell the owner in one or two sentences what it does first.",
+      next: strategyTurn
+        ? "Core could not write the strategy. Save it yourself with save_strategy, as the brief in your message and your strategy skill say, then tell the owner in one or two sentences what it does first."
+        : "Core could not make this change. Make it yourself with save_strategy part patch, then go on with the rest of the owner's request.",
     };
-  return {
+  const saved = {
     written: true,
     versionId: end.versionId,
     problemsFixed: end.fixed,
     ...(end.left.length > 0 ? { problemsLeft: end.left } : {}),
-    endTurn: end.toOwner,
   };
+  return strategyTurn
+    ? { ...saved, endTurn: end.toOwner }
+    : {
+        ...saved,
+        toOwner: end.toOwner,
+        next: "The strategy is saved. Do the rest of what the owner asked in this turn, then tell them what changed (toOwner says it) and what else you did.",
+      };
 }
 
 /**
  * `write_strategy`: starts the turn's step once and waits for it. The answer
- * ends the turn with the owner's sentence, says Core is still writing, or
- * hands the strategy back to Cuso when the step failed.
+ * ends a strategy turn with the owner's sentence (a chat goes on), says Core
+ * is still writing, or hands the strategy back to Cuso when the step failed.
  */
 export async function writeCmoStrategy(
   runtime: RuntimeOperations,
@@ -531,7 +549,7 @@ export async function writeCmoStrategy(
   const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS.write_strategy.parse(input.input);
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
-    select: { userMessage: true },
+    select: { userMessage: true, clientTurnId: true },
   });
   // A step turn's change is the owner's note in its message.
   const change =
@@ -625,5 +643,5 @@ export async function writeCmoStrategy(
       writing: true,
       next: "Core is still writing the strategy. Call write_strategy again with the same input to wait for it; do nothing else.",
     };
-  return endAnswer(end);
+  return cmoStrategyStepAnswer(end, cmoStrategyStepTurn(turn.clientTurnId));
 }

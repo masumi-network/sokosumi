@@ -4,6 +4,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import { chooseTurnModel } from "@/lib/soko-bot/turn-model";
+import { toolEndedTurn } from "@/lib/soko-bot/turn-parts";
 import {
   CMO_STRATEGY_BRIEF_MARK,
   cmoChangeKind,
@@ -15,6 +16,7 @@ import {
   cmoFitStrategy,
   cmoStrategyChangeBrief,
   cmoStrategyRepairPrompt,
+  cmoStrategyStepAnswer,
   cmoStrategyStepSystem,
   withStrategyFix,
 } from "./cmo-strategy-step";
@@ -78,6 +80,37 @@ describe("Core's strategy step", () => {
     const brief = cmoStrategyChangeBrief("NMKR", "LinkedIn once a week");
     expect(brief).toContain("The owner asked: LinkedIn once a week");
     expect(brief).toContain("Leave out every field and entry you keep");
+  });
+});
+
+describe("what write_strategy answers", () => {
+  const saved = {
+    state: "saved" as const,
+    versionId: "v1",
+    toOwner: "LinkedIn now posts once a week.",
+    fixed: 1,
+    left: [],
+  };
+  const ends = (strategyTurn: boolean) =>
+    toolEndedTurn([
+      {
+        toolResults: [{ output: cmoStrategyStepAnswer(saved, strategyTurn) }],
+      },
+    ]);
+
+  it("ends a strategy turn with the owner's sentence", () => {
+    expect(ends(true)).toContain("LinkedIn now posts once a week.");
+  });
+
+  it("lets a chat go on to the rest of the owner's request", () => {
+    expect(ends(false)).toBeUndefined();
+    expect(cmoStrategyStepAnswer(saved, false)).toMatchObject({
+      toOwner: "LinkedIn now posts once a week.",
+      next: expect.stringContaining("Do the rest"),
+    });
+    expect(
+      cmoStrategyStepAnswer({ state: "failed", reason: "x" }, false),
+    ).toMatchObject({ next: expect.stringContaining("rest of the owner") });
   });
 });
 
