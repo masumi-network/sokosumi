@@ -11171,6 +11171,7 @@
         "duplicate": "{name} ya existe en esta carpeta. Elige otro nombre.",
         "tooLarge": "Estos archivos suman más de 50 MB. Combina menos a la vez.",
         "unreadable": "No se pudo leer {name} como PDF. Puede estar dañado o protegido con contraseña. No se guardó nada.",
+        "mixedRoom": "Combina archivos de una misma sala de datos, o archivos que no estén en ninguna. El nuevo PDF se guarda donde está el primer archivo.",
         "failed": "No se pudieron combinar los PDF. Inténtalo de nuevo."
       },
       "Crop": {

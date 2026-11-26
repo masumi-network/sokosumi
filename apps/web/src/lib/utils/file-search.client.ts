@@ -338,13 +338,14 @@ export async function deleteDriveUploads(
   return pathnames.filter((_, index) => results[index].status === "rejected");
 }
 
-/** Core refused a combine: `status` says why, `message` names the file. */
+/** Core refused a combine: `kind` says why, `fileName` names the file. */
 export class DriveCombinePdfError extends Error {
   constructor(
     readonly status: number,
-    message: string,
+    readonly kind: string | null,
+    readonly fileName: string | null,
   ) {
-    super(message);
+    super(`Combine failed: ${status} ${kind ?? ""}`);
     this.name = "DriveCombinePdfError";
   }
 }
@@ -359,7 +360,12 @@ export async function combineDrivePdfs(body: {
     body,
   });
   if (data) return data.data;
-  throw new DriveCombinePdfError(response?.status ?? 0, error?.message ?? "");
+  const fields: { kind?: string; fileName?: string } = error ?? {};
+  throw new DriveCombinePdfError(
+    response?.status ?? 0,
+    fields.kind ?? null,
+    fields.fileName ?? null,
+  );
 }
 
 /** One Drive file (catalog id) or folder (path in the store). */

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,6 +42,7 @@ describe("DriveCombinePdfDialog", () => {
         store={store}
         onOpenChange={onOpenChange}
         onOpenFile={() => {}}
+        onCloseFocus={() => {}}
       />,
     );
 
@@ -62,7 +63,7 @@ describe("DriveCombinePdfDialog", () => {
 
   it("keeps the dialog open and names the file that could not be read", async () => {
     api.combineDrivePdfs.mockRejectedValue(
-      new DriveCombinePdfError(422, '"b.pdf" could not be read as a PDF'),
+      new DriveCombinePdfError(422, "unreadable_pdf", "b.pdf"),
     );
     const onOpenChange = vi.fn();
     render(
@@ -71,6 +72,7 @@ describe("DriveCombinePdfDialog", () => {
         store={store}
         onOpenChange={onOpenChange}
         onOpenFile={() => {}}
+        onCloseFocus={() => {}}
       />,
     );
 
@@ -80,5 +82,52 @@ describe("DriveCombinePdfDialog", () => {
       'unreadable {"name":"b.pdf"}',
     );
     expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("names the taken file from Core's field, not its message", async () => {
+    api.combineDrivePdfs.mockRejectedValue(
+      new DriveCombinePdfError(409, "name_taken", 'Pa"ck.pdf'),
+    );
+    render(
+      <DriveCombinePdfDialog
+        files={files}
+        store={store}
+        onOpenChange={() => {}}
+        onOpenFile={() => {}}
+        onCloseFocus={() => {}}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "combine" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      'duplicate {"name":"Pa\\"ck.pdf"}',
+    );
+  });
+
+  it("hands focus back when the dialog closes", async () => {
+    const onCloseFocus = vi.fn();
+    const { rerender } = render(
+      <DriveCombinePdfDialog
+        files={files}
+        store={store}
+        onOpenChange={() => {}}
+        onOpenFile={() => {}}
+        onCloseFocus={onCloseFocus}
+      />,
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    rerender(
+      <DriveCombinePdfDialog
+        files={null}
+        store={store}
+        onOpenChange={() => {}}
+        onOpenFile={() => {}}
+        onCloseFocus={onCloseFocus}
+      />,
+    );
+
+    await waitFor(() => expect(onCloseFocus).toHaveBeenCalled());
   });
 });

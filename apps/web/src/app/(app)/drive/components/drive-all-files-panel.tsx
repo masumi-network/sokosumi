@@ -215,6 +215,7 @@ export function DriveAllFilesPanel({
   const [combineFiles, setCombineFiles] = useState<CombinePdfFile[] | null>(
     null,
   );
+  const combineButtonRef = useRef<HTMLButtonElement>(null);
 
   /**
    * The one way filters change, so a folder change cannot reach the list
@@ -949,6 +950,7 @@ export function DriveAllFilesPanel({
           ) : null}
           {combinable ? (
             <Button
+              ref={combineButtonRef}
               size="sm"
               variant="ghost"
               disabled={bulkBusy}
@@ -1015,6 +1017,7 @@ export function DriveAllFilesPanel({
           if (open) return;
           setCombineFiles(null);
         }}
+        onCloseFocus={() => combineButtonRef.current?.focus()}
         onOpenFile={(file) =>
           setOpenFile({
             id: file.id,

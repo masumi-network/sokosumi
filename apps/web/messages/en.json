@@ -11171,6 +11171,7 @@
         "duplicate": "{name} already exists in this folder. Choose another name.",
         "tooLarge": "These files add up to more than 50 MB. Combine fewer at once.",
         "unreadable": "{name} could not be read as a PDF. It may be broken or password-protected. Nothing was saved.",
+        "mixedRoom": "Combine files from one data room, or files outside any room. The new PDF stays where the first file is.",
         "failed": "Failed to combine the PDFs. Try again."
       },
       "Crop": {

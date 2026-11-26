@@ -2533,6 +2533,7 @@ export const patchDriveFilesMove = <ThrowOnError extends boolean = false>(option
  * Combine 2–20 PDFs from one Drive into a new PDF, pages in the order of `pathnames`.
  * Saved beside the first file as `filename` (.pdf added when missing). The sources stay as they are.
  * All or nothing: a source that is missing, not a PDF, encrypted or broken fails the whole request, and nothing is saved. Sources total at most 52428800 bytes.
+ * Every source and the new file stay inside one data room, or all outside any; a mix is refused (`mixed_data_room`).
  */
 export const postDriveFilesCombinePdf = <ThrowOnError extends boolean = false>(options: Options<PostDriveFilesCombinePdfData, ThrowOnError>): RequestResult<PostDriveFilesCombinePdfResponses, PostDriveFilesCombinePdfErrors, ThrowOnError> => (options.client ?? client).post<PostDriveFilesCombinePdfResponses, PostDriveFilesCombinePdfErrors, ThrowOnError>({
     responseTransformer: postDriveFilesCombinePdfResponseTransformer,

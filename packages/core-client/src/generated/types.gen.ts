@@ -46986,13 +46986,14 @@ export type PostDriveFilesCombinePdfErrors = {
         };
     };
     /**
-     * Not Found
+     * Not Found - a source is gone (`fileName`)
      */
     404: {
         error: string;
         message: string;
         kind?: string;
         retryAfterSeconds?: number;
+        fileName?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -47001,13 +47002,14 @@ export type PostDriveFilesCombinePdfErrors = {
         };
     };
     /**
-     * Conflict - a file with that name already exists
+     * Conflict - `fileName` already exists (`name_taken`)
      */
     409: {
         error: string;
         message: string;
         kind?: string;
         retryAfterSeconds?: number;
+        fileName?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -47016,7 +47018,7 @@ export type PostDriveFilesCombinePdfErrors = {
         };
     };
     /**
-     * Payload Too Large
+     * Payload Too Large (`too_large`)
      */
     413: {
         error: string;
@@ -47031,13 +47033,14 @@ export type PostDriveFilesCombinePdfErrors = {
         };
     };
     /**
-     * Unprocessable Entity - a source is not a PDF
+     * Unprocessable Entity - `fileName` is not a readable PDF (`unreadable_pdf`), or the files cross a data room (`mixed_data_room`)
      */
     422: {
         error: string;
         message: string;
         kind?: string;
         retryAfterSeconds?: number;
+        fileName?: string;
         meta: {
             timestamp: Date;
             requestId: string;

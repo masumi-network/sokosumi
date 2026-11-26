@@ -38,11 +38,14 @@ export function DriveCombinePdfDialog({
   store,
   onOpenChange,
   onOpenFile,
+  onCloseFocus,
 }: {
   files: CombinePdfFile[] | null;
   store: FileStore;
   onOpenChange: (open: boolean) => void;
   onOpenFile: (file: { id: string; name: string }) => void;
+  /** Where focus goes on close; the dialog opens from a plain button, not a trigger. */
+  onCloseFocus: () => void;
 }) {
   return (
     <Dialog open={files !== null} onOpenChange={onOpenChange}>
@@ -54,6 +57,7 @@ export function DriveCombinePdfDialog({
           store={store}
           onDone={() => onOpenChange(false)}
           onOpenFile={onOpenFile}
+          onCloseFocus={onCloseFocus}
         />
       ) : null}
     </Dialog>
@@ -65,11 +69,13 @@ function CombineForm({
   store,
   onDone,
   onOpenFile,
+  onCloseFocus,
 }: {
   initialFiles: CombinePdfFile[];
   store: FileStore;
   onDone: () => void;
   onOpenFile: (file: { id: string; name: string }) => void;
+  onCloseFocus: () => void;
 }) {
   const t = useTranslations("App.Drive.CombinePdf");
   const queryClient = useQueryClient();
@@ -115,15 +121,29 @@ function CombineForm({
 
   function problemText(error: unknown): string {
     if (!(error instanceof DriveCombinePdfError)) return t("failed");
-    const named = /"([^"]+)"/.exec(error.message)?.[1];
-    if (error.status === 409) return t("duplicate", { name: named ?? name });
-    if (error.status === 413) return t("tooLarge");
-    if (error.status === 422 && named) return t("unreadable", { name: named });
-    return t("failed");
+    const file = error.fileName;
+    switch (error.kind) {
+      case "name_taken":
+        return t("duplicate", { name: file ?? name });
+      case "too_large":
+        return t("tooLarge");
+      case "unreadable_pdf":
+        return file ? t("unreadable", { name: file }) : t("failed");
+      case "mixed_data_room":
+        return t("mixedRoom");
+      default:
+        return t("failed");
+    }
   }
 
   return (
-    <DialogContent className="max-h-[92dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
+    <DialogContent
+      className="max-h-[92dvh] overflow-y-auto overscroll-contain sm:max-w-lg"
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        onCloseFocus();
+      }}
+    >
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {

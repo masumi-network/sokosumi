@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { FileSourceScope } from "@sokosumi/database";
 import {
   buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathnameWithFolder,
@@ -18,6 +19,7 @@ import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
+  errorResponseWithExtensionsSchema,
   notFound,
   payloadTooLarge,
   unprocessableEntity,
@@ -25,11 +27,14 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
+  driveDel,
   driveExists,
   driveHasAny,
   driveHead,
   drivePut,
   driveRead,
+  driveRoomsOf,
+  roomContaining,
 } from "@/lib/drive-blob";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
@@ -43,11 +48,13 @@ import {
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
+  tombstoneDriveUploadResource,
 } from "@/services/file-catalog.service";
 
 /** All sources together; pdf-lib holds them in memory at once. */
 export const COMBINE_PDF_MAX_TOTAL_BYTES = 50 * 1024 * 1024;
 const PDF = "application/pdf";
+const TOO_LARGE = `These files add up to more than ${COMBINE_PDF_MAX_TOTAL_BYTES / 1024 / 1024} MB; combine fewer at once`;
 
 const bodySchema = z.object({
   pathnames: z.array(z.string().min(1).max(1_000)).min(2).max(20),
@@ -61,6 +68,18 @@ const responseSchema = z.object({
   pageCount: z.number().int(),
 });
 
+/** `kind` says what went wrong; `fileName` names the file it is about. */
+const namedErrorSchema = errorResponseWithExtensionsSchema({
+  fileName: z.string().optional(),
+});
+
+function namedError(description: string) {
+  return {
+    description,
+    content: { "application/json": { schema: namedErrorSchema } },
+  };
+}
+
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
@@ -69,6 +88,7 @@ const route = withCoworkerContextHeaderParameters(
       "Combine 2–20 PDFs from one Drive into a new PDF, pages in the order of `pathnames`.",
       "Saved beside the first file as `filename` (.pdf added when missing). The sources stay as they are.",
       `All or nothing: a source that is missing, not a PDF, encrypted or broken fails the whole request, and nothing is saved. Sources total at most ${COMBINE_PDF_MAX_TOTAL_BYTES} bytes.`,
+      "Every source and the new file stay inside one data room, or all outside any; a mix is refused (`mixed_data_room`).",
     ].join("\n"),
     tags: ["Drive"],
     request: {
@@ -82,10 +102,12 @@ const route = withCoworkerContextHeaderParameters(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("Conflict - a file with that name already exists"),
-      413: jsonErrorResponse("Payload Too Large"),
-      422: jsonErrorResponse("Unprocessable Entity - a source is not a PDF"),
+      404: namedError("Not Found - a source is gone (`fileName`)"),
+      409: namedError("Conflict - `fileName` already exists (`name_taken`)"),
+      413: jsonErrorResponse("Payload Too Large (`too_large`)"),
+      422: namedError(
+        "Unprocessable Entity - `fileName` is not a readable PDF (`unreadable_pdf`), or the files cross a data room (`mixed_data_room`)",
+      ),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -93,6 +115,29 @@ const route = withCoworkerContextHeaderParameters(
 
 function fileName(pathname: string): string {
   return pathname.split("/").at(-1) ?? pathname;
+}
+
+/**
+ * The stream's bytes, counted against a budget the sources share. HEAD sizes
+ * are checked first, but a file replaced since then could be larger, so the
+ * cap holds on what is actually read.
+ */
+async function readWithin(
+  stream: ReadableStream<Uint8Array>,
+  budget: { left: number },
+): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return Buffer.concat(chunks);
+    budget.left -= value.byteLength;
+    if (budget.left < 0) {
+      await reader.cancel();
+      throw payloadTooLarge(TOO_LARGE, { kind: "too_large" });
+    }
+    chunks.push(value);
+  }
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -114,17 +159,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isDriveFolderMarkerName(name))
       throw badRequest("That name is reserved; choose another");
 
-    const folder = drivePathOf(body.pathnames[0])
-      .split("/")
-      .slice(0, -1)
-      .join("/");
+    const paths = body.pathnames.map(drivePathOf);
+    const folder = paths[0].split("/").slice(0, -1).join("/");
     await requireDriveFileAccess(authContext, scope, ownerId, {
-      changes: body.pathnames.map(drivePathOf),
+      changes: paths,
     });
-    const pathname =
-      scope === "user"
-        ? buildUserDriveFilePathnameWithFolder(ownerId, folder, name)
-        : buildOrganizationDriveFilePathnameWithFolder(ownerId, folder, name);
     if (scope === "user")
       await requireUserDriveFileUploadAccess(authContext, ownerId);
     else
@@ -132,33 +171,67 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         into: [folder],
       });
 
+    // A room's pages must not leave it, and outside pages must not land in
+    // it: the new file takes its folder's audience and storage.
+    const rooms = await driveRoomsOf(
+      scope === "user" ? FileSourceScope.USER : FileSourceScope.ORGANIZATION,
+      ownerId,
+    );
+    const roomOf = (path: string) =>
+      roomContaining(rooms, path)?.folderPath ?? null;
+    const targetRoom = roomOf(folder);
+    const outsider = paths.findIndex((path) => roomOf(path) !== targetRoom);
+    if (outsider !== -1)
+      throw unprocessableEntity(
+        "Combine files from one data room, or files outside any room",
+        {
+          kind: "mixed_data_room",
+          extensions: { fileName: fileName(body.pathnames[outsider]) },
+        },
+      );
+
+    const pathname =
+      scope === "user"
+        ? buildUserDriveFilePathnameWithFolder(ownerId, folder, name)
+        : buildOrganizationDriveFilePathnameWithFolder(ownerId, folder, name);
+    const nameTaken = () =>
+      conflict(`A file named "${name}" already exists in this folder`, {
+        kind: "name_taken",
+        extensions: { fileName: name },
+      });
     if ((await driveExists(pathname)) || (await driveHasAny(`${pathname}/`)))
-      throw conflict(`A file named "${name}" already exists in this folder`);
+      throw nameTaken();
 
     const heads = await Promise.all(body.pathnames.map((p) => driveHead(p)));
     let total = 0;
     for (const [index, head] of heads.entries()) {
       const source = fileName(body.pathnames[index]);
-      if (!head) throw notFound(`"${source}" was not found`);
+      if (!head)
+        throw notFound(`"${source}" was not found`, {
+          extensions: { fileName: source },
+        });
       if (head.contentType !== PDF)
         throw unprocessableEntity(`"${source}" is not a PDF`, {
           kind: "unreadable_pdf",
+          extensions: { fileName: source },
         });
       total += head.size;
     }
     if (total > COMBINE_PDF_MAX_TOTAL_BYTES)
-      throw payloadTooLarge(
-        `These files add up to more than ${COMBINE_PDF_MAX_TOTAL_BYTES / 1024 / 1024} MB; combine fewer at once`,
-      );
+      throw payloadTooLarge(TOO_LARGE, { kind: "too_large" });
 
+    const budget = { left: COMBINE_PDF_MAX_TOTAL_BYTES };
     const sources = await Promise.all(
       body.pathnames.map(async (p) => {
         const read = await driveRead(p);
-        if (!read) throw notFound(`"${fileName(p)}" was not found`);
-        const bytes = new Uint8Array(
-          await new Response(read.stream).arrayBuffer(),
-        );
-        return { name: fileName(p), bytes };
+        if (!read)
+          throw notFound(`"${fileName(p)}" was not found`, {
+            extensions: { fileName: fileName(p) },
+          });
+        return {
+          name: fileName(p),
+          bytes: await readWithin(read.stream, budget),
+        };
       }),
     );
 
@@ -169,8 +242,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (error instanceof UnreadablePdfError)
         throw unprocessableEntity(
           `"${error.fileName}" could not be read as a PDF (it may be broken or password-protected). Nothing was saved.`,
-          { kind: "unreadable_pdf" },
+          { kind: "unreadable_pdf", extensions: { fileName: error.fileName } },
         );
+      throw error;
+    }
+
+    // Bytes first, never overwriting: of two saves to one name, only the one
+    // whose bytes land goes on to touch the catalog.
+    try {
+      await drivePut(pathname, Buffer.from(combined.bytes), {
+        contentType: PDF,
+        addRandomSuffix: false,
+        allowOverwrite: false,
+      });
+    } catch (error) {
+      if (await driveExists(pathname)) throw nameTaken();
       throw error;
     }
 
@@ -186,21 +272,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname,
     };
     const sizeBytes = combined.bytes.byteLength;
-    await reserveDriveUploadResource({
-      key,
-      displayName: name,
-      mimeType: PDF,
-      sizeBytes,
-    });
-    await drivePut(pathname, Buffer.from(combined.bytes), {
-      contentType: PDF,
-      addRandomSuffix: false,
-    });
-    const activated = await activateDriveUploadResource({
-      key,
-      sizeBytes,
-      mimeType: PDF,
-    });
+    let activated: { resourceId: string } | null = null;
+    try {
+      await reserveDriveUploadResource({
+        key,
+        displayName: name,
+        mimeType: PDF,
+        sizeBytes,
+      });
+      activated = await activateDriveUploadResource({
+        key,
+        sizeBytes,
+        mimeType: PDF,
+      });
+    } finally {
+      // The bytes are this attempt's own (the put refused to overwrite), so
+      // a failed catalog step removes them and its entry, and a retry works.
+      // Settled, so a failed cleanup cannot hide why the save failed.
+      if (!activated)
+        await Promise.allSettled([
+          driveDel([pathname]),
+          tombstoneDriveUploadResource(key),
+        ]);
+    }
     if (!activated) throw notFound("The combined file could not be saved");
     nudgeFileIndexing();
 
