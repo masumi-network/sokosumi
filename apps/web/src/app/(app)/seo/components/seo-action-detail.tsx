@@ -204,7 +204,11 @@ export function SeoActionDetail({
             <div className="space-y-3">
               {action.edit.target.trim() ? (
                 <ChangeBox label={report("actions.copyTarget")}>
-                  <p dir="auto" lang="" className="text-sm break-words">
+                  <p
+                    dir="auto"
+                    lang=""
+                    className="text-sm whitespace-pre-wrap break-words"
+                  >
                     {action.edit.target}
                   </p>
                 </ChangeBox>

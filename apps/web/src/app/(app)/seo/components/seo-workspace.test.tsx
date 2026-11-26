@@ -7754,9 +7754,15 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByText("No previous value recorded"),
     ).toHaveAttribute("lang", "en");
+    const target = within(dialog).getByText("title");
     expect(
-      within(dialog).getByText("What to change").parentElement?.parentElement,
-    ).toHaveTextContent("What to changetitle");
+      within(dialog)
+        .getByText("What to change")
+        .compareDocumentPosition(target),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      target.compareDocumentPosition(within(dialog).getByText("Before")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const write = vi.spyOn(navigator.clipboard, "writeText");
     await user.click(
       within(dialog).getByRole("button", { name: "Copy change" }),
