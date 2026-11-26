@@ -130,4 +130,23 @@ describe("DriveCombinePdfDialog", () => {
 
     await waitFor(() => expect(onCloseFocus).toHaveBeenCalled());
   });
+
+  it("keeps keyboard focus on the moved file when it reaches the end", async () => {
+    render(
+      <DriveCombinePdfDialog
+        files={files}
+        store={store}
+        onOpenChange={() => {}}
+        onOpenFile={() => {}}
+        onCloseFocus={() => {}}
+      />,
+    );
+
+    screen.getByRole("button", { name: 'moveDown {"name":"a.pdf"}' }).focus();
+    await userEvent.keyboard("{Enter}");
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: 'moveUp {"name":"a.pdf"}' }),
+    );
+  });
 });

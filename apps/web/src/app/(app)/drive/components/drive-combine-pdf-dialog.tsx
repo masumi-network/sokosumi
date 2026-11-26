@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,12 +85,17 @@ function CombineForm({
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  function move(index: number, by: -1 | 1) {
-    setOrder((current) => {
-      const next = [...current];
-      [next[index], next[index + by]] = [next[index + by], next[index]];
-      return next;
-    });
+  function move(index: number, by: -1 | 1, button: HTMLButtonElement) {
+    const next = [...order];
+    [next[index], next[index + by]] = [next[index + by], next[index]];
+    flushSync(() => setOrder(next));
+    // At the first or last place this arrow turns disabled and the browser
+    // drops focus; keep it on the same file's other arrow.
+    if (button.disabled)
+      button
+        .closest("li")
+        ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+        ?.focus();
   }
 
   async function combine() {
@@ -175,7 +181,7 @@ function CombineForm({
                 variant="ghost"
                 aria-label={t("moveUp", { name: file.name })}
                 disabled={index === 0 || saving}
-                onClick={() => move(index, -1)}
+                onClick={(event) => move(index, -1, event.currentTarget)}
               >
                 <ArrowUp aria-hidden className="size-4" />
               </Button>
@@ -185,7 +191,7 @@ function CombineForm({
                 variant="ghost"
                 aria-label={t("moveDown", { name: file.name })}
                 disabled={index === order.length - 1 || saving}
-                onClick={() => move(index, 1)}
+                onClick={(event) => move(index, 1, event.currentTarget)}
               >
                 <ArrowDown aria-hidden className="size-4" />
               </Button>
