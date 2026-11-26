@@ -27,3 +27,15 @@ export function SidebarWorkspaceRow({
     </div>
   );
 }
+
+/** The rail's top cell: holds the Workspace switcher while the row above is hidden with the sidebar. */
+export function RailWorkspaceCell({ children }: { children: ReactNode }) {
+  return (
+    <div
+      data-slot="rail-workspace-cell"
+      className="bg-sidebar border-sidebar-border fixed start-0 top-0 z-[42] hidden h-16 w-(--app-rail-width) items-center justify-center border-e border-b md:sidebar-hidden:flex"
+    >
+      {children}
+    </div>
+  );
+}

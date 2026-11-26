@@ -1,6 +1,29 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { SidebarWorkspaceRow } from "./sidebar-workspace-row";
+import {
+  RailWorkspaceCell,
+  SidebarWorkspaceRow,
+} from "./sidebar-workspace-row";
+
+it("shows the rail's top cell only while the sidebar, and the row above it, is hidden", () => {
+  const { container } = render(
+    <RailWorkspaceCell>
+      <button type="button">Switch organisation</button>
+    </RailWorkspaceCell>,
+  );
+  const cell = container.querySelector(
+    '[data-slot="rail-workspace-cell"]',
+  ) as HTMLElement;
+  expect(cell).toHaveClass(
+    "hidden",
+    "md:sidebar-hidden:flex",
+    "w-(--app-rail-width)",
+    "h-16",
+  );
+  expect(within(cell).getByRole("button")).toHaveAccessibleName(
+    "Switch organisation",
+  );
+});
 
 it("keeps compact desktop actions beside the switcher at the top of both sidebar columns", () => {
   const { container } = render(

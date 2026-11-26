@@ -13,7 +13,10 @@ import {
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
 } from "./app-shell-safe-area";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
-import { SidebarWorkspaceRow } from "./workspace-switcher/sidebar-workspace-row";
+import {
+  RailWorkspaceCell,
+  SidebarWorkspaceRow,
+} from "./workspace-switcher/sidebar-workspace-row";
 import { WorkspaceSwitcherSkeleton } from "./workspace-switcher/workspace-switcher-skeleton";
 
 /** Stub session id for Instant Nav Suspense fallback (not a real session). */
@@ -37,6 +40,9 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
       >
         <WorkspaceSwitcherSkeleton placement="sidebar" />
       </SidebarWorkspaceRow>
+      <RailWorkspaceCell>
+        <WorkspaceSwitcherSkeleton placement="rail" />
+      </RailWorkspaceCell>
       <GlobalRail />
       <AppSidebarFallback />
       <SidebarEdgeHandle />

@@ -180,6 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
+      "switchOrganization": "Cambiar de organización",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
