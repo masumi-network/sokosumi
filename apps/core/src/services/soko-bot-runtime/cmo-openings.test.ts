@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev: vi.fn() }));
+vi.mock("@/lib/soko-bot/small-model", () => ({ askSmallModel: vi.fn() }));
 
 import {
   type CompareOpenings,
-  cmoOpeningCandidates,
+  cmoOpeningAlternatives,
   cmoOpeningProblems,
   cmoOpeningRepeats,
   cmoPickOpening,
+  firstLineOf,
   withOpening,
 } from "./cmo-openings";
 import { cmoBestExamples, cmoExamplesLines } from "./cmo-writer-examples";
@@ -22,10 +23,10 @@ describe("cmoOpeningProblems", () => {
     ).toEqual([]);
   });
 
-  it("refuses a number the piece does not hold", () => {
+  it("refuses a number the post does not hold", () => {
     expect(
       cmoOpeningProblems("Rho cut no-shows by 60%.", "linkedin", DRAFT),
-    ).toEqual(["a number the piece does not hold (60)"]);
+    ).toEqual(["a number the post does not hold (60)"]);
   });
 
   it("matches numbers written with separators", () => {
@@ -51,10 +52,10 @@ describe("cmoOpeningProblems", () => {
   });
 });
 
-describe("cmoOpeningCandidates", () => {
-  it("keeps the draft's own line first and drops broken or repeated ones", () => {
+describe("cmoOpeningAlternatives", () => {
+  it("drops the own line, broken lines and repeats", () => {
     expect(
-      cmoOpeningCandidates(
+      cmoOpeningAlternatives(
         DRAFT,
         [
           "Rho cut no-shows from 18% to 7%.",
@@ -66,10 +67,19 @@ describe("cmoOpeningCandidates", () => {
         "linkedin",
         DRAFT,
       ),
-    ).toEqual([
-      "Routing forms pick the right rep.",
-      "Rho cut no-shows from 18% to 7%.",
-    ]);
+    ).toEqual(["Rho cut no-shows from 18% to 7%."]);
+  });
+
+  it("drops a line that opens on a fact the month already opened on", () => {
+    expect(
+      cmoOpeningAlternatives(
+        DRAFT,
+        ["Rho cut no-shows from 18% to 7%."],
+        "linkedin",
+        DRAFT,
+        ["Rho went from 18% to 7% no-shows."],
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -86,18 +96,6 @@ describe("cmoOpeningRepeats", () => {
       false,
     );
   });
-
-  it("drops a repeating own line when another candidate is left", () => {
-    expect(
-      cmoOpeningCandidates(
-        DRAFT,
-        ["Rho cut no-shows from 18% to 7%."],
-        "linkedin",
-        DRAFT,
-        ["Routing forms pick the right rep for you."],
-      ),
-    ).toEqual(["Rho cut no-shows from 18% to 7%."]);
-  });
 });
 
 describe("withOpening", () => {
@@ -109,30 +107,44 @@ describe("withOpening", () => {
 });
 
 describe("cmoPickOpening", () => {
+  /** The post with the longer first line reads better, sure both ways. */
   const longerWins: CompareOpenings = async ({ a, b }) => ({
-    aWins: a.length >= b.length,
+    score: Math.sign(firstLineOf(a).length - firstLineOf(b).length),
     costUsd: 0.001,
   });
 
-  it("runs a knockout and keeps the winner", async () => {
+  it("keeps the best line when it beats the post's own both ways", async () => {
     const result = await cmoPickOpening({
-      candidates: ["aa", "a", "aaaaa", "aaa", "aaaa"],
+      draft: "aa\nbody",
+      alternatives: ["a", "aaaaa", "aaa", "aaaa"],
       channel: "x",
       businessName: "B",
       compare: longerWins,
     });
-    expect(result.opening).toBe("aaaaa");
+    expect(result.draft).toBe("aaaaa\nbody");
     expect(result.costUsd).toBeCloseTo(0.004);
   });
 
-  it("keeps the earlier line when a comparison fails", async () => {
+  it("keeps the post's own line unless another is clearly better", async () => {
     const result = await cmoPickOpening({
-      candidates: ["own", "other"],
+      draft: "own\nbody",
+      alternatives: ["alt"],
+      channel: "x",
+      businessName: "B",
+      compare: async () => ({ score: 0.5, costUsd: 0 }),
+    });
+    expect(result.draft).toBe("own\nbody");
+  });
+
+  it("keeps the post's own line and counts a failed comparison", async () => {
+    const result = await cmoPickOpening({
+      draft: "own\nbody",
+      alternatives: ["other line"],
       channel: "x",
       businessName: "B",
       compare: () => Promise.reject(new Error("down")),
     });
-    expect(result.opening).toBe("own");
+    expect(result).toEqual({ draft: "own\nbody", costUsd: 0, failed: 1 });
   });
 });
 
