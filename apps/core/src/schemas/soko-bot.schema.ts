@@ -894,7 +894,10 @@ export const sokoBotVersionSchema = z
     ),
     capabilities: z.array(z.string()).nullable(),
     inferenceRegion: z.enum(["eu", "us"]).nullable().optional(),
-    systemPrompt: z.string(),
+    systemPrompt: z.string().optional().openapi({
+      description:
+        "The composed system prompt. Sent to platform admins only, for the behaviour lab.",
+    }),
   })
   .openapi("SokoBotVersion");
 

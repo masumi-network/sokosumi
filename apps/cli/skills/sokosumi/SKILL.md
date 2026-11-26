@@ -45,6 +45,19 @@ Use headless commands with `--json` for automation. Do not open the Ink TUI duri
 
 [VERIFIED: `apps/cli/src/auth/auth-manager.ts`, `apps/cli/src/auth/oauth.ts`] The CLI supports OS-vault credentials and explicit environment or stdin input. `SOKOSUMI_API_KEY` takes precedence over `SOKOSUMI_AUTH_TOKEN`; both override saved OAuth credentials. Before switching browser accounts, clear those variables from the shell. Switch the browser's actual account, run `auth login`, then verify `auth whoami`. CLI logout clears local credentials; it does not switch the browser account.
 
+### Run without macOS keychain dialogs
+
+[VERIFIED: `apps/cli/src/auth/auth-manager.ts`, `apps/cli/src/auth/bootstrap.ts`, `security dump-keychain -a` on an operator Mac, 2026-11-26] On macOS, the CLI keeps OAuth credentials and user API keys in the login keychain. Each keychain item trusts specific `node` binaries. If another `node` binary reads the item, macOS shows a permission dialog. An agent cannot answer that dialog, so the command waits.
+
+Follow these rules on macOS:
+
+1. Prefer an environment token. When `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` is set, commands that use it read no keychain item. `auth login` and `auth logout` still use the keychain. `runtime` commands use a separate Coworker key: pass it with `--api-key-stdin` from an operator-controlled secret reader. `runtime key-import` stores that key in the keychain. Ask the operator to set `SOKOSUMI_API_KEY` in the agent's environment. Never ask for the key in chat.
+2. Without an environment token, use one exact `node` binary and one CLI entry point for every authenticated command. For an installed CLI, that is the `sokosumi` executable. For a source build, start it with an absolute `node` path, for example `/path/to/node apps/cli/dist/bin/sokosumi.js`. Do not switch between `sokosumi`, `npx @masumi_network/sokosumi`, `pnpm --filter @masumi_network/sokosumi sokosumi`, and a bare `node` command. Each of these can start a different `node` binary, and the keychain treats it as a new program.
+3. Know which `node` runs the CLI. For a source build, it is the absolute path you start it with. For an installed CLI, check `head -1 "$(command -v sokosumi)"`. An absolute path names that binary. A line `#!/usr/bin/env node` means the first `node` on `PATH` runs it, and that `node` can differ between shells.
+4. If a command hangs or a keychain dialog appears, stop. Tell the operator the command and the `node` path from step 3. For `#!/usr/bin/env node`, report `command -v node` from your shell. Do not retry in a loop.
+
+The operator approves the agent's `node` binary once. They run the agent's exact command with that same `node` and click "Always Allow". Each keychain item needs its own approval, so the command must read the same item: same target, and the same `runtime` Coworker for a Coworker key. With `#!/usr/bin/env node`, their terminal can find a different `node`, so they start the command as `<node path> "$(command -v sokosumi)" <arguments>` with the `node` path that the agent reported. See the CLI README section "Agent runs and macOS keychain prompts".
+
 Never request keys, OAuth tokens, cookies, passwords, or client secrets in chat. If authentication is missing, use supported `auth login` when the browser can return to the CLI machine. Otherwise ask the operator to configure supported authentication. Do not invent remote approval links.
 
 [VERIFIED: `apps/cli/src/cli/index.ts`, `apps/cli/src/cli/commands/admin.ts`] Current provisioning, registration, connection, and admin onboarding work on Preprod only. Authentication remains required there. Use `--preprod` for those steps. Other user commands keep the selected target. Runtime commands use a separate Coworker key and fixed Preprod target.
@@ -60,9 +73,9 @@ sokosumi --preprod vendors me --json
 sokosumi --preprod coworkers list --scope owned --json
 ```
 
-Use returned IDs. Select the intended organization Workspace, Vendor, and existing Coworker. Ask only for a missing name or a choice between suitable records. Reuse an existing administered Vendor. Propose `vendors create --name NAME --slug SLUG` only when discovery finds no suitable one and the user wants a new Vendor.
+Use returned IDs. `workspaces list --json` gives each workspace's `workspaceId` (for `workspaces get`, `ad-data-consent`, `social-statistics`, `calendar-labels`, and `users set-preferred-workspace`) and its `organizationId` (for `organizations` commands and `workspaces check`). Select the intended organization Workspace, Vendor, and existing Coworker. Ask only for a missing name or a choice between suitable records. Reuse an existing administered Vendor. Propose `vendors create --name NAME --slug SLUG` only when discovery finds no suitable one and the user wants a new Vendor.
 
-[VERIFIED: `apps/cli/src/cli/registration-authority.ts`, `apps/cli/src/api/models/organization-workspace.ts`] Choose `--personal` for private setup. `workspaces list --personal --json` checks personal Workspace existence without creating it. `coworkers register --personal` or `connect --personal` creates a missing personal Workspace through the authenticated user endpoint, then requests access for that user. For an organization, choose its organization ID from memberships. Never combine personal and organization selectors.
+[VERIFIED: `apps/cli/src/cli/registration-authority.ts`, `apps/cli/src/api/models/user-workspace.ts`] Choose `--personal` for private setup. `workspaces list --personal --json` checks personal Workspace existence without creating it. `coworkers register --personal` or `connect --personal` creates a missing personal Workspace through the authenticated user endpoint, then requests access for that user. For an organization, choose its organization ID from memberships. Never combine personal and organization selectors.
 
 [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`; Core `apps/core/src/routes/v1/coworkers/post.ts`, `apps/core/src/helpers/coworker-workspace-access.ts`]
 
@@ -194,7 +207,7 @@ sokosumi --api-url https://api.sokosumi.com tasks move SOK-16 --organization-slu
 - A parent is not a link. Core refuses the `parent` and `child` relations, and the CLI stops them before it sends a request. The sub-task migration turned each old `parent` link into a sub-task, or into a `related` link when it could not, and deleted the links it turned into sub-tasks. An old Core instance can still write a `parent` link while a deploy runs. Remove such a leftover with `tasks unlink TASK_ID --to OTHER_ID --relation parent` (or `child`).
 - A sub-task is a step in its parent's ordered checklist. It is hidden from the board and from `tasks list`. Create one with `tasks create --parent TASK_ID` (last, or `--after SIBLING_ID`). Read them in order with `tasks subtasks TASK_ID`. Reorder one with `tasks move TASK_ID --after SIBLING_ID` or `--first`. `tasks list --include-subtasks` lists them with the other Tasks. In a project, a sub-task gets its own identifier. It is finished on its own.
 - `tasks move TASK_ID --parent PARENT_ID` makes an existing Task a sub-task, or moves it to another parent. Its own sub-tasks move with it. It goes last, or to the position from `--after SIBLING_ID` or `--first`. A parent in another project moves the Task and its sub-tasks to that project. `tasks move TASK_ID --detach` removes the parent, and the Task keeps its project. You cannot use `--parent` and `--detach` together.
-- `tasks create --due YYYY-MM-DD` and `tasks update --due YYYY-MM-DD` set the day the Task should be done by.
+- `tasks create --due YYYY-MM-DD` and `tasks update --due YYYY-MM-DD` set the day the Task should be done by. `tasks get --json` returns it as `dueOn`, the parent as `parentTaskId`, and `archivedAt`.
 - Fix a wrong link with `tasks relink`. It deletes the link and creates the new one, because Core cannot reverse a link in place. If creation fails, the error prints the command that restores the old link. A leftover `parent` or `child` link cannot be recreated as a link, so for one the error gives no command.
 - `tasks list` reads every page unless `--limit` is set. `--sort updatedAt` or `--sort priority` always needs `--limit` (Core's cursor can skip or duplicate while the list drains). Filter by `--project-id`, `--assignee-user-id`, `--coworker-id`, `--status`, or `--search`.
 - Finish a Task with `COMPLETED` or `CANCELED`; it stays readable. `tasks archive` removes a duplicate or mistaken Task: after it, `tasks get`, `tasks events`, `tasks jobs`, and `tasks links` on that Task return `404`, so read what you need first. Core still lists it, with title, description, status, and archive time, in `GET /v1/history?types=task&status=archived`; the CLI has no command for that.
@@ -283,6 +296,7 @@ Over MCP, the vendor and developer tools are in the `vendors` and `developer` to
 
 ```bash
 sokosumi agents list --search "SPECIALTY" --json
+sokosumi agents input-schema AGENT_ID
 sokosumi agents hire AGENT_ID --input-file ./payload.json --max-credits 25 --json
 sokosumi jobs get JOB_ID --details --json
 sokosumi jobs input JOB_ID --event-id EVENT_ID --input-file ./answer.json --json
@@ -297,7 +311,7 @@ sokosumi jobs move JOB_ID --input-json '{"organizationId":null}'
 sokosumi jobs unshare JOB_ID
 ```
 
-`agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
+`agents input-schema AGENT_ID` prints the fields an agent takes without starting a Job; read it, and `agents get` for the price, before hiring. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
 

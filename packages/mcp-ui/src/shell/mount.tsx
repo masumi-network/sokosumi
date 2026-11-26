@@ -1,5 +1,6 @@
 import { App, type McpUiDisplayMode } from "@modelcontextprotocol/ext-apps";
 import { createRoot } from "react-dom/client";
+import { loadFont } from "./font.ts";
 import { Shell, type ShellProps } from "./Shell.tsx";
 import "./styles.css";
 import { applyHostTheme } from "./use-view-connection.ts";
@@ -20,6 +21,7 @@ export function mountView<T>(
   const container = document.getElementById("root");
   if (!container) throw new Error(`View ${id} has no #root element`);
   applyHostTheme({});
+  loadFont();
   const app = new App(
     { name: `sokosumi-${id}`, version: "1.0.0" },
     { availableDisplayModes: displayModes },

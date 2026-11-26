@@ -193,9 +193,18 @@ export const coworkerSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/logo" }),
-    metadata: z.preprocess(
-      (val) => (val === undefined ? null : val),
-      coworkerMetadataSchema.nullable(),
-    ),
+    metadata: z.preprocess((val) => {
+      if (val === undefined) return null;
+      // Older rows store metadata with only `profile` or `offers`.
+      if (
+        typeof val === "object" &&
+        val !== null &&
+        !Array.isArray(val) &&
+        (val as { channels?: unknown }).channels == null
+      ) {
+        return { ...val, channels: {} };
+      }
+      return val;
+    }, coworkerMetadataSchema.nullable()),
   })
   .openapi("Coworker");

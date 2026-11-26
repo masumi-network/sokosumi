@@ -24,10 +24,13 @@ export function SeoSiteBrand({
   model,
   report,
   metric,
+  loading = false,
 }: {
   model: SeoWorkspaceModel;
   report: SeoSiteTrafficReport;
   metric: "clicks" | "impressions";
+  /** The split of a new term list is on its way: the report has none yet. */
+  loading?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -108,11 +111,16 @@ export function SeoSiteBrand({
             </p>
           </>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p
+            className="text-muted-foreground text-sm"
+            role={loading ? "status" : undefined}
+          >
             {t(
-              terms.length
-                ? "siteTraffic.brandUnavailable"
-                : "siteTraffic.brandEmpty",
+              !terms.length
+                ? "siteTraffic.brandEmpty"
+                : loading
+                  ? "siteTraffic.brandLoading"
+                  : "siteTraffic.brandUnavailable",
             )}
           </p>
         )}

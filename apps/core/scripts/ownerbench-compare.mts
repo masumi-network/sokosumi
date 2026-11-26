@@ -46,7 +46,7 @@ const percent = (share: number | null) =>
   share === null ? "?" : `${Math.round(share * 100)}%`;
 
 function totalsLine(label: string, totals: VersionDelta["baseline"]) {
-  return `${label}: ${totals.passed} passed every repeat (pass^k), ${totals.incomplete} incomplete, pass^1 ${percent(totals.passRate)}, ${Number(totals.stepsPassed.toFixed(1))} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn`;
+  return `${label}: ${totals.passed} passed every repeat (pass^k), ${totals.incomplete} incomplete (${totals.standIn} stand-in Jev repeat(s) excluded), pass^1 ${percent(totals.passRate)}, ${Number(totals.stepsPassed.toFixed(1))} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn`;
 }
 
 function summary(delta: VersionDelta) {
@@ -90,6 +90,8 @@ if (sets.holdout) {
       ? "\nThe reports hold no held-out journeys: the bar cannot be met."
       : "\nNo --holdout file: the held-out set can't be checked and the bar is not met.",
   );
+if (sets.environmentProblem)
+  console.log(`\nNot comparable: ${sets.environmentProblem}.`);
 console.log(
   sets.meetsBar
     ? "\nBenchmark bar met on both sets."

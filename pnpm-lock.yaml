@@ -1070,6 +1070,9 @@ importers:
       happy-dom:
         specifier: 21.0.4
         version: 21.0.4(patch_hash=0304ee00e0a71180f28fba037c600e5b536cb2519b8ad09e353d08c0f99396ba)
+      lucide-react:
+        specifier: 1.80.0
+        version: 1.80.0(@types/react@19.3.3)(react@19.3.1)
       playwright:
         specifier: 1.65.1
         version: 1.65.1

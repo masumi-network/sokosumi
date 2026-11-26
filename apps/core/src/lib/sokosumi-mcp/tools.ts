@@ -1870,7 +1870,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "seo_audit_analyze",
     operation: "POST /seo/audits/{id}/analyses",
     description:
-      "Spends workspace credits. Request an SEO analysis of the audit's pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). Confirm the analysis and its price with the person first.",
+      'Spends workspace credits. Request an SEO analysis of the audit\'s pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). For `audit_full`, also send `body.fullAuditPrice` as `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}` (provider cost plus 50%, at least 750 credits; `body.fullAuditLimits.usd` bounds the provider cost; leave out `maxCredits`). Confirm the analysis and its price with the person first.',
     spendsCredits: true,
   },
   {
@@ -1895,7 +1895,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "seo_audit_create_monitor",
     operation: "POST /seo/audits/{id}/monitors",
     description:
-      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the audit's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_audit_analyze, with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
+      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the audit's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_audit_analyze (a full audit needs its `fullAuditPrice`), with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
     spendsCredits: true,
   },
   {
@@ -1995,7 +1995,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "seo_project_analyze",
     operation: "POST /projects/{id}/seo/analyses",
     description:
-      "Spends workspace credits. Request an SEO analysis of the Project's pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). Confirm the analysis and its price with the person first.",
+      'Spends workspace credits. Request an SEO analysis of the Project\'s pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). For `audit_full`, also send `body.fullAuditPrice` as `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}` (provider cost plus 50%, at least 750 credits; `body.fullAuditLimits.usd` bounds the provider cost; leave out `maxCredits`). Confirm the analysis and its price with the person first.',
     spendsCredits: true,
   },
   {
@@ -2020,7 +2020,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "seo_project_create_monitor",
     operation: "POST /projects/{id}/seo/monitors",
     description:
-      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the Project's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_project_analyze, with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
+      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the Project's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_project_analyze (a full audit needs its `fullAuditPrice`), with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
     spendsCredits: true,
   },
   {

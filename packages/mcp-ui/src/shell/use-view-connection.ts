@@ -2,7 +2,6 @@ import type { Transport } from "@modelcontextprotocol/client";
 import {
   type App,
   applyDocumentTheme,
-  applyHostStyleVariables,
   type McpUiHostContext,
   type McpUiTheme,
   type McpUiToolResultNotification,
@@ -60,10 +59,13 @@ export function systemTheme(): McpUiTheme {
     : "light";
 }
 
-/** The host's theme, else the system's, and any style variables it sends. */
+/**
+ * The host's theme, else the system's. Views keep Sokosumi's own colours and
+ * font in every host, so the host's style variables and fonts are ignored
+ * (ADR 0083, SOKD-475).
+ */
 export function applyHostTheme(host: McpUiHostContext): void {
   applyDocumentTheme(host.theme ?? systemTheme());
-  if (host.styles?.variables) applyHostStyleVariables(host.styles.variables);
 }
 
 /**

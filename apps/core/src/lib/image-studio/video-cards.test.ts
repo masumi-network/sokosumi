@@ -17,6 +17,7 @@ vi.mock("@/lib/ffmpeg", () => ({
 }));
 
 import {
+  CARD_PAGE_NAME_SHIM,
   cardColours,
   cardMayLoad,
   renderVideoCards,
@@ -88,6 +89,44 @@ describe("rendering cards past the deadline", () => {
     expectCoreLog("warn", "Could not draw a video's cards in time");
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(newPage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("fitting a card in a bundled Core", () => {
+  // tsx and tsup keep function names by wrapping them in `__name(...)`; the
+  // card page has no such helper, so every card failed under `pnpm dev`.
+  it("gives the page `__name` before it runs the fit", async () => {
+    const evaluated: unknown[] = [];
+    const page = {
+      setViewport: async () => undefined,
+      setRequestInterception: async () => undefined,
+      on: () => undefined,
+      setContent: async () => undefined,
+      evaluate: async (script: unknown) => {
+        evaluated.push(script);
+        return true;
+      },
+      screenshot: async () => new Uint8Array([1]),
+      close: async () => undefined,
+    };
+    withBrowser.mockImplementation(
+      (work: (browser: unknown) => Promise<unknown>) =>
+        work({ newPage: async () => page, close: async () => undefined }),
+    );
+
+    const pngs = await renderVideoCards(
+      [{ kind: "title", text: "One" }],
+      { colors: [], font: null },
+      "9:16",
+    );
+
+    expect(pngs).toEqual([new Uint8Array([1])]);
+    const shim = evaluated.indexOf(CARD_PAGE_NAME_SHIM);
+    const fit = evaluated.findIndex(
+      (script) => typeof script === "function" && script.name === "fitCard",
+    );
+    expect(shim).toBeGreaterThanOrEqual(0);
+    expect(shim).toBeLessThan(fit);
   });
 });
 

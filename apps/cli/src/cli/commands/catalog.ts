@@ -33,7 +33,16 @@ export const CLI_COMMAND_CATALOG = [
   { command: "evals list", usage: "[--limit N]" },
   { command: "evals cases", usage: "" },
   { command: "agents list", usage: "" },
-  { command: "agents hire", usage: "AGENT_ID" },
+  {
+    command: "agents input-schema",
+    usage: "AGENT_ID",
+    operation: "GET /agents/{id}/input-schema",
+  },
+  {
+    command: "agents hire",
+    usage:
+      "AGENT_ID --input-json JSON|--input-file FILE [--max-credits N] [--name NAME]",
+  },
   { command: "agents get", usage: "AGENT_ID", operation: "GET /agents/{id}" },
   {
     command: "agents jobs",
@@ -719,13 +728,19 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "workspaces calendar-labels",
-    usage: "WORKSPACE_ID --input-json JSON",
+    usage:
+      "WORKSPACE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
     operation: "POST /workspaces/{id}/calendar/identity-labels",
   },
   {
     command: "workspaces adhoc-design-md",
     usage: "--input-json JSON",
     operation: "POST /workspaces/design-md/adhoc",
+  },
+  {
+    command: "organizations list",
+    usage: "me",
+    operation: "GET /users/{id}/organizations",
   },
   {
     command: "organizations memberships",

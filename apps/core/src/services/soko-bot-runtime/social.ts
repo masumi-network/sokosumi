@@ -183,6 +183,7 @@ async function enforceSocialWriteAuthority(
     tainted,
     turnAuthority: resolved?.authority ?? null,
     scheduleAuthority: origin.scheduleAuthority,
+    watchAuthority: origin.watchAuthority,
   });
   if (!decision.allowed) {
     if (decision.kind === "tainted") {

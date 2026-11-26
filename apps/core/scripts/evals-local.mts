@@ -64,6 +64,9 @@ if (values.report) {
 }
 
 if (values.plan) process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+// Production routes with real Jev; the stand-in routes differently. Plan runs
+// ask real Jev through the .env key unless SOKO_BOT_PLAN_REAL_JEV=0.
+if (values.plan) process.env.SOKO_BOT_PLAN_REAL_JEV ??= "1";
 // `--plan` or the env flag alone: either way this is a plan run.
 const plan = ["1", "true"].includes(
   process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN ?? "",
@@ -142,6 +145,19 @@ const { runOutputLines } = await import(
   "@/services/evals/ownerbench/run-output"
 );
 for (const line of runOutputLines(results)) console.log(line);
+const { planJevMode, planJevStats } = await import("@/lib/plan-jev");
+if (planJevMode() !== null) {
+  const jev = planJevStats();
+  const byJev = new Map<string, number>();
+  for (const result of results) {
+    const label =
+      (result.output as { jev?: string | null } | null)?.jev ?? "unlabelled";
+    byJev.set(label, (byJev.get(label) ?? 0) + 1);
+  }
+  console.log(
+    `\nJev: ${jev.calls} real call(s), ${jev.failures} failed, $${jev.costUsd.toFixed(4)}; results by Jev: ${[...byJev].map(([label, count]) => `${label} ${count}`).join(", ")}${jev.standInWindows.length ? `; stand-in windows: ${jev.standInWindows.map((window) => `${window.from}–${window.to}`).join(", ")}` : ""}`,
+  );
+}
 console.log(
   values.holdout
     ? "\nThe run holds held-out journeys: share only ownerbench-compare's totals, never `sokosumi evals show` output."
