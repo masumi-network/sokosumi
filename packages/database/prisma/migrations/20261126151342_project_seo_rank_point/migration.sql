@@ -19,4 +19,7 @@ CREATE INDEX "project_seo_rank_point_key_observedAt_idx" ON "project_seo_rank_po
 CREATE UNIQUE INDEX "project_seo_rank_point_observationId_key_key" ON "project_seo_rank_point"("observationId", "key");
 
 -- AddForeignKey
+-- The foreign key also locks "project_seo_observation".
+SET lock_timeout = '5s';
 ALTER TABLE "project_seo_rank_point" ADD CONSTRAINT "project_seo_rank_point_observationId_fkey" FOREIGN KEY ("observationId") REFERENCES "project_seo_observation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+RESET lock_timeout;
