@@ -257,6 +257,20 @@ describe("withSokoBotChat", () => {
     ]);
   });
 
+  it("previews the bot's words, not Core's receipt above them", () => {
+    expect(
+      chat([
+        message("q1", "me", "Remind me on Mondays", "2026-11-17T11:50:00Z"),
+        answer(
+          "a1",
+          "q1",
+          "Configured schedule.\n\nYour reminder is set for every Monday.",
+          "2026-11-17T11:51:00Z",
+        ),
+      ])[0],
+    ).toMatchObject({ title: "Your reminder is set for every Monday." });
+  });
+
   it("names a finished answer with no text", () => {
     expect(
       chat([

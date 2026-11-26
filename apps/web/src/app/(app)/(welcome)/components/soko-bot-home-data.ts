@@ -7,7 +7,10 @@ import {
   SokoBotStatus,
   type TaskListItem,
 } from "@sokosumi/core-client";
-import { isSokoBotIntroduction } from "@sokosumi/soko-bot";
+import {
+  isSokoBotIntroduction,
+  withoutActionReceipts,
+} from "@sokosumi/soko-bot";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
@@ -272,7 +275,11 @@ export function withSokoBotChat(
     {
       roomId: botRoom.roomId,
       messageId: shown.id,
-      title: buildChatMessagePreview(shown.content) || reader.untitled,
+      // A reply previews the bot's words, not Core's receipts above them.
+      title:
+        buildChatMessagePreview(
+          reply ? withoutActionReceipts(reply.content) : shown.content,
+        ) || reader.untitled,
       from: reply ? reader.replied : reader.from,
       at: shown.createdAt,
     },
