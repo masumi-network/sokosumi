@@ -103,6 +103,7 @@ async function recordDoneChanges(
       WHERE s.kind = 'page_change'
         AND s.status IN ('done', 'verified')
         AND s."pageUrl" IS NOT NULL
+        AND s."pageUrl" <> ''
         AND s."doneAt" IS NOT NULL
         AND p."testCopyOfProjectId" IS NULL
         -- Eval projects are no customers. Skipped here, before LIMIT, so a
@@ -315,51 +316,65 @@ export async function syncSeoImpact(
   const recording = await recordDoneChanges(tick);
   result.recorded = recording.recorded;
   if (recording.stopped) return { ...result, stopped: true };
-  // PR 1b's audit rechecks wait by their own rule.
-  const waiting = await prisma.projectSeoImpactVerdict.findMany({
-    where: {
-      state: "waiting_crawl",
-      changeSource: "cuso_done",
-      OR: [
-        { lastInspectedAt: null },
-        {
-          lastInspectedAt: {
-            lt: new Date(now.getTime() - INSPECT_INTERVAL_MS),
-          },
-        },
-      ],
-    },
-    select: {
-      id: true,
-      projectId: true,
-      pageUrl: true,
-      changedAt: true,
-      createdAt: true,
-    },
-    orderBy: [
-      { lastInspectedAt: { sort: "asc", nulls: "first" } },
-      { id: "asc" },
-    ],
-    take: INSPECTIONS_PER_TICK,
-  });
   const lookups: TickLookups = { accounts: new Map(), properties: new Map() };
   const budgetMs = () => tick.msRemaining() - WRITE_RESERVE_MS;
-  for (const row of waiting) {
-    if (!tick.shouldContinue() || budgetMs() <= 0) {
-      result.stopped = true;
-      break;
+  // A project whose Search Console read failed waits for the next tick. Its
+  // pages leave the query, so they cannot fill a page and starve the others.
+  const deferredProjects = new Set<string>();
+  while (result.inspected < INSPECTIONS_PER_TICK) {
+    // PR 1b's audit rechecks wait by their own rule.
+    const waiting = await prisma.projectSeoImpactVerdict.findMany({
+      where: {
+        state: "waiting_crawl",
+        changeSource: "cuso_done",
+        projectId: { notIn: [...deferredProjects] },
+        OR: [
+          { lastInspectedAt: null },
+          {
+            lastInspectedAt: {
+              lt: new Date(now.getTime() - INSPECT_INTERVAL_MS),
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        projectId: true,
+        pageUrl: true,
+        changedAt: true,
+        createdAt: true,
+      },
+      orderBy: [
+        { lastInspectedAt: { sort: "asc", nulls: "first" } },
+        { id: "asc" },
+      ],
+      take: INSPECTIONS_PER_TICK - result.inspected,
+    });
+    if (waiting.length === 0) break;
+    // Each page leaves the query: an inspected row by its new inspection
+    // time or state, a deferred row with its project.
+    for (const row of waiting) {
+      if (deferredProjects.has(row.projectId)) continue;
+      if (!tick.shouldContinue() || budgetMs() <= 0) {
+        result.stopped = true;
+        return result;
+      }
+      const inspection = await inspectRow(row, lookups, budgetMs);
+      if (inspection === DEFERRED) {
+        if (budgetMs() <= 0) {
+          result.stopped = true;
+          return result;
+        }
+        deferredProjects.add(row.projectId);
+        continue;
+      }
+      result.inspected += 1;
+      if ("reason" in inspection && inspection.reason === "inspection_failed")
+        result.failed += 1;
+      const outcome = await applyInspection(row, inspection, now);
+      if (outcome === "crawled") result.crawled += 1;
+      if (outcome === "not_measurable") result.notMeasurable += 1;
     }
-    const inspection = await inspectRow(row, lookups, budgetMs);
-    if (inspection === DEFERRED) {
-      if (budgetMs() <= 0) result.stopped = true;
-      continue;
-    }
-    result.inspected += 1;
-    if ("reason" in inspection && inspection.reason === "inspection_failed")
-      result.failed += 1;
-    const outcome = await applyInspection(row, inspection, now);
-    if (outcome === "crawled") result.crawled += 1;
-    if (outcome === "not_measurable") result.notMeasurable += 1;
   }
   return result;
 }

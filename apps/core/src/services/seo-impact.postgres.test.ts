@@ -77,7 +77,8 @@ const userId = randomUUID(),
   evalOrganizationId = randomUUID(),
   evalWorkspaceId = randomUUID(),
   evalProjectId = randomUUID(),
-  evalCusoProjectId = randomUUID();
+  evalCusoProjectId = randomUUID(),
+  failingProjectId = randomUUID();
 const EVAL_LANE = 9_000_000 + Math.floor(Math.random() * 1_000_000);
 const env = getEnv();
 const previous = env.SEO_IMPACT_TRACKING_ENABLED;
@@ -107,7 +108,7 @@ async function doneChange(
 }
 
 /** Done page changes in one insert, ids in insert order. */
-async function doneChanges(project: string, count: number) {
+async function doneChanges(project: string, count: number, pageUrl?: string) {
   await prisma.projectSeoSuggestion.createMany({
     data: Array.from({ length: count }, (_, index) => ({
       projectId: project,
@@ -115,7 +116,7 @@ async function doneChanges(project: string, count: number) {
       key: `test:${randomUUID()}`,
       source: "cuso",
       title: `Change ${index}`,
-      pageUrl: `https://battery-sensei.app/page-${index}`,
+      pageUrl: pageUrl ?? `https://battery-sensei.app/page-${index}`,
       why: "Searchers look for the app by name.",
       body: "Put the app name first.",
       evidence: [],
@@ -185,7 +186,31 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
           name: "Eval lane Cuso",
           websiteUrl: "https://battery-sensei.app/",
         },
+        {
+          id: failingProjectId,
+          workspaceId,
+          name: "Cuso with a refused connection",
+          websiteUrl: "https://battery-sensei.app/",
+        },
       ],
+    });
+    const failingBot = await prisma.sokoBot.create({
+      data: {
+        workspaceId,
+        projectId: failingProjectId,
+        userId: null,
+        createdByUserId: userId,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        name: "Cuso",
+      },
+    });
+    await prisma.sokoBotIntegration.create({
+      data: {
+        sokoBotId: failingBot.id,
+        provider: "google_search_console",
+        composioAccountId: `ca_${randomUUID()}`,
+        status: "ACTIVE",
+      },
     });
     const bot = await prisma.sokoBot.create({
       data: {
@@ -228,7 +253,13 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     await prisma.projectSeoSuggestion.deleteMany({
       where: {
         projectId: {
-          in: [projectId, copyProjectId, evalProjectId, evalCusoProjectId],
+          in: [
+            projectId,
+            copyProjectId,
+            evalProjectId,
+            evalCusoProjectId,
+            failingProjectId,
+          ],
         },
       },
     });
@@ -319,16 +350,18 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
       .spyOn(prisma.projectSeoSuggestion, "findFirst")
       .mockImplementation(((args: Parameters<typeof read>[0]) => {
         const row = read(args);
-        arrived += 1;
-        if (arrived === 2) resolve();
         return (async () => {
           const value = await row;
+          // Counted once the read is done: both reads finish before a write.
+          arrived += 1;
+          if (arrived === 2) resolve();
           if (arrived <= 2) await bothRead;
           return value;
         })();
       }) as typeof read);
+    let answers: Awaited<ReturnType<typeof setCmoSeoSuggestionStatus>>[];
     try {
-      await Promise.all([
+      answers = await Promise.all([
         setCmoSeoSuggestionStatus(owner, id, "done", CHANGED_AT),
         setCmoSeoSuggestionStatus(
           owner,
@@ -343,6 +376,42 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     await setCmoSeoSuggestionStatus(owner, id, "done");
 
     expect(await rowsOf(id)).toHaveLength(1);
+    const stored = await prisma.projectSeoSuggestion.findUniqueOrThrow({
+      where: { id },
+    });
+    expect(answers).toEqual([
+      expect.objectContaining({ status: "done" }),
+      expect.objectContaining({ status: "done" }),
+    ]);
+    expect(stored.doneAt).toEqual(expect.any(Date));
+  });
+
+  it("reopens a change that the weekly check verified while the reopen ran", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    const owner = { userId, projectId };
+    // The check writes verified after the reopen read the done change.
+    const read = prisma.projectSeoSuggestion.findFirst;
+    const spy = vi
+      .spyOn(prisma.projectSeoSuggestion, "findFirst")
+      .mockImplementationOnce((async (args: Parameters<typeof read>[0]) => {
+        const row = await read(args);
+        await prisma.projectSeoSuggestion.update({
+          where: { id },
+          data: { status: "verified", verifiedAt: CHANGED_AT },
+        });
+        return row;
+      }) as typeof read);
+    try {
+      expect(await setCmoSeoSuggestionStatus(owner, id, "open")).toMatchObject({
+        status: "open",
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(
+      await prisma.projectSeoSuggestion.findUniqueOrThrow({ where: { id } }),
+    ).toMatchObject({ status: "open", doneAt: null, verifiedAt: null });
   });
 
   it("records no second change when done is sent for a verified change", async () => {
@@ -539,6 +608,38 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     await syncSeoImpact(tick);
 
     expect(await rowsOf(id)).toHaveLength(1);
+  });
+
+  it("skips changes with an empty page before they fill a batch", async () => {
+    await doneChanges(projectId, 201, "");
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    // Time for one batch only.
+    let batches = 0;
+    const tick = {
+      shouldContinue: () => batches++ < 1,
+      msRemaining: () => Number.POSITIVE_INFINITY,
+    };
+
+    await syncSeoImpact(tick);
+
+    expect(await rowsOf(id)).toHaveLength(1);
+  });
+
+  it("inspects the other accounts' pages when one account fails", async () => {
+    const { id } = await doneChange("https://battery-sensei.app/pricing");
+    await syncSeoImpact();
+    // The refused account's pages were never inspected, so they come first.
+    await doneChanges(failingProjectId, 501);
+    vi.mocked(propertyChoices).mockRejectedValueOnce(
+      new Error("Composio refused the read: 403"),
+    );
+    expectCoreLog("warn", "SEO impact tracking could not read Search Console.");
+    const later = new Date(Date.now() + 21 * HOUR_MS);
+
+    expect(await syncSeoImpact(undefined, later)).toMatchObject({
+      stopped: false,
+    });
+    expect(await rowsOf(id)).toMatchObject([{ lastInspectedAt: later }]);
   });
 
   it("defers an account's other pages when its property list fails", async () => {

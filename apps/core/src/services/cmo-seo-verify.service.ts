@@ -1,3 +1,4 @@
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -67,11 +68,15 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
       );
     }
     await updateSeoSuggestion({
-      where: { id: suggestion.id },
+      // Only the change it checked: an owner who reopened or redid it since
+      // keeps that write, and the next audit checks the new one.
+      where: { id: suggestion.id, status: "done", doneAt: suggestion.doneAt },
       data: {
         checkedAt: latest.observedAt,
         ...(fixed ? { status: "verified", verifiedAt: latest.observedAt } : {}),
       },
+    }).catch((error: unknown) => {
+      if (!isPrismaRecordNotFoundError(error)) throw error;
     });
   }
 }
