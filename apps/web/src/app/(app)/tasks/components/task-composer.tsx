@@ -377,11 +377,14 @@ export function TaskComposer({
             />
           ) : null}
         </div>
-        {hasJevTags ? (
-          <p className="text-muted-foreground mt-2 text-xs">
-            {tTags("appliedByJev")}
-          </p>
-        ) : null}
+        {/* Mounted before Jev answers, so screen readers hear the line appear. */}
+        <p
+          role="status"
+          aria-live="polite"
+          className={cn("text-muted-foreground text-xs", hasJevTags && "mt-2")}
+        >
+          {hasJevTags ? tTags("appliedByJev") : null}
+        </p>
         {blocksOtherPeople && labels.privateOtherPeopleHint ? (
           <p className="text-muted-foreground mt-2 text-xs">
             {labels.privateOtherPeopleHint}
