@@ -211,8 +211,22 @@ function job(id: string, inputSchema = null as string | null) {
     updatedAt: NOW,
     transaction: { amount: -30_000_000_000n },
     refundedTransactionId: null as string | null,
-    purchase: null as { onChainStatus: string | null } | null,
-    events: [{ status: "AWAITING_INPUT", inputSchema, createdAt: EARLIER }],
+    createdAt: EARLIER,
+    payByTime: null,
+    submitResultTime: null,
+    externalDisputeUnlockTime: null,
+    purchase: { onChainStatus: "FUNDS_LOCKED", nextAction: "NONE" } as {
+      onChainStatus: string | null;
+      nextAction: string;
+    } | null,
+    events: [
+      {
+        status: "AWAITING_INPUT",
+        input: null,
+        inputSchema,
+        createdAt: EARLIER,
+      },
+    ],
   };
 }
 
@@ -565,7 +579,7 @@ describe("ContextPacketBuilder", () => {
     );
     expect(result.packet.projects[0]?.status).toEqual({
       taskCounts: { COMPLETED: 1, RUNNING: 1 },
-      jobCounts: { AWAITING_INPUT: 1 },
+      jobCounts: { input_required: 1 },
       totalTasks: 2,
       totalJobs: 1,
       partial: false,
@@ -601,7 +615,7 @@ describe("ContextPacketBuilder", () => {
       },
     });
     expect(result.packet.jobs[0]).toMatchObject({
-      status: "AWAITING_INPUT",
+      status: "input_required",
       pendingInput: {
         required: true,
         schema: expect.stringContaining("brief"),
@@ -652,7 +666,10 @@ describe("ContextPacketBuilder", () => {
               { ...job("job-refunded"), refundedTransactionId: "tx-refund" },
               {
                 ...job("job-withdrawn"),
-                purchase: { onChainStatus: "REFUND_WITHDRAWN" },
+                purchase: {
+                  onChainStatus: "REFUND_WITHDRAWN",
+                  nextAction: "NONE",
+                },
               },
             ]
           : [],
@@ -663,8 +680,8 @@ describe("ContextPacketBuilder", () => {
       pendingInput: unknown;
     }[];
     expect(jobs.map((shown) => [shown.status, shown.pendingInput])).toEqual([
-      ["REFUNDED", null],
-      ["REFUNDED", null],
+      ["refund_resolved", null],
+      ["refund_resolved", null],
     ]);
   });
 

@@ -36,6 +36,7 @@ import {
   type ContextPacketReaderInput,
   contextPacketScope,
 } from "./context-packet-scope";
+import { SOKO_BOT_JOB_STATUS_SELECT, sokoBotJobStatus } from "./job-status";
 import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
@@ -112,10 +113,7 @@ interface ProjectStatusTask {
   status: string;
 }
 
-interface ProjectStatusJob {
-  projectId: string | null;
-  events: readonly { status: string }[];
-}
+type ProjectStatusJob = Parameters<typeof sokoBotJobStatus>[0];
 
 export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
@@ -150,34 +148,13 @@ const ENDED_ON_CHAIN_JOB_STATUSES = [
   "FUNDS_OR_DATUM_INVALID",
 ] as const;
 
-/** Refunded, or ended on chain: nothing more will happen on this Job. */
-function jobEnded(job: {
-  refundedTransactionId: string | null;
-  purchase: { onChainStatus: string | null } | null;
-}): boolean {
-  return (
-    job.refundedTransactionId !== null ||
-    (ENDED_ON_CHAIN_JOB_STATUSES as readonly (string | null)[]).includes(
-      job.purchase?.onChainStatus ?? null,
-    )
-  );
-}
-
 const PACKET_JOB_SELECT = {
-  refundedTransactionId: true,
-  purchase: { select: { onChainStatus: true } },
+  ...SOKO_BOT_JOB_STATUS_SELECT,
   id: true,
   name: true,
   agentId: true,
-  jobType: true,
-  projectId: true,
   updatedAt: true,
   transaction: { select: { amount: true } },
-  events: {
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 1,
-    select: { status: true, inputSchema: true, createdAt: true },
-  },
 } satisfies Prisma.JobSelect;
 
 /**
@@ -404,8 +381,7 @@ function projectStatus(
     .map((task) => task.status);
   const jobStatuses = jobs
     .filter((job) => job.projectId === projectId)
-    .map((job) => job.events[0]?.status)
-    .filter((status): status is string => Boolean(status));
+    .map((job) => sokoBotJobStatus(job).status);
 
   return {
     taskCounts: countStatuses(taskStatuses),
@@ -1238,23 +1214,19 @@ export class ContextPacketBuilder {
         trust: "untrusted-data",
       })),
       jobs: jobs.map((job) => {
-        const latestEvent = job.events[0];
+        const { status, inputSchema } = sokoBotJobStatus(job);
         return {
           id: boundedIdentifier(job.id),
           name: sanitizeText(job.name, TEXT_LIMITS.name),
           agentId: boundedIdentifier(job.agentId),
           jobType: job.jobType,
           projectId: boundedIdentifier(job.projectId),
-          // A refund or an ended payment overrides whatever the Agent said last.
-          status: jobEnded(job) ? "REFUNDED" : (latestEvent?.status ?? null),
+          status,
           pendingInput:
-            !jobEnded(job) && latestEvent?.status === "AWAITING_INPUT"
+            status === "input_required"
               ? {
                   required: true,
-                  schema: sanitizeText(
-                    latestEvent.inputSchema,
-                    TEXT_LIMITS.inputSchema,
-                  ),
+                  schema: sanitizeText(inputSchema, TEXT_LIMITS.inputSchema),
                 }
               : null,
           spentCredits: job.transaction

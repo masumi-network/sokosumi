@@ -7,6 +7,10 @@ import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
 import { contextPacketScope } from "@/lib/soko-bot/context-packet-scope";
 import {
+  SOKO_BOT_JOB_STATUS_SELECT,
+  sokoBotJobStatus,
+} from "@/lib/soko-bot/job-status";
+import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
@@ -266,15 +270,10 @@ export async function readContext(
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {
+      ...SOKO_BOT_JOB_STATUS_SELECT,
       id: true,
       name: true,
-      projectId: true,
       updatedAt: true,
-      events: {
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: 1,
-        select: { status: true },
-      },
     },
   });
   const { items, next } = page(
@@ -283,7 +282,8 @@ export async function readContext(
     (job) => ({
       id: job.id,
       name: excerpt(job.name, 160, words),
-      status: job.events[0]?.status ?? null,
+      // The status Core shows everywhere, as in the packet.
+      status: sokoBotJobStatus(job).status,
       projectId: job.projectId,
       updatedAt: job.updatedAt.toISOString(),
     }),
