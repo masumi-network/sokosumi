@@ -135,20 +135,21 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await dialog.getByRole("button", { name: "Close" }).click();
       if (openedSidebar) {
         await page.getByRole("button", { name: "Hide sidebar" }).click();
-        // Shoot only once the sidebar has finished sliding away.
-        const closed = page.locator(
-          '[data-slot="sidebar"][data-state="collapsed"]',
-        );
-        await closed.waitFor({ state: "attached" });
-        // Transitions only: the presence dot's endless pulse never finishes.
-        await closed.evaluate((el) =>
-          Promise.all(
-            el
+        // Shoot only once the sidebar has finished sliding away. Bounded by
+        // the default timeout; transitions only, the presence pulse never ends.
+        await page.waitForFunction(() => {
+          const el = document.querySelector(
+            '[data-slot="sidebar"][data-state="collapsed"]',
+          );
+          return (
+            el !== null &&
+            !el
               .getAnimations({ subtree: true })
-              .filter((a) => a instanceof CSSTransition)
-              .map((a) => a.finished),
-          ),
-        );
+              .some(
+                (a) => a instanceof CSSTransition && a.playState === "running",
+              )
+          );
+        });
       }
 
       // The board card names it Unassigned, with an outline, not "?".
