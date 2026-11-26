@@ -593,6 +593,8 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotDelegation: {
       create: delegationCreateMock,
       findUnique: delegationFindUniqueMock,
+      // No follow-up waits on the work these tests read.
+      findFirst: async () => null,
       update: delegationUpdateMock,
       updateMany: delegationUpdateManyMock,
     },
