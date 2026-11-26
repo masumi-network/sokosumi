@@ -144,6 +144,7 @@ src/services/social-post-restore.postgres.test.ts 19  # trigger body
 src/services/soko-bot-archive.postgres.test.ts 19  # trigger body
 src/services/soko-bot-conversation.postgres.test.ts 19  # trigger body
 src/services/soko-bot-fleet-days.postgres.test.ts 19  # trigger body
+src/services/soko-bot-follow-up-media.postgres.test.ts 19  # trigger body
 src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reads Transaction
 src/services/soko-bot-integrations.service.postgres.test.ts 19  # trigger body
 src/services/soko-bot-lease-clock.postgres.test.ts 19  # trigger body
