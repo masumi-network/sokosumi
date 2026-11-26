@@ -525,69 +525,164 @@ describe("scoring what the bot did, not how", () => {
     expect(noFailures("workspace-data-work", featureOff)).toBe(false);
   });
 
-  it("accepts the saved file only where the record shows what was saved", () => {
+  it("needs the scenario's refusal to happen, not just be allowed", () => {
+    const refusal = (calls: SokoBotLabTurn["toolCalls"]) =>
+      check(
+        "fundraising-pipeline-off",
+        { toolCalls: calls },
+        /Meets the refusal/,
+      )?.pass;
+    expect(
+      refusal([
+        {
+          ...call("fundraising_pipeline"),
+          status: "FAILED",
+          errorKind: SOKO_BOT_FEATURE_OFF,
+        },
+      ]),
+    ).toBe(true);
+    // The feature answered: what the scenario sets up never happened.
+    expect(refusal([call("fundraising_pipeline")])).toBe(false);
+    expect(
+      refusal([
+        {
+          ...call("fundraising_pipeline"),
+          status: "FAILED",
+          errorKind: SOKO_BOT_TOOL_REFUSED,
+        },
+      ]),
+    ).toBe(false);
+    // A scenario without one has no such check.
+    expect(
+      check("workspace-data-work", { toolCalls: [] }, /Meets the refusal/),
+    ).toBeUndefined();
+  });
+
+  describe("the saved file is its final content, row by row", () => {
     const rows =
-      "Company,Amount\nAcme,12000\nBeta,8000\nGamma,20000\nDelta,5000\nEpsilon,15000\n";
-    const saved = (
+      "Company,Amount,Status\nAcme,12000,won\nBeta,8000,lost\nGamma,20000,open\nDelta,5000,won\nEpsilon,15000,open\n";
+    const saves = (...calls: SokoBotLabTurn["toolCalls"]) =>
+      check("workspace-data-work", { toolCalls: calls }, /Saves pipeline\.csv/)
+        ?.pass;
+    const withInput = (
       capability: string,
       input: unknown,
       result: unknown = null,
-    ) =>
-      check(
-        "workspace-data-work",
-        { toolCalls: [{ ...call(capability, result), input }] },
-        /Saves pipeline\.csv/,
-      )?.pass;
-    expect(
-      saved(
-        "upload_file",
-        { filename: "pipeline.csv", content: rows },
-        { filename: "pipeline.csv" },
-      ),
-    ).toBe(true);
-    expect(
-      saved("workspace_write", { path: "work/pipeline.csv", content: rows }),
-    ).toBe(true);
-    // The name is the one the file was saved under.
-    expect(
-      saved(
-        "upload_file",
-        { filename: "pipeline.csv", content: rows },
-        { filename: "pipeline (2).csv" },
-      ),
-    ).toBe(false);
-    // A command line shows neither a file nor its contents.
-    expect(
-      saved("bash", {
-        command: 'echo "pipeline.csv Acme 12000 Beta Gamma Delta Epsilon"',
-      }),
-    ).toBe(false);
-    expect(
-      saved("upload_file", {
-        filename: "pipeline.csv",
-        workspacePath: "pipeline.csv",
-      }),
-    ).toBe(false);
-    expect(
-      saved("upload_file", {
-        filename: "pipeline.csv",
-        content: "Acme,12000\n",
-      }),
-    ).toBe(false);
-    expect(
-      check(
-        "workspace-data-work",
-        {
-          toolCalls: [
+    ) => ({ ...call(capability, result), input });
+    const write = (content: string) =>
+      withInput("workspace_write", { path: "work/pipeline.csv", content });
+
+    it("accepts a write or an upload of the whole table", () => {
+      expect(saves(write(rows))).toBe(true);
+      expect(
+        saves(
+          withInput(
+            "upload_file",
+            { filename: "pipeline.csv", content: rows },
+            { filename: "pipeline.csv" },
+          ),
+        ),
+      ).toBe(true);
+      // Saved under another name is not this file.
+      expect(
+        saves(
+          withInput(
+            "upload_file",
+            { filename: "pipeline.csv", content: rows },
+            { filename: "pipeline (2).csv" },
+          ),
+        ),
+      ).toBe(false);
+      expect(saves({ ...write(rows), status: "FAILED" })).toBe(false);
+    });
+
+    it("needs each company with its amount and status on one line", () => {
+      expect(
+        saves(write("pipeline.csv Acme Beta Gamma Delta Epsilon 12000")),
+      ).toBe(false);
+      expect(
+        saves(write(rows.replace("Gamma,20000,open", "Gamma,20000,won"))),
+      ).toBe(false);
+      // An echo of the names is no file at all.
+      expect(
+        saves(
+          withInput("bash", {
+            command: 'echo "pipeline.csv Acme 12000 Beta Gamma Delta Epsilon"',
+          }),
+        ),
+      ).toBe(false);
+    });
+
+    it("takes the last write, so an overwrite counts", () => {
+      expect(saves(write(rows), write("Acme,12000,won\n"))).toBe(false);
+      expect(saves(write("Acme,12000,won\n"), write(rows))).toBe(true);
+    });
+
+    it("accepts a script-written file once it is read back", () => {
+      const script = withInput(
+        "bash",
+        { command: "python3 make_pipeline.py > pipeline.csv" },
+        { exitCode: 0, stdout: "", stderr: "" },
+      );
+      // Written out of sight: unknown until read.
+      expect(saves(script)).toBe(false);
+      expect(saves(write(rows), script)).toBe(false);
+      expect(
+        saves(
+          script,
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv" },
+            { path: "pipeline.csv", content: rows, totalChars: rows.length },
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        saves(
+          script,
+          withInput(
+            "bash",
+            { command: "cat pipeline.csv" },
+            { exitCode: 0, stdout: rows, stderr: "" },
+          ),
+        ),
+      ).toBe(true);
+      // Written by Python or Node out of sight, until it prints the rows.
+      expect(
+        saves(
+          withInput("bash", {
+            command: "node -e \"fs.writeFileSync('pipeline.csv', data)\"",
+          }),
+        ),
+      ).toBe(false);
+      expect(
+        saves(
+          withInput(
+            "bash",
             {
-              ...call("upload_file"),
-              status: "FAILED",
-              input: { filename: "pipeline.csv", content: rows },
+              command:
+                "python3 -c \"open('pipeline.csv', 'w').write(data); print(open('pipeline.csv').read())\"",
             },
-          ],
-        },
-        /Saves pipeline\.csv/,
-      )?.pass,
-    ).toBe(false);
+            { exitCode: 0, stdout: rows, stderr: "" },
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it("keeps a written file when a script only reads it", () => {
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "bash",
+            {
+              command:
+                "python3 -c \"import csv; print(list(csv.reader(open('pipeline.csv'))))\"",
+            },
+            { exitCode: 0, stdout: "won 17000 open 35000", stderr: "" },
+          ),
+        ),
+      ).toBe(true);
+    });
   });
 });

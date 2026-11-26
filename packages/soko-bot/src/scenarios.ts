@@ -156,14 +156,15 @@ export interface SokoBotScenario {
      */
     allowFailedTools?: string[];
     /**
-     * A file the bot must save, by any call whose record shows what was saved
-     * (workspace_write, or upload_file with content): its name and every
-     * listed piece of content.
+     * A file the bot must leave saved: its final content, as the last record
+     * of it shows (a write, an upload with content, or a readback), has one
+     * line holding every field of each listed row.
      */
-    savesFile?: { name: string; contains: string[] };
+    savesFile?: { name: string; rows: string[][] };
     /**
      * Refusals the scenario sets up, by tool and the refusal's kind (such as
-     * SOKO_BOT_FEATURE_OFF): an outcome, not a failure. Any other refusal or
+     * SOKO_BOT_FEATURE_OFF): an outcome, not a failure, and one of them must
+     * happen, or the case never met what it sets up. Any other refusal or
      * error still fails the case.
      */
     expectedRefusals?: Record<string, string>;
@@ -221,45 +222,83 @@ export const SOKO_BOT_FEATURE_OFF = "feature_off";
 
 const asText = (value: unknown) => (typeof value === "string" ? value : "");
 
-/** The calls a savesFile check can read a file from. */
-export const SAVES_FILE_TOOLS = ["workspace_write", "upload_file"];
+/** The calls a savesFile check reads a file's content from. */
+export const SAVES_FILE_TOOLS = [
+  "workspace_write",
+  "upload_file",
+  "workspace_read",
+  "bash",
+];
 
-/**
- * The name and contents of what a completed call saved, when its record
- * shows them: workspace_write wrote its content at its path, and upload_file
- * stored its content under the name its result reports. A command line or an
- * upload of a workspace file shows neither, so it proves nothing.
- */
-function savedContent(
-  call: SokoBotLabTurn["toolCalls"][number],
-): { name: string; content: string } | null {
-  if (call.status !== "COMPLETED") return null;
-  const input = (call.input ?? {}) as Record<string, unknown>;
-  if (call.capability === "workspace_write")
-    return { name: asText(input.path), content: asText(input.content) };
-  if (call.capability !== "upload_file" || !asText(input.content)) return null;
-  const result = (call.result ?? {}) as Record<string, unknown>;
-  return {
-    name: asText(result.filename) || asText(input.filename),
-    content: asText(input.content),
-  };
+const basename = (path: string) => path.split("/").at(-1) ?? "";
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Every row has a line holding all of its fields. */
+function hasRows(content: string, rows: string[][]): boolean {
+  const lines = content.toLowerCase().split("\n");
+  return rows.every((row) =>
+    lines.some((line) =>
+      row.every((field) => line.includes(field.toLowerCase())),
+    ),
+  );
 }
 
-/** A completed call that saved this file with all of this content. */
+/**
+ * What one completed call shows about the file: its content (written,
+ * uploaded or read back), `null` when the call rewrote it out of sight (a
+ * shell redirect or script writing it), or `undefined` when it says nothing.
+ */
+function seenContent(
+  call: SokoBotLabTurn["toolCalls"][number],
+  name: string,
+  rows: string[][],
+): string | null | undefined {
+  if (call.status !== "COMPLETED") return undefined;
+  const input = (call.input ?? {}) as Record<string, unknown>;
+  const result = (call.result ?? {}) as Record<string, unknown>;
+  switch (call.capability) {
+    case "workspace_write":
+      return basename(asText(input.path)) === name
+        ? asText(input.content)
+        : undefined;
+    case "upload_file":
+      return asText(input.content) &&
+        basename(asText(result.filename) || asText(input.filename)) === name
+        ? asText(input.content)
+        : undefined;
+    case "workspace_read":
+      return basename(asText(input.path)) === name && !input.offset
+        ? asText(result.content)
+        : undefined;
+    case "bash": {
+      const command = asText(input.command);
+      if (!command.includes(name)) return undefined;
+      const stdout = asText(result.stdout);
+      // Printing the rows reads the file back, whatever wrote it.
+      if (hasRows(stdout, rows)) return stdout;
+      const file = escapeRegExp(name);
+      const writes = new RegExp(
+        `(>>?|\\btee\\b[^|;&]*)\\s*["']?[^\\s"';|&]*${file}|${file}["']?\\s*,\\s*["'][wa]|writeFile\\w*\\(\\s*["'][^"']*${file}`,
+      );
+      return writes.test(command) ? null : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+/** The file as the last call that showed or changed it left it, and which call. */
 function savedFile(
   calls: SokoBotLabTurn["toolCalls"],
-  file: { name: string; contains: string[] },
-): string | null {
+  file: { name: string; rows: string[][] },
+): { by: string; content: string | null } | null {
+  let last: { by: string; content: string | null } | null = null;
   for (const call of calls) {
-    const saved = savedContent(call);
-    if (
-      saved &&
-      saved.name.split("/").at(-1) === file.name &&
-      file.contains.every((piece) => saved.content.includes(piece))
-    )
-      return call.capability;
+    const content = seenContent(call, file.name, file.rows);
+    if (content !== undefined) last = { by: call.capability, content };
   }
-  return null;
+  return last;
 }
 
 export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
@@ -957,7 +996,13 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK"],
       savesFile: {
         name: "pipeline.csv",
-        contains: ["Acme", "12000", "Beta", "Gamma", "Delta", "Epsilon"],
+        rows: [
+          ["Acme", "12000", "won"],
+          ["Beta", "8000", "lost"],
+          ["Gamma", "20000", "open"],
+          ["Delta", "5000", "won"],
+          ["Epsilon", "15000", "open"],
+        ],
       },
       forbiddenTools: ["create_task", "hire_agent"],
       noDelegations: true,
@@ -2679,11 +2724,34 @@ export function evaluateScenario(
     });
   }
   if (expect.savesFile) {
-    const by = savedFile(turn.toolCalls, expect.savesFile);
+    const saved = savedFile(turn.toolCalls, expect.savesFile);
+    const complete =
+      saved?.content != null && hasRows(saved.content, expect.savesFile.rows);
     checks.push({
-      label: `Saves ${expect.savesFile.name} with its contents`,
-      pass: by !== null,
-      actual: by ? `saved with ${by}` : "no completed call wrote it",
+      label: `Saves ${expect.savesFile.name} with every row`,
+      pass: complete,
+      actual: !saved
+        ? "no completed call wrote or read it"
+        : saved.content === null
+          ? `last rewritten by ${saved.by} with no readback`
+          : complete
+            ? `final content from ${saved.by}`
+            : `final content from ${saved.by} is missing rows`,
+    });
+  }
+  if (expect.expectedRefusals) {
+    const refused = turn.toolCalls.filter(
+      (call) =>
+        call.status === "FAILED" &&
+        call.errorKind != null &&
+        expect.expectedRefusals?.[call.capability] === call.errorKind,
+    );
+    checks.push({
+      label: "Meets the refusal the scenario sets up",
+      pass: refused.length > 0,
+      actual: refused.length
+        ? list(refused.map((call) => call.capability))
+        : "no matching refusal",
     });
   }
   for (const [tool, least] of Object.entries(expect.minCalls ?? {})) {
