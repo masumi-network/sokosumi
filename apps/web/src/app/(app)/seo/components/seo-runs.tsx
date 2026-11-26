@@ -454,6 +454,7 @@ export function SeoRuns({
                 : report("runs.sinceStart")
         }
         nodes={details?.nodes ?? []}
+        checkId={days.find((entry) => entry.day === detailsDay)?.check}
         onClose={() => setDetailsOpen(false)}
         onCloseAutoFocus={(event) => {
           // The dialog has no trigger: without a button to go back to, focus goes to the newest stop.

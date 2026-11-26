@@ -228,6 +228,7 @@ export function SeoRunDayDialog({
   title,
   description,
   nodes,
+  checkId,
   onClose,
   onCloseAutoFocus,
 }: {
@@ -238,13 +239,15 @@ export function SeoRunDayDialog({
   /** What the stop holds: since when, or up to when. */
   description: string;
   nodes: SeoStopNode[];
+  /** The check the stop counts its issues from. A stop without one compares its newest check. */
+  checkId?: string | null;
   onClose: () => void;
   /** Where focus goes when the dialog closes: it has no trigger of its own to go back to. */
   onCloseAutoFocus?: (event: Event) => void;
 }) {
   const diff = seoRunDiffOf(
     workspace,
-    seoStopDigest(nodes).newestCheck?.observation?.id,
+    checkId ?? seoStopDigest(nodes).newestCheck?.observation?.id,
   );
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>

@@ -34,12 +34,12 @@ export const seoRunDiffSchema = z
     fixedCount: count,
     stillOpen: issues,
     stillOpenCount: count,
-    /** Issues of the earlier check that the later check did not read again. They are not fixed. */
+    /** Issues of the earlier check whose rule the later check did not read again on every device. They are not fixed. */
     notCheckedAgain: count,
     /** Issues of the later check whose rule the earlier check did not read. They are not new. */
     notCheckedBefore: count,
     numbers: z.object({
-      /** The issue count of each check, as the runs row shows it. */
+      /** The issues of each check that this comparison reads: the lists and the two counts add up to them. Null where not comparable. */
       issues: z.object({ from: issueCount, to: issueCount }),
       /** Position moves beyond the noise band on the selected pages, drops first. */
       moves: z

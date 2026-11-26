@@ -59,7 +59,7 @@ export function SeoRunDiff({
             >
               {list.items.map((item) => (
                 <li
-                  key={`${item.pageUrl}|${item.rowId}`}
+                  key={JSON.stringify([item.pageUrl, item.rowId])}
                   className="flex flex-wrap items-baseline gap-x-2"
                 >
                   <span className="min-w-0 break-words">{item.title}</span>
@@ -91,7 +91,11 @@ export function SeoRunDiff({
             >
               {view.moves.map((move) => (
                 <li
-                  key={`${move.pageUrl}|${move.keyword}|${move.device ?? ""}`}
+                  key={JSON.stringify([
+                    move.pageUrl,
+                    move.keyword,
+                    move.device,
+                  ])}
                   className={cn(
                     "break-words",
                     move.to > move.from && "text-status-destructive",

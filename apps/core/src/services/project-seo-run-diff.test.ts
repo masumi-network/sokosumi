@@ -52,12 +52,20 @@ function failed(row: Row, severity: "critical" | "major" | "note" = "major") {
     },
   };
 }
+/** A finding whose checklist row the check did not store. */
+const findingOnly = (row: Row) => ({ finding: failed(row).finding });
 function result(
-  rows: Array<ReturnType<typeof failed> | ReturnType<typeof check>>,
+  rows: Array<
+    | ReturnType<typeof failed>
+    | ReturnType<typeof findingOnly>
+    | ReturnType<typeof check>
+  >,
   patch: Partial<PublicSeoPayload> = {},
 ) {
   return payload({
-    checks: rows.map((row) => ("check" in row ? row.check : row)),
+    checks: rows.flatMap((row) =>
+      "check" in row ? [row.check] : "finding" in row ? [] : [row],
+    ),
     findings: rows.flatMap((row) => ("finding" in row ? [row.finding] : [])),
     ...patch,
   });
@@ -78,10 +86,7 @@ function source(
 }
 /** The diff of the newest check. Checks come newest first, as the projection reads them. */
 function diffOf(sources: SeoRunDiffSource[], pageIds = ["page-1"]) {
-  const runs = sources.map((item) => ({
-    observationId: item.id,
-    issues: item.payload.findings.length,
-  }));
+  const runs = sources.map((item) => ({ observationId: item.id }));
   return withSeoRunDiffs(runs, {
     sources,
     selectedIds: new Set(pageIds),
@@ -184,6 +189,9 @@ describe("withSeoRunDiffs", () => {
         result([
           check("not_checked", { rowId: "B" }),
           check("pass", { rowId: "D", device: "desktop" }),
+          check("pass", { rowId: "E", device: "desktop" }),
+          check("pass", { rowId: "F", device: "mobile" }),
+          check("fired", { rowId: "F", device: "desktop" }),
         ]),
       ),
       source(
@@ -192,16 +200,43 @@ describe("withSeoRunDiffs", () => {
           failed({ rowId: "A" }),
           failed({ rowId: "B" }),
           failed({ rowId: "D", device: "mobile" }),
+          findingOnly({ rowId: "E", device: "mobile" }),
+          failed({ rowId: "F", device: "mobile" }),
         ]),
       ),
     ]);
-    // A is absent, B was not checked, D passed only on the device that never failed.
+    // A is absent, B was not checked, D and E passed only on the device that never failed, and F fired on another
+    // device with no finding to say how bad it is.
     expect(diff).toMatchObject({
       comparable: true,
       fixed: [],
       fixedCount: 0,
-      notCheckedAgain: 3,
+      notCheckedAgain: 5,
+      numbers: { issues: { from: 5, to: 0 } },
     });
+  });
+
+  it("counts an issue as fixed when the later check read its rule again and left a note only", () => {
+    const diff = diffOf([
+      source(
+        8,
+        result([
+          failed({ rowId: "A" }, "note"),
+          failed({ rowId: "B", device: "mobile" }, "note"),
+        ]),
+      ),
+      source(
+        1,
+        result([
+          failed({ rowId: "A" }),
+          failed({ rowId: "B", device: "mobile" }),
+          failed({ rowId: "B", device: "desktop" }),
+        ]),
+      ),
+    ]);
+    // A was read again on its device. B was read again on mobile only, so its desktop failure is not known fixed.
+    expect(rows(diff?.fixed ?? [])).toEqual(["A"]);
+    expect(diff).toMatchObject({ fixedCount: 1, notCheckedAgain: 1 });
   });
 
   it("does not count an issue as new when the earlier check did not read its rule", () => {

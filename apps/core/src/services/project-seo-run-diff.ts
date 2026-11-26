@@ -39,13 +39,38 @@ const issueKey = (
   row: { pageUrl: string; rowId: string },
 ) => issueIdentity(payload, { ...row, device: null });
 
+type Devices = Map<string, Set<string | null>>;
+const addDevice = (devices: Devices, key: string, device: string | null) =>
+  devices.set(key, (devices.get(key) ?? new Set()).add(device));
+
+const stateCache = new WeakMap<
+  Selected,
+  WeakMap<PublicSeoPayload, ReturnType<typeof readIssueStates>>
+>();
+/** The states of one check, read once for each selection: a check is compared with its neighbour on both sides. */
 function issueStates(payload: PublicSeoPayload, selected: Selected) {
+  const cache = stateCache.get(selected) ?? new WeakMap();
+  stateCache.set(selected, cache);
+  const states = cache.get(payload) ?? readIssueStates(payload, selected);
+  cache.set(payload, states);
+  return states;
+}
+
+function readIssueStates(payload: PublicSeoPayload, selected: Selected) {
   const open = new Map<string, Issue>();
+  // Devices a rule failed on, read from findings too: a finding can come without its checklist row.
+  const failed: Devices = new Map(),
+    // Devices where the rule fired with a note only: the check read the rule, and the issue is no longer open.
+    noted: Devices = new Map();
   for (const finding of payload.findings) {
-    if (!SEO_ISSUE_SEVERITIES.has(finding.severity)) continue;
     if (!selected(finding.pageUrl)) continue;
-    const severity = finding.severity as Issue["severity"];
     const key = issueKey(payload, finding);
+    if (!SEO_ISSUE_SEVERITIES.has(finding.severity)) {
+      addDevice(noted, key, finding.device);
+      continue;
+    }
+    addDevice(failed, key, finding.device);
+    const severity = finding.severity as Issue["severity"];
     const known = open.get(key);
     open.set(
       key,
@@ -68,15 +93,15 @@ function issueStates(payload: PublicSeoPayload, selected: Selected) {
           },
     );
   }
-  const passed = new Map<string, Set<string>>(),
-    fired = new Map<string, Set<string>>();
+  const passed: Devices = new Map(),
+    fired: Devices = new Map();
   for (const check of seoCheckResults(payload).values()) {
     if (!selected(check.pageUrl)) continue;
-    const devices = check.result === "pass" ? passed : fired;
     const key = issueKey(payload, check);
-    devices.set(key, (devices.get(key) ?? new Set()).add(check.device));
+    addDevice(check.result === "pass" ? passed : fired, key, check.device);
+    if (check.result === "fired") addDevice(failed, key, check.device);
   }
-  return { open, passed, fired };
+  return { open, passed, fired, failed, noted };
 }
 
 const bySeverity = (a: Issue, b: Issue) =>
@@ -84,13 +109,17 @@ const bySeverity = (a: Issue, b: Issue) =>
 
 /**
  * What the later check changed against the earlier one, per issue of the selected pages. An issue is new only where
- * the earlier check passed its rule, and fixed only where the later check passed it on every device it failed on.
+ * the earlier check passed its rule, and fixed only where the later check read it on every device it failed on and
+ * found no issue: a pass, or a note alone.
  */
 export function compareSeoRuns(
   previous: Pick<SeoRunDiffSource, "observedAt" | "payload">,
   latest: Pick<SeoRunDiffSource, "observedAt" | "payload">,
   selected: Selected,
-): Omit<SeoRunDiff, "numbers"> & { moves: SeoRunDiff["numbers"]["moves"] } {
+): Omit<SeoRunDiff, "numbers"> & {
+  issues: SeoRunDiff["numbers"]["issues"];
+  moves: SeoRunDiff["numbers"]["moves"];
+} {
   const reason = seoRunMismatch(previous.payload, latest.payload);
   const before = issueStates(previous.payload, selected),
     after = issueStates(latest.payload, selected);
@@ -107,11 +136,16 @@ export function compareSeoRuns(
     }
     for (const [key, issue] of before.open) {
       if (after.open.has(key)) continue;
-      const passed = after.passed.get(key);
+      const noted = after.noted.get(key);
+      const read = new Set([
+        ...(after.passed.get(key) ?? []),
+        ...(noted ?? []),
+      ]);
       if (
-        passed &&
-        !after.fired.has(key) &&
-        [...(before.fired.get(key) ?? [])].every((device) => passed.has(device))
+        [...(before.failed.get(key) ?? [])].every((device) =>
+          read.has(device),
+        ) &&
+        [...(after.fired.get(key) ?? [])].every((device) => noted?.has(device))
       )
         fixed.push(issue);
       else notCheckedAgain += 1;
@@ -137,6 +171,10 @@ export function compareSeoRuns(
     stillOpenCount: stillOpen.length,
     notCheckedAgain,
     notCheckedBefore,
+    // The issues this comparison reads, so the two totals always add up to its lists.
+    issues: reason
+      ? { from: null, to: null }
+      : { from: before.open.size, to: after.open.size },
     moves,
   };
 }
@@ -168,6 +206,7 @@ function seoRunDiffOf(
         ...compareSeoRuns(earlier[0], run, () => false),
         comparable: false,
         reason: "pages" as const,
+        issues: { from: null, to: null },
         moves: [],
       },
     };
@@ -179,9 +218,7 @@ function seoRunDiffOf(
 }
 
 /** Each check with what it changed against the earlier comparable check. The first check of a kind has none. */
-export function withSeoRunDiffs<
-  T extends { observationId: string; issues: number | null },
->(
+export function withSeoRunDiffs<T extends { observationId: string }>(
   runs: T[],
   {
     sources,
@@ -194,21 +231,17 @@ export function withSeoRunDiffs<
   },
 ): Array<T & { runDiff?: SeoRunDiff }> {
   const selected: Selected = (url) => selectedUrls.has(normalizeSeoUrl(url));
-  const issuesOf = new Map(runs.map((run) => [run.observationId, run.issues]));
   return runs.map((run) => {
     const source = sources.find((item) => item.id === run.observationId);
     const pair = source && seoRunDiffOf(source, sources, selectedIds, selected);
     if (!pair) return run;
-    const { moves, ...lists } = pair.diff;
+    const { moves, issues, ...lists } = pair.diff;
     return {
       ...run,
       runDiff: {
         ...lists,
         numbers: {
-          issues: {
-            from: issuesOf.get(pair.previous.id) ?? null,
-            to: run.issues,
-          },
+          issues,
           moves: moves.slice(0, SEO_RUN_DIFF_ITEMS),
           moveCount: moves.length,
         },
