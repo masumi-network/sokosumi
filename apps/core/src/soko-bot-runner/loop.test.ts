@@ -833,6 +833,87 @@ describe("the done check (planLoop)", () => {
     expect(result.text).toBe("Answer 2.");
   });
 
+  it("keeps the finished answer when Core's check used up the turn's time", async () => {
+    const clock = { now: 0 };
+    const { model } = answeringModel();
+    const result = await runTurnLoop(
+      loopInput(
+        model,
+        {
+          doneCheck: async () => {
+            // The check answers, but only after the round's time is gone.
+            clock.now = 59 * MINUTE;
+            return "Go back.";
+          },
+          openSteps: async () => null,
+        },
+        { now: () => clock.now },
+      ),
+    );
+    expect(result.text).toBe("Answer 1.");
+    expect(model.doStreamCalls).toHaveLength(1);
+  });
+
+  it("does not ask when the tokens left would not cover the round and a wrap-up", async () => {
+    let asked = 0;
+    const plan = {
+      doneCheck: async () => {
+        asked += 1;
+        return "Go back.";
+      },
+      openSteps: async () => null,
+    };
+    // 10 tokens spent, steps reserve 100: 140 left is less than two steps.
+    const { model } = answeringModel();
+    const result = await runTurnLoop(
+      loopInput(model, plan, { budget: turnTokenBudget(150, 100) }),
+    );
+    expect(asked).toBe(0);
+    expect(result.text).toBe("Answer 1.");
+  });
+
+  it("keeps the finished answer when the extra round runs out of steps", async () => {
+    let calls = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        calls += 1;
+        return streamOf(
+          calls === 1
+            ? {
+                content: [{ type: "text", text: "Here is your summary." }],
+                finishReason: { unified: "stop", raw: "stop" },
+                warnings: [],
+                usage,
+              }
+            : {
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: `call_${calls}`,
+                    toolName: "work",
+                    input: "{}",
+                  },
+                ],
+                finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                warnings: [],
+                usage,
+              },
+        );
+      },
+    });
+    const result = await runTurnLoop(
+      loopInput(
+        model,
+        { doneCheck: async () => "Go back.", openSteps: async () => null },
+        { maxSteps: 3 },
+      ),
+    );
+    expect(result.text).toBe("Here is your summary.");
+    // The answer, the extra round's two steps, and no wrap-up call after it:
+    // the answer was already there.
+    expect(calls).toBe(3);
+  });
+
   it("lets the answer through when Core does or cannot answer", async () => {
     for (const doneCheck of [
       async () => null,

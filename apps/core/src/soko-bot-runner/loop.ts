@@ -89,26 +89,37 @@ export interface TurnLoopPlan {
 }
 
 const PLAN_ANSWER_TIMEOUT_MS = 10_000;
+/** The time-up report waits at most this long for the open steps. */
+const REPORT_PLAN_WAIT_MS = 2_000;
 
 /** A nudge or time-up prompt that names the plan's open steps, when there are any. */
 async function withOpenSteps(
   prompt: string,
   plan: TurnLoopPlan | undefined,
+  withinMs: number,
 ): Promise<string> {
-  const steps = plan ? await planAnswer(plan.openSteps) : null;
+  const steps = plan ? await planAnswer(plan.openSteps, withinMs) : null;
   return steps ? `${prompt}\n\n${steps}` : prompt;
 }
 
-/** Core's answer on the plan, or null when it does not come in time. */
+/**
+ * Core's answer on the plan, or null when it does not come within the time
+ * the turn can spare: an optional read never takes the answer's time.
+ */
 async function planAnswer(
   ask: () => Promise<string | null>,
+  withinMs: number,
 ): Promise<string | null> {
+  if (withinMs <= 0) return null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       ask(),
       new Promise<null>((resolve) => {
-        timer = setTimeout(() => resolve(null), PLAN_ANSWER_TIMEOUT_MS);
+        timer = setTimeout(
+          () => resolve(null),
+          Math.min(PLAN_ANSWER_TIMEOUT_MS, withinMs),
+        );
       }),
     ]);
   } catch {
@@ -182,6 +193,16 @@ export async function runTurnLoop(
   const compact = (history: readonly ModelMessage[]) =>
     compactHistory(history, undefined, historyOptions);
   let doneChecked = false;
+  /** The reply the done check sent back, kept in case the extra round fails. */
+  let draft: TurnLoopResult | undefined;
+  const roomForAnotherRound = () =>
+    !refused &&
+    stepsLeft > 1 &&
+    reportAt - now() > minRoundMs &&
+    // The extra round's step, and the wrap-up it may still need.
+    (!input.budget ||
+      input.budget.limit - input.budget.used - input.budget.reserved >=
+        2 * input.budget.perStep);
   const fullKey = input.fullCacheKey ?? input.cacheKey;
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
@@ -266,13 +287,8 @@ export async function runTurnLoop(
       reportAt - now() > minRoundMs;
     if (!keepGoing) {
       // The done check: a foreground answer with open plan steps goes back
-      // once, only while steps, time and tokens leave room for the round.
-      const lastInput = result.steps.at(-1)?.usage.inputTokens ?? 0;
-      const tokensLeft = refused
-        ? 0
-        : input.budget
-          ? input.budget.limit - input.budget.used - input.budget.reserved
-          : Number.POSITIVE_INFINITY;
+      // once, only while steps, time and tokens leave room for that round
+      // and a wrap-up after it, checked again once Core has answered.
       const plan = input.plan;
       if (
         plan &&
@@ -280,14 +296,16 @@ export async function runTurnLoop(
         !input.background &&
         !input.part &&
         finishReason !== "tool-calls" &&
-        stepsLeft > 1 &&
-        !refused &&
-        reportAt - now() > minRoundMs &&
-        tokensLeft >= 2 * lastInput
+        text.trim() &&
+        roomForAnotherRound()
       ) {
         doneChecked = true;
-        const prompt = await planAnswer(() => plan.doneCheck(text));
-        if (prompt) {
+        const prompt = await planAnswer(
+          () => plan.doneCheck(text),
+          reportAt - now() - minRoundMs,
+        );
+        if (prompt && roomForAnotherRound()) {
+          draft = { text, finishReason };
           messages.push({ role: "user", content: prompt });
           continue;
         }
@@ -296,12 +314,20 @@ export async function runTurnLoop(
     }
     messages.push({
       role: "user",
-      content: await withOpenSteps(KEEP_GOING_PROMPT, input.plan),
+      content: await withOpenSteps(
+        KEEP_GOING_PROMPT,
+        input.plan,
+        reportAt - now() - minRoundMs,
+      ),
     });
   }
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
   const cutOff = stepsLeft <= 0 || timeUp() || refused;
+  // The answer the done check sent back stands when the extra round ran out
+  // before it wrote a new one: a finished reply is never lost to the check.
+  if (draft && (cutOff || finishReason === "tool-calls" || !text.trim()))
+    return draft;
   // A part never makes a wrap-up call, whatever stopped it: the turn's own
   // loop makes the one, from what the parts handed back.
   if (cutOff && input.part)
@@ -326,6 +352,7 @@ export async function runTurnLoop(
           content: await withOpenSteps(
             input.background ? TIME_UP_PROMPT : FOREGROUND_TIME_UP_PROMPT,
             input.plan,
+            Math.min(REPORT_PLAN_WAIT_MS, (input.deadline - now()) / 10),
           ),
         },
       ],

@@ -508,12 +508,76 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       await expect(openStepsNote(settled)).resolves.toBeNull();
     });
 
-    it("lets a question to the owner through", async () => {
+    const ownerPrompt = /^You are waiting on the owner/;
+
+    it("asks a turn that waits on the owner to mark what needs the answer and do the rest", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, twoSteps);
-      await expect(
-        check(chat, "Which account should I schedule them on?"),
-      ).resolves.toBeNull();
+      const prompt = await check(
+        chat,
+        "Which account should I schedule them on? I'll wait for your answer.",
+      );
+      expect(prompt).toMatch(ownerPrompt);
+      expect(prompt).toContain("blockedOn owner");
+      expect(prompt).toContain("- s2 [pending] Schedule them");
+    });
+
+    it("counts only owner blockers still open", async () => {
+      const call = (turnId: string, n: number, extra: object) =>
+        prisma.sokoBotToolCall.create({
+          data: {
+            turnId,
+            toolCallId: `blocker-${turnId}-${n}`,
+            capability: "upload_file",
+            inputHash: `hash-${n}`,
+            ...extra,
+          },
+        });
+      // Refused, then saved under another name: nothing waits on the owner.
+      const resolved = await turn("CHAT");
+      await updatePlan(resolved, twoSteps);
+      await call(resolved, 1, { status: "FAILED", errorKind: "refused" });
+      await call(resolved, 2, { status: "COMPLETED" });
+      const plain = await check(resolved);
+      expect(plain).toMatch(/^Your plan still lists open steps/);
+      // Refused and never made good: the turn waits on the owner.
+      const open = await turn("CHAT");
+      await updatePlan(open, twoSteps);
+      await call(open, 1, { status: "FAILED", errorKind: "refused" });
+      await expect(check(open)).resolves.toMatch(ownerPrompt);
+    });
+
+    it("does not push a request whose finished child left a watch running, and only that request", async () => {
+      const watched = async () => {
+        const chat = await turn("CHAT");
+        await updatePlan(chat, [
+          { step: "Ask Maria for the figures", status: "done" },
+          { step: "Report her answer", status: "pending" },
+        ]);
+        return chat;
+      };
+      const chat = await watched();
+      const run = await turn("CHAT", chat);
+      await prisma.sokoBotTurn.update({
+        where: { id: run },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+      await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId,
+          turnId: run,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          then: "Report Maria's answer to the owner.",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      await expect(check(chat)).resolves.toBeNull();
+      // Another request with the same plan and no wait of its own.
+      const other = await watched();
+      await expect(check(other)).resolves.toMatch(
+        /^Your plan still lists open steps/,
+      );
     });
 
     it("does not push a turn that waits on a Coworker to poll", async () => {

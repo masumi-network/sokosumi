@@ -34,12 +34,19 @@ const KEPT_WHOLE: ReadonlySet<string> = new Set([
   "read_writing_skill",
 ]);
 
-function shortenMessage(message: ModelMessage): ModelMessage {
+function shortenMessage(
+  message: ModelMessage,
+  keptCallId: string | null,
+): ModelMessage {
   if (message.role === "tool")
     return {
       ...message,
       content: message.content.map((part) => {
-        if (part.type !== "tool-result" || KEPT_WHOLE.has(part.toolName))
+        if (
+          part.type !== "tool-result" ||
+          KEPT_WHOLE.has(part.toolName) ||
+          part.toolCallId === keptCallId
+        )
           return part;
         const short = shorten(part.output);
         return short
@@ -85,19 +92,24 @@ export function compactHistory(
     Math.floor((messages.length - RECENT_MESSAGES) / BOUNDARY_BLOCK) *
       BOUNDARY_BLOCK,
   );
-  const plan = options.keepLatestPlan ? latestPlanIndex(messages) : -1;
+  const plan = options.keepLatestPlan ? latestPlanCallId(messages) : null;
   return messages.map((message, index) =>
-    index < oldEnd && index !== plan ? shortenMessage(message) : message,
+    index < oldEnd ? shortenMessage(message, plan) : message,
   );
 }
 
-function latestPlanIndex(messages: readonly ModelMessage[]): number {
-  return messages.findLastIndex(
-    (message) =>
-      message.role === "tool" &&
-      message.content.some(
-        (part) =>
-          part.type === "tool-result" && part.toolName === "update_plan",
-      ),
-  );
+/** The latest update_plan Core accepted; a refused one is not the plan. */
+function latestPlanCallId(messages: readonly ModelMessage[]): string | null {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "tool") continue;
+    const accepted = message.content.findLast(
+      (part) =>
+        part.type === "tool-result" &&
+        part.toolName === "update_plan" &&
+        !part.output.type.startsWith("error") &&
+        part.output.type !== "execution-denied",
+    );
+    if (accepted && "toolCallId" in accepted) return accepted.toolCallId;
+  }
+  return null;
 }

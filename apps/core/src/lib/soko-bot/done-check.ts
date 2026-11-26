@@ -64,16 +64,67 @@ export async function openStepsNote(turnId: string): Promise<string | null> {
   return `Open steps in your plan (revision ${found.plan.revision}):\n${stepList(open)}`;
 }
 
+const MAX_REQUEST_DEPTH = 6;
+const MAX_REQUEST_TURNS = 100;
+
 /**
- * The request still waits on someone else: a hand-over whose follow-up has
- * not come back, a watch, or a background run. Pushing the bot on would only
- * make it poll.
+ * Every turn of the request below its first: background runs, Coworker or
+ * Agent follow-up wakes and watch wakes, finished ones included, since a run
+ * that ended may have left a watch or a hand-over behind.
+ */
+async function requestTurnIds(
+  sokoBotId: string,
+  requestId: string,
+  turnId: string,
+): Promise<string[]> {
+  const found = new Set([requestId, turnId]);
+  let frontier = [...found];
+  for (
+    let depth = 0;
+    depth < MAX_REQUEST_DEPTH &&
+    frontier.length &&
+    found.size < MAX_REQUEST_TURNS;
+    depth++
+  ) {
+    const [children, handedOver, watched] = await Promise.all([
+      prisma.sokoBotTurn.findMany({
+        where: { sokoBotId, parentTurnId: { in: frontier } },
+        select: { id: true },
+        take: MAX_REQUEST_TURNS,
+      }),
+      prisma.sokoBotDelegation.findMany({
+        where: { turnId: { in: frontier }, followUpTurnId: { not: null } },
+        select: { followUpTurnId: true },
+        take: MAX_REQUEST_TURNS,
+      }),
+      prisma.sokoBotWatch.findMany({
+        where: { turnId: { in: frontier }, firedTurnId: { not: null } },
+        select: { firedTurnId: true },
+        take: MAX_REQUEST_TURNS,
+      }),
+    ]);
+    const next = [
+      ...children.map((row) => row.id),
+      ...handedOver.map((row) => row.followUpTurnId),
+      ...watched.map((row) => row.firedTurnId),
+    ].filter((id): id is string => id !== null && !found.has(id));
+    for (const id of next) found.add(id);
+    frontier = [...new Set(next)];
+  }
+  return [...found];
+}
+
+/**
+ * The request still waits on someone else, from any of its turns: a
+ * hand-over whose follow-up has not come back, a watch, or a background run.
+ * Pushing the bot on would only make it poll.
  */
 async function waitingOnOthers(
+  sokoBotId: string,
   turnId: string,
   requestId: string,
 ): Promise<boolean> {
-  const turnIds = [...new Set([turnId, requestId])];
+  const turnIds = await requestTurnIds(sokoBotId, requestId, turnId);
   const [delegation, watch, run] = await Promise.all([
     prisma.sokoBotDelegation.findFirst({
       where: {
@@ -99,33 +150,49 @@ async function waitingOnOthers(
   return Boolean(delegation || watch || run);
 }
 
-/** The turn already stopped on the owner: a decision asked, or a refusal. */
-async function waitingOnOwner(turnId: string, draft: string): Promise<boolean> {
+/** The draft asks the owner something: its clarification, or a question. */
+function asksOwner(draft: string): boolean {
   const narrative = parseActionNarrativeText(draft);
-  if (
-    narrative
-      ? narrative.kind === "CLARIFY" || narrative.question
-      : /\?\s*$/.test(draft.trim())
-  )
-    return true;
-  const [decision, refusal] = await Promise.all([
-    prisma.sokoBotPendingDecision.findFirst({
-      where: { turnId },
-      select: { id: true },
-    }),
-    prisma.sokoBotToolCall.findFirst({
-      where: { turnId, errorKind: SOKO_BOT_TOOL_REFUSED },
-      select: { id: true },
-    }),
-  ]);
-  return Boolean(decision || refusal);
+  return narrative
+    ? narrative.kind === "CLARIFY" || narrative.question !== null
+    : /\?(\s|$)/.test(draft);
+}
+
+/**
+ * The turn still stops on the owner: a decision nobody has answered, or a
+ * refusal no later call of the same tool made good.
+ */
+async function ownerBlocker(turnId: string): Promise<boolean> {
+  const decision = await prisma.sokoBotPendingDecision.findFirst({
+    where: { turnId, status: "PENDING" },
+    select: { id: true },
+  });
+  if (decision) return true;
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId },
+    orderBy: { createdAt: "asc" },
+    select: { capability: true, status: true, errorKind: true },
+  });
+  return calls.some(
+    (call, index) =>
+      call.errorKind === SOKO_BOT_TOOL_REFUSED &&
+      !calls
+        .slice(index + 1)
+        .some(
+          (later) =>
+            later.capability === call.capability &&
+            later.status === "COMPLETED",
+        ),
+  );
 }
 
 /**
  * The done check (planLoop): a foreground owner turn about to answer while
  * its plan still lists steps to do is sent back once to do them or to mark
- * them blocked or skipped. Null lets the answer through: no plan, nothing
- * open, the turn waits on the owner or on others, or it already bounced.
+ * them blocked or skipped. A turn that waits on the owner is asked to mark
+ * what needs their answer blocked and to do the rest, so a question about
+ * one step does not leave the others undone. Null lets the answer through:
+ * no plan, nothing open, the request waits on others, or it already bounced.
  */
 export async function evaluateTurnDoneCheck(input: {
   turnId: string;
@@ -137,9 +204,12 @@ export async function evaluateTurnDoneCheck(input: {
   const open = openSteps(found.plan);
   if (!open.length) return null;
   const working = open.some((step) => step.status === "in_progress");
-  if (!working && (await waitingOnOthers(input.turnId, found.requestId)))
+  if (
+    !working &&
+    (await waitingOnOthers(found.turn.sokoBotId, input.turnId, found.requestId))
+  )
     return null;
-  if (await waitingOnOwner(input.turnId, input.draft)) return null;
+  const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
   const claimed = await new RuntimeEventLog(
     input.turnId,
     input.sessionId,
@@ -150,5 +220,7 @@ export async function evaluateTurnDoneCheck(input: {
     [DONE_CHECK_BOUNCED_EVENT],
   );
   if (!claimed) return null;
+  if (onOwner)
+    return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open)}\nCall update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;
   return `Your plan still lists open steps:\n${stepList(open)}\nDo what you can of them now. A step that waits on someone: call update_plan (revision ${found.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
 }
