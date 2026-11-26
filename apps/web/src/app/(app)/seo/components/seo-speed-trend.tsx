@@ -29,10 +29,10 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
   const t = useSeoResultTranslations("App.Seo");
   const format = useSeoResultFormatter();
   const gap = seoHistoryGap(history);
-  if (gap || history.status !== "comparable")
+  if (gap)
     return (
       <p className="text-muted-foreground max-w-prose text-xs">
-        {t(`siteSpeed.noTrend.${gap ?? "no_series"}`)}
+        {t(`siteSpeed.noTrend.${gap}`)}
       </p>
     );
   const day = (week: string) =>

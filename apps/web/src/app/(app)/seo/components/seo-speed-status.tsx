@@ -46,7 +46,17 @@ export function SeoSpeedMark({
       >
         <Icon className="size-3" />
       </span>
-      <span className="min-w-0">{children ?? t(`status.${status}`)}</span>
+      {/* The icon shows the severity; a screen reader gets it as text before the verdict. */}
+      <span className="min-w-0">
+        {children ? (
+          <>
+            <span className="sr-only">{t(`status.${status}`)}: </span>
+            <span>{children}</span>
+          </>
+        ) : (
+          t(`status.${status}`)
+        )}
+      </span>
     </span>
   );
 }

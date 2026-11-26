@@ -245,7 +245,10 @@ export type SeoVitalTrend =
       reason: SeoHistoryGap | "too_few";
     };
 
-/** Why a history shows no weekly chart at all. no_series: a comparable history without weeks (an audit saved before the worker wrote them). */
+/**
+ * Why a history shows no weekly chart at all. no_series: a comparable history without weeks of LCP, INP or CLS. An
+ * earlier worker saved none; the current one can give weeks of FCP or TTFB only, which Core does not keep.
+ */
 export type SeoHistoryGap =
   | Exclude<SeoSpeedHistory["status"], "comparable">
   | "no_series";
@@ -260,9 +263,9 @@ export function seoVitalTrend(
   metric: SeoVital,
   history: SeoSpeedHistory,
 ): SeoVitalTrend {
-  const gap = seoHistoryGap(history);
-  if (gap || history.status !== "comparable")
-    return { chart: false, reason: gap ?? "no_series" };
+  if (history.status !== "comparable")
+    return { chart: false, reason: history.status };
+  if (!history.weeks?.length) return { chart: false, reason: "no_series" };
   const weeks = history.weeks ?? [];
   const values = weeks.map((_, index) => history[metric]?.[index] ?? null);
   const measured = weeks.flatMap((week, index) => {

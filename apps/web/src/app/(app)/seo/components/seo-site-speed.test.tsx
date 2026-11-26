@@ -40,6 +40,8 @@ it("names a page's speed in words and opens its measurements", () => {
   );
   const row = within(screen.getByRole("row", { name: /pricing/ }));
   expect(row.getByText("Over a limit: loading (LCP)")).toBeVisible();
+  // The icon is hidden from a screen reader, so the severity is text before the verdict (review pass 33).
+  expect(row.getByText("Needs improvement:")).toHaveClass("sr-only");
   expect(row.getByText("Real visitors, whole site")).toBeVisible();
   const toggle = row.getByRole("button", { name: "/pricing" });
   expect(toggle).toHaveAttribute("aria-expanded", "false");
