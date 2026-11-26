@@ -4,9 +4,9 @@ import {
   type CmoSystemSchedule,
   cmoReadsOnDemand,
   cmoRoutineSkipReason,
+  cmoWritingSkills,
   getSokoBotVersion,
   type MarketingStrategyPlan,
-  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
@@ -224,7 +224,9 @@ export function fullCmoMarketingContext(
       ? { ownerPresenter: true }
       : {}),
     /** How to write each kind of piece: read one in full with read_writing_skill. */
-    writingSkills: WRITING_SKILLS.map((skill) => ({
+    writingSkills: cmoWritingSkills(
+      getSokoBotVersion(sources.versionId).skills,
+    ).map((skill) => ({
       id: skill.id,
       name: skill.name,
       use: skill.description,
