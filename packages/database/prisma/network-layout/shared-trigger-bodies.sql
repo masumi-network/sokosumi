@@ -14,6 +14,11 @@
 -- (`psql --single-transaction -v ON_ERROR_STOP=1`): the guard below refuses any
 -- other layout, and then nothing has changed.
 --
+-- The guard does not prove that only names differ from the bodies a database
+-- has. For that proof the cutover runs what step 4 of the split script runs
+-- around this file, in the same transaction: the snapshot of every function
+-- row just before it, and the check just after it.
+--
 -- Not here yet: functions that need the row's Network (ticket 19 part 2) and
 -- the functions on Network tables (slice B). The split script lists them.
 
@@ -21,17 +26,16 @@ DO $guard$
 DECLARE
   missing text;
 BEGIN
-  SELECT string_agg(name, ', ') INTO missing
+  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
   FROM unnest(ARRAY['shared', 'mainnet', 'preprod']) AS expected(name)
   WHERE to_regnamespace(name) IS NULL;
   IF missing IS NOT NULL THEN
     RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing schema: %', missing;
   END IF;
 
-  SELECT string_agg(name, ', ') INTO missing
+  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
   FROM unnest(ARRAY[
     'shared.calendar_invalidation_outbox',
-    'shared.calendar_invalidation_revision_seq',
     'shared.chat_room',
     'shared.chat_room_guest_invitation',
     'shared.chat_room_guest_invite_link',
@@ -56,20 +60,79 @@ BEGIN
     'shared.user',
     'shared.workspace'
   ]) AS expected(name)
-  WHERE to_regclass(name) IS NULL;
+  WHERE NOT EXISTS (
+    SELECT FROM pg_class c WHERE c.oid = to_regclass(name) AND c.relkind IN ('r', 'p')
+  );
   IF missing IS NOT NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing table or sequence: %', missing;
+    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing table: %', missing;
   END IF;
 
-  SELECT string_agg(name, ', ') INTO missing
+  IF NOT EXISTS (
+    SELECT FROM pg_class c
+    WHERE c.oid = to_regclass('shared.calendar_invalidation_revision_seq') AND c.relkind = 'S'
+  ) THEN
+    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing sequence: shared.calendar_invalidation_revision_seq';
+  END IF;
+
+  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
   FROM unnest(ARRAY['shared."SocialPostStatus"', 'shared."TaskStatus"']) AS expected(name)
-  WHERE to_regtype(name) IS NULL;
+  WHERE NOT EXISTS (
+    SELECT FROM pg_type t WHERE t.oid = to_regtype(name) AND t.typtype = 'e'
+  );
   IF missing IS NOT NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing type: %', missing;
+    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing enum type: %', missing;
   END IF;
 
-  IF to_regprocedure('public.unaccent(text)') IS NULL THEN
-    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing function: public.unaccent(text)';
+  -- Every function below replaces one that is already in `shared`: a trigger
+  -- keeps the function it was created with, so a new one beside it changes nothing.
+  SELECT string_agg(name, ', ' ORDER BY name) INTO missing
+  FROM unnest(ARRAY[
+    'public.unaccent(text)',
+    'shared.calendar_access_cleanup_on_member_delete()',
+    'shared.calendar_membership_fence_on_member_insert()',
+    'shared.cancel_grant_pending_tasks_on_grant_delete()',
+    'shared.chat_room_external_discoverability_guard()',
+    'shared.chat_room_guest_access_external_only()',
+    'shared.chat_room_guest_invitation_external_only()',
+    'shared.chat_room_hard_leave_on_organization_member_delete()',
+    'shared.chat_room_join_shared_soko_bot_rooms_on_member_insert()',
+    'shared.clear_moved_task_workspace_tags()',
+    'shared.contact_search_on_channel_delete()',
+    'shared.contact_search_on_channel_insert()',
+    'shared.contact_search_on_channel_update()',
+    'shared.contact_search_on_contact()',
+    'shared.contact_search_refresh(uuid)',
+    'shared.enforce_task_project_workspace_placement()',
+    'shared.enqueue_calendar_feature_invalidation(uuid,uuid,uuid,uuid,jsonb)',
+    'shared.enqueue_calendar_invalidation(uuid,uuid,uuid,jsonb)',
+    'shared.erase_calendar_outbox_for_workspace_delete()',
+    'shared.history_bucket_slug_from_metadata(jsonb)',
+    'shared.history_slugify(text)',
+    'shared.invalidate_calendar_for_contact_change()',
+    'shared.invalidate_calendar_for_marketing_strategy_change()',
+    'shared.invalidate_calendar_for_marketing_strategy_file_change()',
+    'shared.invalidate_calendar_for_newsletter_issue_change()',
+    'shared.invalidate_calendar_for_project_change()',
+    'shared.invalidate_calendar_for_run_change()',
+    'shared.invalidate_calendar_for_social_post_change()',
+    'shared.invalidate_calendar_for_task_change()',
+    'shared.invalidate_calendar_for_task_schedule_change()',
+    'shared.invalidate_changed_workspace_tag_offers()',
+    'shared.invalidate_task_workspace_tag_suggestions()',
+    'shared.project_alias_old_identifier()',
+    'shared.project_default_identifier(text,uuid)',
+    'shared.project_set_identifier()',
+    'shared.reject_soko_bot_admin_action_mutation()',
+    'shared.social_post_quote_before_delete()',
+    'shared.task_alias_old_number()',
+    'shared.task_assign_number()',
+    'shared.task_subtask_follow_parent()',
+    'shared.task_subtask_guard()',
+    'shared.task_tag_revision()'
+  ]) AS expected(name)
+  WHERE to_regprocedure(name) IS NULL;
+  IF missing IS NOT NULL THEN
+    RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing function: %', missing;
   END IF;
 END
 $guard$;

@@ -25,9 +25,12 @@
 #    the functions behind the triggers on shared tables, with every name given
 #    its schema. In the same transaction it is checked against the bodies the
 #    migrations created: only schema names may differ, apart from the listed
-#    exceptions, and every function of `shared` is either in the file or on
-#    the list of functions that wait. So a migration that changes or adds a
-#    function fails here until the file or the list follows.
+#    exceptions, and every function of `shared` is either in the file or, by
+#    its signature, on the list of functions that wait. So a migration that
+#    changes, adds or drops a function fails here until the file or the list
+#    follows. The check reads only a snapshot taken before the file and the
+#    catalog after it, so the cutover can run the same two statements around
+#    the file.
 #
 # After a failure, recreate the database: step 1, steps 2 and 3, and step 4 are
 # three transactions.
@@ -147,14 +150,21 @@ dump=$("${pg_dump[@]}" --schema-only --no-owner --no-privileges --schema=preprod
   <<<"ALTER SCHEMA preprod RENAME TO mainnet;
 $dump"
 
+bodies="$here/../prisma/network-layout/shared-trigger-bodies.sql"
 {
+  # Every function no extension owns, in any schema, as it is before the file.
   cat <<'SQL'
-CREATE TEMP TABLE functions_before ON COMMIT DROP AS
-SELECT p.oid, p.prosrc, to_jsonb(p) - 'prosrc' AS attributes
+CREATE TEMP VIEW functions_now AS
+SELECT p.oid, p.ctid AS row_version,
+  format('%s.%s(%s)', n.nspname, p.proname, oidvectortypes(p.proargtypes)) AS signature,
+  n.nspname AS schema, p.prosrc, to_jsonb(p) - 'prosrc' AS attributes
 FROM pg_proc p
-WHERE p.pronamespace = 'shared'::regnamespace;
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
+  AND NOT EXISTS (SELECT FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');
+CREATE TEMP TABLE functions_before AS SELECT * FROM functions_now;
 SQL
-  cat "$here/../prisma/network-layout/shared-trigger-bodies.sql"
+  cat "$bodies"
   cat <<'SQL'
 DO $check$
 DECLARE
@@ -163,102 +173,117 @@ DECLARE
   -- Functions the file does not replace yet.
   waiting CONSTANT text[] := ARRAY[
     -- Ticket 19 part 2: they read the Network named on the row (tickets 07 to 09).
-    'scope_notification_to_workspace_membership',
-    'sync_history_from_project_image_asset',
-    'sync_history_from_project_image_job_charge',
-    'sync_history_from_task',
-    'sync_history_from_task_event',
-    'upsert_history_task',
-    'upsert_history_image_asset',
-    'history_task_amount',
-    'history_image_amount',
+    'shared.scope_notification_to_workspace_membership()',
+    'shared.sync_history_from_project_image_asset()',
+    'shared.sync_history_from_project_image_job_charge()',
+    'shared.sync_history_from_task()',
+    'shared.sync_history_from_task_event()',
+    'shared.upsert_history_task(text)',
+    'shared.upsert_history_image_asset(uuid)',
+    'shared.history_task_amount(text)',
+    'shared.history_image_amount(uuid)',
     -- Ticket 19 slice B: on Network tables, one copy per Network.
-    'canonicalize_credit_cost_unit_write',
-    'complete_task_x402_payment_action_snapshot',
-    'normalize_task_x402_payment_replay_key',
-    'record_task_x402_payment_failure_outcome',
-    'enforce_job_project_workspace_placement',
-    'sync_history_from_job',
-    'sync_history_from_job_event',
-    'sync_history_from_job_input',
-    'sync_history_from_job_purchase',
-    'sync_history_from_transaction',
-    'canonical_credit_cost_unit',
-    'history_job_amount',
-    'upsert_history_job',
+    'shared.canonicalize_credit_cost_unit_write()',
+    'shared.complete_task_x402_payment_action_snapshot()',
+    'shared.normalize_task_x402_payment_replay_key()',
+    'shared.record_task_x402_payment_failure_outcome()',
+    'shared.enforce_job_project_workspace_placement()',
+    'shared.sync_history_from_job()',
+    'shared.sync_history_from_job_event()',
+    'shared.sync_history_from_job_input()',
+    'shared.sync_history_from_job_purchase()',
+    'shared.sync_history_from_transaction()',
+    'shared.canonical_credit_cost_unit(text)',
+    'shared.history_job_amount(text)',
+    'shared.upsert_history_job(text)',
     -- Core calls it by its bare name (`EXCEPTIONS` in apps/core/scripts/prepare-raw-sql.ts).
-    'compute_history_job_status'
+    'shared.compute_history_job_status(text)'
   ];
   -- What differs besides `shared.` before a name: function, the migrations'
-  -- text, the file's text.
+  -- text, the file's text for every occurrence of it.
   exceptions CONSTANT text[] := ARRAY[
-    ['contact_search_refresh', 'lower(unaccent(', 'lower(public.unaccent('],
-    ['enqueue_calendar_invalidation',
+    ['shared.contact_search_refresh(uuid)', 'lower(unaccent(', 'lower(public.unaccent('],
+    ['shared.enqueue_calendar_invalidation(uuid, uuid, uuid, jsonb)',
       $text$'calendar_invalidation_revision_seq'$text$,
       $text$'shared.calendar_invalidation_revision_seq'$text$]
   ];
   swap text[];
   fn record;
-  body text;
-  stale text;
+  expected text;
+  found text;
 BEGIN
-  SELECT string_agg(name, ', ') INTO stale
+  SELECT string_agg(b.signature, ', ') INTO found
+  FROM functions_before b WHERE NOT EXISTS (SELECT FROM functions_now n WHERE n.oid = b.oid);
+  IF found IS NOT NULL THEN
+    RAISE EXCEPTION '% drops %: a function leaves through a migration', file, found;
+  END IF;
+
+  SELECT string_agg(n.signature, ', ') INTO found
+  FROM functions_now n WHERE NOT EXISTS (SELECT FROM functions_before b WHERE b.oid = n.oid);
+  IF found IS NOT NULL THEN
+    RAISE EXCEPTION '% creates %, which no migration creates with that schema and signature: update or remove it', file, found;
+  END IF;
+
+  SELECT string_agg(name, ', ') INTO found
   FROM unnest(waiting) AS listed(name)
-  WHERE NOT EXISTS (
-    SELECT FROM pg_proc p
-    WHERE p.pronamespace = 'shared'::regnamespace AND p.proname = listed.name
-  );
-  IF stale IS NOT NULL THEN
-    RAISE EXCEPTION 'no migration creates %: remove it from %', stale, list;
+  WHERE NOT EXISTS (SELECT FROM functions_now n WHERE n.signature = listed.name);
+  IF found IS NOT NULL THEN
+    RAISE EXCEPTION 'no migration creates %: remove it from %', found, list;
   END IF;
 
   FOR fn IN
-    SELECT p.proname, p.prosrc, to_jsonb(p) - 'prosrc' AS attributes,
-      b.oid IS NOT NULL AS migrated, b.prosrc AS migrated_body,
-      b.attributes AS migrated_attributes,
-      -- Written by this transaction, so by the file.
-      p.xmin = pg_current_xact_id()::xid AS in_file
-    FROM pg_proc p
-    LEFT JOIN functions_before b ON b.oid = p.oid
-    WHERE p.pronamespace = 'shared'::regnamespace
-    ORDER BY p.proname
+    SELECT n.signature, n.schema, n.prosrc, n.attributes,
+      b.prosrc AS migrated_body, b.attributes AS migrated_attributes,
+      -- The file wrote the row: it is not the row of the snapshot.
+      n.row_version <> b.row_version AS in_file
+    FROM functions_now n
+    JOIN functions_before b ON b.oid = n.oid
+    ORDER BY n.signature
   LOOP
     IF NOT fn.in_file THEN
-      IF fn.proname <> ALL (waiting) THEN
+      IF fn.schema = 'shared' AND fn.signature <> ALL (waiting) THEN
         RAISE EXCEPTION 'function % has no body for the new layout: add it to %, or to % with the ticket it waits for',
-          fn.proname, file, list;
+          fn.signature, file, list;
       END IF;
       CONTINUE;
     END IF;
-    IF fn.proname = ANY (waiting) THEN
-      RAISE EXCEPTION 'function % is in % now: remove it from %', fn.proname, file, list;
+    IF fn.schema <> 'shared' THEN
+      RAISE EXCEPTION '% replaces %, which is not in shared', file, fn.signature;
     END IF;
-    IF NOT fn.migrated THEN
-      RAISE EXCEPTION '% defines %, which no migration creates with that signature: update or remove it',
-        file, fn.proname;
+    IF fn.signature = ANY (waiting) THEN
+      RAISE EXCEPTION 'function % is in % now: remove it from %', fn.signature, file, list;
     END IF;
     IF fn.attributes <> fn.migrated_attributes THEN
       RAISE EXCEPTION '% changes more than the body of %: migrations %, file %',
-        file, fn.proname, fn.migrated_attributes, fn.attributes;
+        file, fn.signature, fn.migrated_attributes, fn.attributes;
     END IF;
 
-    -- `shared.` before a name, in code: not inside a longer name, and not at
-    -- the start of a string.
-    body := regexp_replace(fn.prosrc, '(?<![''".[:alnum:]_])shared\.(?=["[:alpha:]_])', '', 'g');
+    expected := fn.migrated_body;
     FOREACH swap SLICE 1 IN ARRAY exceptions LOOP
-      CONTINUE WHEN swap[1] <> fn.proname;
-      IF position(swap[3] IN body) = 0 THEN
-        RAISE EXCEPTION 'function % in % no longer has %: remove the exception from packages/database/scripts/split-network-layout.sh',
-          fn.proname, file, swap[3];
+      CONTINUE WHEN swap[1] <> fn.signature;
+      IF position(swap[2] IN expected) = 0 THEN
+        RAISE EXCEPTION 'the migrations'' body of % no longer has %: remove the exception from packages/database/scripts/split-network-layout.sh',
+          fn.signature, swap[2];
       END IF;
-      body := replace(body, swap[3], swap[2]);
+      expected := replace(expected, swap[2], swap[3]);
     END LOOP;
-    IF body <> fn.migrated_body THEN
+    -- A string, a quoted name and a comment are kept whole; `shared.` before a
+    -- name goes. Not read: a backslash-escaped quote in an E'' string.
+    IF regexp_replace(
+      fn.prosrc,
+      $re$('(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|/\*(?:[^*]|\*+[^*/])*\*+/)|(?<![.[:alnum:]_])shared\.(?=["[:alpha:]_])$re$,
+      '\1', 'g'
+    ) <> expected THEN
       RAISE EXCEPTION 'the body of % in % differs from the one the migrations create by more than schema names: copy the migration''s body into the file and name its schemas again',
-        fn.proname, file;
+        fn.signature, file;
     END IF;
   END LOOP;
 END
 $check$;
+DROP VIEW functions_now;
+DROP TABLE functions_before;
 SQL
-} | "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction
+} | "${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction || {
+  echo "split-network-layout.sh: step 4 failed while applying or checking $bodies" >&2
+  exit 1
+}

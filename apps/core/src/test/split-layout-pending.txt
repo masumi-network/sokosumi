@@ -45,11 +45,11 @@ src/helpers/transaction-history.postgres.test.ts 19  # slice B: sync_history_fro
 src/helpers/user-deletion-tasks.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task (from the server log; the test reports Error: expected PrismaClientKnownRequestError{ …(7) } to be )
 src/lib/files/evidence-scope.postgres.test.ts 17  # SQL outside a trigger names bare task
 src/lib/image-studio/ad-eval-budget.postgres.test.ts 19  # part 2: sync_history_from_project_image_asset cannot find upsert_history_image_asset (from the server log; the test reports a failed hook)
-src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 17  # SQL outside a trigger names bare chat_room
-src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client reads the Network table Transaction
+src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare chat_room
+src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client reaches the Network table Transaction
 src/routes/v1/drive/labels/[id]/patch.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task (from the server log; the test reports a failed hook)
 src/routes/v1/projects/[id]/tasks/subtask-guards.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
-src/routes/v1/projects/get.postgres.test.ts 25  # the shared client reads the Network table AgentPricing (from the server log; the test reports a failed hook)
+src/routes/v1/projects/get.postgres.test.ts 25  # the shared client reaches the Network table AgentPricing (from the server log; the test reports a failed hook)
 src/routes/v1/tasks/[id]/get.seo-audit.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/routes/v1/tasks/[id]/integrations/search-console/reads/post.boundaries.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/routes/v1/tasks/[id]/integrations/search-console/reads/post.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
@@ -60,27 +60,27 @@ src/routes/v1/tasks/get.postgres.test.ts 19  # part 2: sync_history_from_task ca
 src/routes/v1/tasks/get.subtasks.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task (from the server log; the test reports a failed hook)
 src/routes/v1/tasks/mentions.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task (from the server log; the test reports a failed hook)
 src/routes/v1/tasks/post.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
-src/routes/v1/tasks/task-worker-context.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports a failed hook)
+src/routes/v1/tasks/task-worker-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/routes/v1/transactions/task-filter.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task (from the server log; the test reports a failed hook)
 src/routes/v1/webhooks/polar-refund.postgres.test.ts 19  # slice B: sync_history_from_transaction cannot find Job
-src/routes/v1/webhooks/polar-top-up.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports AssertionError: expected [ 500, 500 ] to deeply equal [ 200,)
-src/routes/v1/webhooks/polar.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports AssertionError: expected [ 500, 500 ] to deeply equal [ 200,)
-src/routes/v1/webhooks/polar.renewals.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports Error: While the test file loaded:)
+src/routes/v1/webhooks/polar-top-up.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports AssertionError: expected [ 500, 500 ] to deeply equal [ 200,)
+src/routes/v1/webhooks/polar.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports AssertionError: expected [ 500, 500 ] to deeply equal [ 200,)
+src/routes/v1/webhooks/polar.renewals.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports Error: While the test file loaded:)
 src/schemas/default-coworker-chat-examples-migration.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare coworker
 src/services/chat-room-soko-bot-retry.postgres.test.ts 17  # SQL outside a trigger names bare chat_room_mention
 src/services/chat-signal-effects.postgres.test.ts 19  # part 2: scope_notification_to_workspace_membership cannot find workspace (from the server log; the test reports AssertionError: expected [] to deeply equal [ { …(2) } ])
-src/services/cmo-free-hiring.postgres.test.ts 27  # the shared client reads the Network table credit_bucket (from the server log; the test reports Error: promise rejected "PrismaClientKnownRequestError{ …(7))
-src/services/cmo-month-calendar.postgres.test.ts 30  # the shared client reads the Network table credit_bucket
-src/services/cmo-seo.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/cmo-test-copy.postgres.test.ts 27  # the shared client reads the Network table credit_bucket
-src/services/cmo-tester-credits.postgres.test.ts 27  # the shared client reads the Network table credit_bucket
-src/services/competitor-check-project.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/competitor-feed.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/competitors-overview.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/competitors.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/contact-suggestions.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports a failed hook)
+src/services/cmo-free-hiring.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket (from the server log; the test reports Error: promise rejected "PrismaClientKnownRequestError{ …(7))
+src/services/cmo-month-calendar.postgres.test.ts 30  # the shared client reaches the Network table credit_bucket
+src/services/cmo-seo.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/cmo-test-copy.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket
+src/services/cmo-tester-credits.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket
+src/services/competitor-check-project.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/competitor-feed.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/competitors-overview.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/competitors.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/contact-suggestions.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/evals/eval-a2a.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
-src/services/evals/eval-lanes.postgres.test.ts 27  # the shared client reads the Network table Transaction
+src/services/evals/eval-lanes.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/evals/eval-seo-fixtures.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/evals/ownerbench/journey-checks.postgres.test.ts 19  # part 2: sync_history_from_project_image_asset cannot find upsert_history_image_asset (from the server log; the test reports a failed hook)
 src/services/file-table-index.postgres.test.ts 17  # SQL outside a trigger names bare data_table
@@ -88,31 +88,31 @@ src/services/fts-cut-drops-newest.postgres.test.ts 17  # SQL outside a trigger n
 src/services/fts-document-drop.postgres.test.ts 17  # SQL outside a trigger names bare file_chunk
 src/services/fts-tiebreak-both-sites.postgres.test.ts 17  # SQL outside a trigger names bare file_chunk (from the server log; the test reports a failed hook)
 src/services/image-studio-recovery.postgres.test.ts 19  # part 2: sync_history_from_project_image_asset cannot find upsert_history_image_asset
-src/services/polar-credit-grant.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports TestTimeoutError: Test timed out in 5000ms.)
+src/services/polar-credit-grant.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports TestTimeoutError: Test timed out in 5000ms.)
 src/services/polar-subscription-end.postgres.test.ts 19  # slice B: sync_history_from_transaction cannot find Job
-src/services/polar-yearly-grant-sync.postgres.test.ts 27  # the shared client reads the Network table credit_bucket
+src/services/polar-yearly-grant-sync.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket
 src/services/project-seo-close.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/project-seo-owner-background.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
-src/services/project-seo.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports a failed hook)
+src/services/project-seo.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-analysis-concurrency.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/seo-analysis-executor.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/seo-audit-task-archive.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/seo-audit.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
-src/services/seo-chat-billing.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/seo-chat-quota.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/seo-chat.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports a failed hook)
+src/services/seo-chat-billing.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/seo-chat-quota.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/seo-chat.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-console-export.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/seo-credit-gate.postgres.test.ts 19  # slice B: sync_history_from_transaction cannot find Job
-src/services/seo-shared-context.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports a failed hook)
+src/services/seo-shared-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-task-execution.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
-src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reads the Network table Transaction
-src/services/soko-bot-integrations.service.postgres.test.ts 30  # the shared client reads the Network table soko_bot_usage (from the server log; the test reports AssertionError: expected 1 to be +0 // Object.is equality)
-src/services/soko-bot-lease-clock.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/soko-bot-reconcile-writers.postgres.test.ts 27  # the shared client reads the Network table Transaction
-src/services/soko-bot-schedule-run-changes.postgres.test.ts 30  # the shared client reads the Network table Job
-src/services/soko-bot-shared-background-runs.postgres.test.ts 30  # the shared client reads the Network table Agent
+src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reaches the Network table Transaction
+src/services/soko-bot-integrations.service.postgres.test.ts 30  # the shared client reaches the Network table soko_bot_usage (from the server log; the test reports AssertionError: expected 1 to be +0 // Object.is equality)
+src/services/soko-bot-lease-clock.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/soko-bot-reconcile-writers.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/soko-bot-schedule-run-changes.postgres.test.ts 30  # the shared client reaches the Network table Job
+src/services/soko-bot-shared-background-runs.postgres.test.ts 30  # the shared client reaches the Network table Agent
 src/services/source-import.service.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task (from the server log; the test reports a failed hook)
-src/services/studio-campaign.postgres.test.ts 27  # the shared client reads the Network table Transaction (from the server log; the test reports a failed hook)
+src/services/studio-campaign.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/task-interest-delivery.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/task-subtask-lifecycle.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
 src/services/task-tag-classification.postgres.test.ts 19  # part 2: sync_history_from_task cannot find upsert_history_task
