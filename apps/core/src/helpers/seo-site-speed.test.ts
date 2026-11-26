@@ -610,6 +610,38 @@ describe("the speed table in a workspace view", () => {
         { lab: lab(EXTRA, "mobile"), field: noData },
       ),
     ).toEqual([EXTRA, "measured", "no_data"]);
+    // Review pass 25: a read whose values give a verdict ranks before one that gives none. A field with INP alone
+    // gives none; a field LCP over its limit gives one, whatever the lab of either read holds.
+    const blankLab = {
+      ...lab(EXTRA, "mobile"),
+      median: { ...median, lcp: null, cls: null },
+    };
+    expect(
+      shown(
+        { lab: blankLab, field: cruxField(EXTRA, { lcp: 5200 }) },
+        { lab: lab(EXTRA, "mobile"), field: cruxField(EXTRA, { inp: 100 }) },
+      ),
+    ).toEqual([SEO_TEST_PAGE, "measured", "measured"]);
+    expect(
+      shown(
+        { lab: lab(EXTRA, "mobile"), field: cruxField(EXTRA, { inp: 100 }) },
+        {
+          lab: { none: "quota" },
+          field: cruxField(EXTRA, { lcp: 5200, cls: 0.3 }),
+        },
+      ),
+    ).toEqual([EXTRA, "quota", "measured"]);
+    // One value over its limit gives a verdict alone, and so do LCP and CLS within their limits.
+    for (const p75 of [{ lcp: 5200 }, { lcp: 1800, cls: 0 }] as Record<
+      string,
+      number
+    >[])
+      expect(
+        shown(
+          { lab: { none: "quota" }, field: cruxField(EXTRA, { inp: 100 }) },
+          { lab: { none: "quota" }, field: cruxField(EXTRA, p75) },
+        ),
+      ).toEqual([EXTRA, "quota", "measured"]);
     // A lab test without LCP and CLS decides no verdict either.
     const blank = lab(EXTRA, "mobile");
     expect(
@@ -648,7 +680,31 @@ describe("the speed table in a workspace view", () => {
       siteSpeed: {
         dropped: 0,
         rows: [
-          { url: EXTRA, audited: false, devices: readPageSpeed(speed, EXTRA) },
+          {
+            url: EXTRA,
+            audited: false,
+            // Review pass 25: the stored record holds the long URL, so the stored read meets it.
+            devices: readPageSpeed(own, EXTRA).map((item) =>
+              item.device === "mobile"
+                ? {
+                    ...item,
+                    field: {
+                      status: "measured",
+                      level: "normalized",
+                      url: long,
+                      p75: {
+                        lcp: 5200,
+                        inp: null,
+                        cls: null,
+                        ttfb: null,
+                        fcp: null,
+                      },
+                      period: null,
+                    },
+                  }
+                : item,
+            ),
+          },
         ],
       },
     }).siteSpeed;

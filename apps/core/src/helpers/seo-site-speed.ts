@@ -97,19 +97,36 @@ function readCheck(value: unknown, stored = false) {
 /** The values the web verdict reads (seoDeviceVerdict): a field with one Core Web Vital, a lab with LCP or CLS. */
 const VERDICT_FIELD = ["lcp", "inp", "cls"] as const;
 const VERDICT_LAB = ["lcp", "cls"] as const;
+/** Google's good limits at the 75th percentile, as the web verdict reads them (SEO_VITAL_LIMITS). */
+const VERDICT_GOOD = { lcp: 2500, inp: 200, cls: 0.1 } as const;
 
 /**
- * How much a measurement shows: a field read that decides the verdict, then a lab read that decides it. A gap or a
- * read without those values shows nothing, so it never hides a read of the same page and device that decides it.
+ * How much of a verdict a measurement gives, as the web verdict reads it: the field decides when it holds a Core Web
+ * Vital, else the lab. A read whose values give a verdict (one over its good limit, or LCP and CLS) ranks first, then
+ * a field read before a lab read. A gap or a read without those values shows nothing, so it never hides a read of
+ * the same page and device that shows more (review pass 25).
  */
 function speedEvidence({ field, lab }: PageSpeedRows[number]) {
   const visitors =
     field.status === "measured" &&
-    VERDICT_FIELD.some((metric) => field.p75[metric] != null);
+    VERDICT_FIELD.some((metric) => field.p75[metric] != null)
+      ? field.p75
+      : null;
   const test =
+    !visitors &&
     lab.status === "measured" &&
-    VERDICT_LAB.some((metric) => lab.median[metric] != null);
-  return (visitors ? 2 : 0) + (test ? 1 : 0);
+    VERDICT_LAB.some((metric) => lab.median[metric] != null)
+      ? lab.median
+      : null;
+  const values: Partial<Record<keyof typeof VERDICT_GOOD, number | null>> =
+    visitors ?? test ?? {};
+  if (!visitors && !test) return 0;
+  const decided =
+    (visitors ? VERDICT_FIELD : VERDICT_LAB).some(
+      (metric) => (values[metric] ?? 0) > VERDICT_GOOD[metric],
+    ) ||
+    (values.lcp != null && values.cls != null);
+  return (decided ? 2 : 0) + (visitors ? 2 : 1);
 }
 
 /**
