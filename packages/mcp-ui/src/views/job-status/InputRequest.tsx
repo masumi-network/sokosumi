@@ -59,8 +59,9 @@ export function parseInputSchema(text: string): InputSchema | undefined {
 /**
  * The question a Job waits on, as a form. It loads with `jobs_input_request`
  * and answers with `jobs_input` and the request's `eventId`. Answering spends
- * nothing, so the submit is the only confirm. `onPause` holds the Job's
- * polling while the form is up, so a refresh never swaps it mid-answer.
+ * nothing, so the submit is the only confirm. Polling goes on while the
+ * person types, so an answer given elsewhere still shows; `onPause` holds it
+ * only while the answer is in flight.
  */
 export function InputRequest({
   jobId,
@@ -81,7 +82,8 @@ export function InputRequest({
       ? input.workspace
       : undefined;
   const scope = workspace ? { workspace } : {};
-  const canCall = !!app.getHostCapabilities()?.serverTools;
+  // Without the call's arguments the workspace is unknown: wait for them.
+  const canCall = !!app.getHostCapabilities()?.serverTools && !!context.input;
   const [step, setStep] = useState<Step>(
     canCall ? { kind: "loading" } : { kind: "elsewhere" },
   );
@@ -94,7 +96,7 @@ export function InputRequest({
       .sendLog({ level: "warning", data: `${what} failed: ${String(error)}` })
       .catch(() => {});
 
-  const paused = step.kind !== "elsewhere";
+  const paused = step.kind === "sending";
   useEffect(() => {
     onPause(paused);
     return () => onPause(false);

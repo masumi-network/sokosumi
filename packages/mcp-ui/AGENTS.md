@@ -34,7 +34,7 @@
 - Text: every string goes through `t()` from `messages/en.json`. Dates go through `formatDateTime`, which uses the host's locale and time zone.
 - Links: open only URLs that pass `isUnderBase(url, context.webBaseUrl)`, through `context.app.openLink`.
 - A step only a person takes: an error result with `kind: "person_approval_required"` shows the shell's `approval` state, with "Review in Sokosumi" for its `details.webUrl` when that is under `webBaseUrl` (ADR 0077). No view has an approve control.
-- Job input (SOKD-423): while a Job is `input_required`, the job-status view loads the question with `jobs_input_request`, renders it with `SchemaForm`, and answers with `jobs_input` and the request's `eventId`. Answering spends nothing, so the submit is its only confirm. Polling holds while the form is up and resumes after a successful answer.
+- Job input (SOKD-423): while a Job is `input_required`, the job-status view loads the question with `jobs_input_request`, renders it with `SchemaForm`, and answers with `jobs_input` and the request's `eventId`. Answering spends nothing, so the submit is its only confirm. Polling holds only while the answer is in flight, so an answer given elsewhere still shows.
 - Task views share `src/views/task.tsx`: the assignee, initials, status words (`task.status.*`) and the Task's Web URL.
 
 ## Rules

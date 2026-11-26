@@ -112,7 +112,7 @@ export function JobStatus({
   const { app, missingTool } = context;
   const finished = FINISHED.has(job.status);
   const gone = isGone(context.refreshStatus);
-  // Polling holds while the person answers the Job's question (SOKD-423).
+  // Polling holds while an answer to the Job's question is in flight (SOKD-423).
   const [answering, setAnswering] = useState(false);
   const [answeredId, setAnsweredId] = useState<string>();
   const pendingId = pendingRequestId(job);
@@ -219,8 +219,9 @@ export function JobStatus({
           </p>
         ) : (
           <InputRequest
-            // A new request (another event) loads afresh.
-            key={pendingId ?? "request"}
+            // A new request (another event), or the call's arguments
+            // arriving after the result, loads afresh.
+            key={`${pendingId ?? "request"}${context.input ? "" : ":no-input"}`}
             jobId={job.id}
             context={context}
             onPause={setAnswering}

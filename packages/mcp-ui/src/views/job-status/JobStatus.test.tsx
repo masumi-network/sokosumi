@@ -317,12 +317,45 @@ describe("JobStatus", () => {
       expect(document.querySelector("main b")).toBeNull();
     });
 
-    it("does not poll while the person answers", async () => {
+    it("keeps polling while the person types, and keeps the draft", async () => {
       const { sent } = await openRequest();
-      await advance(60_000);
+      await advance(0);
+      fireEvent.change(audience(), { target: { value: "Founders" } });
 
-      expect(sent.calls).toHaveBeenCalledTimes(1);
-      expect(screen.queryByText(/This view updates/)).toBeNull();
+      await advance(3000);
+      expect(sent.calls).toHaveBeenLastCalledWith("jobs_get", JOB.input);
+      expect(audience().value).toBe("Founders");
+      expect(
+        sent.calls.mock.calls.filter(([name]) => name === "jobs_input_request"),
+      ).toHaveLength(1);
+    });
+
+    it("drops the form when the question is answered elsewhere", async () => {
+      let job = JOB.inputRequired;
+      await openRequest({ jobs_get: async () => job });
+      await advance(0);
+      expect(audience()).toBeTruthy();
+
+      job = JOB.running;
+      await advance(3000);
+      expect(within(status()).getByText("Working")).toBeTruthy();
+      expect(screen.queryByRole("textbox")).toBeNull();
+    });
+
+    it("does not poll while the answer is in flight", async () => {
+      const { sent } = await openRequest({
+        jobs_input: () => new Promise<CallToolResult>(() => {}),
+      });
+      await advance(0);
+      fireEvent.change(audience(), {
+        target: { value: "Founders in Germany" },
+      });
+      send();
+      await advance(0);
+      const before = sent.calls.mock.calls.length;
+
+      await advance(60_000);
+      expect(sent.calls.mock.calls.length).toBe(before);
     });
 
     it("sends the answer with the request's eventId, then polls again and shows the new status", async () => {
@@ -394,8 +427,11 @@ describe("JobStatus", () => {
       });
 
       const button = screen.getByRole("button", { name: "Send answer" });
-      fireEvent.click(button);
-      fireEvent.click(button);
+      // Both clicks land before React re-renders the button disabled.
+      act(() => {
+        button.click();
+        button.click();
+      });
       await advance(0);
 
       expect(button.textContent).toBe("Sending");
