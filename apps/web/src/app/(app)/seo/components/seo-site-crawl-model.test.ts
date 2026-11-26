@@ -89,8 +89,10 @@ describe("site crawl ledger", () => {
       missingH1: 8,
       // The pages left out of the title checks, compared with none.
       duplicateTitles: 8,
+      // A linked URL with no answer may start a chain.
+      redirectChains: 3,
     });
-    expect(result.clear).toEqual(["redirectChains", "orphans", "javascript"]);
+    expect(result.clear).toEqual(["orphans", "javascript"]);
   });
 
   it("keeps a check without a section undecided, with the bot's reasons for it", () => {
@@ -152,6 +154,73 @@ describe("site crawl ledger", () => {
       reasons: ["a sitemap read failed"],
     });
     expect(result.otherGaps).toEqual([]);
+  });
+
+  it("passes no check over the read pages of a stopped crawl that gave no gap item", () => {
+    const crawl = cleanCrawl();
+    crawl.stop = "time";
+    const result = view(crawl);
+    expect(result.clear).toEqual(["noindexInSitemap", "orphans"]);
+    for (const check of [
+      "brokenLinks",
+      "redirectChains",
+      "missingTitle",
+      "missingH1",
+      "duplicateTitles",
+      "badCanonicals",
+      "javascript",
+    ] as const)
+      expect(row(crawl, check)).toMatchObject({
+        state: "not determined",
+        empty: "stopped",
+      });
+  });
+
+  it("gives the stop reason to the page checks of a stopped crawl", () => {
+    const crawl = cleanCrawl();
+    crawl.stop = "page cap";
+    crawl.gaps = [
+      {
+        item: "Pages past where the crawl stopped",
+        reason: "the crawl reached its limit of 500 pages",
+      },
+    ];
+    expect(row(crawl, "missingTitle")).toMatchObject({
+      reasons: ["the crawl reached its limit of 500 pages"],
+    });
+    expect(view(crawl).otherGaps).toEqual([]);
+  });
+
+  it("does not pass the link checks when robots.txt kept URLs out", () => {
+    const crawl = cleanCrawl();
+    crawl.gaps = [
+      { item: "1 URL the robots file blocks", reason: "the crawl follows it" },
+    ];
+    const result = view(crawl);
+    expect(result.clear).not.toContain("brokenLinks");
+    expect(result.clear).not.toContain("redirectChains");
+    expect(result.otherGaps).toEqual([]);
+  });
+
+  it("keeps the duplicate check undecided when the bot did not compare some texts", () => {
+    const crawl = cleanCrawl();
+    crawl.gaps = [{ item: "Duplicate titles", reason: "1 page not compared" }];
+    expect(row(crawl, "duplicateTitles")).toMatchObject({
+      state: "not determined",
+      reasons: ["1 page not compared"],
+    });
+  });
+
+  it("passes page groups the crawl rendered, with the caveat about other pages shown apart", () => {
+    const crawl = cleanCrawl();
+    const caveat = {
+      item: "Links and text that only JavaScript adds to a page whose raw HTML is not a shell",
+      reason: "the crawl renders a page only when its raw HTML is a shell",
+    };
+    crawl.gaps = [caveat];
+    const result = view(crawl);
+    expect(result.clear).toContain("javascript");
+    expect(result.otherGaps).toEqual([caveat]);
   });
 
   it("keeps the bot's reasons on a check that found problems", () => {

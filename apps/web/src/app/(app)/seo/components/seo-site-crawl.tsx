@@ -173,7 +173,7 @@ function Crawled({
             {view.otherGaps.map((gap) => (
               <li key={gap.item}>
                 <span className="font-medium">{gap.item}</span>
-                <span className="block text-muted-foreground">
+                <span className="block text-muted-foreground [overflow-wrap:anywhere]">
                   {sentence(gap.reason)}
                 </span>
               </li>
@@ -216,7 +216,7 @@ function UndecidedRow({
       {!whole && <span aria-hidden className="w-8 shrink-0" />}
       <div className="min-w-0 flex-1">
         <p>{title}</p>
-        <p className="max-w-prose text-xs text-muted-foreground">
+        <p className="max-w-prose text-xs text-muted-foreground [overflow-wrap:anywhere]">
           {!whole && (
             <span className="font-medium text-foreground">
               {t("notDetermined")}.{" "}
@@ -285,7 +285,8 @@ function FoundRow({ row, site, t }: { row: Found; site: string | null; t: T }) {
           >
             {shown.map((item) => (
               <Item
-                key={item.label + (item.urls?.[0] ?? "")}
+                // A page can hold two canonical findings: the kind tells them apart.
+                key={[item.label, item.kind, item.urls?.[0]].join("\n")}
                 item={item}
                 row={row}
                 name={name}
@@ -325,7 +326,7 @@ function FoundRow({ row, site, t }: { row: Found; site: string | null; t: T }) {
             <p className="text-xs text-muted-foreground">{t("candidates")}</p>
           )}
           {row.reasons.length > 0 && (
-            <p className="max-w-prose text-xs text-muted-foreground">
+            <p className="max-w-prose text-xs text-muted-foreground [overflow-wrap:anywhere]">
               {row.reasons.map(sentence).join(" ")}
             </p>
           )}

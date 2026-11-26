@@ -15810,6 +15810,7 @@
         },
         "noSitemapPage": "The sitemap names no page on this site.",
         "olderReport": "This report is from before this check.",
+        "stopped": "The crawl stopped before it read each page and link.",
         "checks": {
           "brokenLinks": "Broken links",
           "noindexInSitemap": "Noindex pages in the sitemap",

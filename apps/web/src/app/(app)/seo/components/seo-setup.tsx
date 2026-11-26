@@ -236,8 +236,8 @@ export function SeoSetupCard({
             index={3}
             heading="h4"
             last
-            // A queued check has not started: the step is current, with no spinner.
-            mark={run?.queued ? "active" : MARK[setup.check]}
+            // A queued check has not started: no spinner, and the step with an action stays the current one.
+            mark={run?.queued ? "todo" : MARK[setup.check]}
             title={t(full ? "setup.audit" : "setup.check")}
             body={
               pausedReason ? (

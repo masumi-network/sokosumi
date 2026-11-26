@@ -536,6 +536,35 @@ describe("SEO audit first run", () => {
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
   });
 
+  it("keeps the Google step current while the free first check waits to start", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "queued",
+        kind: "page_check",
+        status: "requested",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date(),
+      },
+    ];
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    const current = await screen.findAllByRole("listitem", { current: "step" });
+    expect(current).toHaveLength(1);
+    expect(
+      within(current[0]).getByRole("button", { name: "Connect Google" }),
+    ).toBeVisible();
+  });
+
   it("has three steps, and a connected account unlocks the first audit", async () => {
     const workspace = seoTestWorkspace();
     network(workspace);

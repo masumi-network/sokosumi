@@ -71,8 +71,12 @@ export type SeoCrawlRow =
     }
   | { check: SeoCrawlCheck; state: "clear" };
 
-/** missing: the report has no result; noSitemapPage: the sitemap names no page on the site; olderReport: the report predates the check. */
-export type SeoCrawlEmpty = "missing" | "noSitemapPage" | "olderReport";
+/** stopped: the crawl stopped before it read each page and link; missing: the report has no result; noSitemapPage: the sitemap names no page on the site; olderReport: the report predates the check. */
+export type SeoCrawlEmpty =
+  | "missing"
+  | "noSitemapPage"
+  | "olderReport"
+  | "stopped";
 
 export type SeoCrawlView =
   | { state: "not crawled"; reason: string }
@@ -88,19 +92,35 @@ export type SeoCrawlView =
     };
 
 /** The SEO bot's couldNotSee items that speak about one check. */
+/**
+ * The checks over what the crawl read. A stopped crawl read only part of the site, so none of them passes: the bot's
+ * own Report says its findings "cover the pages in its stored reads". The sitemap check counts the sitemap URLs it
+ * did not read, and the bot already leaves orphans undetermined when the crawl stopped.
+ */
+const STOPPED_CHECKS: SeoCrawlCheck[] = SEO_CRAWL_CHECKS.filter(
+  (check) => check !== "noindexInSitemap" && check !== "orphans",
+);
+
 const GAP_CHECKS: {
   check: SeoCrawlCheck[];
   item: (item: string) => boolean;
 }[] = [
   {
-    // A crawl that stopped early, or left links unfollowed, did not check each linked page.
+    check: STOPPED_CHECKS,
+    item: (item) => item === "Pages past where the crawl stopped",
+  },
+  {
+    // A crawl that left links unfollowed did not check each linked page.
     check: ["brokenLinks", "redirectChains"],
     item: (item) =>
       item === "Broken internal links" ||
-      item === "Pages past where the crawl stopped" ||
       (item.startsWith("At least ") &&
-        item.endsWith(" the crawl did not follow")),
+        item.endsWith(" the crawl did not follow")) ||
+      // A linked URL the crawl may not fetch can be broken or redirect.
+      item.endsWith(" the robots file blocks") ||
+      item.includes(" whose robots.txt the crawl could not read"),
   },
+  { check: ["duplicateTitles"], item: (item) => item === "Duplicate titles" },
   { check: ["orphans"], item: (item) => item === "Orphan pages" },
   {
     // Both sitemap checks read only the sitemap URLs the bot got.
@@ -108,8 +128,12 @@ const GAP_CHECKS: {
     item: (item) => item === "Some sitemap URLs",
   },
   {
+    // The shell pages the crawl did not render. The caveat about pages that are no shell is about no group:
+    // it stays in otherGaps.
     check: ["javascript"],
-    item: (item) => item.startsWith("Links") && item.includes("JavaScript"),
+    item: (item) =>
+      item === "Links that only JavaScript adds" ||
+      item.startsWith("Links and text that JavaScript adds to "),
   },
 ];
 /** Items about the near-duplicate check, which Sokosumi does not show. */
@@ -156,7 +180,8 @@ function read(crawl: Crawled, check: SeoCrawlCheck): Reading {
       return links
         ? {
             found: links.chainsTotal,
-            notDetermined: 0,
+            // A linked URL with no answer may start a chain too.
+            notDetermined: links.notJudged,
             items: links.chains.map((chain) => ({
               label: chain.start,
               url: true,
@@ -269,7 +294,12 @@ function reasonsFor(crawl: Crawled, check: SeoCrawlCheck) {
   );
 }
 
+/** A crawl that stopped early did not read the whole site, whatever gap items it gave. */
+const stoppedEarly = (crawl: Crawled, check: SeoCrawlCheck) =>
+  crawl.stop !== "complete" && STOPPED_CHECKS.includes(check);
+
 function emptyReason(crawl: Crawled, check: SeoCrawlCheck): SeoCrawlEmpty {
+  if (stoppedEarly(crawl, check)) return "stopped";
   // The page checks ran and read no sitemap URL of this site.
   if (check === "noindexInSitemap" && crawl.pageChecks) return "noSitemapPage";
   // A report from before the crawl's JavaScript reads.
@@ -304,7 +334,12 @@ export function seoSiteCrawlView(
           }),
       };
     const left = "found" in reading ? reading.notDetermined : 0;
-    if ("missing" in reading || left > 0 || reasons.length > 0)
+    if (
+      "missing" in reading ||
+      left > 0 ||
+      reasons.length > 0 ||
+      stoppedEarly(crawl, check)
+    )
       return {
         check,
         state: "not determined",
