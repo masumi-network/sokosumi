@@ -33,7 +33,12 @@ async function openPosts(
   {
     answer = async () => SOCIAL.canceled,
     serverTools = true,
-  }: { answer?: Answer; serverTools?: boolean } = {},
+    input = SOCIAL.input,
+  }: {
+    answer?: Answer;
+    serverTools?: boolean;
+    input?: Record<string, unknown>;
+  } = {},
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const bridge = new AppBridge(
@@ -82,7 +87,7 @@ async function openPosts(
     </Shell>,
   );
   await act(() => initialized);
-  await act(() => bridge.sendToolInput({ arguments: SOCIAL.input }));
+  await act(() => bridge.sendToolInput({ arguments: input }));
   await act(() => bridge.sendToolResult(result));
   return sent;
 }
@@ -132,6 +137,26 @@ describe("SocialPosts list", () => {
     await openPosts(SOCIAL.none);
 
     expect(screen.getByText("Nothing needs approval")).toBeTruthy();
+  });
+
+  it("says how many wait when Core holds more than one page", async () => {
+    await openPosts(SOCIAL.paged);
+
+    expect(
+      screen.getByText("Showing 3 of 35. Review the rest in Sokosumi."),
+    ).toBeTruthy();
+  });
+
+  it("never calls an unfiltered page empty while older posts remain", async () => {
+    await openPosts(SOCIAL.unfiltered, { input: { workspace: "acme" } });
+
+    expect(screen.queryByText("Nothing needs approval")).toBeNull();
+    expect(screen.getByText("0 need approval")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Only the newest posts were checked. Others may wait in Sokosumi.",
+      ),
+    ).toBeTruthy();
   });
 
   it("has no approve, reject or publish control (ADR 0077)", async () => {
@@ -200,7 +225,24 @@ describe("SocialPosts cancel", () => {
     expect(sent.context).toHaveBeenCalledWith([
       {
         type: "text",
-        text: `The person canceled Social post ${launch.id} in the view.`,
+        text: `The person canceled these Social posts in the view: ${launch.id}.`,
+      },
+    ]);
+  });
+
+  it("tells the model about every post canceled here", async () => {
+    const thread = SOCIAL.posts[1].post;
+    const sent = await openPosts(SOCIAL.result);
+
+    for (const index of [0, 1]) {
+      await click(button("Cancel", postItems()[index]));
+      await click(button("Cancel post", postItems()[index]));
+    }
+
+    expect(sent.context).toHaveBeenLastCalledWith([
+      {
+        type: "text",
+        text: `The person canceled these Social posts in the view: ${launch.id}, ${thread.id}.`,
       },
     ]);
   });
@@ -270,6 +312,9 @@ describe("SocialPosts cancel", () => {
         "This post changed. Refresh to see it, then try again.",
       ),
     ).toBeTruthy();
+    expect(
+      within(postItems()[0]).queryByRole("button", { name: "Cancel" }),
+    ).toBeNull();
   });
 
   it("names the toolset when the cancel tool is off", async () => {

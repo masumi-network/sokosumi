@@ -587,6 +587,10 @@ export const SOCIAL = {
   result: socialResult(SOCIAL_POSTS),
   one: socialResult(SOCIAL_POSTS.slice(0, 1)),
   none: socialResult([]),
+  /** Core holds 35 posts that need approval; this page has 3. */
+  paged: socialResult(SOCIAL_POSTS.slice(0, 3), 35),
+  /** A call without `status`: the newest page holds none that wait. */
+  unfiltered: socialResult(SOCIAL_POSTS.slice(3), 40),
   /** The twin's answer after the first post was canceled. */
   afterCancel: socialResult(SOCIAL_POSTS.slice(1)),
   canceled: toolResult({

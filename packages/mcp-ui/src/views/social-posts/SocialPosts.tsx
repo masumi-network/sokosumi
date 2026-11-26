@@ -41,7 +41,13 @@ type WorkspacePost = z.infer<typeof WorkspacePost>;
 type Post = WorkspacePost["post"];
 
 /** `workspaces_social_posts`'s result, which the show tool returns unchanged. */
-export const SocialPostsList = z.object({ data: z.array(WorkspacePost) });
+export const SocialPostsList = z.object({
+  data: z.array(WorkspacePost),
+  pagination: z
+    .object({ total: z.number().nullish(), nextCursor: z.string().nullish() })
+    .partial()
+    .nullish(),
+});
 export type SocialPostsList = z.infer<typeof SocialPostsList>;
 
 export const SOCIAL_EMPTY = {
@@ -54,7 +60,13 @@ function waiting(data: SocialPostsList): WorkspacePost[] {
   return data.data.filter(({ post }) => post.status === NEEDS_APPROVAL);
 }
 
-export const isEmpty = (data: SocialPostsList) => waiting(data).length === 0;
+/** Core holds more posts than this page: the page alone can't say what waits. */
+function hasMore({ data, pagination }: SocialPostsList): boolean {
+  return !!pagination?.nextCursor || (pagination?.total ?? 0) > data.length;
+}
+
+export const isEmpty = (data: SocialPostsList) =>
+  waiting(data).length === 0 && !hasMore(data);
 
 /** A cancel's outcome, kept for the post revision it acted on. */
 type Outcome =
@@ -81,11 +93,14 @@ export function SocialPosts({
       : undefined;
   const canCall = !!app.getHostCapabilities()?.serverTools;
   const posts = waiting(data);
+  // Core filtered to Needs approval, so its total counts what waits.
+  const filtered = input.status === NEEDS_APPROVAL;
 
   const [confirming, setConfirming] = useState<string>();
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({});
   // Set before a call leaves, so a second click in the same frame is a no-op.
   const sending = useRef(new Set<string>());
+  const canceledIds = useRef<string[]>([]);
   const [refreshing, setRefreshing] = useState<"idle" | "busy" | "failed">(
     "idle",
   );
@@ -120,13 +135,17 @@ export function SocialPosts({
       });
       if (!result.isError) {
         settle(key, "canceled");
-        if (isPlainReference(post.id)) {
+        // Model context replaces the last one, so it names every cancel.
+        if (isPlainReference(post.id)) canceledIds.current.push(post.id);
+        if (canceledIds.current.length > 0) {
           app
             .updateModelContext({
               content: [
                 {
                   type: "text",
-                  text: t("socialPosts.context", { id: post.id }),
+                  text: t("socialPosts.context", {
+                    ids: canceledIds.current.join(", "),
+                  }),
                 },
               ],
             })
@@ -176,6 +195,16 @@ export function SocialPosts({
               count: open,
             })}
           </p>
+          {hasMore(data) && (
+            <p className="text-muted-foreground text-xs">
+              {filtered && data.pagination?.total != null
+                ? t("socialPosts.showing", {
+                    shown: posts.length,
+                    total: data.pagination.total,
+                  })
+                : t("socialPosts.partial")}
+            </p>
+          )}
         </div>
         {refresh && (
           <QuietButton
@@ -280,9 +309,9 @@ function PostItem({
       ? t("socialPosts.thread", { count: post.threadParts.length + 1 })
       : undefined,
   ].filter(Boolean);
-  // A failed or conflicting cancel may be tried again; the others are final.
-  const offerCancel =
-    canCancel && (!outcome || outcome === "failed" || outcome === "conflict");
+  // A failed cancel may be tried again. A conflict needs a refresh first: its
+  // new revision gives the post a new key, and Cancel comes back.
+  const offerCancel = canCancel && (!outcome || outcome === "failed");
   const note = outcome && OUTCOME_TEXT[outcome];
 
   return (

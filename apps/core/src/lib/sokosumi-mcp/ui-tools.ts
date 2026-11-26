@@ -49,7 +49,7 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     data: "workspaces_social_posts",
     ui: "social-posts",
     description:
-      "Show the person the workspace's Social posts that need approval: each post's text, account, Project and schedule, with Review in Sokosumi and a Cancel the person confirms in the view. Pass `status: \"NEEDS_APPROVAL\"`. A person approves and publishes in Sokosumi; the view only cancels, through projects_social_post_cancel, which needs the social toolset. Takes workspaces_social_posts's arguments and returns its result. Use it when the person wants to review the posts waiting for them; use workspaces_social_posts when you only need the data.",
+      "Show the person the workspace's Social posts that need approval: each post's text, account, Project and schedule, with Review in Sokosumi and a Cancel the person confirms in the view. Pass `status: \"NEEDS_APPROVAL\"` and `limit: 100`. A person approves and publishes in Sokosumi; the view only cancels, through projects_social_post_cancel, which needs the social toolset. Takes workspaces_social_posts's arguments and returns its result. Use it when the person wants to review the posts waiting for them; use workspaces_social_posts when you only need the data.",
   },
 ];
 

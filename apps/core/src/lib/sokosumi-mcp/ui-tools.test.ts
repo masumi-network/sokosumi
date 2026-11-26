@@ -57,7 +57,9 @@ describe("MCP_UI_TOOLS", () => {
       data: "workspaces_social_posts",
       ui: "social-posts",
     });
-    expect(show?.description).toContain('`status: "NEEDS_APPROVAL"`');
+    expect(show?.description).toContain(
+      '`status: "NEEDS_APPROVAL"` and `limit: 100`',
+    );
     expect(show?.description).toContain("projects_social_post_cancel");
     expect(show?.description).toContain("social toolset");
     expect(show?.description).toContain("approves and publishes in Sokosumi");
