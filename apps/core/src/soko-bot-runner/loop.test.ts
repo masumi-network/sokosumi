@@ -470,7 +470,7 @@ describe("runTurnLoop", () => {
       expect(main.calls).toEqual([wrapUps[0]]);
       expect(
         handOvers.filter((handOver) =>
-          handOver.text.includes("token budget ran out"),
+          handOver.text.includes("This part stopped before it finished"),
         ).length,
       ).toBeGreaterThan(0);
       expect(result.text).toContain("filled 12 of 30 rows");
@@ -479,6 +479,41 @@ describe("runTurnLoop", () => {
       expect(budget.reserved).toBe(0);
     },
   );
+
+  it("lets parts that reach their step ceiling hand back without a report of their own", async () => {
+    // Codex round 16: three parts at 12 steps each, 10 tokens a step, on a
+    // 370-token allowance made three part reports and the turn's fourth.
+    const clock = { now: 0 };
+    const budget = turnTokenBudget(370, 10);
+    const models = Array.from({ length: 3 }, () => tirelessModel(clock));
+    const main = tirelessModel(clock);
+    const loop = (model: typeof main.model, part: boolean, maxSteps: number) =>
+      runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "Work.",
+        tools,
+        maxSteps,
+        budget,
+        part,
+        background: false,
+        deadline: 6_000 * MINUTE,
+        stopped: new AbortController().signal,
+        now: () => clock.now,
+      });
+
+    await Promise.all(models.map(({ model }) => loop(model, true, 12)));
+    await loop(main.model, false, 500);
+
+    const wrapUps = [
+      ...models.flatMap(({ calls }) => calls),
+      ...main.calls,
+    ].filter((call) => (call.toolChoice as { type?: string })?.type === "none");
+    expect(wrapUps).toHaveLength(1);
+    expect(main.calls.at(-1)?.toolChoice).toEqual({ type: "none" });
+    // 36 part steps, the turn's own steps up to the limit, one wrap-up.
+    expect(budget.used).toBeLessThanOrEqual(370 + 10);
+  });
 
   it("ends on the step whose tool said so, without a closing step", async () => {
     const clock = { now: 0 };

@@ -25,11 +25,12 @@ export function turnTokenBudget(
 }
 
 /**
- * What a turn part hands back when the turn's allowance runs out: the one
- * wrap-up call belongs to the turn itself, so a part makes none.
+ * What a turn part hands back when it is cut off mid-work (steps, time or
+ * the turn's allowance): the one wrap-up call belongs to the turn itself,
+ * so a part makes none.
  */
 export const PART_OUT_OF_BUDGET_NOTE =
-  "(This part stopped: the turn's token budget ran out before it finished. Work from what the other parts found.)";
+  "(This part stopped before it finished: it ran out of steps, time or the turn's token budget. Work from what the other parts found.)";
 
 /** A prompt's input tokens before a step has measured them: about 4 chars each. */
 export function estimateInputTokens(...texts: string[]): number {

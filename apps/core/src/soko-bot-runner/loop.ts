@@ -224,7 +224,9 @@ export async function runTurnLoop(
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
   const cutOff = stepsLeft <= 0 || timeUp() || refused;
-  if (refused && input.part)
+  // A part never makes a wrap-up call, whatever stopped it: the turn's own
+  // loop makes the one, from what the parts handed back.
+  if (cutOff && input.part)
     return {
       text:
         finishReason === "tool-calls" || !text.trim()
