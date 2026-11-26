@@ -19,6 +19,7 @@ import {
   usualValue,
 } from "@/lib/evals/eval-compare";
 import {
+  comparableRuns,
   evalCommit,
   evalEnvironment,
   prNumberFromCommitMessage,
@@ -125,12 +126,11 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   if (cases.length === 0) throw new EvalRunError("No cases to run");
   const commit = evalCommit();
   const environment = evalEnvironment();
+  const local = environment === "local" || environment === "local-chatgpt-plan";
   const commitSha =
-    commit.commitSha ??
-    (environment === "local" ? (input.commit?.sha ?? null) : null);
+    commit.commitSha ?? (local ? (input.commit?.sha ?? null) : null);
   const commitMessage =
-    commit.commitMessage ??
-    (environment === "local" ? (input.commit?.message ?? null) : null);
+    commit.commitMessage ?? (local ? (input.commit?.message ?? null) : null);
   for (const versionId of [input.sokoBotVersionId, input.cusoVersionId])
     if (versionId && !(await isRunnableSokoBotVersionId(versionId)))
       throw new EvalRunError(`Unknown or unapproved version: ${versionId}`);
@@ -145,7 +145,11 @@ export async function createEvalRun(input: CreateEvalRunInput) {
       commitMessage,
       prNumber: commit.prNumber ?? prNumberFromCommitMessage(commitMessage),
       environment,
-      label: input.label ?? null,
+      label:
+        input.label ??
+        (environment === "local-chatgpt-plan"
+          ? "local, ChatGPT plan (approximate)"
+          : null),
       startedByUserId: input.startedByUserId ?? null,
       models: {
         sokoBotVersionId: input.sokoBotVersionId ?? defaults.sokoBot,
@@ -625,11 +629,15 @@ function statesByCase(results: readonly ResultRow[]) {
   return states;
 }
 
-/** Completed daily runs before `before`, newest first. */
-async function dailyHistory(before: Date, excludeRunId?: string) {
+/** Completed comparable runs before `before`, newest first. */
+async function dailyHistory(
+  before: Date,
+  excludeRunId?: string,
+  environment = "mainnet",
+) {
   const runs = await prisma.evalRun.findMany({
     where: {
-      trigger: "DAILY",
+      ...comparableRuns(environment),
       status: "COMPLETED",
       createdAt: { lt: before },
       ...(excludeRunId ? { id: { not: excludeRunId } } : {}),
@@ -735,7 +743,7 @@ export async function getEvalRunReport(runId: string) {
     include: { results: { orderBy: [{ position: "asc" }, { repeat: "asc" }] } },
   });
   if (!run) throw new EvalRunError("Eval run not found");
-  const history = await dailyHistory(run.createdAt, run.id);
+  const history = await dailyHistory(run.createdAt, run.id, run.environment);
   const baselineRun = history.runs[0] ?? null;
   const historyRates = (caseId: string) =>
     history.runs.map((past) =>
@@ -802,12 +810,12 @@ export async function getEvalRunReport(runId: string) {
 export async function getEvalCaseBaseline(runId: string, caseId: string) {
   const run = await prisma.evalRun.findUnique({
     where: { id: runId },
-    select: { id: true, createdAt: true },
+    select: { id: true, createdAt: true, environment: true },
   });
   if (!run) throw new EvalRunError("Eval run not found");
   const baseline = await prisma.evalRun.findFirst({
     where: {
-      trigger: "DAILY",
+      ...comparableRuns(run.environment),
       status: "COMPLETED",
       createdAt: { lt: run.createdAt },
       id: { not: run.id },

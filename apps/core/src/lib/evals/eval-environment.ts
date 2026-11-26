@@ -1,13 +1,34 @@
 import { getEnv } from "@/config/env";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 
-export type EvalEnvironment = "mainnet" | "preprod" | "preview" | "local";
+export type EvalEnvironment =
+  | "mainnet"
+  | "preprod"
+  | "preview"
+  | "local"
+  | "local-chatgpt-plan";
 
-/** Where this Core runs, as an eval run records it. */
+/**
+ * Where this Core runs, as an eval run records it. A ChatGPT plan run is its
+ * own environment: its models differ, so it is compared only with plan runs.
+ */
 export function evalEnvironment(): EvalEnvironment {
   if (process.env.VERCEL_ENV === "production")
     return getEnv().NETWORK === "Mainnet" ? "mainnet" : "preprod";
   if (process.env.VERCEL_ENV === "preview") return "preview";
-  return "local";
+  return localChatGptPlanEnabled() ? "local-chatgpt-plan" : "local";
+}
+
+/**
+ * Which runs a run is compared with: daily runs, or for a ChatGPT plan run
+ * only other plan runs, since plan models differ from production's.
+ */
+export function comparableRuns(
+  environment: string,
+): { environment: "local-chatgpt-plan" } | { trigger: "DAILY" } {
+  return environment === "local-chatgpt-plan"
+    ? { environment: "local-chatgpt-plan" }
+    : { trigger: "DAILY" };
 }
 
 /** The daily run belongs to mainnet's production deploy of main only. */

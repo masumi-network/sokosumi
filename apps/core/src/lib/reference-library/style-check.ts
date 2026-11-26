@@ -2,6 +2,7 @@ import { gateway, generateText, Output } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { localChatGptPlanModel } from "@/lib/local-chatgpt-plan";
 
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
@@ -128,7 +129,9 @@ export async function checkStyledPicture(input: {
   const brandPictures = input.logo ? rest.slice(1) : rest;
   const result = await generateText({
     telemetry: { functionId: "picture-style-check" },
-    model: gateway(STYLE_CHECK_MODEL),
+    // A ChatGPT plan run checks on the plan's model instead of the Gateway.
+    model:
+      localChatGptPlanModel(STYLE_CHECK_MODEL) ?? gateway(STYLE_CHECK_MODEL),
     output: Output.object({ schema: verdictSchema }),
     system:
       RUBRIC +

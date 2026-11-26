@@ -12,6 +12,7 @@ import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
 import { recordCoreError } from "@/lib/evlog";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export const CONTACT_SEARCH_MODES = ["both", "words", "meaning"] as const;
@@ -154,6 +155,9 @@ async function embedQuery(
   query: string,
   embed: EmbedTexts = embedTexts,
 ): Promise<string | null> {
+  // Stored vectors come from the Gateway model: a plan run's local vectors
+  // are a different method, so the search matches by text only.
+  if (localChatGptPlanEnabled()) return null;
   try {
     const [embedding] = (await embed([query.toLowerCase()])).embeddings;
     return embedding ? vectorLiteral(embedding) : null;
@@ -187,6 +191,8 @@ export async function embedStaleContacts(
     shouldContinue?: () => boolean;
   } = {},
 ): Promise<{ embedded: number; costUsd: number }> {
+  // A plan run never stores its local vectors next to the Gateway's.
+  if (localChatGptPlanEnabled()) return { embedded: 0, costUsd: 0 };
   const embed = options.embed ?? embedTexts;
   const stale = await prisma.$queryRaw<
     { contactId: string; document: string; hash: string }[]

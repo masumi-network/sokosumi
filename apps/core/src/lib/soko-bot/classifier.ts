@@ -14,7 +14,10 @@ import {
 } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import { recordCoreWarning } from "@/lib/evlog";
-import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import {
+  chatGptPlanEffectiveModel,
+  localChatGptPlanEnabled,
+} from "@/lib/local-chatgpt-plan";
 import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -286,6 +289,13 @@ export interface RouteEvaluation {
   answers: unknown;
   usage: { inputTokens?: number; outputTokens?: number };
   providerMetadata?: unknown;
+}
+
+/** The routing model that actually answers: Jev, or the plan's stand-in. */
+export function routeModelName(): string {
+  return (
+    chatGptPlanEffectiveModel(SOKO_BOT_ROUTE_MODEL) ?? SOKO_BOT_ROUTE_MODEL
+  );
 }
 
 /** The single seam to Jev; tests replace it with scripted answers. */
@@ -681,7 +691,7 @@ export class JevTurnClassifier implements TurnClassifier {
           routeAnswersSchema.parse(result.answers),
           pending,
         ),
-        model: SOKO_BOT_ROUTE_MODEL,
+        model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: false,
@@ -700,7 +710,7 @@ export class JevTurnClassifier implements TurnClassifier {
           fix: "If it repeats, check the AI gateway and the classifier's model: meanwhile every request is answered with reads only.",
         },
         {
-          model: SOKO_BOT_ROUTE_MODEL,
+          model: routeModelName(),
           failure: messageSafeErrorFields(error),
         },
       );
@@ -711,7 +721,7 @@ export class JevTurnClassifier implements TurnClassifier {
           "Classifier unavailable; reads only.",
           0,
         ),
-        model: SOKO_BOT_ROUTE_MODEL,
+        model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: true,

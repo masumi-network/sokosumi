@@ -12,6 +12,7 @@ import { getEnv } from "@/config/env";
 import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 
 /**
  * References below this are blank, damaged, a book spread or a photo of a
@@ -74,9 +75,14 @@ export async function findStyleReferences(
   },
   embed: EmbedTexts = embedTexts,
 ): Promise<StyleReference[]> {
-  const [embedding] = (await embed([input.about])).embeddings;
-  if (!embedding) return [];
-  const vector = vectorLiteral(embedding);
+  // Stored vectors come from the Gateway model, so a plan run (whose local
+  // vectors are a different method) ranks by usability instead of meaning.
+  let vector: string | null = null;
+  if (!localChatGptPlanEnabled()) {
+    const [embedding] = (await embed([input.about])).embeddings;
+    if (!embedding) return [];
+    vector = vectorLiteral(embedding);
+  }
   const kinds = input.kinds?.length ? input.kinds : null;
   const leftOut = input.infographics === false ? ["infographic"] : [];
   const limit = Math.min(input.limit ?? 5, MAX_RESULTS);
@@ -92,7 +98,7 @@ export async function findStyleReferences(
       AND NOT ("kind" = ANY(${leftOut}::text[]))
       AND (${input.purpose ?? null}::text IS NULL OR ${input.purpose ?? null} = ANY("suits"))
       AND NOT ("id"::text = ANY(${exclude}::text[]))
-    ORDER BY "embedding" <=> ${vector}::vector
+    ORDER BY "embedding" <=> ${vector}::vector NULLS LAST, "usable" DESC, "id"
     LIMIT ${limit}
   `;
 }

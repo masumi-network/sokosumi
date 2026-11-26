@@ -23,11 +23,7 @@ const { values } = parseArgs({
   },
 });
 
-if (values.plan) {
-  process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
-  // The Gateway judge would bill the Gateway; Claude Code bills the subscription.
-  process.env.SOKO_BOT_JUDGE_RUNNER ??= "claude-code";
-}
+if (values.plan) process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 
 const { default: prisma } = await import("@/lib/db/prisma");
@@ -35,9 +31,7 @@ const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
 );
 if (values.plan) {
-  const { chatGptPlanAccessToken, installChatGptPlanGatewayGuard } =
-    await import("@/lib/local-chatgpt-plan");
-  installChatGptPlanGatewayGuard();
+  const { chatGptPlanAccessToken } = await import("@/lib/local-chatgpt-plan");
   await chatGptPlanAccessToken();
 }
 
@@ -60,7 +54,8 @@ const run = await createEvalRun({
   repeats: Number(values.repeats),
   sokoBotVersionId: values["soko-bot-version"] ?? null,
   cusoVersionId: values["cuso-version"] ?? null,
-  label: values.plan ? "local, OpenAI on ChatGPT plan" : "local, Gateway",
+  // Plan runs get their label from createEvalRun, however plan mode was set.
+  label: values.plan ? undefined : "local, Gateway",
   commit: {
     sha: git("rev-parse", "HEAD"),
     message: git("log", "-1", "--format=%s"),

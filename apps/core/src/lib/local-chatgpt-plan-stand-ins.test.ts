@@ -9,6 +9,8 @@ vi.mock("ai", async (importOriginal) => ({
   experimental_evaluate: experimentalEvaluate,
 }));
 vi.mock("@/lib/soko-bot/model-calls", () => ({ recordModelCall: vi.fn() }));
+const queryRaw = vi.hoisted(() => vi.fn(async () => []));
+vi.mock("@/lib/db/prisma", () => ({ default: { $queryRaw: queryRaw } }));
 
 beforeEach(() => {
   vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "1");
@@ -20,6 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetModules();
   generateText.mockReset();
+  queryRaw.mockClear();
 });
 
 describe("ChatGPT plan stand-ins", () => {
@@ -36,12 +39,13 @@ describe("ChatGPT plan stand-ins", () => {
     );
   });
 
-  it("refuses any Gateway request once guarded, and passes the rest through", async () => {
+  it("refuses any Gateway request as soon as plan mode is on, from the env alone", async () => {
     const send = vi.fn(async () => new Response("ok"));
     vi.stubGlobal("fetch", send);
-    const { installChatGptPlanGatewayGuard, ChatGptPlanGatewayCallError } =
-      await import("./local-chatgpt-plan");
-    installChatGptPlanGatewayGuard();
+    // No CLI and no install call: loading the module in plan mode guards.
+    const { ChatGptPlanGatewayCallError } = await import(
+      "./local-chatgpt-plan"
+    );
     await expect(
       fetch("https://ai-gateway.vercel.sh/v4/ai/language-model"),
     ).rejects.toBeInstanceOf(ChatGptPlanGatewayCallError);
@@ -112,6 +116,58 @@ describe("ChatGPT plan stand-ins", () => {
       aboutMail: { probability: 0.2 },
     });
     expect(experimentalEvaluate).not.toHaveBeenCalled();
+  });
+
+  it("names the model that actually ran for the route classifier", async () => {
+    const { routeModelName } = await import("./soko-bot/classifier");
+    expect(routeModelName()).toBe("chatgpt-plan:gpt-6-luna");
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "");
+    expect(routeModelName()).toBe("typesafe-ai/jev");
+  });
+
+  it("is its own eval environment, compared only with plan runs", async () => {
+    const { comparableRuns, evalEnvironment } = await import(
+      "./evals/eval-environment"
+    );
+    expect(evalEnvironment()).toBe("local-chatgpt-plan");
+    expect(comparableRuns("local-chatgpt-plan")).toEqual({
+      environment: "local-chatgpt-plan",
+    });
+    expect(comparableRuns("local")).toEqual({ trigger: "DAILY" });
+    expect(comparableRuns("mainnet")).toEqual({ trigger: "DAILY" });
+  });
+
+  it("never compares local vectors with stored Gateway vectors, nor stores them", async () => {
+    const embed = vi.fn();
+    const { embedStaleContacts } = await import(
+      "@/services/contact-search.service"
+    );
+    const { findStyleReferences } = await import(
+      "@/services/reference-library.service"
+    );
+    expect(await embedStaleContacts("workspace-1", { embed })).toEqual({
+      embedded: 0,
+      costUsd: 0,
+    });
+    expect(queryRaw).not.toHaveBeenCalled();
+    await findStyleReferences({ about: "a launch post" }, embed);
+    expect(embed).not.toHaveBeenCalled();
+    const values = queryRaw.mock.calls[0]?.slice(1) as unknown[];
+    expect(values).toContain(null);
+    expect(values.some((value) => String(value).startsWith("["))).toBe(false);
+  });
+
+  it("runs the reference layout check on the plan, not the Gateway", async () => {
+    generateText.mockResolvedValue({
+      text: "A centred figure.",
+      usage: {},
+      providerMetadata: undefined,
+    });
+    const { describeBrandPictureStyle } = await import(
+      "./reference-library/layout"
+    );
+    await describeBrandPictureStyle("# DESIGN\nInk #111111").catch(() => {});
+    expect(generateText.mock.calls[0]?.[0].model.modelId).toBe("gpt-6-luna");
   });
 
   it("embeds in process: free, deterministic, closer for shared wording", async () => {

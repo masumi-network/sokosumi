@@ -63,6 +63,8 @@ export function localChatGptPlanEnabled(
     throw new Error(
       "SOKO_BOT_LOCAL_CHATGPT_PLAN is local only; unset it on deployments.",
     );
+  // However plan mode was entered (CLI flag or env), the guard is on.
+  if (env === process.env) guardGateway();
   return true;
 }
 
@@ -89,10 +91,11 @@ let gatewayGuarded = false;
 
 /**
  * Plan runs must spend nothing on the Gateway: every request to it fails
- * before it leaves the process, whatever code path made it.
+ * before it leaves the process, whatever code path made it. Installed by the
+ * first plan-mode check and when this module loads in plan mode.
  */
-export function installChatGptPlanGatewayGuard(): void {
-  if (gatewayGuarded || !localChatGptPlanEnabled()) return;
+function guardGateway(): void {
+  if (gatewayGuarded) return;
   gatewayGuarded = true;
   const send = globalThis.fetch;
   globalThis.fetch = (input, init) => {
@@ -103,6 +106,20 @@ export function installChatGptPlanGatewayGuard(): void {
       return Promise.reject(new ChatGptPlanGatewayCallError(url.pathname));
     return send(input, init);
   };
+}
+
+localChatGptPlanEnabled();
+
+/**
+ * The model a plan run actually uses in place of `model`, as stored results
+ * name it (`chatgpt-plan:<slug>`), or null when plan mode is off.
+ */
+export function chatGptPlanEffectiveModel(model: string): string | null {
+  if (!localChatGptPlanEnabled()) return null;
+  const planModel = model.startsWith("openai/")
+    ? model
+    : CHATGPT_PLAN_STANDIN_MODEL;
+  return `chatgpt-plan:${planModel.slice("openai/".length)}`;
 }
 
 /**

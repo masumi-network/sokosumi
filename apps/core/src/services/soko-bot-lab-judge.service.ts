@@ -16,6 +16,10 @@ import {
 } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  chatGptPlanEffectiveModel,
+  localChatGptPlanEnabled,
+} from "@/lib/local-chatgpt-plan";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
@@ -52,12 +56,26 @@ const TOOL_BUDGET = 60_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
-/** The judge a verdict is recorded under: a Gateway id, or `claude-code:<model>`. */
+/**
+ * Where the judge runs. A ChatGPT plan run defaults to Claude Code, which
+ * bills the subscription, not the Gateway; an explicit runner still wins.
+ */
+export function sokoBotJudgeRunner(): "gateway" | "claude-code" {
+  if (localChatGptPlanEnabled() && !process.env.SOKO_BOT_JUDGE_RUNNER)
+    return "claude-code";
+  return getEnv().SOKO_BOT_JUDGE_RUNNER;
+}
+
+/**
+ * The judge a verdict is recorded under: the model that actually ran, as a
+ * Gateway id, `claude-code:<model>` or, on a plan run, `chatgpt-plan:<slug>`.
+ */
 export function sokoBotJudgeModel(modelOverride?: string): string {
   const env = getEnv();
-  return env.SOKO_BOT_JUDGE_RUNNER === "claude-code"
-    ? `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`
-    : (modelOverride ?? env.SOKO_BOT_JUDGE_MODEL);
+  if (sokoBotJudgeRunner() === "claude-code")
+    return `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`;
+  const model = modelOverride ?? env.SOKO_BOT_JUDGE_MODEL;
+  return chatGptPlanEffectiveModel(model) ?? model;
 }
 
 function clip(value: unknown, limit = VALUE_LIMIT): string {
@@ -233,7 +251,7 @@ async function askJudge(
     inference: [],
   };
   const env = getEnv();
-  const onClaudeCode = env.SOKO_BOT_JUDGE_RUNNER === "claude-code";
+  const onClaudeCode = sokoBotJudgeRunner() === "claude-code";
   if (onClaudeCode && env.VERCEL_ENV) {
     throw new SokoBotJudgeFailure(
       "SOKO_BOT_JUDGE_RUNNER=claude-code needs the local claude CLI and does not run on Vercel. Use the gateway judge here.",
