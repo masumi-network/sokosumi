@@ -55,11 +55,14 @@ export function AgentsSectionNav() {
     writeAgentsSectionHash(id, AGENTS_SECTION_IDS[0]);
   }
 
+  // Sticky `top` counts from `main`'s content box, which starts below its
+  // `pt-[calc(5rem+env(safe-area-inset-top))]`; -1rem puts the bar right
+  // under the 4rem fixed top bar.
   return (
     <nav
       ref={setNav}
       aria-label={t("sectionNavLabel")}
-      className="bg-background sticky top-[calc(4rem+env(safe-area-inset-top))] z-10 -mx-4 -my-4 px-4 py-2 md:hidden"
+      className="bg-background sticky -top-4 z-10 -mx-4 -my-4 px-4 py-2 md:hidden"
     >
       <div className={cn(SEGMENTED_CONTROL_CLASS_NAME, "flex w-full")}>
         {AGENTS_SECTION_IDS.map((id) => (
