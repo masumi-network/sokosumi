@@ -14683,7 +14683,7 @@
       "runDiff": {
         "title": "Seit der Prüfung vom {day}",
         "open": "Was sich seit der Prüfung davor geändert hat",
-        "issues": "Offene Probleme: vorher {from, number}, jetzt {to, number}",
+        "issues": "Offene Seitenprobleme: vorher {from, number}, jetzt {to, number}",
         "new": "Neu ({count, number})",
         "fixed": "Behoben ({count, number})",
         "stillOpen": "Weiter offen ({count, number})",

@@ -73,7 +73,9 @@ it("lists new, fixed and still open issues under headings that carry the full co
   expect(within(open).getAllByRole("listitem")).toHaveLength(1);
   expect(screen.getByText("and 7 more")).toBeInTheDocument();
   expect(screen.getByText("None")).toBeInTheDocument();
-  expect(screen.getByText("Open issues: 3 before, 10 now")).toBeInTheDocument();
+  expect(
+    screen.getByText("Open page issues: 3 before, 10 now"),
+  ).toBeInTheDocument();
   expect(
     screen.getByText(/^2 earlier issues have no clear result in this check/),
   ).toBeInTheDocument();
@@ -93,3 +95,33 @@ it.each(["market", "rulebook", "pages"] as const)(
     expect(screen.queryByRole("heading", { level: 4 })).not.toBeInTheDocument();
   },
 );
+
+it("names the page and the device of a ranking move, and counts the moves it does not list", () => {
+  const move = (device: "mobile" | null, from: number, to: number) => ({
+    keyword: "pricing",
+    pageUrl: "https://example.com/pricing",
+    device,
+    from,
+    to,
+  });
+  show(
+    diff({
+      numbers: {
+        issues: { from: 0, to: 0 },
+        moves: [move("mobile", 2, 10), move(null, 10, 2)],
+        moveCount: 5,
+      },
+    }),
+  );
+  expect(
+    screen.getByRole("heading", { level: 4, name: "Ranking moves (5)" }),
+  ).toBeInTheDocument();
+  const moves = within(screen.getAllByRole("list").at(-1)!)
+    .getAllByRole("listitem")
+    .map((node) => node.textContent);
+  expect(moves).toEqual([
+    "pricing: position 2 → 10 /pricing (mobile)",
+    "pricing: position 10 → 2 /pricing",
+  ]);
+  expect(screen.getByText("and 3 more")).toBeInTheDocument();
+});

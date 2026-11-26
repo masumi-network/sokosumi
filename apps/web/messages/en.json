@@ -14683,7 +14683,7 @@
       "runDiff": {
         "title": "Since the check on {day}",
         "open": "What changed since the check before",
-        "issues": "Open issues: {from, number} before, {to, number} now",
+        "issues": "Open page issues: {from, number} before, {to, number} now",
         "new": "New ({count, number})",
         "fixed": "Fixed ({count, number})",
         "stillOpen": "Still open ({count, number})",

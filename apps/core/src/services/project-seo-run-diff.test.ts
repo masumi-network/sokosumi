@@ -175,6 +175,8 @@ describe("withSeoRunDiffs", () => {
     const diff = diffOf([
       source(8, result([failed({ rowId: "A" })])),
       source(5, result([check("pass", { rowId: "A" })], german)),
+      // The same Market with another rulebook is closer than another Market, and still no match.
+      source(3, result([], { rulebookVersion: "r2" })),
       source(1, result([failed({ rowId: "A" })])),
     ]);
     expect(diff).toMatchObject({
