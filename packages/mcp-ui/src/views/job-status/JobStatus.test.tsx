@@ -17,10 +17,13 @@ import { JOB } from "../../../harness/fixtures.ts";
 import { Shell } from "../../shell/Shell.tsx";
 import { JobResult, JobStatus } from "./JobStatus.tsx";
 
-/** A fake host that answers the view's `jobs_get` calls with `answer`. */
+/** A fake host that answers the view's tool calls with `answer`. */
 async function openJob(
   result: CallToolResult,
-  answer: () => Promise<CallToolResult> = async () => result,
+  answer: (
+    name: string,
+    args?: Record<string, unknown>,
+  ) => Promise<CallToolResult> = async () => result,
   { serverTools = true } = {},
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
@@ -37,7 +40,7 @@ async function openJob(
   };
   bridge.oncalltool = async ({ name, arguments: args }) => {
     sent.calls(name, args);
-    return answer();
+    return answer(name, args);
   };
   const initialized = new Promise<void>((resolve) => {
     bridge.oninitialized = () => resolve();
@@ -191,19 +194,6 @@ describe("JobStatus", () => {
     );
   });
 
-  it("says a Job waits for the person's input, with a hint, and keeps polling", async () => {
-    const { sent } = await openJob(JOB.inputRequired);
-
-    expect(within(status()).getByText("Waiting for your input")).toBeTruthy();
-    expect(
-      within(status()).getByText(/Answer its question in the chat/),
-    ).toBeTruthy();
-    // ADR 0077: no answer control in this view (SOKD-423).
-    expect(screen.queryByRole("textbox")).toBeNull();
-    await advance(3000);
-    expect(sent.calls).toHaveBeenCalledTimes(1);
-  });
-
   it("tells the person to add the jobs toolset when jobs_get is unknown, and stops polling", async () => {
     const { sent } = await openJob(JOB.running, async () => {
       throw new Error("MCP error -32602: Unknown tool: jobs_get");
@@ -282,5 +272,276 @@ describe("JobStatus", () => {
     expect(within(status()).getByText("Working")).toBeTruthy();
     await advance(5000);
     expect(sent.calls).toHaveBeenCalledTimes(2);
+  });
+
+  describe("input request (SOKD-423)", () => {
+    /** Answers each tool by name; `jobs_get` defaults to the input Job. */
+    const host =
+      (answers: Record<string, () => Promise<CallToolResult>>) =>
+      (name: string) =>
+        (answers[name] ?? (async () => JOB.inputRequired))();
+
+    const openRequest = (
+      answers: Record<string, () => Promise<CallToolResult>> = {},
+    ) =>
+      openJob(
+        JOB.inputRequired,
+        host({
+          jobs_input_request: async () => JOB.inputRequest,
+          jobs_input: async () => JOB.inputSent,
+          ...answers,
+        }),
+      );
+
+    const send = () =>
+      fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+    const audience = () =>
+      screen.getByRole("textbox", { name: /^Audience/ }) as HTMLInputElement;
+
+    it("loads the request with jobs_input_request and shows its question and fields", async () => {
+      const { sent } = await openRequest();
+      await advance(0);
+
+      expect(sent.calls).toHaveBeenCalledWith("jobs_input_request", {
+        id: "cmi4gmksz000104l8wps8p7fp",
+        workspace: "acme",
+      });
+      expect(within(status()).getByText("Waiting for your input")).toBeTruthy();
+      expect(
+        screen.getByText(
+          "Who reads the summary, and which tone fits them? <b>Markup stays text.</b>",
+        ),
+      ).toBeTruthy();
+      expect(audience()).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Formal" })).toBeTruthy();
+      expect(document.querySelector("main b")).toBeNull();
+    });
+
+    it("does not poll while the person answers", async () => {
+      const { sent } = await openRequest();
+      await advance(60_000);
+
+      expect(sent.calls).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/This view updates/)).toBeNull();
+    });
+
+    it("sends the answer with the request's eventId, then polls again and shows the new status", async () => {
+      const { sent } = await openRequest({
+        jobs_get: async () => JOB.running,
+      });
+      await advance(0);
+
+      fireEvent.change(audience(), {
+        target: { value: "Founders in Germany" },
+      });
+      fireEvent.click(screen.getByRole("radio", { name: "Friendly" }));
+      send();
+      await advance(0);
+
+      const answer = sent.calls.mock.calls.find(
+        ([name]) => name === "jobs_input",
+      );
+      // The eventId is the one jobs_input_request returned.
+      expect(JOB.inputRequest.structuredContent).toMatchObject({
+        data: { eventId: "event_awaiting_input" },
+      });
+      expect(answer?.[1]).toEqual({
+        id: "cmi4gmksz000104l8wps8p7fp",
+        workspace: "acme",
+        body: {
+          eventId: "event_awaiting_input",
+          inputData: { audience: "Founders in Germany", tone: [1] },
+        },
+      });
+
+      // Refreshes at once, and the new status replaces the form.
+      expect(sent.calls).toHaveBeenLastCalledWith("jobs_get", JOB.input);
+      expect(within(status()).getByText("Working")).toBeTruthy();
+      expect(screen.queryByRole("textbox")).toBeNull();
+    });
+
+    it("keeps saying the answer was sent while Core still waits for the agent", async () => {
+      const { sent } = await openRequest({
+        jobs_get: async () => JOB.inputAnswered,
+      });
+      await advance(0);
+      fireEvent.change(audience(), {
+        target: { value: "Founders in Germany" },
+      });
+      send();
+      await advance(0);
+
+      expect(
+        screen.getByText("Answer sent. The agent continues from here."),
+      ).toBeTruthy();
+      expect(screen.queryByRole("textbox")).toBeNull();
+      // Polling is back on.
+      const before = sent.calls.mock.calls.length;
+      await advance(3000);
+      expect(sent.calls.mock.calls.length).toBe(before + 1);
+      expect(
+        sent.calls.mock.calls.filter(([name]) => name === "jobs_input_request"),
+      ).toHaveLength(1);
+    });
+
+    it("sends once: the button is disabled while the answer is in flight", async () => {
+      const { sent } = await openRequest({
+        jobs_input: () => new Promise<CallToolResult>(() => {}),
+      });
+      await advance(0);
+      fireEvent.change(audience(), {
+        target: { value: "Founders in Germany" },
+      });
+
+      const button = screen.getByRole("button", { name: "Send answer" });
+      fireEvent.click(button);
+      fireEvent.click(button);
+      await advance(0);
+
+      expect(button.textContent).toBe("Sending");
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(button);
+      await advance(0);
+      expect(
+        sent.calls.mock.calls.filter(([name]) => name === "jobs_input"),
+      ).toHaveLength(1);
+    });
+
+    it("shows validation errors per field and sends nothing", async () => {
+      const { sent } = await openRequest();
+      await advance(0);
+
+      send();
+      await advance(0);
+
+      expect(screen.getByText("Required.")).toBeTruthy();
+      expect(audience().getAttribute("aria-invalid")).toBe("true");
+      expect(
+        sent.calls.mock.calls.filter(([name]) => name === "jobs_input"),
+      ).toHaveLength(0);
+    });
+
+    it("shows Core's refusal near the button and keeps the answer", async () => {
+      const { sent } = await openRequest({
+        jobs_input: async () => JOB.inputRefused,
+      });
+      await advance(0);
+      fireEvent.change(audience(), {
+        target: { value: "Founders in Germany" },
+      });
+
+      send();
+      await advance(0);
+
+      expect(
+        screen.getByText("The agent could not accept this input"),
+      ).toBeTruthy();
+      expect(audience().value).toBe("Founders in Germany");
+      const button = screen.getByRole("button", {
+        name: "Send answer",
+      }) as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+
+      // Trying again sends again.
+      send();
+      await advance(0);
+      expect(
+        sent.calls.mock.calls.filter(([name]) => name === "jobs_input"),
+      ).toHaveLength(2);
+    });
+
+    it("says the answer did not go through when the call fails, and keeps it", async () => {
+      await openRequest({
+        jobs_input: async () => {
+          throw new Error("Network down");
+        },
+      });
+      await advance(0);
+      fireEvent.change(audience(), {
+        target: { value: "Founders in Germany" },
+      });
+
+      send();
+      await advance(0);
+
+      expect(
+        screen.getByText("Could not send your answer. Try again."),
+      ).toBeTruthy();
+      expect(audience().value).toBe("Founders in Germany");
+    });
+
+    it.each([
+      [
+        "Core has no request",
+        async (): Promise<CallToolResult> => ({
+          content: [{ type: "text", text: "No input request found" }],
+          structuredContent: { status: 404, message: "No input request found" },
+          isError: true,
+        }),
+      ],
+      [
+        "the schema is not JSON",
+        async (): Promise<CallToolResult> => ({
+          content: [],
+          structuredContent: {
+            data: { eventId: "event_1", inputSchema: "not json" },
+          },
+        }),
+      ],
+      [
+        "the call fails",
+        async (): Promise<CallToolResult> => {
+          throw new Error("MCP error -32602: Unknown tool: jobs_input_request");
+        },
+      ],
+    ])(
+      "points to the chat and Sokosumi when %s, and keeps polling",
+      async (_, request) => {
+        const { sent } = await openRequest({ jobs_input_request: request });
+        await advance(0);
+
+        expect(
+          screen.getByText(
+            "Answer its question in the chat, or open the Job in Sokosumi.",
+          ),
+        ).toBeTruthy();
+        expect(screen.queryByRole("textbox")).toBeNull();
+        await advance(3000);
+        expect(sent.calls).toHaveBeenLastCalledWith("jobs_get", JOB.input);
+      },
+    );
+
+    it("reads a schema sent as a bare list of fields", async () => {
+      await openRequest({
+        jobs_input_request: async () => ({
+          content: [],
+          structuredContent: {
+            data: {
+              eventId: "event_1",
+              inputSchema: JSON.stringify([
+                { id: "budget", type: "number", name: "Budget" },
+              ]),
+            },
+          },
+        }),
+      });
+      await advance(0);
+
+      expect(screen.getByRole("spinbutton", { name: "Budget" })).toBeTruthy();
+    });
+
+    it("points to the chat on a host that cannot call server tools", async () => {
+      const { sent } = await openJob(JOB.inputRequired, undefined, {
+        serverTools: false,
+      });
+      await advance(0);
+
+      expect(
+        screen.getByText(
+          "Answer its question in the chat, or open the Job in Sokosumi.",
+        ),
+      ).toBeTruthy();
+      expect(sent.calls).not.toHaveBeenCalled();
+    });
   });
 });

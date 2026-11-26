@@ -113,7 +113,7 @@
   "jobStatus.hint.processing": "The agent is working on it.",
   "jobStatus.hint.result_pending": "The agent has not sent its result yet.",
   "jobStatus.hint.payment_pending": "The payment is being confirmed.",
-  "jobStatus.hint.input_required": "The agent needs more details to continue. Answer its question in the chat, or open the Job in Sokosumi.",
+  "jobStatus.hint.input_required": "The agent needs more details to continue.",
   "jobStatus.hint.failed": "The Job could not be completed.",
   "jobStatus.hint.payment_failed": "The payment for this Job did not go through.",
   "jobStatus.hint.refund_pending": "A refund was requested for this Job.",
@@ -143,5 +143,12 @@
   "taskDetail.hide": "Hide",
   "taskDetail.timelineEmpty": "No comments or Jobs yet",
   "taskDetail.job": "Job",
-  "taskDetail.untitledJob": "Untitled Job"
+  "taskDetail.untitledJob": "Untitled Job",
+  "jobStatus.input.question": "Question",
+  "jobStatus.input.loading": "Loading the question",
+  "jobStatus.input.send": "Send answer",
+  "jobStatus.input.sending": "Sending",
+  "jobStatus.input.failed": "Could not send your answer. Try again.",
+  "jobStatus.input.sent": "Answer sent. The agent continues from here.",
+  "jobStatus.input.elsewhere": "Answer its question in the chat, or open the Job in Sokosumi."
 }
