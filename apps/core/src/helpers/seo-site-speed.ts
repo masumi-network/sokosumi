@@ -100,12 +100,14 @@ const VERDICT_LAB = ["lcp", "cls"] as const;
 /** Google's good limits at the 75th percentile, as the web verdict reads them (SEO_VITAL_LIMITS). */
 const VERDICT_GOOD = { lcp: 2500, inp: 200, cls: 0.1 } as const;
 
+/** The web draws a weekly trend from this many weeks with a value (`SEO_TREND_MIN_POINTS` in seo-speed-model.ts). */
+const TREND_MIN_WEEKS = 2;
 /**
  * How much of a verdict a measurement gives, as the web verdict reads it: the field decides when it holds a Core Web
  * Vital, else the lab. A read whose values give a verdict (one over its good limit, or LCP and CLS) ranks first, then
  * a field read before a lab read. A gap shows nothing, so it never hides a read of the same page and device that
- * shows more (review pass 25). A read with other values only (another timing, a week with a value, a Lighthouse
- * score or insight) ranks above a gap and a read without any value (review pass 38 to 40).
+ * shows more (review pass 25). A read with other values only (another timing, a weekly trend, a Lighthouse
+ * score or insight) ranks above a gap and a read without any value (review pass 38 to 41).
  */
 function speedEvidence({ field, lab }: PageSpeedRows[number]) {
   const visitors =
@@ -125,14 +127,15 @@ function speedEvidence({ field, lab }: PageSpeedRows[number]) {
     const some = (values: readonly unknown[]) =>
       values.some((value) => value != null);
     const history = field.status === "measured" ? field.history : undefined;
-    // Review pass 40: a week counts only with a value, and a Lighthouse score or insight is a value the web shows.
+    // Review pass 40, 41: a series counts only with a trend the web draws, and a Lighthouse score or insight is a value
+    // the web shows.
     return (field.status === "measured" &&
       (some(Object.values(field.p75)) ||
-        some([
-          ...(history?.lcp ?? []),
-          ...(history?.inp ?? []),
-          ...(history?.cls ?? []),
-        ]))) ||
+        [history?.lcp, history?.inp, history?.cls].some(
+          (series) =>
+            (series ?? []).filter((value) => value != null).length >=
+            TREND_MIN_WEEKS,
+        ))) ||
       (lab.status === "measured" &&
         (some(Object.values(lab.median)) ||
           some(Object.values(lab.pageSpeed?.scores ?? {})) ||

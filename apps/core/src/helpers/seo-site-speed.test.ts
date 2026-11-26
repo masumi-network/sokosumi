@@ -591,7 +591,8 @@ describe("the speed table in a workspace view", () => {
         history: {
           status: "comparable" as const,
           weeks: ["2026-10-18", "2026-10-25"],
-          lcp: [null, null],
+          // Review pass 41: one week with a value draws no trend in the web.
+          lcp: [null, 3000],
         },
       },
     };
@@ -630,6 +631,15 @@ describe("the speed table in a workspace view", () => {
     };
     expect(shown(audit, insight)).toBe(EXTRA);
     expect(shown(emptyWeeks, fcp)).toBe(EXTRA);
+    // Two weeks with a value draw a trend, so that report read wins over the audit gap.
+    const trend = {
+      ...fcp,
+      field: {
+        ...emptyWeeks.field,
+        history: { ...emptyWeeks.field.history, lcp: [2400, 2600] },
+      },
+    };
+    expect(shown(audit, trend)).toBe(EXTRA);
   });
 
   it("gives a measured field read of the audit the target's device over the report's lab read (review pass 23)", () => {
