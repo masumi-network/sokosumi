@@ -181,10 +181,13 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
+const networkClients = vi.hoisted(() => ({ mainnet: { side: "mainnet" } }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
   },
+  networkPrisma: (network: keyof typeof networkClients) =>
+    networkClients[network],
 }));
 
 vi.mock("@/services/polar-yearly-grant-sync.service", () => ({
@@ -1247,7 +1250,8 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
-      expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      networkClients.mainnet,
+      { abortSignal: expect.any(AbortSignal) },
     );
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
