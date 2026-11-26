@@ -200,8 +200,11 @@ export interface SokoBotMessageSource {
 export interface SokoBotMessageSourceInput {
   /** Toolkits of the bot's ACTIVE integrations, by provider id. */
   providers: readonly string[];
-  /** Only the owner's own turns read their private messages. */
-  ownerTurn: boolean;
+  /**
+   * This turn may read the owner's X direct messages: the version knows them
+   * and the owner asks in a chat of only them and the bot (`x-inbox.ts`).
+   */
+  xDms: boolean;
 }
 
 /** Add a messages source here; the map lists it when `available` holds. */
@@ -219,8 +222,7 @@ export const SOKO_BOT_MESSAGE_SOURCES: readonly (SokoBotMessageSource & {
     id: "x-dms",
     what: "the owner's X direct messages",
     read: 'search_inbox and read_email with provider "twitter"',
-    available: ({ providers, ownerTurn }) =>
-      ownerTurn && providers.includes("twitter"),
+    available: ({ providers, xDms }) => xDms && providers.includes("twitter"),
   },
 ];
 
@@ -244,6 +246,7 @@ export interface PacketMapFacts {
   /** Every ACTIVE integration's toolkit, for the messages sources. */
   providers: string[];
   privateAudience: boolean;
+  xDms: boolean;
 }
 
 /**
@@ -349,13 +352,12 @@ export function packetMap(
             : { connected: [] },
         }),
     schedules: {
-      read: "list_schedules (scope workspace: everyone's, with who made each)",
+      read: facts.privateAudience
+        ? "list_schedules"
+        : "list_schedules (scope workspace: everyone's, with who made each)",
     },
     contacts: { read: "search_contacts, count_contacts" },
     files: { read: "list_files, read_file" },
-    messages: messageSources({
-      providers: facts.providers,
-      ownerTurn: !facts.privateAudience,
-    }),
+    messages: messageSources({ providers: facts.providers, xDms: facts.xDms }),
   };
 }

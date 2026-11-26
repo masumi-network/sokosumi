@@ -501,9 +501,14 @@ describe("ContextPacketBuilder", () => {
       },
     ]);
     agentFindManyMock.mockResolvedValue([agent("agent-1")]);
-    jobFindManyMock.mockResolvedValue([
-      job("job-1", '{"input_data":[{"id":"brief","type":"string"}]}'),
-    ]);
+    // The open job comes back from the open-first read; the fill-up read
+    // excludes it by id, as Postgres would.
+    jobFindManyMock.mockImplementation(
+      async (args: { where?: { id?: { notIn?: string[] } } }) =>
+        args.where?.id?.notIn?.includes("job-1")
+          ? []
+          : [job("job-1", '{"input_data":[{"id":"brief","type":"string"}]}')],
+    );
     pendingDecisionFindManyMock.mockResolvedValue([
       pendingDecision("decision-1"),
     ]);
@@ -546,6 +551,10 @@ describe("ContextPacketBuilder", () => {
       "project-new",
       "project-old",
     ]);
+    // Open jobs are read first, so finished ones never crowd them out.
+    expect(jobFindManyMock.mock.calls[0]?.[0].where.events).toEqual({
+      none: { status: { in: ["COMPLETED", "FAILED"] } },
+    });
     expect(result.packet.projects[0]?.status).toEqual({
       taskCounts: { COMPLETED: 1, RUNNING: 1 },
       jobCounts: { AWAITING_INPUT: 1 },
@@ -605,7 +614,7 @@ describe("ContextPacketBuilder", () => {
     );
     expect(jobFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
+        where: expect.objectContaining({
           ownerId: "user-1",
           workspaceId: buildInput().workspaceId,
           OR: [
@@ -621,7 +630,7 @@ describe("ContextPacketBuilder", () => {
               },
             },
           ],
-        },
+        }),
       }),
     );
   });

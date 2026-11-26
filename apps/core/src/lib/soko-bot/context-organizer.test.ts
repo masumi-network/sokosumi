@@ -107,17 +107,15 @@ describe("memorySections", () => {
 describe("messageSources", () => {
   it("lists chats for every turn", () => {
     expect(
-      messageSources({ providers: [], ownerTurn: false }).map(
-        (source) => source.id,
-      ),
+      messageSources({ providers: [], xDms: false }).map((source) => source.id),
     ).toEqual(["chats"]);
   });
 
-  it("adds X direct messages on the owner's turn when X is connected", () => {
-    const ids = (providers: string[], ownerTurn: boolean) =>
-      messageSources({ providers, ownerTurn }).map((source) => source.id);
+  it("adds X direct messages only when this turn may read them and X is connected", () => {
+    const ids = (providers: string[], xDms: boolean) =>
+      messageSources({ providers, xDms }).map((source) => source.id);
     expect(ids(["twitter"], true)).toEqual(["chats", "x-dms"]);
-    // Private to the owner, and only with X connected.
+    // A shared room, a teammate, or a version without X DMs: not offered.
     expect(ids(["twitter"], false)).toEqual(["chats"]);
     expect(ids(["gmail"], true)).toEqual(["chats"]);
   });

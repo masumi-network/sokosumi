@@ -138,6 +138,49 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
    * sized by the turn's kind (`context-organizer.ts`).
    */
   onDemand?: boolean;
+  /** The map may point at the owner's X direct messages (`x-inbox.ts`). */
+  xDms?: boolean;
+}
+
+const PACKET_JOB_SELECT = {
+  id: true,
+  name: true,
+  agentId: true,
+  jobType: true,
+  projectId: true,
+  updatedAt: true,
+  transaction: { select: { amount: true } },
+  events: {
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 1,
+    select: { status: true, inputSchema: true, createdAt: true },
+  },
+} satisfies Prisma.JobSelect;
+
+/**
+ * Jobs still running or waiting on someone come first, so a run of finished
+ * ones never hides a job that waits for the owner; recent finished ones fill
+ * what is left.
+ */
+async function openJobsFirst(where: Prisma.JobWhereInput, take: number) {
+  const order = [{ updatedAt: "desc" as const }, { id: "desc" as const }];
+  const open = await prisma.job.findMany({
+    where: {
+      ...where,
+      events: { none: { status: { in: ["COMPLETED", "FAILED"] } } },
+    },
+    orderBy: order,
+    take,
+    select: PACKET_JOB_SELECT,
+  });
+  if (open.length >= take) return open;
+  const rest = await prisma.job.findMany({
+    where: { ...where, id: { notIn: open.map((job) => job.id) } },
+    orderBy: order,
+    take: take - open.length,
+    select: PACKET_JOB_SELECT,
+  });
+  return [...open, ...rest];
 }
 
 /** A signal at or above this becomes a hint. */
@@ -852,25 +895,10 @@ export class ContextPacketBuilder {
         },
       }),
       agentsPromise,
-      prisma.job.findMany({
-        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: plan?.jobs ?? LIMITS.jobs,
-        select: {
-          id: true,
-          name: true,
-          agentId: true,
-          jobType: true,
-          projectId: true,
-          updatedAt: true,
-          transaction: { select: { amount: true } },
-          events: {
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: 1,
-            select: { status: true, inputSchema: true, createdAt: true },
-          },
-        },
-      }),
+      openJobsFirst(
+        { ...scope.jobWhere, workspaceId: input.workspaceId },
+        plan?.jobs ?? LIMITS.jobs,
+      ),
       prisma.sokoBotPendingDecision.findMany({
         where: scope.pendingDecisionWhere(),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -1254,6 +1282,7 @@ export class ContextPacketBuilder {
           waitingWhere,
           memoryMarkdown: storedMemory,
           privateAudience: askedByKind !== "OWNER",
+          xDms: input.xDms ?? false,
         })
       : null;
     const fitted = facts

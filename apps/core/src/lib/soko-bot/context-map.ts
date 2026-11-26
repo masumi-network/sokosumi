@@ -41,6 +41,7 @@ export async function loadPacketMapFacts(input: {
   waitingWhere: object;
   memoryMarkdown: string;
   privateAudience: boolean;
+  xDms: boolean;
 }): Promise<PacketMapFacts> {
   const board = {
     workspaceId: input.workspaceId,
@@ -88,5 +89,6 @@ export async function loadPacketMapFacts(input: {
       .map((provider) => provider.id),
     providers: providers.map((provider) => provider.id),
     privateAudience: input.privateAudience,
+    xDms: input.xDms && !input.privateAudience,
   };
 }

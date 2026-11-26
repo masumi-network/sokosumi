@@ -869,8 +869,8 @@ export const sokoBotReadContextInputSchema = z
     section: z.enum(SOKO_BOT_CONTEXT_SECTIONS),
     /** Words to match: a message or answer, a Project name, a Job name. */
     query: z.string().trim().min(1).max(200).optional(),
-    /** Only items from before this ISO time, to page back. */
-    before: z.string().datetime().optional(),
+    /** The `next` a previous read returned, to page back. */
+    cursor: z.string().min(1).max(120).optional(),
     limit: z.number().int().min(1).max(25).optional(),
   })
   .strict();
@@ -2339,7 +2339,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Send the input an Agent Job is waiting for; applied right away.",
   read_memory: "Read canonical short-term Soko Bot memory.",
   read_context:
-    "Read what your context packet's map counts but does not show. section conversation: earlier messages of this conversation and what you answered, newest first (before: an ISO time to page back; query: words to find). projects: every Project you can see, with its summary and open Task count (query: a name). jobs: marketplace Agent Jobs with their status, newest first (query: a name); get_job_status reads one in full. Tasks are list_tasks, Coworkers find_coworkers.",
+    "Read what your context packet's map counts but does not show. section conversation: earlier messages of this conversation and what you answered, newest first (query: words to find; a long message shows the part around them). projects: every Project you can see, with its summary and open Task count (query: words of its name or summary). jobs: marketplace Agent Jobs with their status, newest first (query: a name); get_job_status reads one in full. A result with next has more: pass it as cursor to read the next page. Tasks are list_tasks, Coworkers find_coworkers.",
   update_memory:
     "Replace bounded canonical memory file with durable working context.",
   list_schedules:
