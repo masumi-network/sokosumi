@@ -41,9 +41,13 @@ SET lock_timeout = '5s';
 RESET lock_timeout;
 ```
 
-Reset the timeout before backfills and `VALIDATE CONSTRAINT`. Test Packages checks new migrations for `SET lock_timeout` whenever the file contains `ALTER TABLE`. For a migration that can safely omit the timeout, add a line in the SQL file in the form `-- lock-timeout: not needed, <reason>`.
+Reset the timeout before backfills and `VALIDATE CONSTRAINT`. Use plain `SET lock_timeout` because `SET LOCAL` has no effect outside an explicit transaction block.
 
-A lock timeout fails the statement with PostgreSQL error `55P03`. In a migration without an explicit transaction, earlier statements stay applied and Prisma records the failure. Check which statements took effect and make sure the migration can safely run again. Run `pnpm exec prisma migrate resolve --rolled-back <name>` using the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again. A plain redeploy stops at `P3009`.
+After `prisma migrate dev`, add both lines by hand, even if `ALTER TABLE` only adds a foreign key to a table created in the same migration, because the foreign key also locks the referenced table. For pull requests, Test Packages runs this check only when the PR is ready for review, so add the lines before marking it ready.
+
+Test Packages checks new migrations for `SET lock_timeout` whenever the file contains `ALTER TABLE`. For a migration that can safely omit the timeout, add a line in the SQL file in the form `-- lock-timeout: not needed, <reason>`.
+
+A lock timeout fails the statement with PostgreSQL error `55P03`. Check which statements took effect and make sure the migration can safely run again. Run `pnpm exec prisma migrate resolve --rolled-back <name>` using the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again. A plain redeploy stops at `P3009`.
 
 ## CI checks on migration text
 

@@ -23,6 +23,7 @@ export function findLockTimeoutViolations(migrationsDir: string): string[] {
       violations.push(`${file} needs a lock timeout.
 A waiting ACCESS EXCLUSIVE lock queues later reads and writes on the table.
 Set the timeout before those statements and reset it afterward.
+Prisma does not write these lines: add them by hand.
 SET lock_timeout = '5s';
 RESET lock_timeout;
 For an exception, add -- lock-timeout: not needed, <reason> on its own line.
