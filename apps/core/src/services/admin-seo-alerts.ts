@@ -20,6 +20,7 @@ import {
   SEO_PAGE_FAILURE_PERCENT,
   SEO_WORKER_DEADLINE_MINUTES,
 } from "@/schemas/admin-seo-alerts.schema";
+import { seoFullAuditCostDetailSchema } from "@/schemas/seo-audit-price.schema";
 
 /** Project-only analyses predate named audits. Each is a distinct run. */
 export async function listAdminSeoAlerts(
@@ -86,7 +87,7 @@ export async function listAdminSeoAlerts(
       WHERE recency = 1 OR billing_attention OR (metered AND price_pending) OR needs_credits OR retrying
     ), billing_runs AS (
       SELECT run AS id,"taskId","auditId","projectId",workspace AS "workspaceId",at,"approvedMaxCredits",
-        billing_status AS status,cost,attempted_credits AS "attemptedCredits",charged_credits AS "chargedCredits",data_budget AS "dataBudgetUsd",billing_attention
+        billing_status AS status,cost,CASE WHEN cost IS NOT NULL THEN request -> 'fullAuditCostDetail' END AS "costDetail",attempted_credits AS "attemptedCredits",charged_credits AS "chargedCredits",data_budget AS "dataBudgetUsd",billing_attention
       FROM priced_runs WHERE metered ${periodFilter}
     ), current_connections AS (
       SELECT c.id,c."userId",c.provider,c.status,c."updatedAt",c."workspaceId",w."workspaceOrganizationSlug",w."workspaceUserId"
@@ -173,7 +174,7 @@ export async function listAdminSeoAlerts(
       (SELECT count(*)::int FROM billing_runs) AS "billingTotal",
       (SELECT count(*)::int FROM billing_runs WHERE billing_attention OR status IN ('receiptsPending','needsCredits','retrying')) AS "pricingAttention",
       coalesce((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.at DESC,b.id) FROM (
-        SELECT id,"taskId","auditId","projectId","workspaceId","approvedMaxCredits",status,cost,"attemptedCredits","chargedCredits","dataBudgetUsd",to_char(at,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at FROM billing_runs
+        SELECT id,"taskId","auditId","projectId","workspaceId","approvedMaxCredits",status,cost,"costDetail","attemptedCredits","chargedCredits","dataBudgetUsd",to_char(at,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at FROM billing_runs
         ORDER BY billing_runs.at DESC,id LIMIT ${view === "billing" ? SEO_ALERTS_PAGE_SIZE : 0} OFFSET ${(page - 1) * SEO_ALERTS_PAGE_SIZE}) b), '[]'::jsonb) AS billing,
       (SELECT count(*)::int FROM current_connections) AS "connectionTotal",
       (SELECT count(*)::int FROM current_connections WHERE status = 'NEEDS_RECONNECT') AS reconnect,
@@ -189,6 +190,15 @@ export async function listAdminSeoAlerts(
   `);
   return adminSeoAlerts.parse({
     ...result,
+    // Stored worker JSON: a detail that no longer parses reads as absent.
+    billing: Array.isArray(result?.billing)
+      ? result.billing.map((row) => ({
+          ...row,
+          costDetail:
+            seoFullAuditCostDetailSchema.safeParse(row?.costDetail).data ??
+            null,
+        }))
+      : result?.billing,
     pageSize: SEO_ALERTS_PAGE_SIZE,
     failurePercent: SEO_PAGE_FAILURE_PERCENT,
     importGraceMinutes: SEO_IMPORT_GRACE_MINUTES,
