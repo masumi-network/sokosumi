@@ -553,6 +553,8 @@ vi.mock("@/lib/db/database-now", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // The search for text only a full audit's hidden line holds finds none.
+    $queryRaw: () => Promise.resolve([]),
     sokoBotMemoryRevision: { findFirst: memoryRevisionFindFirstMock },
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },

@@ -14,6 +14,7 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
+import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
 import type prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
@@ -421,10 +422,20 @@ export async function buildHistoryWhere(
       ? await findJobIdsWithResultMatching(params, prismaClient)
       : [];
 
+    // A hit inside a full audit's hidden `seo_audit` line is no hit.
+    const seoAuditOnlyHits = await findSeoAuditOnlyHitIds(params.q, {
+      table: "history",
+      client: prismaClient,
+    });
     andClauses.push({
       OR: [
         { title: { contains: params.q, mode: "insensitive" } },
-        { description: { contains: params.q, mode: "insensitive" } },
+        {
+          description: { contains: params.q, mode: "insensitive" },
+          ...(seoAuditOnlyHits.length > 0
+            ? { id: { notIn: seoAuditOnlyHits } }
+            : {}),
+        },
         ...(resultJobIds.length > 0
           ? [{ kind: HistoryKind.JOB, entityId: { in: resultJobIds } }]
           : []),

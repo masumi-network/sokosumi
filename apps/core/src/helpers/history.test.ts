@@ -30,7 +30,7 @@ function createHistoryPrismaClient(
   } = {},
 ): HistoryPrismaClient {
   return {
-    $queryRaw: vi.fn(),
+    $queryRaw: vi.fn().mockResolvedValue([]),
     job: { findMany: vi.fn() },
     task: { findMany: vi.fn() },
     ...overrides,

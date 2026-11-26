@@ -2,6 +2,7 @@ import { type Prisma } from "@sokosumi/database";
 import { sokoBotListTasksInputSchema as listTasksInputSchema } from "@sokosumi/soko-bot";
 import { formatTaskIdentifier, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
+import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotAuthorLabel,
@@ -37,6 +38,13 @@ export async function listTasks(
     mode: "insensitive" as const,
   });
   const assignee = input.assignee?.trim();
+  const words = (input.query ?? "")
+    .split(/\s+/)
+    .filter((word) => word.length >= 2);
+  // A hit inside a full audit's hidden `seo_audit` line is no hit, per word.
+  const seoAuditOnlyHits = await Promise.all(
+    words.map((word) => findSeoAuditOnlyHitIds(word)),
+  );
   const where: Prisma.TaskWhereInput = {
     AND: [
       { workspaceId: authorized.turn.workspaceId, archivedAt: null },
@@ -60,12 +68,17 @@ export async function listTasks(
           }
         : {},
       // Every word, in the name or description: one phrase rarely matches.
-      ...(input.query ?? "")
-        .split(/\s+/)
-        .filter((word) => word.length >= 2)
-        .map((word) => ({
-          OR: [{ name: contains(word) }, { description: contains(word) }],
-        })),
+      ...words.map((word, at) => ({
+        OR: [
+          { name: contains(word) },
+          {
+            description: contains(word),
+            ...(seoAuditOnlyHits[at].length > 0
+              ? { id: { notIn: seoAuditOnlyHits[at] } }
+              : {}),
+          },
+        ],
+      })),
       assignee?.toLowerCase() === "unassigned"
         ? { assigneeId: null, assigneeUserId: null, assigneeSokoBotId: null }
         : assignee

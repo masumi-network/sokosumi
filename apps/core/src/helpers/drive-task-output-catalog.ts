@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 
+import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
 import prisma from "@/lib/db/prisma";
 
 export const DRIVE_TASK_FILE_WHERE = {
@@ -23,8 +24,10 @@ export interface DriveTaskOutputRecentsRow {
 function buildDriveTaskOutputRecentsWhere(input: {
   baseTaskWhere: Prisma.TaskWhereInput;
   searchQuery?: string;
+  /** Tasks whose description matches only inside the hidden `seo_audit` line. */
+  seoAuditOnlyHits?: string[];
 }): Prisma.TaskFileWhereInput {
-  const { baseTaskWhere, searchQuery } = input;
+  const { baseTaskWhere, searchQuery, seoAuditOnlyHits = [] } = input;
   const trimmedSearch = searchQuery?.trim();
   if (!trimmedSearch) {
     return {
@@ -52,6 +55,9 @@ function buildDriveTaskOutputRecentsWhere(input: {
                     contains: trimmedSearch,
                     mode: "insensitive",
                   },
+                  ...(seoAuditOnlyHits.length > 0
+                    ? { id: { notIn: seoAuditOnlyHits } }
+                    : {}),
                 },
               ],
             },
@@ -75,9 +81,13 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
   const { baseTaskWhere, cursor, take, searchQuery } = input;
   const takePlusOne = take + 1;
 
+  const trimmedSearch = searchQuery?.trim();
   const taskFileWhere = buildDriveTaskOutputRecentsWhere({
     baseTaskWhere,
     ...(searchQuery !== undefined ? { searchQuery } : {}),
+    seoAuditOnlyHits: trimmedSearch
+      ? await findSeoAuditOnlyHitIds(trimmedSearch)
+      : [],
   });
 
   let effectiveCursor = cursor;

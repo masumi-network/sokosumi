@@ -632,6 +632,8 @@ describe("Drive Tasks Routes", () => {
 
     describe("Search: task-file rows", () => {
       it("searches by task name, description, and file name", async () => {
+        // The search for text only a full audit's hidden line holds finds none.
+        prismaQueryRawMock.mockResolvedValueOnce([]);
         const matchingFile = {
           id: "tf_search",
           name: "mockup.pdf",
@@ -679,6 +681,8 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("paginates search results without double-skipping rows", async () => {
+        // The search for text only a full audit's hidden line holds finds none.
+        prismaQueryRawMock.mockResolvedValueOnce([]);
         const files = [
           {
             id: "tf_1",
@@ -733,6 +737,8 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("returns 400 for an invalid search pagination cursor", async () => {
+        // The search for text only a full audit's hidden line holds finds none.
+        prismaQueryRawMock.mockResolvedValueOnce([]);
         prismaTaskFileFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();

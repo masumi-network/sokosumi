@@ -54,6 +54,8 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // The search for text only a full audit's hidden line holds finds none.
+    $queryRaw: () => Promise.resolve([]),
     taskFile: {
       findMany: prismaTaskFileFindManyMock,
       findFirst: prismaTaskFileFindFirstMock,

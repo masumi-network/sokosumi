@@ -26,6 +26,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { findSeoAuditOnlyHitIds } from "@/helpers/seo-audit-search-hits";
 import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
@@ -276,6 +277,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (searchQuery) {
+      // A hit inside a full audit's hidden `seo_audit` line is no hit.
+      const seoAuditOnlyHits = await findSeoAuditOnlyHitIds(searchQuery, {
+        rawReaderCoworkerId: isCoworkerAuthContext(authContext)
+          ? authContext.coworkerId
+          : null,
+      });
       const taskFileWhere: Prisma.TaskFileWhereInput = {
         ...DRIVE_TASK_FILE_WHERE,
         OR: [
@@ -295,6 +302,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                         contains: searchQuery,
                         mode: "insensitive",
                       },
+                      ...(seoAuditOnlyHits.length > 0
+                        ? { id: { notIn: seoAuditOnlyHits } }
+                        : {}),
                     },
                   ],
                 },
