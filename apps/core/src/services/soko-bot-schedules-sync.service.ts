@@ -5,12 +5,13 @@ import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
-import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
+import { createCoreLogger, emitCoreError, logCoreWarning } from "@/lib/evlog";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
+import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
   inheritedScheduleRoute,
@@ -26,8 +27,10 @@ import {
   proactiveGate,
   stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
-import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
-
+import {
+  isPlatformTurnFailure,
+  MAX_CONSECUTIVE_SCHEDULE_FAILURES,
+} from "@/services/soko-bot-schedule.service";
 import { buildScheduledSystemBeat } from "@/services/soko-bot-scheduled-beat.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
@@ -53,6 +56,42 @@ export interface SokoBotScheduleSyncResult {
   completed: number;
   failed: number;
   deferred: number;
+}
+
+interface ScheduleFailures {
+  id: string;
+  sokoBotId: string;
+  systemKey: string | null;
+  consecutiveFailures: number;
+}
+
+function disablesSchedule(consecutiveFailures: number): boolean {
+  return consecutiveFailures + 1 >= MAX_CONSECUTIVE_SCHEDULE_FAILURES;
+}
+
+/** After a counted failure: alerts when that failure switched it off. */
+function reportIfDisabled(schedule: ScheduleFailures): void {
+  if (disablesSchedule(schedule.consecutiveFailures))
+    reportScheduleDisabled(schedule);
+}
+
+/**
+ * A schedule that switched itself off stays off until someone turns it back
+ * on; a built-in rhythm is never re-created, so the bot loses it for good.
+ */
+function reportScheduleDisabled(schedule: ScheduleFailures): void {
+  emitCoreError(
+    {
+      operation: "soko_bot_schedules_sync",
+      sokoBot: { id: schedule.sokoBotId },
+      schedule: { id: schedule.id, systemKey: schedule.systemKey },
+    },
+    {
+      message: "A Soko Bot schedule switched itself off",
+      why: `It failed ${MAX_CONSECUTIVE_SCHEDULE_FAILURES} runs in a row for reasons of its own (platform failures do not count)`,
+      fix: "Read its runs' errorKind and errorDetail in soko_bot_schedule_run, fix the cause, then enable the schedule again (set consecutiveFailures to 0).",
+    },
+  );
 }
 
 interface ClaimedOccurrence {
@@ -176,9 +215,13 @@ export function scheduleRunPrompt(schedule: {
     : schedule.jobId
       ? ` It watches Job ${schedule.jobId}; Core removes it once that Job finishes.`
       : "";
+  // Only a brief that says when to stop lets the run end its schedule; a
+  // weekly report once deleted itself on a guess (Codex rounds 13 and 15).
   const lifecycle = schedule.runOnce
     ? "It runs once; Core removes it after this run."
-    : `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). When its purpose is done, remove it with delete_schedule and scheduleId ${schedule.id}.`;
+    : briefAsksToEnd(schedule.prompt)
+      ? `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}). The brief below says when to end it; only then remove it with delete_schedule and scheduleId ${schedule.id}.`
+      : `It repeats (cron "${schedule.cronExpression}", ${schedule.timezone}) and keeps running: only the owner ends it. Never delete or switch it off; if it looks done or outdated, say so and let the owner decide.`;
   return `[Schedule "${schedule.name}" (scheduleId ${schedule.id}). ${lifecycle}${watches}]\n\n${schedule.prompt}`;
 }
 
@@ -363,17 +406,17 @@ export class SokoBotSchedulesSyncService {
     return (await this.claimRecoverableRun()) ?? this.claimDueOccurrence();
   }
 
-  private async disableIfFailureBudgetExceeded(schedule: {
-    id: string;
-    consecutiveFailures: number;
-  }): Promise<boolean> {
+  private async disableIfFailureBudgetExceeded(
+    schedule: ScheduleFailures,
+  ): Promise<boolean> {
     if (schedule.consecutiveFailures < MAX_CONSECUTIVE_SCHEDULE_FAILURES) {
       return false;
     }
-    await prisma.sokoBotSchedule.updateMany({
+    const disabled = await prisma.sokoBotSchedule.updateMany({
       where: { id: schedule.id, enabled: true },
       data: { enabled: false },
     });
+    if (disabled.count > 0) reportScheduleDisabled(schedule);
     return true;
   }
 
@@ -383,7 +426,7 @@ export class SokoBotSchedulesSyncService {
   } {
     return {
       consecutiveFailures: { increment: 1 },
-      ...(consecutiveFailures + 1 >= MAX_CONSECUTIVE_SCHEDULE_FAILURES
+      ...(disablesSchedule(consecutiveFailures)
         ? { enabled: false as const }
         : {}),
     };
@@ -393,9 +436,11 @@ export class SokoBotSchedulesSyncService {
     claimed: ClaimedOccurrence,
     turnId: string | null,
     turnStatus: "COMPLETED" | "FAILED" | "CANCELLED",
+    turnErrorKind: string | null = null,
   ): Promise<boolean> {
     const completed = turnStatus === "COMPLETED";
-    return prisma.$transaction(async (tx) => {
+    const counts = !completed && !isPlatformTurnFailure(turnErrorKind);
+    const settled = await prisma.$transaction(async (tx) => {
       const settled = await tx.sokoBotScheduleRun.updateMany({
         where: {
           id: claimed.run.id,
@@ -413,14 +458,18 @@ export class SokoBotSchedulesSyncService {
         },
       });
       if (settled.count === 0) return false;
-      await tx.sokoBotSchedule.update({
-        where: { id: claimed.schedule.id },
-        data: completed
-          ? { consecutiveFailures: 0 }
-          : this.scheduleFailureUpdate(claimed.schedule.consecutiveFailures),
-      });
+      if (completed || counts) {
+        await tx.sokoBotSchedule.update({
+          where: { id: claimed.schedule.id },
+          data: completed
+            ? { consecutiveFailures: 0 }
+            : this.scheduleFailureUpdate(claimed.schedule.consecutiveFailures),
+        });
+      }
       return true;
     });
+    if (settled && counts) reportIfDisabled(claimed.schedule);
+    return settled;
   }
 
   async syncDueSchedules(
@@ -589,6 +638,7 @@ export class SokoBotSchedulesSyncService {
           claimed,
           turnId,
           turnStatus,
+          turnErrorKind,
         );
         if (!settled) return "deferred";
         return completed ? "completed" : "failed";
@@ -671,10 +721,10 @@ export class SokoBotSchedulesSyncService {
           },
         });
         if (updated.count === 0) return false;
-        // A missing room is configuration, not schedule execution failure.
-        // Bound this occurrence, while keeping future occurrences eligible
-        // once the owner restores an authorized destination.
-        if (!retrying && !noDestination) {
+        // A missing room is configuration, and a transient failure (the
+        // daily limit, a runtime or database hiccup) is the platform's: they
+        // bound this occurrence but keep the schedule's later ones eligible.
+        if (!transient && !noDestination) {
           await tx.sokoBotSchedule.update({
             where: { id: claimed.schedule.id },
             data: this.scheduleFailureUpdate(
@@ -684,6 +734,8 @@ export class SokoBotSchedulesSyncService {
         }
         return true;
       });
+      if (settled && !transient && !noDestination)
+        reportIfDisabled(claimed.schedule);
       if (!settled) return "deferred";
       return retrying ? "deferred" : "failed";
     }

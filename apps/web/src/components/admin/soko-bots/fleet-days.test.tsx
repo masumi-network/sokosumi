@@ -19,10 +19,11 @@ const day = (date: string, users: number, costUsd: number) => ({
   totalTokens: 1_000,
   costUsd,
   cmoCostUsd: costUsd * 2,
+  evalCostUsd: costUsd * 4,
 });
 
 describe("FleetDays", () => {
-  it("leads with today's people and cost, and lists every day in the table", async () => {
+  it("leads with today's people and cost, evals apart, and lists every day in the table", async () => {
     render(
       await FleetDays({
         fleet: {
@@ -33,17 +34,27 @@ describe("FleetDays", () => {
 
     expect(screen.getByText("Last 2 days, UTC")).toBeTruthy();
     expect(screen.getByText("peak 4 in 2 days")).toBeTruthy();
-    expect(screen.getByText("$1.75 in 2 days")).toBeTruthy();
     expect(screen.getByText("Nov 1: 4 people, 8 messages")).toBeTruthy();
+    // Soko Bots, then CMO.xyz, then evals and lab, each with its own total.
+    expect(screen.getByText("Soko Bot turn cost")).toBeTruthy();
+    expect(screen.getByText("$1.75 in 2 days")).toBeTruthy();
     expect(screen.getByText("Nov 2: $0.50")).toBeTruthy();
+    expect(screen.getByText("CMO.xyz turn cost")).toBeTruthy();
     expect(screen.getByText("$3.50 in 2 days")).toBeTruthy();
     expect(screen.getByText("Nov 2: $1.00")).toBeTruthy();
+    expect(screen.getByText("Evals and lab turn cost")).toBeTruthy();
+    expect(screen.getByText("$7.00 in 2 days")).toBeTruthy();
+    expect(screen.getByText("Nov 2: $2.00")).toBeTruthy();
+    // The charts say what they leave out.
+    expect(
+      screen.getByText(/Work outside a turn is not included/),
+    ).toBeTruthy();
 
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
-      "DayPeopleMessagesTurnsTokensSoko BotsCMO.xyz",
-      "Nov 22461K$0.50$1.00",
-      "Nov 148121K$1.25$2.50",
+      "DayPeopleMessagesTurnsTokensSoko BotsCMO.xyzEvals",
+      "Nov 22461K$0.50$1.00$2.00",
+      "Nov 148121K$1.25$2.50$5.00",
     ]);
   });
 });

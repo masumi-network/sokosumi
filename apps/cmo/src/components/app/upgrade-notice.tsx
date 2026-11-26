@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../../lib/agent";
-import { CusoAvatar } from "../cuso";
+import { CusoFace } from "../cuso";
 
 export type CmoUpgrade = NonNullable<CmoOverview["upgrade"]>;
 
@@ -30,7 +30,7 @@ export function UpgradeNotice({
         aria-modal="true"
         aria-labelledby="upgrade-notice-title"
       >
-        <CusoAvatar pose="done" size={48} />
+        <CusoFace size={48} />
         <h2 id="upgrade-notice-title">{AGENT_NAME} just got better</h2>
         <ul>
           {upgrade.lines.map((line) => (

@@ -316,7 +316,7 @@ export function IntroAskDialog({
         ) : !pipeline.mailbox ? (
           <p className="text-muted-foreground text-sm text-pretty">
             {t("noMailbox")}{" "}
-            <Link href="/soko-bots" className="underline underline-offset-2">
+            <Link href="/agents" className="underline underline-offset-2">
               {t("connect")}
             </Link>
           </p>

@@ -51,10 +51,11 @@ import type { TaskDomainActor } from "./task-domain.service";
 
 /**
  * Who reads or changes a schedule: a person, or a Coworker with a GRANTED
- * workspace grant acting for the member `userId`.
+ * workspace grant acting for the member `userId`. A personal Soko Bot acts
+ * as its owner (`sokoBotId` set): the owner's rights, the bot as Creator.
  */
 export type TaskScheduleReader =
-  | { kind: "user"; userId: string }
+  | { kind: "user"; userId: string; sokoBotId?: string }
   | { kind: "coworker"; coworkerId: string; vendorId: string; userId: string };
 
 export type ScheduleActor = TaskScheduleReader & {
@@ -62,17 +63,32 @@ export type ScheduleActor = TaskScheduleReader & {
 };
 
 export function toScheduleDomainActor(actor: ScheduleActor): TaskDomainActor {
-  return actor.kind === "user"
-    ? { kind: "user", userId: actor.userId }
-    : {
-        kind: "coworker",
-        coworkerId: actor.coworkerId,
-        vendorId: actor.vendorId,
-        enforceWorkspaceGrant: true,
-      };
+  if (actor.kind === "user")
+    return actor.sokoBotId
+      ? { kind: "soko_bot", sokoBotId: actor.sokoBotId }
+      : { kind: "user", userId: actor.userId };
+  return {
+    kind: "coworker",
+    coworkerId: actor.coworkerId,
+    vendorId: actor.vendorId,
+    enforceWorkspaceGrant: true,
+  };
 }
 
 export type RouteVars = EnvVariables["Variables"];
+
+/**
+ * Routes pass their vars and are checked here; a Soko Bot's tools pass the
+ * actor they resolved (`soko-bot-runtime/task-schedules.ts`). The REST routes
+ * keep refusing a bot's key, so the owner's-OK check cannot be skipped.
+ */
+export async function scheduleActorOf(
+  source: RouteVars | ScheduleActor,
+): Promise<ScheduleActor> {
+  return "kind" in source && "workspace" in source
+    ? source
+    : resolveScheduleActor(source as RouteVars);
+}
 
 export async function resolveScheduleActor(
   vars: RouteVars,

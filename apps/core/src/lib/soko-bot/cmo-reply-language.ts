@@ -100,18 +100,17 @@ export function cmoReplyLanguageNote(input: {
  * message, behind a German strategy and his own earlier messages. So every
  * Cuso turn ends with the owner's latest chat message, its language by name
  * and the rule beside it.
- * Before the owner has written, his strategy skill's rule stands alone. Any
- * other bot's message is left as it is.
+ * Before the owner has written, his strategy skill's rule stands alone, and
+ * any other bot gets no note.
  */
-export async function withCmoReplyLanguage(
+export async function cmoReplyLanguageFor(
   turnId: string,
-  text: string,
-): Promise<string> {
+): Promise<string | null> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },
     select: { sokoBotId: true, versionId: true, createdAt: true },
   });
-  if (!turn || getSokoBotVersion(turn.versionId).profile !== "cmo") return text;
+  if (!turn || getSokoBotVersion(turn.versionId).profile !== "cmo") return null;
   const asked = await prisma.sokoBotTurn.findMany({
     where: {
       sokoBotId: turn.sokoBotId,
@@ -140,13 +139,12 @@ export async function withCmoReplyLanguage(
     )
     .filter((message) => message.length > 0);
   const quoted = messages[0];
-  if (!quoted) return text;
-  const note = cmoReplyLanguageNote({
+  if (!quoted) return null;
+  return cmoReplyLanguageNote({
     quoted,
     language: await languageOf(
       messages.find((message) => message.length >= TELLING_CHARS) ?? quoted,
     ),
     current: asked[0]?.id === turnId,
   });
-  return `${text}\n\n${note}`;
 }

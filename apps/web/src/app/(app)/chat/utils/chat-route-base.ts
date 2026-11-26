@@ -53,8 +53,8 @@ export function chatRoomThreadListHref(roomId: string): string {
  */
 export const CHAT_API_PATH = "/api/chat" as const;
 
-/** Mobile Chats list route (mounted at bare `/chat`). */
-export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
+/** Mobile Chats list route (mounted at `/chat/rooms`). */
+export const CHAT_CHATS_LIST_PATH = `${CHAT_APP_ROUTE_PREFIX}/rooms` as const;
 
 /** Every unread Thread across the reader's rooms (SOK-1159). */
 export const CHAT_THREADS_PATH = `${CHAT_APP_ROUTE_PREFIX}/threads` as const;
@@ -66,7 +66,7 @@ export const CHAT_SAVED_PATH = `${CHAT_CATCH_UP_PATH}/saved` as const;
 export const CHAT_DECISIONS_PATH = `${CHAT_CATCH_UP_PATH}/decisions` as const;
 
 /** Welcome home (notices land here). */
-export const CHAT_WELCOME_PATH = "/" as const;
+export const CHAT_WELCOME_PATH = CHAT_APP_ROUTE_PREFIX;
 
 /** Mobile chrome surface for pathname-driven shell/header behavior. */
 export type ChatChromeSurface = "home" | "chats" | "room" | "other-chat";
@@ -111,7 +111,7 @@ export function isChatRoomPathname(
   return CHAT_ROOM_PATHNAME_RE.test(pathname);
 }
 
-/** True for the mobile Chats list route (bare `/chat`). */
+/** True for the mobile Chats list route (`/chat/rooms`). */
 export function isChatChatsPathname(
   pathname: string | null | undefined,
 ): boolean {
@@ -135,12 +135,12 @@ function readSearchParam(
 }
 
 function isWelcomeHomePathname(pathname: string | null | undefined): boolean {
-  return pathname === CHAT_WELCOME_PATH;
+  return pathname === CHAT_WELCOME_PATH || pathname === "/";
 }
 
 /**
  * Soft-land notice query — wins over the mobile list and must land on
- * Welcome (`/`).
+ * Welcome (`/chat`).
  */
 export function hasChatNoticeQuery(searchParams: SearchParamsLike): boolean {
   return readSearchParam(searchParams, "notice") != null;
@@ -184,7 +184,7 @@ export function hasChatNoticeFromRecord(
 
 /**
  * Classifies chat mobile chrome by pathname (+ optional search).
- * Welcome home is `/`. Bare `/chat` is the mobile chats list. Callers
+ * Welcome home is `/chat`. The mobile chats list is `/chat/rooms`. Callers
  * outside chat still get `"other-chat"` (safe default for hamburger).
  * Do not treat `/` as a chat shell path — use `isChatShellPathname` for that.
  */

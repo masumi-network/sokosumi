@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
+import {
+  classifyExtraction,
+  type ExtractionResult,
+  extractDocumentAsync,
+} from "@/lib/files/extraction";
 import { downloadBlob } from "@/services/file-index.service";
 import { type LiveResource } from "@/services/file-search.service";
 import { SokoBotRefusedUnsentError } from "../soko-bot-runtime.service";
@@ -57,6 +62,32 @@ export function isTextMimeType(mimeType: string | null): boolean {
 
 /** Drive text small enough to read whole. */
 export const MAX_DIRECT_READ_BYTES = 200_000;
+const MAX_DIRECT_DOCUMENT_BYTES = 5 * 1024 * 1024;
+
+export async function readPendingDriveDocument(
+  file: LiveResource,
+): Promise<ExtractionResult | null> {
+  if (
+    file.sourceKind !== "DRIVE_UPLOAD" ||
+    (file.extractionState !== "PENDING" &&
+      file.extractionState !== "RUNNING") ||
+    (file.sizeBytes ?? Number.POSITIVE_INFINITY) > MAX_DIRECT_DOCUMENT_BYTES
+  )
+    return null;
+  const format = classifyExtraction(file);
+  if (format !== "pdf" && format !== "ooxml") return null;
+  const bytes = await downloadBlob(
+    file.sourceId,
+    MAX_DIRECT_DOCUMENT_BYTES,
+  ).catch(() => null);
+  return bytes
+    ? extractDocumentAsync({
+        bytes,
+        mimeType: file.mimeType,
+        displayName: file.displayName,
+      })
+    : null;
+}
 
 export const DIRECT_READ_ATTEMPTS = 4;
 

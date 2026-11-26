@@ -232,6 +232,20 @@ export const cmoSubscriptionPlanSchema = z
   })
   .openapi("CmoSubscriptionPlan");
 
+/**
+ * CMO.xyz's GA4 ids for a checkout, sent only when the person allowed
+ * analytics: the paid order is reported to GA4 with them.
+ */
+export const cmoCheckoutAnalyticsSchema = z
+  .object({
+    clientId: z.string().regex(/^\d+\.\d+$/),
+    sessionId: z.string().regex(/^\d+$/).optional(),
+  })
+  .optional()
+  .describe(
+    "GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.",
+  );
+
 /** The Project of the Cuso a CMO route acts on. */
 export const cmoProjectParamsSchema = z.object({
   projectId: z

@@ -28,8 +28,16 @@ For chats, events and rhythms Jev then reads the message and Cuso's previous rep
 - `save_strategy part pieces` merges by id as before. A non-strategy turn on cmo-v23 that saves the whole calendar keeps every entry it did not send (`cmoTurnSawNoCalendar`), since it may never have read them; a strategy turn keeps today's 31-day window.
 - Older Cuso versions are unchanged: the organizer and the read tools follow the version's `cmo-context-on-demand` skill.
 
+## Tools for this turn (cmo-v24)
+
+The owner, 2026-11-25: Cuso "should always be able to call all tools but it should get them highlighted somehow". From cmo-v24 (skill `cmo-tool-highlights`):
+
+- The core names the kind's tools (`core.toolsForThisTurn`, `CMO_KIND_TOOLS`). Nothing is removed.
+- `save_strategy` (25 KB of schema) and `save_brand_brain` (42 KB) come in a short form (a one-paragraph description and `{shortForm: true, what}`) on turns that rarely save: a chat or event that Jev does not read as a change request. Production, strategy, daily, weekly and brand turns, a change request, and a turn Jev could not read get the full tools from the start. Jev's change read is one more question in the organizer's call (`organizer.change`).
+- A short-form call saves nothing: Core answers it in `runTurnTool` (and records the call as a runtime event), the call ends the round, and the next round offers the full tool for the rest of the turn. Both runtimes do it the same way (`lib/soko-bot/short-forms.ts`). The AI SDK can narrow the active tools per step but not change a tool's schema mid-call, so the swap happens between rounds.
+
 ## Considered
 
 - **A bigger budget and better shedding:** keeps the overflow risk and still hides what was shed.
 - **A model call that writes the context:** slower, costs more and can drop what a check needs. Picking ids from a map keeps every byte Core-made.
-- **Narrowing tools and skills per turn the same way:** the tool schemas are about 228 KB on a chat turn (`save_brand_brain` 42 KB and `save_strategy` 25 KB alone) against a 28 KB marketing context, so this is the larger lever. It changes what Cuso can do in a turn, so it is a decision of its own, not part of this one.
+- **Removing tools per turn:** the tool schemas are about 228 KB on a chat turn against a 28 KB marketing context. Removing tools would change what Cuso can do in a turn; cmo-v24 keeps every tool callable and shortens only the two biggest.

@@ -1,10 +1,14 @@
 import {
+  CMO_PLAYBOOKS_SKILL,
   CMO_POST_WITH_PICTURE_SCENARIO_ID,
+  cmoReadsPlaybooks,
   evaluateScenario,
+  getSokoBotVersion,
   isSokoBotSandboxCapability,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
+  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -38,6 +42,10 @@ import {
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  CHANGE_THEN_DRAFTS_CASE_ID,
+  cmoChangeThenDraftsChecks,
+} from "./eval-cmo-change-then-drafts";
+import {
   COMPETITOR_ADS_CASE_ID,
   COMPETITOR_LANDING_PAGE_CASE_ID,
   competitorAdChecks,
@@ -61,6 +69,7 @@ import {
   REPORT_HEADLINE_CASE_ID,
   reportHeadlineChecks,
 } from "./eval-cmo-report-headline";
+import { startCusoRhythmTurn } from "./eval-cmo-rhythm";
 import {
   commentChecks,
   pollCmoCase,
@@ -69,17 +78,23 @@ import {
   styledPictureChecks,
 } from "./eval-cmo-runner";
 import { cmoSeoReportChecks, isCmoSeoReportCase } from "./eval-cmo-seo-report";
+import {
+  CMO_SHORT_FORM_CASE_IDS,
+  shortFormChecks,
+} from "./eval-cmo-short-forms";
+import { CMO_SKILL_CASE_IDS, skillChecks } from "./eval-cmo-skills";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import {
   CMO_WEEKLY_REVIEW_CASE_ID,
-  cmoWeeklyReviewMessage,
   weeklyReviewChecks,
 } from "./eval-cmo-weekly-review";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
+  seedEvalXDms,
 } from "./eval-lanes.service";
+import { isSchedulesCase, prepareSchedulesCase } from "./eval-schedules";
 import { seoEvalChecks } from "./eval-seo-checks";
 import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
 import { pollStandupCase, startStandupCase } from "./eval-standup";
@@ -110,6 +125,8 @@ export interface CaseContext {
   /** The first Soko Bot case of the lane in this run: start from the seeded world. */
   firstOfSuite: boolean;
   startedAt: Date;
+  /** The judge model for this run; unset, the configured judge. */
+  judgeModel?: string;
 }
 
 /** A scenario turn may run until its 15-minute deadline, plus the start. */
@@ -197,6 +214,25 @@ async function startFollowUp(
   return started.turnId;
 }
 
+/** A case that reads a playbook the lane's Cuso version does not list. */
+async function lacksPlaybooks(
+  scenario: SokoBotScenario,
+  sokoBotId: string,
+): Promise<boolean> {
+  const playbooks = new Set(
+    WRITING_SKILLS.filter((skill) => skill.group === "playbooks").map(
+      (skill) => skill.id,
+    ),
+  );
+  if (!scenario.expect.readsSkills?.some((id) => playbooks.has(id)))
+    return false;
+  const bot = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return !cmoReadsPlaybooks(getSokoBotVersion(bot.versionId).skills);
+}
+
 async function startScenario(
   scenario: SokoBotScenario,
   bot: "soko-bot" | "cuso",
@@ -230,11 +266,19 @@ async function startScenario(
     }
   }
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
+  if (bot === "cuso" && (await lacksPlaybooks(scenario, sokoBotId)))
+    return {
+      kind: "done",
+      outcome: skipped(
+        `Needs a Cuso version with the playbooks (${CMO_PLAYBOOKS_SKILL})`,
+      ),
+    };
   let state: Record<string, unknown> = prepare
     ? await prepareCmoChatCase(lane, prepare)
     : {};
   if (bot === "soko-bot" && (context.firstOfSuite || scenario.setup))
     await resetEvalLaneForSokoBot(lane);
+  if (scenario.setup?.xDms) await seedEvalXDms(lane, scenario.setup.xDms);
   for (const schedule of scenario.setup?.schedules ?? [])
     await createSokoBotSchedule({
       userId: lane.userId,
@@ -245,6 +289,8 @@ async function startScenario(
     });
   if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
     await prepareSokoBotCompetitorCase(lane);
+  if (bot === "soko-bot" && isSchedulesCase(scenario.id))
+    await prepareSchedulesCase(lane, scenario.id);
   if (bot === "soko-bot" && isA2aScenario(scenario))
     state = { ...state, ...(await prepareA2aCase(lane, scenario)) };
   if (seoCase) {
@@ -256,18 +302,17 @@ async function startScenario(
     bot === "cuso"
       ? scenario.trigger?.kind === "follow_up"
         ? await startFollowUp(scenario.trigger, lane, clientTurnId)
-        : (
-            await sokoBotControlPlane.startTurn({
-              userId: lane.userId,
-              workspaceId: lane.workspaceId,
-              sokoBotId,
-              clientTurnId,
-              message:
-                prepare === "cmo-weekly-review"
-                  ? await cmoWeeklyReviewMessage(lane)
-                  : scenario.prompt,
-            })
-          ).turnId
+        : scenario.cusoRhythm
+          ? await startCusoRhythmTurn(lane, scenario.cusoRhythm)
+          : (
+              await sokoBotControlPlane.startTurn({
+                userId: lane.userId,
+                workspaceId: lane.workspaceId,
+                sokoBotId,
+                clientTurnId,
+                message: scenario.prompt,
+              })
+            ).turnId
       : await startLabScenarioTurn(
           scenario,
           {
@@ -376,6 +421,18 @@ async function pollScenario(
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
   }
+  if (CMO_SKILL_CASE_IDS.includes(scenario.id)) {
+    const extra = await skillChecks(scenario.id, turnId);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (CMO_SHORT_FORM_CASE_IDS.includes(scenario.id)) {
+    const extra = await shortFormChecks(scenario.id, turnId);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
   if (scenario.id === CMO_CORRECTION_CASE_ID) {
     const extra = await correctionChecks(lane);
     result.checks.push(...extra);
@@ -396,6 +453,12 @@ async function pollScenario(
   }
   if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID) {
     const extra = await sokoBotCompetitorChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CHANGE_THEN_DRAFTS_CASE_ID) {
+    const extra = await cmoChangeThenDraftsChecks(lane, context.startedAt);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
@@ -426,25 +489,27 @@ async function pollScenario(
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
   }
-  const judged = await judgeEvalScenarioTurn(turnId, scenario).catch(
-    (error: unknown) => {
-      // The eval cron, or an admin's tick request.
-      recordCoreWarning(
-        { operation: "eval_tick" },
-        {
-          message:
-            "Could not judge an eval turn, so it is scored by its checks alone",
-          why: "Judging the turn threw",
-        },
-        // An array: one tick judges a turn per lane. Only safe fields: the
-        // judge reads the turn's messages, and its error can quote them.
-        {
-          evalJudgeFailures: [{ turnId, ...messageSafeErrorFields(error) }],
-        },
-      );
-      return null;
-    },
-  );
+  const judged = await judgeEvalScenarioTurn(
+    turnId,
+    scenario,
+    context.judgeModel,
+  ).catch((error: unknown) => {
+    // The eval cron, or an admin's tick request.
+    recordCoreWarning(
+      { operation: "eval_tick" },
+      {
+        message:
+          "Could not judge an eval turn, so it is scored by its checks alone",
+        why: "Judging the turn threw",
+      },
+      // An array: one tick judges a turn per lane. Only safe fields: the
+      // judge reads the turn's messages, and its error can quote them.
+      {
+        evalJudgeFailures: [{ turnId, ...messageSafeErrorFields(error) }],
+      },
+    );
+    return null;
+  });
   const passed =
     result.passed === result.total && judged?.verdict.verdict !== "fail";
   return {
@@ -506,24 +571,27 @@ async function pollA2aScenario(
   result.passed += extra.filter((check) => check.pass).length;
   const roomLog = await a2aRoomLog(lane, context.startedAt);
   await closeA2aWorld(lane);
-  const judged = await judgeEvalChain(turnIds, scenario, roomLog).catch(
-    (error: unknown) => {
-      recordCoreWarning(
-        { operation: "eval_tick" },
-        {
-          message:
-            "Could not judge an eval chain, so it is scored by its checks alone",
-          why: "Judging the chain threw",
-        },
-        {
-          evalJudgeFailures: [
-            { turnId: turnIds.at(-1), ...messageSafeErrorFields(error) },
-          ],
-        },
-      );
-      return null;
-    },
-  );
+  const judged = await judgeEvalChain(
+    turnIds,
+    scenario,
+    roomLog,
+    context.judgeModel,
+  ).catch((error: unknown) => {
+    recordCoreWarning(
+      { operation: "eval_tick" },
+      {
+        message:
+          "Could not judge an eval chain, so it is scored by its checks alone",
+        why: "Judging the chain threw",
+      },
+      {
+        evalJudgeFailures: [
+          { turnId: turnIds.at(-1), ...messageSafeErrorFields(error) },
+        ],
+      },
+    );
+    return null;
+  });
   const passed =
     result.passed === result.total && judged?.verdict.verdict !== "fail";
   return {

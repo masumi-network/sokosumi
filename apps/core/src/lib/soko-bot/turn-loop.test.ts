@@ -6,6 +6,7 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
+  runtimeEventFind,
   eventTransaction,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
+  runtimeEventFind: vi.fn(),
   eventTransaction: vi.fn(),
 }));
 
@@ -20,6 +22,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFind },
     $transaction: eventTransaction,
   },
 }));
@@ -29,14 +32,98 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
+import {
+  getSokoBotVersion,
+  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { expectCoreLogWhys } from "@/test/core-log";
+import { withPromptCache } from "./stream-model-call";
 import {
   finishTurn,
+  isOwnerDirected,
+  isTaintBlocked,
+  offeredCapabilities,
+  promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
+  SANDBOX_GUIDANCE,
   sokoBotMaxSteps,
   sokoBotToolCallTimeoutMs,
+  stableCapabilities,
+  turnRequiresActionProof,
+  WEB_GUIDANCE,
 } from "./turn-loop";
+
+describe("a version with one fixed tool set", () => {
+  const v24 = getSokoBotVersion("cmo-v24");
+
+  it("offers the same tools whatever the route granted", () => {
+    const narrow = stableCapabilities(v24, ["read_calendar"]);
+    expect(stableCapabilities(v24, ["create_task", "read_calendar"])).toEqual(
+      narrow,
+    );
+    expect(narrow).toContain("save_strategy");
+    expect(narrow).toContain("read_skill");
+    expect(narrow).not.toContain("search_exa");
+    expect(stableCapabilities(v24, ["search_exa"])).toContain("search_exa");
+  });
+
+  it("decides the answer format from the offered tools, start and finish alike", () => {
+    const readOnly = {
+      grant: { capabilities: ["read_calendar"] },
+      turn: { source: "SCHEDULE", chainDepth: 0 },
+    } as never;
+    const offered = offeredCapabilities(v24, readOnly, { sandbox: true });
+    expect(offered).toContain("create_social_post");
+    expect(turnRequiresActionProof(offered)).toBe(true);
+    // Before the fixed tool set, the grant alone decided.
+    expect(turnRequiresActionProof(["read_calendar"])).toBe(false);
+  });
+
+  it("offers the sandbox's own tools only when the route grants them", () => {
+    const v36 = { ...getSokoBotVersion("v36"), skillsOnDemand: true as const };
+    const scheduled = stableCapabilities(v36, ["create_task"]);
+    expect(scheduled).not.toContain("bash");
+    expect(scheduled).not.toContain("web_fetch");
+    expect(scheduled).toContain("create_task");
+    expect(scheduled).toContain("hire_agent");
+    const asked = stableCapabilities(v36, ["bash", "web_fetch"]);
+    expect(asked).toContain("bash");
+    expect(asked).toContain("web_fetch");
+  });
+
+  it("keys the cache by system prompt and tools, not by turn", () => {
+    const key = promptCacheKey("cmo-v24", "system", ["a", "b"], []);
+    expect(promptCacheKey("cmo-v24", "system", ["a", "b"], [])).toBe(key);
+    expect(promptCacheKey("cmo-v24", "system", ["a"], [])).not.toBe(key);
+    expect(
+      promptCacheKey("cmo-v24", "system", ["a", "b"], ["save_strategy"]),
+    ).not.toBe(key);
+    expect(key).toMatch(/^cmo-v24:[0-9a-f]{16}$/);
+  });
+
+  it("asks OpenAI to keep the prefix as long as the model allows", () => {
+    expect(
+      withPromptCache(
+        { openai: { reasoningSummary: "auto" } },
+        "cmo-v24:k",
+        "openai/gpt-6-luna",
+      ),
+    ).toEqual({
+      openai: {
+        reasoningSummary: "auto",
+        promptCacheKey: "cmo-v24:k",
+        promptCacheOptions: { ttl: "12h" },
+      },
+    });
+    expect(
+      withPromptCache<Record<string, unknown>>({}, "v36:k", "openai/gpt-5.4")
+        .openai,
+    ).toMatchObject({ promptCacheRetention: "24h" });
+    const plain = { openai: { reasoningSummary: "auto" } };
+    expect(withPromptCache(plain, null, "openai/gpt-6-luna")).toBe(plain);
+  });
+});
 
 describe("sokoBotToolCallTimeoutMs", () => {
   it("gives the month writer its time, inside the sandbox runner's two minutes", () => {
@@ -178,6 +265,60 @@ describe("finishTurn", () => {
     );
   });
 
+  it("includes completed CMO saves in confirmedChanges and ignores unwritten strategy/month results", async () => {
+    toolCallFind.mockResolvedValue([
+      { capability: "save_brand_brain", result: { saved: "brandBrain" } },
+      { capability: "save_strategy", result: { saved: "strategy" } },
+      {
+        capability: "write_strategy",
+        result: { written: true, versionId: "v2" },
+      },
+      { capability: "write_month_pieces", result: { written: 4, left: 0 } },
+    ]);
+    await finish(
+      "I updated your Brand Brain, strategy, and month pieces.",
+      true,
+    );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              capability: {
+                in: expect.arrayContaining([
+                  "save_seo_suggestions",
+                  "save_brand_brain",
+                  "save_strategy",
+                  "write_strategy",
+                  "write_month_pieces",
+                ]),
+              },
+            },
+          ]),
+        }),
+      }),
+    );
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "I updated your Brand Brain, strategy, and month pieces.",
+      ["Saved Brand Brain", "Saved marketing strategy", "Wrote month pieces"],
+    );
+
+    claimsActionMock.mockClear();
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "write_strategy",
+        result: { written: false, reason: "err" },
+      },
+      { capability: "write_strategy", result: { writing: true } },
+      { capability: "write_month_pieces", result: { written: 0, left: 0 } },
+    ]);
+    await finish("Still working on your strategy.", true);
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Still working on your strategy.",
+      [],
+    );
+  });
+
   it("says so when the message could not be checked", async () => {
     expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
       "The check for claims of unconfirmed changes could not run",
@@ -252,5 +393,184 @@ describe("sokoBotMaxSteps", () => {
     expect(sokoBotMaxSteps(15 * 60 * 1_000)).toBe(40);
     expect(sokoBotMaxSteps(60 * 60 * 1_000)).toBe(160);
     expect(sokoBotMaxSteps(60_000)).toBe(40);
+  });
+});
+
+describe("isOwnerDirected and isTaintBlocked", () => {
+  const ownerChat = {
+    source: "CHAT",
+    parentTurnId: null as string | null,
+    askedByUserId: null as string | null,
+    requestedByUserId: "owner-1",
+    chainDepth: 0,
+    parentTurn: null as Record<string, unknown> | null,
+  };
+
+  it("treats direct owner CHAT turns (including chatMentionId: null) as owner-directed", async () => {
+    turnFind.mockResolvedValue(ownerChat);
+    expect(await isOwnerDirected("turn-direct")).toBe(true);
+
+    turnFind.mockResolvedValue({ ...ownerChat, askedByUserId: "owner-1" });
+    expect(await isOwnerDirected("turn-shared-member")).toBe(true);
+
+    turnFind.mockResolvedValue({ ...ownerChat, askedByUserId: "teammate-2" });
+    expect(await isOwnerDirected("turn-teammate")).toBe(false);
+
+    turnFind.mockResolvedValue({ ...ownerChat, chainDepth: 1 });
+    expect(await isOwnerDirected("turn-chained")).toBe(false);
+  });
+
+  it("requires an owner CHAT root for background children and rejects INGEST or EVENT children", async () => {
+    // Background run started from owner CHAT
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat },
+    });
+    expect(await isOwnerDirected("child-of-chat")).toBe(true);
+
+    // Grandchild whose root is owner CHAT
+    turnFind
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        parentTurnId: "child-1",
+        parentTurn: { ...ownerChat, parentTurnId: "root-chat" },
+      })
+      .mockResolvedValueOnce({ ...ownerChat, parentTurnId: null });
+    expect(await isOwnerDirected("grandchild-of-chat")).toBe(true);
+
+    // Background run started from non-owner INGEST (must stay blocked)
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      source: "INGEST",
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, source: "INGEST" },
+    });
+    expect(await isOwnerDirected("child-of-ingest")).toBe(false);
+
+    // Even if a child claims source CHAT, an INGEST parent fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, source: "INGEST" },
+    });
+    expect(await isOwnerDirected("chat-child-of-ingest")).toBe(false);
+
+    // Grandchild whose root is INGEST fails closed
+    turnFind
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        parentTurnId: "child-1",
+        parentTurn: { ...ownerChat, parentTurnId: "root-ingest" },
+      })
+      .mockResolvedValueOnce({
+        ...ownerChat,
+        source: "INGEST",
+        parentTurnId: null,
+      });
+    expect(await isOwnerDirected("grandchild-of-ingest")).toBe(false);
+
+    // Autonomous EVENT child hung under an owner CHAT (e.g. CMO production)
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      source: "EVENT",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat },
+    });
+    expect(await isOwnerDirected("event-child-of-chat")).toBe(false);
+
+    // Cycle or missing parent fails closed
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "self-cycle",
+      parentTurn: { ...ownerChat, parentTurnId: "self-cycle" },
+    });
+    expect(await isOwnerDirected("self-cycle")).toBe(false);
+  });
+
+  it("allows owner-directed tainted drafts and newsletters while keeping outward social actions and INGEST children blocked", async () => {
+    runtimeEventFind.mockResolvedValue({ id: "taint-1" });
+    turnFind.mockResolvedValue(ownerChat);
+
+    for (const allowed of [
+      "create_newsletter_issue",
+      "newsletter_draft_issue",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+      "upload_file",
+      "hire_agent",
+    ] as const) {
+      expect(await isTaintBlocked("turn-direct", allowed)).toBe(false);
+    }
+
+    for (const blocked of [
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+      "post_chat",
+      "run_integration_tool",
+      "add_newsletter_subscriber",
+    ] as const) {
+      expect(await isTaintBlocked("turn-direct", blocked)).toBe(true);
+    }
+
+    // Delegated EVENT turns (even under an owner CHAT parent) must stay
+    // blocked on social edits, and both social edit tools stay in
+    // SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES so delegated follow-up grants
+    // never inherit them (while create_social_post remains inheritable).
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "update_social_post",
+    );
+    expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(
+      "update_social_posts",
+    );
+    expect(
+      SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+    ).not.toContain("create_social_post");
+
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      source: "EVENT",
+      parentTurnId: "root-chat",
+      parentTurn: { ...ownerChat },
+    });
+    for (const blocked of [
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(await isTaintBlocked("event-child-of-chat", blocked)).toBe(true);
+    }
+
+    // Background child of an INGEST turn must remain blocked on every tainted write
+    turnFind.mockResolvedValue({
+      ...ownerChat,
+      parentTurnId: "root-ingest",
+      parentTurn: { ...ownerChat, source: "INGEST" },
+    });
+    for (const blocked of [
+      "send_email_draft",
+      "hire_agent",
+      "install_skill",
+      "create_newsletter_issue",
+      "create_social_post",
+      "update_social_post",
+      "update_social_posts",
+    ] as const) {
+      expect(await isTaintBlocked("child-of-ingest", blocked)).toBe(true);
+    }
+  });
+
+  it("keeps WEB_GUIDANCE aligned with SANDBOX_GUIDANCE on the owner-directed exception", () => {
+    for (const guidance of [SANDBOX_GUIDANCE, WEB_GUIDANCE]) {
+      expect(guidance).toContain(
+        "On work your owner asked for in their chat (and background runs they started)",
+      );
+      expect(guidance).toContain("drafting newsletters");
+      expect(guidance).toContain(
+        "creating or editing unapproved social post drafts still work",
+      );
+      expect(guidance).toContain("editing scheduled social posts are refused");
+    }
   });
 });

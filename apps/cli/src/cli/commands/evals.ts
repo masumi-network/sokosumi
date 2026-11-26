@@ -65,6 +65,12 @@ interface EvalCaseReport {
   states: string[];
   passRate: number | null;
   baselinePassRate: number | null;
+  costUsd: number | null;
+  usualCostUsd: number | null;
+  costlier: boolean;
+  durationMs: number | null;
+  usualDurationMs: number | null;
+  slower: boolean;
   results: {
     repeat: number;
     status: string;
@@ -80,6 +86,10 @@ interface EvalRunReport {
   baseline: { id: string; createdAt: string; prNumber: number | null } | null;
   summary: {
     counts: Record<string, number>;
+    costlier: number;
+    slower: number;
+    /** Every case counts once, whatever its repeats. */
+    passRate: number | null;
     passed: number;
     scored: number;
     open: number;
@@ -122,6 +132,30 @@ function needsALook(evalCase: EvalCaseReport): boolean {
   return !["passing", "pending", "skipped"].includes(evalCase.outcome);
 }
 
+function money(usd: number | null): string {
+  return usd === null ? "–" : `$${usd.toFixed(2)}`;
+}
+
+function minutes(ms: number | null): string {
+  return ms === null ? "–" : `${(ms / 60_000).toFixed(1)} min`;
+}
+
+/** Cases that cost or took more than 1.3 times their usual weekly run. */
+function usageLines(report: EvalRunReport): string[] {
+  return report.cases.flatMap((evalCase) => [
+    ...(evalCase.costlier
+      ? [
+          `- Costlier \`${evalCase.caseId}\`: ${money(evalCase.costUsd)}, usually ${money(evalCase.usualCostUsd)}`,
+        ]
+      : []),
+    ...(evalCase.slower
+      ? [
+          `- Slower \`${evalCase.caseId}\`: ${minutes(evalCase.durationMs)}, usually ${minutes(evalCase.usualDurationMs)}`,
+        ]
+      : []),
+  ]);
+}
+
 function sorted(cases: EvalCaseReport[]): EvalCaseReport[] {
   return [...cases].sort(
     (a, b) =>
@@ -137,10 +171,9 @@ function counts(report: EvalRunReport): string {
 
 function formatReportText(report: EvalRunReport): string[] {
   const { run, summary } = report;
-  const rate = summary.scored ? summary.passed / summary.scored : null;
   return [
     `Eval run ${run.id} · ${run.trigger.toLowerCase()} · ${run.environment} · ${runRef(run)} · ${run.status.toLowerCase()}`,
-    `${percent(rate)} passed (${summary.passed} of ${summary.scored})${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
+    `${percent(summary.passRate)} passed (${summary.passed} of ${summary.scored} repeats)${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
     report.baseline
       ? `Compared with the weekly run of ${report.baseline.createdAt} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })})`
       : "No weekly run before this one to compare with.",
@@ -151,6 +184,7 @@ function formatReportText(report: EvalRunReport): string[] {
         (evalCase) =>
           `${evalCase.outcome.toUpperCase().padEnd(9)} ${evalCase.caseId} ${percent(evalCase.passRate)} (was ${percent(evalCase.baselinePassRate)})  ${caseReason(evalCase)}`,
       ),
+    ...usageLines(report).map((line) => line.slice(2)),
   ];
 }
 
@@ -187,7 +221,12 @@ function formatReportMarkdown(report: EvalRunReport): string[] {
           `- ${evalCase.outcome === "regressed" ? "▼" : "▲"} \`${evalCase.caseId}\` ${percent(evalCase.baselinePassRate)} → ${percent(evalCase.passRate)}${evalCase.outcome === "regressed" ? `: ${caseReason(evalCase)}` : ""}`,
       ),
     );
-  lines.push("", `Cost $${summary.costUsd.toFixed(2)} · run \`${run.id}\``);
+  const usage = usageLines(report);
+  if (usage.length) lines.push("", ...usage);
+  lines.push(
+    "",
+    `Cost $${summary.costUsd.toFixed(2)} · ${summary.costlier} costlier, ${summary.slower} slower than usual · run \`${run.id}\``,
+  );
   return lines;
 }
 

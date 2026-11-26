@@ -2,6 +2,10 @@ import { gateway, generateText, Output } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import {
+  localChatGptPlanEnabled,
+  localChatGptPlanModel,
+} from "@/lib/local-chatgpt-plan";
 
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
@@ -127,7 +131,10 @@ export async function checkStyledPicture(input: {
   const logo = input.logo ? rest[0] : undefined;
   const brandPictures = input.logo ? rest.slice(1) : rest;
   const result = await generateText({
-    model: gateway(STYLE_CHECK_MODEL),
+    telemetry: { functionId: "picture-style-check" },
+    // A ChatGPT plan run checks on the plan's model instead of the Gateway.
+    model:
+      localChatGptPlanModel(STYLE_CHECK_MODEL) ?? gateway(STYLE_CHECK_MODEL),
     output: Output.object({ schema: verdictSchema }),
     system:
       RUBRIC +
@@ -167,8 +174,10 @@ export async function checkStyledPicture(input: {
   return {
     verdict: result.output,
     passes: styleCheckPasses(result.output),
-    costUsd:
-      gatewayCostUsd(result.providerMetadata) ||
-      usage.inputTokens * PRICE.input + usage.outputTokens * PRICE.output,
+    // A plan run bills nothing: its tokens are not Claude's.
+    costUsd: localChatGptPlanEnabled()
+      ? 0
+      : gatewayCostUsd(result.providerMetadata) ||
+        usage.inputTokens * PRICE.input + usage.outputTokens * PRICE.output,
   };
 }

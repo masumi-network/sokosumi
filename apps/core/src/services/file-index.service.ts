@@ -150,6 +150,7 @@ export async function writeVersionChunks(input: {
  */
 export async function downloadBlob(
   objectKey: string,
+  maxBytes = FILE_EXTRACTION_MAX_BYTES,
 ): Promise<Uint8Array | null> {
   if (!getEnv().BLOB_READ_WRITE_TOKEN) return null;
 
@@ -158,7 +159,7 @@ export async function downloadBlob(
     abortSignal: AbortSignal.timeout(HEAD_TIMEOUT_MS),
   });
   if (!metadata) throw new BlobNotFoundError();
-  if (metadata.size > FILE_EXTRACTION_MAX_BYTES) return null;
+  if (metadata.size > maxBytes) return null;
 
   const read = await driveRead(objectKey, {
     abortSignal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
@@ -167,9 +168,23 @@ export async function downloadBlob(
   // written again after a delete answers 404 for a few seconds. Thrown, the
   // job retries instead of recording the file as unreadable for good.
   if (!read) throw new Error("Blob download failed: no store had the object");
-  const response = new Response(read.stream);
-
-  return new Uint8Array(await response.arrayBuffer());
+  const reader = read.stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return Buffer.concat(chunks, size);
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 export interface ExtractionRunOutcome {

@@ -1,14 +1,5 @@
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function trackCtas() {
-  document.querySelectorAll("[data-cta]").forEach((el) => {
-    el.addEventListener("click", () => {
-      if (typeof gtag !== "function") return;
-      gtag("event", "cta_click", { cta_location: el.dataset.cta, link_url: el.href });
-    });
-  });
-}
-
 function revealOnScroll() {
   const items = document.querySelectorAll(".reveal");
   if (reducedMotion || !("IntersectionObserver" in window)) return;
@@ -39,7 +30,7 @@ const REACH = { near: REST.near * 1.22, far: REST.far * 1.1 }; // full leg lengt
 const ARMS = { armL: [365, 700], armR: [880, 815] };
 const WAVE_PIVOT = [1265, 1190]; // the friendly pose's shoulder
 const GAIT = { T: 0.44, stance: 0.6, S: 190, LIFT: 56, ARM: 24, LEAN: 4, BOB: 24 }; // short legs: short, quick steps
-const REACTIONS = ["idea", "done", "correct"];
+const REACTIONS = ["idea", "correct"];
 
 const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (p) => ((p % 1) + 1) % 1;
@@ -305,7 +296,6 @@ function themeToggle() {
   show();
 }
 
-trackCtas();
 themeToggle();
 revealOnScroll();
 bringCusoToLife();

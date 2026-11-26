@@ -1341,6 +1341,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1354,6 +1355,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1367,6 +1369,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1380,6 +1383,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1393,6 +1397,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v20"])).toEqual({
       weekly: true,
@@ -1406,6 +1411,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: true,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v21"])).toEqual({
       weekly: true,
@@ -1419,6 +1425,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: true,
       industryTopics: true,
       examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v22"])).toEqual({
       weekly: true,
@@ -1432,7 +1439,12 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: true,
       industryTopics: true,
       examplesOnly: true,
+      strategyStep: false,
     });
+    expect(
+      cmoStrategyRules(["cmo-strategy-v22", "cmo-core-writes-strategy"])
+        .strategyStep,
+    ).toBe(true);
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
       aida: false,
@@ -1445,6 +1457,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
   });
 
@@ -2131,6 +2144,7 @@ describe("claims", () => {
       pillarFacts: false,
       industryTopics: false,
       examplesOnly: false,
+      strategyStep: false,
     });
     const strategy = plan({
       calendar: [

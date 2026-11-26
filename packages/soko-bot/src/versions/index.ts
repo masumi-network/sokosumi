@@ -36,6 +36,14 @@ import { cmoV21 } from "./cmo-v21.js";
 import { cmoV22 } from "./cmo-v22.js";
 import { cmoV23 } from "./cmo-v23.js";
 import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
+import { cmoV24 } from "./cmo-v24.js";
+import { cmoV25 } from "./cmo-v25.js";
+import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
+import {
+  skillIndexSection,
+  splitSkillsForTurn,
+  turnSkillsSection,
+} from "./skill-index.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -78,6 +86,7 @@ import { v33 } from "./v33.js";
 import { v34 } from "./v34.js";
 import { v35 } from "./v35.js";
 import { v36 } from "./v36.js";
+import { v37 } from "./v37.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -117,6 +126,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v34,
   v35,
   v36,
+  v37,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
@@ -145,10 +155,12 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV21,
   cmoV22,
   cmoV23,
+  cmoV24,
+  cmoV25,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV20.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV23.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.
@@ -230,26 +242,88 @@ export function sokoBotIdentity(
     : "You are Soko Bot, the owner's autonomous Sokosumi project manager. Your operating instructions arrive each turn as the versioned OPERATING INSTRUCTIONS block; follow them exactly.";
 }
 
-/** Base prompt followed by every included skill. */
+/**
+ * The skills in the system prompt: every one in full, or for a version that
+ * loads skills on demand, the every-turn ones and the index. That prompt is
+ * then the same on every turn of the version, so the provider caches it.
+ */
+function systemSkillsPrompt(
+  version: SokoBotVersion,
+  turn: SokoBotPromptTurn | undefined,
+): string[] {
+  if (!version.skillsOnDemand)
+    return cmoTurnSkills(version.skills, turn?.clientTurnId).map((id) =>
+      getSokoBotSkill(id).content.trim(),
+    );
+  const { always, indexed } = splitSkillsForTurn(version, []);
+  const index = skillIndexSection(
+    indexed.map(getSokoBotSkill),
+    version.profile === "cmo",
+  );
+  return [
+    ...always.map((id) => getSokoBotSkill(id).content.trim()),
+    ...(index ? [index] : []),
+  ];
+}
+
+/** What Core knows about a turn before the model starts. */
+export interface SokoBotPromptTurn {
+  clientTurnId: string | null;
+  /** The turn's kind, route and source, as `SkillOccasion`s. */
+  occasions?: readonly string[];
+}
+
+/**
+ * Base prompt followed by the turn's skills: every skill in full, or for a
+ * version that loads skills on demand, the ones the turn always needs and
+ * an index of the rest.
+ */
 export function composeSystemPrompt(
   version: SokoBotVersion,
   persona?: SokoBotPersona,
-  turn?: { clientTurnId: string | null },
+  turn?: SokoBotPromptTurn,
 ): string {
+  const perBot = version.skillsOnDemand ? [] : personaPrompt(version, persona);
   return [
-    ...(persona
-      ? [
-          version.texts === "cmo"
-            ? composeCusoPersona(persona.name?.trim() || "Cuso")
-            : composeSokoBotPersona(persona),
-        ]
-      : []),
+    ...perBot.slice(0, 1),
     version.systemPrompt.trim(),
-    ...cmoTurnSkills(version.skills, turn?.clientTurnId).map((id) =>
-      getSokoBotSkill(id).content.trim(),
-    ),
-    ...(persona?.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),
+    ...systemSkillsPrompt(version, turn),
+    ...perBot.slice(1),
   ].join("\n\n");
+}
+
+/** Who this bot is: its persona, and the shared-bot guidance for a team's. */
+function personaPrompt(
+  version: SokoBotVersion,
+  persona: SokoBotPersona | undefined,
+): string[] {
+  if (!persona) return [];
+  return [
+    version.texts === "cmo"
+      ? composeCusoPersona(persona.name?.trim() || "Cuso")
+      : composeSokoBotPersona(persona),
+    ...(persona.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),
+  ];
+}
+
+/**
+ * For a version that loads skills on demand, what its system prompt leaves
+ * to the turn's first message: the skills this kind of turn always needs,
+ * then this bot's persona. Empty for every other version.
+ */
+export function composeTurnPreamble(
+  version: SokoBotVersion,
+  persona?: SokoBotPersona,
+  turn?: SokoBotPromptTurn,
+): string {
+  if (!version.skillsOnDemand) return "";
+  const { forTurn } = splitSkillsForTurn(version, turn?.occasions ?? []);
+  return [
+    turnSkillsSection(forTurn.map(getSokoBotSkill)),
+    ...personaPrompt(version, persona),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
@@ -278,6 +352,7 @@ export function applyVersionCapabilities(
       : ["send_message", "list_recipients"];
   const routed = capabilities.filter(
     (capability) =>
+      capability !== "read_skill" &&
       !isSokoBotCmoCapability(capability) &&
       !(cmo && isSokoBotCompetitorCapability(capability)) &&
       !messagingTools.includes(capability),
@@ -287,18 +362,26 @@ export function applyVersionCapabilities(
         (version.capabilities as readonly string[]).includes(capability),
       )
     : routed;
+  // A version that loads skills on demand reads them, writing skills too.
+  const skillReads: SokoBotCapability[] = version.skillsOnDemand
+    ? ["read_skill"]
+    : [];
   return cmo
     ? [
         ...allowed,
+        ...skillReads,
         // Core's month writer belongs to the production skill that calls it.
         ...SOKO_BOT_CMO_CAPABILITIES.filter(
           (capability) =>
+            !(version.skillsOnDemand && capability === "read_writing_skill") &&
             (capability !== "write_month_pieces" ||
               cmoWritesMonthAtOnce(version.skills)) &&
+            (capability !== "write_strategy" ||
+              cmoWritesStrategyStep(version.skills)) &&
             (!isSokoBotCmoReadCapability(capability) ||
               cmoReadsOnDemand(version.skills)),
         ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]
-    : allowed;
+    : [...allowed, ...skillReads];
 }

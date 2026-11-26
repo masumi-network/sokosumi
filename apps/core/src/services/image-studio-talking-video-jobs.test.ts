@@ -242,6 +242,7 @@ describe("starting a talking video that shows the site", () => {
     });
     expect(captureSitePageMock).toHaveBeenCalledWith(
       "https://roastery.example",
+      "phone",
     );
     expect(jobUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -407,6 +408,10 @@ describe("starting a talking video", () => {
           musicRequestId: null,
           format: null,
           picturePathnames: [],
+          shape: "9:16",
+          shapes: [],
+          sourceJobId: null,
+          siteDesktopPagePathname: null,
         },
         // 10 s at $0.05, plus the voice and timing its words.
         chargedCents: convertCreditsToCents(52),
@@ -655,6 +660,7 @@ describe("the presenter model's video arriving with word timings", () => {
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(editTalkingVideoMock).toHaveBeenCalledWith({
+      shape: "9:16",
       clip: new Uint8Array([9]),
       words: WORDS,
       clipSeconds: 9,
@@ -725,6 +731,7 @@ describe("the presenter model's video arriving with word timings", () => {
       "video/mp4",
     );
     expect(editTalkingVideoMock).toHaveBeenCalledWith({
+      shape: "9:16",
       clip: new Uint8Array([9]),
       words: WORDS,
       clipSeconds: 9,
@@ -835,6 +842,64 @@ describe("the presenter model's video arriving with word timings", () => {
       expect.any(String),
       new Uint8Array([9]),
       expect.anything(),
+    );
+    expect(logged).toHaveLength(1);
+  });
+
+  it("fails another shape whose edit fails, instead of storing the vertical clip", async () => {
+    const shapeRow = {
+      ...row,
+      id: "job-2",
+      falRequestId: null,
+      idempotencyKey: "video-shape:job-1:16:9",
+      chargedCents: 0n,
+      settings: {
+        ...row.settings,
+        shape: "16:9",
+        sourceJobId: "job-1",
+        music: true,
+        musicRequestId: "music-1",
+      },
+    };
+    jobFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "job-1"
+          ? {
+              ...row,
+              status: "SUCCEEDED",
+              model: "heygen/avatar-6/turbo/image-to-video",
+            }
+          : shapeRow,
+    );
+    fetchQueueResultMock.mockImplementation(
+      async ({ requestId }: { requestId: string }) =>
+        requestId === "fal-1"
+          ? { kind: "media", media: [{ url: AVATAR_URL }] }
+          : { kind: "error", message: "gone" },
+    );
+    editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
+    const logged = expectCoreLog(
+      "warn",
+      "Could not cut a video in another shape",
+    );
+
+    await reconcileJob("job-2");
+
+    expect(editTalkingVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "16:9" }),
+    );
+    expect(putMock).not.toHaveBeenCalled();
+    // A missing extra does not reprice a shape: it was never charged for one.
+    expect(jobUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ chargedCents: expect.anything() }),
+      }),
+    );
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "job-2" }),
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
     );
     expect(logged).toHaveLength(1);
   });

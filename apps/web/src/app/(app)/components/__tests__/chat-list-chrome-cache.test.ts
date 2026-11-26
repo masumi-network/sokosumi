@@ -138,7 +138,10 @@ describe("chat list chrome single-source composition contract", () => {
       join(dir, "../private-cached-app-sidebar.tsx"),
       "utf8",
     );
-    const chatsPage = readFileSync(join(dir, "../../chat/page.tsx"), "utf8");
+    const chatsPage = readFileSync(
+      join(dir, "../../chat/rooms/page.tsx"),
+      "utf8",
+    );
     const cacheSource = readFileSync(
       join(dir, "../private-sidebar-cache.ts"),
       "utf8",
@@ -249,9 +252,7 @@ describe("chat list chrome single-source composition contract", () => {
     // The switcher has none: its workspaces arrive with the frame.
     expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
     expect(headerProfile).not.toMatch(/<Suspense/);
-    expect(headerProfile).toMatch(
-      /<HeaderPhoneWorkspaceSwitcher[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
-    );
+    expect(headerProfile).toMatch(/<HeaderTrailingTools\s*\/>/);
 
     const fallback = switcherSkeleton.slice(
       switcherSkeleton.indexOf("WORKSPACE_SWITCHER_AVATAR_CLASS ="),

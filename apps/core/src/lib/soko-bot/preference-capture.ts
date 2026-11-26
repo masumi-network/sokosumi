@@ -41,6 +41,7 @@ const defaultDeps: PreferenceCaptureDeps = {
     });
     const result = await generateText({
       ...request,
+      telemetry: { functionId: "preference-capture" },
       providerOptions: {
         ...request.providerOptions,
         google: { thinkingConfig: { thinkingLevel: "low" } },

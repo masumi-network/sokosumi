@@ -241,3 +241,21 @@ describe("AuthenticatedAppFrame live chat rooms reader placement", () => {
 vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
   GlobalRail: () => null,
 }));
+
+vi.mock(
+  "@/app/components/workspace-switcher/workspace-switcher-menu.client",
+  () => ({ default: () => null }),
+);
+
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-search-button.client",
+  () => ({
+    SidebarSearchButton: () => null,
+  }),
+);
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-new-task-button.client",
+  () => ({
+    SidebarNewTaskButton: () => null,
+  }),
+);

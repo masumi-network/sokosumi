@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: {{effective_date}}
+Effective date: {{privacy_effective_date}}
 
 ## Who is responsible
 
@@ -70,7 +70,7 @@ We share relevant information with authorized people in your workspace, personne
 - Exa: public web search and news research; DataForSEO through supported integration paths: keyword and search research.
 - Ably: platform realtime updates; Resend: platform account and transactional email; Sentry: platform error monitoring where configured.
 - Polar: checkout, subscriptions, payment records, taxes and purchase support.
-- Google Analytics: marketing website usage measurement; Google tags on the sign-in platform where enabled.
+- Google Analytics: usage measurement on www.cmo.xyz and app.cmo.xyz after consent, including subscription purchase events sent from our servers; Google tags on the sign-in platform where enabled.
 - The services you connect: X, LinkedIn, Meta's Instagram and Facebook, Google services including YouTube, Google Ads, Analytics and Search Console, TikTok and Shopify, as applicable.
 
 Not every provider receives every customer's data. Some are our processors or downstream infrastructure providers; others, including payment and social platforms, may act as independent controllers for their own services. The [DPA](/dpa#subprocessor-annex) identifies the processing roles and transfer arrangements. Processing and support may take place in the United States, the European Economic Area, the United Kingdom, Switzerland and the countries in which your selected connected platforms operate. A particular storage region does not necessarily limit remote support access to that region. Contact [{{legal_email}}](mailto:{{legal_email}}) for details relevant to your use and for data processing terms.
@@ -81,20 +81,22 @@ We may also disclose information where necessary to comply with law, protect rig
 
 CMO uses cookies and browser storage for sign-in, OAuth security, session continuity, onboarding choices, sign-out behavior and your chosen theme. Session and sign-out cookies can last up to 90 days. Shorter-lived cookies support connection callbacks; theme preferences can persist until changed or cleared. Blocking necessary cookies may prevent sign-in or connected features from working.
 
-The marketing pages at www.cmo.xyz and the signed-out app.cmo.xyz landing page offer optional Google Analytics through gtag.js. The tag loads only after you choose Allow analytics. Reject analytics is equally available. We disable Google advertising signals and ad personalization in this integration. The legal pages do not load Google Analytics.
+The marketing pages at www.cmo.xyz and the app at app.cmo.xyz offer optional Google Analytics through gtag.js. Where consent is required, including the EEA, the United Kingdom and Switzerland, the tag loads only after you choose Allow analytics; elsewhere it loads unless you choose Reject analytics or send a Global Privacy Control signal. Reject analytics is equally available. We disable Google advertising signals and ad personalization in this integration. The legal pages do not load Google Analytics.
+
+When analytics is allowed, we measure page views and product steps such as signing up, the onboarding steps, opening the plans, starting a checkout, approving or changing posts, sending a message to Cuso and connecting an account. In the app we attach a random account identifier, your plan and billing period, never your name, email address, messages or post text. When you pay for a plan, our server reports the order number, plan, amount and currency to Google Analytics, linked to the same identifiers, only if analytics was allowed when the checkout started.
 
 Cookies and storage used by these sites include:
 
-- cmo-cookie-consent-v1, in localStorage: remembers Allow or Reject analytics for 180 days on the origin where you made the choice. This storage is necessary to honor your preference.
+- cmo_consent, a cookie on cmo.xyz, and cmo-cookie-consent-v1, in localStorage: remember Allow analytics for 180 days, or Reject analytics for up to 400 days, on www.cmo.xyz and app.cmo.xyz. This storage is necessary to honor your preference.
 - _ga and _ga_*: Google Analytics identifiers, set only after consent. Our tag limits their cookie lifetime to 180 days without extending it on each visit. These are optional analytics cookies.
 - theme, in localStorage on the marketing site, and cmo-theme in the app: remember your requested display theme. Local storage remains until you change or clear it; the app’s theme cookie lasts up to one year. These are functional preferences.
 - cmo.session_token, cmo.session_data and other cmo-prefixed authentication cookies, sometimes with a __Secure- prefix or split into chunks: provide sign-in and encrypted session information. The session lifetime is up to 90 days. OAuth state and callback cookies are short-lived security cookies.
 - cmo-signed-out: remembers that the next sign-in should ask you to authenticate again, for up to 90 days or until you sign in.
 - cmo-skipped-* and connection-callback cookies: remember onboarding progress or protect a connection flow. Callback state can last 15 minutes; onboarding progress is remembered for up to one year.
 
-Cookie names can vary with the security prefix, chunking and integration. The Sokosumi sign-in platform has its own cookie controls when analytics is enabled, with Google consent settings denied by default. Its choices apply on that platform and do not control cmo.xyz. The signed-in CMO application has no separate Google Analytics or Google Tag Manager component. Third-party checkout and connected sites control their own cookies.
+Cookie names can vary with the security prefix, chunking and integration. The Sokosumi sign-in platform has its own cookie controls when analytics is enabled, with Google consent settings denied by default. Its choices apply on that platform and do not control cmo.xyz. The CMO app uses the same Google Analytics tag and choice as the marketing site and no Google Tag Manager. Third-party checkout and connected sites control their own cookies.
 
-Open Cookie settings in the marketing footer to change your choice. Rejecting after acceptance stops the tag, clears accessible Google Analytics cookies and reloads the page. A Global Privacy Control signal also blocks optional analytics. Choices are specific to your browser and origin, so set them separately on www.cmo.xyz and app.cmo.xyz. You can also clear or block cookies in your browser. Blocking necessary cookies may prevent sign-in.
+Open Cookie settings in the marketing footer to change your choice. Rejecting after acceptance stops the tag, clears accessible Google Analytics cookies and reloads the page. A Global Privacy Control signal also blocks optional analytics. One choice covers www.cmo.xyz and app.cmo.xyz in the same browser. You can also clear or block cookies in your browser. Blocking necessary cookies may prevent sign-in.
 
 ## International transfers
 
@@ -134,7 +136,7 @@ Where the California Consumer Privacy Act applies, business contacts can also ha
 
 Subject to applicable exceptions, you may request to know or access personal information, correct it, delete it, and receive it in a portable form. Where applicable, you may opt out of sale or sharing for cross-context behavioral advertising and limit uses of sensitive personal information. An authorized agent may submit a request with appropriate proof of authority. Contact [{{legal_email}}](mailto:{{legal_email}}); we verify requests in a way proportionate to the information requested.
 
-Use Cookie settings and choose Reject analytics to stop optional Google Analytics on this website. A Global Privacy Control signal blocks optional analytics even if you previously allowed it. These controls apply to this browser and origin. To exercise any additional sale, sharing, targeted-advertising or sensitive-information rights, contact [{{legal_email}}](mailto:{{legal_email}}) with “Privacy opt-out” in the subject. We do not sell personal information for money or authorize customer personal information to be used for cross-context behavioral advertising. Our optional Google Analytics integration has advertising signals and personalization disabled. If an analytics disclosure is treated as sale or sharing under an applicable law, the same opt-out and Global Privacy Control handling apply. We use sensitive account information only as needed to provide, secure and administer the service, not to infer sensitive characteristics. These rights are available to business contacts where the law applies. Other US state laws may provide similar rights, including a right to appeal a refusal; contact the same address to appeal where that right applies. Put “Privacy appeal” in the subject; a person will reassess the decision and respond within the statutory period, explaining any further complaint route.
+Use Cookie settings and choose Reject analytics to stop optional Google Analytics on this website. A Global Privacy Control signal blocks optional analytics even if you previously allowed it. These controls apply to this browser on www.cmo.xyz and app.cmo.xyz. To exercise any additional sale, sharing, targeted-advertising or sensitive-information rights, contact [{{legal_email}}](mailto:{{legal_email}}) with “Privacy opt-out” in the subject. We do not sell personal information for money or authorize customer personal information to be used for cross-context behavioral advertising. Our optional Google Analytics integration has advertising signals and personalization disabled. If an analytics disclosure is treated as sale or sharing under an applicable law, the same opt-out and Global Privacy Control handling apply. We use sensitive account information only as needed to provide, secure and administer the service, not to infer sensitive characteristics. These rights are available to business contacts where the law applies. Other US state laws may provide similar rights, including a right to appeal a refusal; contact the same address to appeal where that right applies. Put “Privacy appeal” in the subject; a person will reassess the decision and respond within the statutory period, explaining any further complaint route.
 
 ## Changes and contact
 

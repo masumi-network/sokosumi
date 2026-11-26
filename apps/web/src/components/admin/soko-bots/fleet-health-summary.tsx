@@ -1,15 +1,15 @@
-import type { AdminSokoBotListItem } from "@sokosumi/core-client";
+import type {
+  AdminSokoBotFleetSummary,
+  AdminSokoBotListItem,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 interface FleetHealthSummaryProps {
-  items: AdminSokoBotListItem[];
+  summary: AdminSokoBotFleetSummary;
 }
-
-const RECENT_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type AttentionReason =
   | { kind: "error" }
@@ -35,32 +35,27 @@ export function attentionReasons(
 }
 
 /**
- * The fleet at a glance: four counters, then the bots that need someone.
- * Derived from the loaded page, which holds the whole fleet at today's size.
+ * Customers' fleet at a glance: four counters, then the bots that need
+ * someone. Core counts them over the whole fleet, eval lanes left out.
  */
-export async function FleetHealthSummary({ items }: FleetHealthSummaryProps) {
+export async function FleetHealthSummary({ summary }: FleetHealthSummaryProps) {
   const t = await getTranslations("App.Admin.SokoBots.Health");
-  const active = items.filter((item) => item.archivedAt === null);
-  const recentSince = Date.now() - RECENT_DAYS * DAY_MS;
-  const attention = active
-    .map((item) => ({ item, reasons: attentionReasons(item) }))
-    .filter(({ reasons }) => reasons.length > 0);
+  const attention = summary.attention.map((item) => ({
+    item,
+    reasons: attentionReasons(item),
+  }));
 
   const counters = [
-    { key: "active", value: active.length, alert: false },
+    { key: "active", value: summary.active, alert: false },
+    { key: "activeRecently", value: summary.activeRecently, alert: false },
     {
-      key: "activeRecently",
-      value: active.filter(
-        (item) =>
-          item.lastActivityAt !== null &&
-          new Date(item.lastActivityAt).getTime() >= recentSince,
-      ).length,
-      alert: false,
+      key: "attention",
+      value: summary.attentionTotal,
+      alert: summary.attentionTotal > 0,
     },
-    { key: "attention", value: attention.length, alert: attention.length > 0 },
     {
       key: "pendingDecisions",
-      value: active.reduce((sum, item) => sum + item.pendingDecisionCount, 0),
+      value: summary.pendingDecisions,
       alert: false,
     },
   ] as const;

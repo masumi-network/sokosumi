@@ -1015,12 +1015,14 @@ export const cmoPreviewSchema = z.object({
 
 /**
  * Where Core's calendar for a cmo-v22 month stands: examples before payment,
- * writing while Core writes it, written once it holds the plan's month.
+ * writing while Core writes it, written once it holds the plan's month,
+ * stopped when every try for the plan's level ended short.
  */
 export const CMO_MONTH_WRITER_STATES = [
   "examples",
   "writing",
   "written",
+  "stopped",
 ] as const;
 
 export const cmoMonthWriterSchema = z.object({

@@ -617,6 +617,6 @@ export async function sendMessage(
   return {
     ...result,
     ...waiting,
-    note: "No answer yet. Core wakes you with everything they said once they have finished; end your turn now and say in one sentence who you asked.",
+    note: "No answer yet. Core wakes you with everything they said once they have finished. Finish any independent steps the owner asked for first; once nothing else can proceed, end your turn and say in one sentence who you asked.",
   };
 }

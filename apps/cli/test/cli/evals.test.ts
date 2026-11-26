@@ -31,6 +31,9 @@ const report = {
   history: [],
   summary: {
     counts: { regressed: 1, fixed: 1, passing: 1 },
+    costlier: 1,
+    slower: 0,
+    passRate: 2 / 3,
     passed: 4,
     scored: 6,
     open: 0,
@@ -48,6 +51,12 @@ const report = {
       passRate: 1,
       baselinePassRate: 1,
       history: [1],
+      costUsd: 0.42,
+      usualCostUsd: 0.2,
+      costlier: true,
+      durationMs: 60_000,
+      usualDurationMs: 60_000,
+      slower: false,
       results: [],
     },
     {
@@ -205,12 +214,13 @@ test("evals run --wait --tick moves the run on until it ends, then reports", asy
   assert.deepEqual(sleeps, [20_000]);
   const text = output();
   assert.match(text, /running: 2 to go/);
-  assert.match(text, /67% passed \(4 of 6\)/);
+  assert.match(text, /67% passed \(4 of 6 repeats\)/);
   assert.match(
     text,
     /REGRESSED ambiguous-request 0% \(was 100%\)  Asks a question: no question/,
   );
-  assert.doesNotMatch(text, /chat-post/);
+  assert.doesNotMatch(text, /PASSING/);
+  assert.match(text, /Costlier `chat-post`: \$0\.42, usually \$0\.20/);
 });
 
 test("evals show --markdown prints the PR table with what changed", async () => {
@@ -227,7 +237,8 @@ test("evals show --markdown prints the PR table with what changed", async () => 
     /▼ `ambiguous-request` 100% → 0%: Asks a question: no question/,
   );
   assert.match(text, /▲ `files-review` 0% → 100%/);
-  assert.match(text, /Cost \$1\.23/);
+  assert.match(text, /- Costlier `chat-post`: \$0\.42, usually \$0\.20/);
+  assert.match(text, /Cost \$1\.23 · 1 costlier, 0 slower than usual/);
 });
 
 test("evals list and cases read Core", async () => {

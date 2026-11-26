@@ -570,6 +570,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
+        telemetry: { functionId: "chat-room-stream" },
         model: getSokosumiProvider()(null),
         messages: modelMessages,
         allowSystemInMessages: true,

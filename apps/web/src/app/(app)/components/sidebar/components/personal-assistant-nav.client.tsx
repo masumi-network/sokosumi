@@ -26,7 +26,7 @@ import {
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
 import { usePersonalAssistantChromeVisible } from "@/hooks/effects/use-personal-assistant-chrome-visible";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { isPathActive } from "@/lib/utils/is-path-active";
 
@@ -34,6 +34,7 @@ import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
 } from "./sidebar-feature-label";
+import { AGENTS_ROUTE } from "./sidebar-sections";
 import { useLiveSokoBot } from "./use-live-soko-bot";
 
 /**
@@ -81,7 +82,7 @@ export default function PersonalAssistantNav({
 function StaticSokoBotsRow() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = useNavPathname();
-  const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
+  const isActive = [AGENTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
     isPathActive(pathname, route),
   );
 
@@ -90,7 +91,7 @@ function StaticSokoBotsRow() {
       <SidebarMenuButton asChild isActive={isActive}>
         <SheetClose asChild>
           <Link
-            href={SOKO_BOTS_ROUTE}
+            href={AGENTS_ROUTE}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               isActive
@@ -122,14 +123,14 @@ function StaticSokoBotsRow() {
 
 /**
  * Face with a status dot, the bot's name, and what it is doing. Opens your
- * bot; the people icon at the end opens the team's Soko Bots.
+ * bot; the people icon at the end opens the Agents page for the team's bots.
  */
 function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
   const bot = useLiveSokoBot(rendered);
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const pathname = useNavPathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
-  const isTeamActive = !isActive && isPathActive(pathname, SOKO_BOTS_ROUTE);
+  const isTeamActive = !isActive && isPathActive(pathname, AGENTS_ROUTE);
 
   return (
     <SidebarMenuItem className="relative">
@@ -176,7 +177,7 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
       >
         <SheetClose asChild>
           <Link
-            href={SOKO_BOTS_ROUTE}
+            href={AGENTS_ROUTE}
             aria-label={t("team")}
             aria-current={isTeamActive ? "page" : undefined}
             title={t("team")}

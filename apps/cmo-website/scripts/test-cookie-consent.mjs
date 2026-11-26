@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const source = readFileSync(new URL('../public/cookie-consent.js', import.meta.url), 'utf8');
 const key = 'cmo-cookie-consent-v1';
-function browser({ choice, age = 0, gpc = false, analytics = 'G-TEST', geo = { consentRequired: true } } = {}) {
+function browser({ choice, age = 0, gpc = false, analytics = 'G-TEST', geo = { consentRequired: true }, shared, hostname = 'www.cmo.xyz' } = {}) {
   const nodes = [];
   const scripts = [];
   const cookies = [];
@@ -28,7 +28,7 @@ function browser({ choice, age = 0, gpc = false, analytics = 'G-TEST', geo = { c
     querySelectorAll: () => [settings],
     head: { append: (script) => scripts.push(script) },
     body: { append() {} },
-    get cookie() { return '_ga=existing; necessary=keep'; },
+    get cookie() { return `_ga=existing; necessary=keep${shared ? `; cmo_consent=${shared}` : ''}`; },
     set cookie(value) { cookies.push(value); },
   };
   const state = { reloads: 0, geoCalls: 0 };
@@ -40,7 +40,7 @@ function browser({ choice, age = 0, gpc = false, analytics = 'G-TEST', geo = { c
   const window = { addEventListener() {} };
   vm.runInNewContext(source, {
     window, document, navigator: { globalPrivacyControl: gpc },
-    location: { hostname: 'www.cmo.xyz', reload() { state.reloads++; } },
+    location: { hostname, reload() { state.reloads++; } },
     localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
     Date, fetch,
   });
@@ -60,7 +60,7 @@ test('fresh and rejected visits send no analytics and preserve necessary cookies
     await settle();
     assert.equal(b.scripts.length, 0);
     assert.ok(b.cookies.length > 0);
-    assert.ok(b.cookies.every((value) => value.startsWith('_ga=')));
+    assert.ok(b.cookies.every((value) => value.startsWith('_ga=') || value.startsWith('cmo_consent=denied')));
   }
 });
 test('acceptance loads once with advertising disabled', async () => {
@@ -126,4 +126,31 @@ test('a later acceptance reverses rejection in the same session', async () => {
 });
 test('legal pages never load analytics even with consent', () => {
   assert.equal(browser({ choice: 'accepted', analytics: null }).scripts.length, 0);
+});
+test('a choice made on the other host applies here', async () => {
+  const granted = browser({ shared: 'granted' });
+  await settle();
+  assert.equal(granted.scripts.length, 1);
+  assert.equal(granted.state.geoCalls, 0);
+  const denied = browser({ shared: 'denied', geo: { consentRequired: false } });
+  await settle();
+  assert.equal(denied.scripts.length, 0);
+});
+test('a choice is shared with app.cmo.xyz through a .cmo.xyz cookie', async () => {
+  const b = browser();
+  await settle();
+  b.choose('accepted');
+  assert.ok(b.cookies.some((value) => value.startsWith('cmo_consent=granted;') && value.endsWith('domain=.cmo.xyz')));
+  b.open(); b.choose('rejected');
+  assert.ok(b.cookies.some((value) => value.startsWith('cmo_consent=denied;')));
+});
+test('a saved choice from before the shared cookie is copied into it', () => {
+  const b = browser({ choice: 'accepted' });
+  assert.ok(b.cookies.some((value) => value.startsWith('cmo_consent=granted;')));
+});
+test('previews keep the consent cookie on their own host', async () => {
+  const b = browser({ hostname: 'cmo-website-git-x.vercel.app' });
+  await settle();
+  b.choose('accepted');
+  assert.ok(b.cookies.some((value) => value.startsWith('cmo_consent=granted;') && !value.includes('domain=')));
 });

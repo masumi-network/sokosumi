@@ -550,6 +550,45 @@ describe("schedules of a shared bot", () => {
     ).resolves.toMatchObject({ enabled: false });
   });
 
+  it("keeps a built-in rhythm's name and prompt, for a person too: another job is its own schedule", async () => {
+    const rhythm = {
+      ...SHARED,
+      name: "End of day",
+      prompt: "End of day. What got done.",
+      systemKey: "end-of-day",
+    };
+    for (const change of [
+      { name: "End of day: CodePat runs + merged PRs" },
+      { prompt: "List today's CodePat runs and merged PRs." },
+    ]) {
+      scheduleFindFirst.mockResolvedValueOnce(rhythm);
+      await expect(
+        updateSokoBotSchedule(
+          { userId: "member_2", ...turnRef(SHARED), ...change },
+          tx,
+        ),
+      ).rejects.toThrow(
+        '"End of day" is a built-in rhythm: only its time, timezone and on/off change',
+      );
+    }
+    expect(scheduleUpdate).not.toHaveBeenCalled();
+
+    // The console sends the whole form back: unchanged values pass.
+    scheduleFindFirst.mockResolvedValueOnce(rhythm);
+    await expect(
+      updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          name: rhythm.name,
+          prompt: rhythm.prompt,
+          cronExpression: "0 19 * * 1-5",
+        },
+        tx,
+      ),
+    ).resolves.toBeDefined();
+  });
+
   it("lets any member with access edit and delete a schedule another member wrote", async () => {
     await expect(
       updateSokoBotSchedule(

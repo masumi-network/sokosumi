@@ -4,6 +4,8 @@ import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
+import { labRootedTurnIds } from "@/lib/soko-bot/lab-turns";
 
 const receiptIdSchema = z.uuid();
 
@@ -70,12 +72,15 @@ export async function getSokoBotQualityOverview(
 ): Promise<SokoBotQualityOverview> {
   const now = (await databaseNow()).getTime();
   const since = new Date(now - DAYS * DAY_MS);
-  const candidateTurns = await prisma.sokoBotTurn.findMany({
+  const fetched = await prisma.sokoBotTurn.findMany({
     where: {
       status: { in: ["COMPLETED", "FAILED"] },
       NOT: { clientTurnId: { startsWith: "lab:" } },
       OR: [{ createdAt: { gte: since } }, { ownerFeedbackAt: { gte: since } }],
-      ...(options.sokoBotId ? { sokoBotId: options.sokoBotId } : {}),
+      // One bot's own page shows its turns; the fleet view is customers only.
+      ...(options.sokoBotId
+        ? { sokoBotId: options.sokoBotId }
+        : { workspaceId: { notIn: await evalWorkspaceIds() } }),
     },
     select: {
       id: true,
@@ -95,6 +100,11 @@ export async function getSokoBotQualityOverview(
       ownerFeedbackAt: true,
     },
   });
+  // A lab turn's background runs have their own client ids; only their root
+  // marks them as lab work, however old it is (a recent rating can land on an
+  // old run).
+  const labTurns = await labRootedTurnIds(fetched.map((turn) => turn.id));
+  const candidateTurns = fetched.filter((turn) => !labTurns.has(turn.id));
   const recentTurns = candidateTurns.filter((turn) => turn.createdAt >= since);
 
   const versionIds = new Set<string>([

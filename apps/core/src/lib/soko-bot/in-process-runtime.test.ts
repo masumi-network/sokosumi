@@ -67,10 +67,13 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: vi.fn(),
       findUnique: vi.fn().mockResolvedValue({ source: "CHAT" }),
       findUniqueOrThrow: vi.fn().mockResolvedValue({
+        createdAt: new Date(),
+        parentTurnId: null,
         deadlineAt: new Date(Date.now() + 15 * 60 * 1_000),
       }),
       update: vi.fn().mockResolvedValue({}),
     },
+    sokoBotMcpServer: { findMany: vi.fn().mockResolvedValue([]) },
     sokoBotToolCall: { findMany: vi.fn().mockResolvedValue([]) },
     sokoBotModelCall: { create: vi.fn().mockResolvedValue({}) },
   };
@@ -107,13 +110,20 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import {
+  FOREGROUND_TIME_UP_PROMPT,
+  KEEP_GOING_PROMPT,
+  TIME_UP_PROMPT,
+} from "@/soko-bot-runner/rounds";
 import { expectCoreLog } from "@/test/core-log";
+import * as evaluation from "./evaluation-dispatch";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
 import {
   MODEL_STREAM_IDLE_MS,
   ModelStreamStalledError,
 } from "./stream-model-call";
+import { endedByTool } from "./turn-parts";
 
 /** The model as the runtime gets it: behind the region check. */
 function behindRegionCheck(model: MockLanguageModelV3) {
@@ -147,7 +157,7 @@ describe("InProcessSokoBotRuntime", () => {
       packet: { memory: { version: 1 } },
     });
     cmoTurnPartsMock.mockResolvedValue([]);
-    streamModelCallMock.mockImplementation(async (options) => {
+    streamModelCallMock.mockReset().mockImplementation(async (options) => {
       // The SDK reports each step through onStepFinish; the drain meters those.
       await options.onStepFinish?.({
         usage: {
@@ -166,6 +176,7 @@ describe("InProcessSokoBotRuntime", () => {
         text: "Delegated to a Coworker.",
         finishReason: "stop",
         steps: [],
+        responseMessages: [],
       };
     });
   });
@@ -320,6 +331,7 @@ describe("InProcessSokoBotRuntime", () => {
           : "Saved the essentials.",
         finishReason: "stop",
         steps: [],
+        responseMessages: [],
       };
     });
 
@@ -352,6 +364,48 @@ describe("InProcessSokoBotRuntime", () => {
     ).toHaveLength(3);
   });
 
+  it("gives the main call no tool to pick once a part spent the turn's allowance", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v2" },
+      grant: { capabilities: ["create_task"] },
+    });
+    cmoTurnPartsMock.mockResolvedValue(
+      ["site", "reviews", "pricing"].map((key) => ({
+        key,
+        title: key,
+        message: `Read the ${key}`,
+        tools: ["web_fetch"],
+      })),
+    );
+    streamModelCallMock.mockImplementation(async (options) => {
+      const message = options.messages[0].content as string;
+      if (message.includes("Read the"))
+        await options.onStepFinish?.({
+          usage: { inputTokens: 9_000_000, outputTokens: 5 },
+          providerMetadata: {},
+          reasoning: [],
+        });
+      return { text: "Done.", finishReason: "stop", steps: [] };
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Save the essentials",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const calls = streamModelCallMock.mock.calls.map((call) => call[0]);
+    // Exactly one wrap-up, the turn's; the parts made none of their own.
+    expect(calls.filter((call) => call.toolChoice === "none")).toHaveLength(1);
+    const main = calls.at(-1);
+    expect(main.toolChoice).toBe("none");
+    expect(main.messages.at(-1).content).toContain("you cannot call tools");
+  });
+
   it("ends a turn on the step whose tool said so, with that tool's answer", async () => {
     authorizeMock.mockResolvedValue({
       turn: { id: TURN_ID, versionId: "cmo-v2" },
@@ -360,6 +414,7 @@ describe("InProcessSokoBotRuntime", () => {
     cmoTurnPartsMock.mockResolvedValue([]);
     const ended = {
       text: "",
+      usage: { inputTokens: 10 },
       toolResults: [
         {
           output: {
@@ -385,9 +440,9 @@ describe("InProcessSokoBotRuntime", () => {
     });
     await Promise.all(pendingTurns);
 
-    const [, endedByTool] = streamModelCallMock.mock.calls[0]?.[0].stopWhen;
-    expect(endedByTool({ steps: [ended] })).toBe(true);
-    expect(endedByTool({ steps: [{ text: "", toolResults: [] }] })).toBe(false);
+    expect(streamModelCallMock.mock.calls[0]?.[0].stopWhen).toContain(
+      endedByTool,
+    );
     expect(
       recordedEvents().find((event) => event.type === "message.completed")?.data
         .message,
@@ -646,6 +701,7 @@ describe("InProcessSokoBotRuntime", () => {
         text: "Everything was saved and sent successfully.",
         finishReason: "stop",
         steps: [],
+        responseMessages: [],
       });
       await new InProcessSokoBotRuntime().createSession({
         sessionId: null,
@@ -676,6 +732,7 @@ describe("InProcessSokoBotRuntime", () => {
       text: "What part of the plan would you like to discuss?",
       finishReason: "stop",
       steps: [],
+      responseMessages: [],
     });
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,
@@ -800,8 +857,8 @@ describe("InProcessSokoBotRuntime", () => {
       streamModelCallMock.mock.calls[0][0].providerOptions.gateway
         .inferenceRegion,
     ).toEqual({ scope: "zone", geoRegion: "eu" });
-    expect(streamModelCallMock.mock.calls[0][0].prepareStep).toBe(
-      (await import("./evaluation-dispatch")).prepareEvaluationStep,
+    expect(streamModelCallMock.mock.calls[0][0].prepareStep).toEqual(
+      expect.any(Function),
     );
   });
 
@@ -844,6 +901,8 @@ describe("InProcessSokoBotRuntime", () => {
     beforeEach(() => {
       vi.spyOn(AbortSignal, "timeout");
       vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockResolvedValue({
+        createdAt: new Date(),
+        parentTurnId: null,
         deadlineAt: new Date(Date.now() + FIFTEEN_MINUTES),
       } as Awaited<ReturnType<typeof prisma.sokoBotTurn.findUniqueOrThrow>>);
     });
@@ -855,6 +914,287 @@ describe("InProcessSokoBotRuntime", () => {
     // CMO's first read (SOKD-126) needs most of its 15 minutes; a 4-minute
     // budget stopped it at about 10 of 16 Brand Brain sections on every
     // local run.
+    it.each(["", "1"])(
+      "continues a background brief with its history and original step limit (VERCEL=%s)",
+      async (vercel) => {
+        vi.stubEnv("VERCEL", vercel);
+        const now = Date.now();
+        vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockResolvedValueOnce({
+          createdAt: new Date(now - 45 * 60_000),
+          deadlineAt: new Date(now + FIFTEEN_MINUTES),
+          parentTurnId: TURN_ID,
+        } as Awaited<ReturnType<typeof prisma.sokoBotTurn.findUniqueOrThrow>>);
+        const progress = { role: "assistant", content: "I found the source." };
+        streamModelCallMock
+          .mockResolvedValueOnce({
+            text: progress.content,
+            finishReason: "stop",
+            steps: [],
+            responseMessages: [progress],
+          })
+          .mockResolvedValueOnce({
+            text: "DONE: The sources are ready.",
+            finishReason: "stop",
+            steps: [],
+            responseMessages: [],
+          });
+        await start();
+        await Promise.all(pendingTurns);
+        const calls = streamModelCallMock.mock.calls.map(
+          ([request]) => request,
+        );
+        expect(calls).toHaveLength(2);
+        expect(calls[0].stopWhen[0]).toBe(160);
+        expect(calls[0].model).toBe(calls[1].model);
+        expect(calls[1].messages.slice(-2)).toEqual([
+          progress,
+          { role: "user", content: KEEP_GOING_PROMPT },
+        ]);
+        expect(
+          recordedEvents().find((e) => e.type === "message.completed")?.data
+            .message,
+        ).toBe("The sources are ready.");
+      },
+    );
+
+    it.each([
+      { parentTurnId: null, prompt: FOREGROUND_TIME_UP_PROMPT },
+      { parentTurnId: TURN_ID, prompt: TIME_UP_PROMPT },
+    ])(
+      "settles a tool-only turn with a metered, tool-free report (parent=$parentTurnId)",
+      async ({ parentTurnId, prompt }) => {
+        const now = Date.now();
+        vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockResolvedValueOnce({
+          createdAt: new Date(now),
+          deadlineAt: new Date(now + FIFTEEN_MINUTES),
+          parentTurnId,
+        } as Awaited<ReturnType<typeof prisma.sokoBotTurn.findUniqueOrThrow>>);
+        const evidence = {
+          role: "assistant",
+          content: "First batch recorded.",
+        };
+        streamModelCallMock
+          .mockResolvedValueOnce({
+            text: "",
+            finishReason: "tool-calls",
+            responseMessages: [evidence],
+            steps: [
+              {
+                text: "",
+                usage: { inputTokens: 8_000_000 },
+                toolResults: [],
+                toolCalls: [{ toolName: "create_task", input: {} }],
+              },
+            ],
+          })
+          .mockImplementationOnce(async (request) => {
+            await request.onStepFinish({
+              usage: { inputTokens: 21, outputTokens: 4 },
+              reasoning: [],
+            });
+            return {
+              text: "First batch ready.",
+              finishReason: "stop",
+              steps: [],
+              responseMessages: [],
+            };
+          });
+        await start();
+        await Promise.all(pendingTurns);
+        expect(streamModelCallMock).toHaveBeenCalledTimes(2);
+        const report = streamModelCallMock.mock.calls[1][0];
+        expect(report.toolChoice).toBe("none");
+        expect(report.messages.slice(-2)).toEqual([
+          evidence,
+          { role: "user", content: prompt },
+        ]);
+        expect(recordedEvents()).toContainEqual(
+          expect.objectContaining({
+            type: "step.completed",
+            data: expect.objectContaining({
+              usage: expect.objectContaining({ inputTokens: 21 }),
+            }),
+          }),
+        );
+        expect(
+          recordedEvents().find((e) => e.type === "message.completed")?.data
+            .message,
+        ).toBe("First batch ready.");
+      },
+    );
+
+    it.each([
+      { inputTokens: 21, exhausted: false },
+      { inputTokens: 8_000_000, exhausted: true },
+    ])(
+      "switches Cuso’s short save to the full cache key and honors the remaining budget (exhausted=$exhausted)",
+      async ({ inputTokens, exhausted }) => {
+        authorizeMock.mockResolvedValueOnce({
+          askedByKind: "OWNER",
+          turn: { id: TURN_ID, versionId: "cmo-v24", sokoBotId: "bot_1" },
+          grant: { capabilities: ["save_strategy"] },
+        });
+        getContextMock.mockResolvedValueOnce({
+          version: {
+            id: "cmo-v24",
+            name: "Cuso",
+            systemPrompt: "Help the owner.",
+          },
+          packet: {
+            workspace: {
+              marketing: { organizer: { kind: "question", change: false } },
+            },
+          },
+        });
+        streamModelCallMock
+          .mockResolvedValueOnce({
+            text: "",
+            finishReason: "tool-calls",
+            responseMessages: [],
+            steps: [
+              {
+                text: "",
+                usage: { inputTokens },
+                toolResults: [],
+                toolCalls: [
+                  {
+                    toolName: "save_strategy",
+                    input: { shortForm: true, what: "move a post" },
+                  },
+                ],
+              },
+            ],
+          })
+          .mockResolvedValueOnce({
+            text: "The post is pending.",
+            finishReason: "stop",
+            steps: [],
+            responseMessages: [],
+          });
+        await start();
+        await Promise.all(pendingTurns);
+        const calls = streamModelCallMock.mock.calls.map(
+          ([request]) => request,
+        );
+        expect(calls).toHaveLength(2);
+        const [short, next] = calls;
+        expect(short.tools.save_strategy.inputSchema).not.toBe(
+          next.tools.save_strategy.inputSchema,
+        );
+        const shortKey = short.providerOptions.openai.promptCacheKey;
+        const nextKey = next.providerOptions.openai.promptCacheKey;
+        expect(shortKey).toMatch(/^cmo-v24:[0-9a-f]{16}$/);
+        expect(nextKey).toMatch(/^cmo-v24:[0-9a-f]{16}$/);
+        expect(nextKey).not.toBe(shortKey);
+        expect(next.toolChoice).toBe(exhausted ? "none" : undefined);
+        expect(recordedEvents()).toContainEqual(
+          expect.objectContaining({
+            type: "message.completed",
+            data: expect.objectContaining({ message: "The post is pending." }),
+          }),
+        );
+      },
+    );
+
+    it("reuses the metered model and carries only completed observations into a preview report", async () => {
+      const now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+      const binding = vi
+        .spyOn(evaluation, "evaluationBinding")
+        .mockReturnValue({
+          reservationId: TURN_ID,
+          userId: "user_1",
+          botId: TURN_ID,
+          branch: "fixture",
+          sourceSha: "a".repeat(40),
+          taskIds: [TURN_ID],
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        });
+      try {
+        authorizeMock.mockResolvedValueOnce({
+          askedByKind: "OWNER",
+          turn: { id: TURN_ID, versionId: "v11", chainDepth: 0 },
+          grant: { capabilities: ["get_task_status"] },
+        });
+        vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockResolvedValueOnce({
+          createdAt: new Date(now),
+          deadlineAt: new Date(now + 100_000),
+          parentTurnId: null,
+        } as Awaited<ReturnType<typeof prisma.sokoBotTurn.findUniqueOrThrow>>);
+        const read = {
+          toolName: "get_task_status",
+          toolCallId: "read",
+          input: { taskId: TURN_ID },
+        };
+        const observation = { ...read, output: { status: "ready for review" } };
+        streamModelCallMock.mockImplementationOnce(async () => {
+          clock.mockReturnValue(now + 85_000);
+          return {
+            text: "",
+            finishReason: "tool-calls",
+            responseMessages: [
+              { role: "assistant", content: "Unverified progress note" },
+            ],
+            steps: [
+              {
+                text: "",
+                usage: { inputTokens: 21 },
+                toolCalls: [read],
+                toolResults: [observation],
+                content: [{ type: "tool-result", ...observation }],
+              },
+            ],
+          };
+        });
+        await start();
+        await Promise.all(pendingTurns);
+        const calls = streamModelCallMock.mock.calls.map(
+          ([request]) => request,
+        );
+        expect(calls).toHaveLength(2);
+        expect(calls[1].model).toBe(calls[0].model);
+        expect(calls[1].toolChoice).toBe("none");
+        const history = JSON.stringify(calls[1].messages);
+        expect(history).toContain("Learn the business");
+        expect(history).toContain("ready for review");
+        expect(history).not.toContain("Unverified progress note");
+      } finally {
+        binding.mockRestore();
+        clock.mockRestore();
+      }
+    });
+
+    it("uses the foreground time reserve to report from the last tool call", async () => {
+      const now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockResolvedValueOnce({
+          createdAt: new Date(now),
+          deadlineAt: new Date(now + 100_000),
+          parentTurnId: null,
+        } as Awaited<ReturnType<typeof prisma.sokoBotTurn.findUniqueOrThrow>>);
+        streamModelCallMock.mockImplementationOnce(async () => {
+          clock.mockReturnValue(now + 85_000);
+          return {
+            text: "",
+            finishReason: "tool-calls",
+            steps: [],
+            responseMessages: [],
+          };
+        });
+        await start();
+        await Promise.all(pendingTurns);
+        expect(
+          streamModelCallMock.mock.calls.map(([request]) => request.toolChoice),
+        ).toEqual([undefined, "none"]);
+        expect(
+          streamModelCallMock.mock.calls[1][0].messages.at(-1).content,
+        ).toBe(FOREGROUND_TIME_UP_PROMPT);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
     it("runs a local turn until its own deadline", async () => {
       vi.stubEnv("VERCEL", "");
 

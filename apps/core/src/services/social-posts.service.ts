@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   Prisma,
   ProjectSocialConnection,
@@ -691,6 +692,80 @@ async function requireOwnInMonth(
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
 }
 
+const batchStorage = new AsyncLocalStorage<ReadonlySet<string>>();
+
+/**
+ * Runs an update_social_posts batch. `unsaved` holds the batch's posts whose
+ * new text is not settled yet. The checks still compare with the words those
+ * posts hold now, since each edit commits on its own and a later one can
+ * fail; a match on one of them only asks the post to wait for it.
+ */
+export function withSocialPostBatch<T>(
+  unsaved: ReadonlySet<string>,
+  run: () => Promise<T>,
+): Promise<T> {
+  return batchStorage.run(unsaved, run);
+}
+
+/** Whether a post's words may still change in the running batch. */
+function unsavedInBatch(postId: string): boolean {
+  return batchStorage.getStore()?.has(postId) ?? false;
+}
+
+/**
+ * A check's answer. `waitsForBatch` marks a match on a post of the running
+ * batch that may still get new words: the edit is tried again after it.
+ */
+export interface SocialPostCheck {
+  problem: string | null;
+  costUsd: number;
+  waitsForBatch?: true;
+}
+
+/**
+ * The month's other posts as `id:revision`, read before a post's words are
+ * checked and again in the save's transaction: two edits checked at once
+ * each passed against the other's old words and both saved "April release."
+ * (Codex round 11). Null for a post outside a marketing month.
+ */
+export async function monthSiblingsStamp(
+  input: { postId: string; workspaceId: string },
+  client: Pick<Prisma.TransactionClient, "socialPost"> = prisma,
+): Promise<string | null> {
+  const post = await client.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true },
+  });
+  if (!post?.marketingStrategyId) return null;
+  const siblings = await client.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, revision: true },
+    orderBy: { id: "asc" },
+  });
+  return siblings.map((sibling) => `${sibling.id}:${sibling.revision}`).join();
+}
+
+/** Another post of the month changed between a post's check and its save. */
+export class MonthPostsChangedError extends Error {
+  constructor() {
+    super(
+      "Another post of this month changed while this edit was checked: send it again, and its words are checked against the new ones.",
+    );
+  }
+}
+
+function waitForBatchPost(text: string, costUsd: number): SocialPostCheck {
+  return {
+    problem: `Wait for another post of this batch: this text says nearly what the post "${firstLine(text)}" says now.`,
+    costUsd,
+    waitsForBatch: true,
+  };
+}
+
 /**
  * Why a Soko Bot's new text for a post in a marketing month says what
  * another post of the month says (a month once repeated four messages
@@ -700,7 +775,7 @@ async function requireOwnInMonth(
 export async function ownMessageProblem(
   input: { postId: string; workspaceId: string; text: string },
   embed?: EmbedTexts,
-): Promise<{ problem: string | null; costUsd: number }> {
+): Promise<SocialPostCheck> {
   const post = await prisma.socialPost.findFirst({
     where: { id: input.postId, workspaceId: input.workspaceId },
     select: { marketingStrategyId: true, planning: true },
@@ -718,7 +793,7 @@ export async function ownMessageProblem(
       id: { not: input.postId },
       status: { not: "CANCELED" },
     },
-    select: { text: true, planning: true },
+    select: { id: true, text: true, planning: true },
   });
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
@@ -735,6 +810,8 @@ export async function ownMessageProblem(
     embed,
   );
   const repeated = written[repeats.at(-1) ?? -1];
+  if (repeated && unsavedInBatch(repeated.id))
+    return waitForBatchPost(repeated.text, costUsd);
   return {
     problem: repeated
       ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
@@ -779,7 +856,7 @@ export async function linkedInOpeningProblem(
   input: { postId: string; workspaceId: string; text: string },
   evaluate: typeof evaluateWithJev = evaluateWithJev,
   embed?: EmbedTexts,
-): Promise<{ problem: string | null; costUsd: number }> {
+): Promise<SocialPostCheck> {
   const post = await prisma.socialPost.findFirst({
     where: { id: input.postId, workspaceId: input.workspaceId },
     select: { marketingStrategyId: true, provider: true },
@@ -807,20 +884,23 @@ export async function linkedInOpeningProblem(
       provider: post.provider,
       status: { not: "CANCELED" },
     },
-    select: { text: true, planning: true },
+    select: { id: true, text: true, planning: true },
   });
-  const openings = others.flatMap((other) => {
+  const written = others.filter((other) => {
     const planning = other.planning as { title?: unknown; brief?: unknown };
-    return other.text === planning?.title || other.text === planning?.brief
-      ? []
-      : [linkedInOpening(other.text)];
+    return other.text !== planning?.title && other.text !== planning?.brief;
   });
+  const openings = written.map((other) => linkedInOpening(other.text));
   const { repeats, costUsd: compared } = await findRepeats(
     [...openings, opening],
     "title",
     embed,
   );
-  const echoed = openings[repeats.at(-1) ?? -1];
+  const echoedIndex = repeats.at(-1) ?? -1;
+  const echoed = openings[echoedIndex];
+  const echoedPost = written[echoedIndex];
+  if (echoedPost && unsavedInBatch(echoedPost.id))
+    return waitForBatchPost(echoedPost.text, compared);
   if (echoed)
     return {
       problem: `${OPENING_REFUSAL}: it opens like another LinkedIn post of the month ("${echoed}"). Open with another true fact from the piece: its own result, number, customer or decision.`,

@@ -18,6 +18,12 @@ import type { Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
+import {
+  cronStillRunning,
+  flushCronMonitor,
+  reportCronIdleness,
+  startCronMonitor,
+} from "./monitor.js";
 
 export interface SyncExecutionContext {
   abortSignal: AbortSignal;
@@ -34,6 +40,12 @@ export interface SyncRunContext extends SyncExecutionContext {
    * with `logCoreWarning`. A failure it survives is its own error event.
    */
   log: Pick<RequestLogger, "set" | "warn" | "getContext">;
+  /**
+   * The items this run took on: those it `done` and those that `failed`.
+   * A run whose every item failed is a failed run of its cron monitor; a
+   * run with neither is idle, which only `idleRunsAlert` watches.
+   */
+  reportWork: (work: { done: number; failed?: number }) => void;
 }
 
 /**
@@ -58,6 +70,12 @@ type SyncOperation<Context = SyncRunContext> = (
  */
 export interface SyncRequestOptions {
   errorDetail?: "cause" | "safe-fields";
+  /**
+   * For a sync that always has work in production: this many runs in a row
+   * that report no work (`reportWork`) open a Sentry issue on the cron's
+   * idle monitor. Failed runs stay on the run monitor.
+   */
+  idleRunsAlert?: number;
   /** Never here: a variable or a spread that carries a Network is not these options. */
   network?: never;
 }
@@ -141,11 +159,25 @@ function getSyncTimeoutMs(): number {
 function runBackgroundSync(
   lock: AcquiredSyncLock,
   syncOperation: SyncOperation,
-  errorDetail: NonNullable<SyncRequestOptions["errorDetail"]>,
+  {
+    path,
+    errorDetail,
+    idleRunsAlert,
+  }: {
+    path: string;
+    errorDetail: NonNullable<SyncRequestOptions["errorDetail"]>;
+    idleRunsAlert?: number;
+  },
 ): Promise<void> {
   return (async () => {
     const timeoutMs = getSyncTimeoutMs();
     const deadlineMs = Date.now() + timeoutMs;
+    const monitor = startCronMonitor({
+      path,
+      lockKey: lock.key,
+      maxRuntimeMs: timeoutMs,
+    });
+    const work = { done: 0, failed: 0 };
     const cancellationController = new AbortController();
     // One standalone event per run: its outcome, the lock, and the sync's
     // own counts (`context.log`). The request's event is already emitted.
@@ -188,15 +220,21 @@ function runBackgroundSync(
         );
       },
       log,
+      reportWork: ({ done, failed = 0 }) => {
+        work.done += done;
+        work.failed += failed;
+      },
     };
 
     const startedAt = Date.now();
+    let failed = false;
     try {
       await syncOperation(context);
       log.set({
         sync: { outcome: context.shouldContinue() ? "completed" : "cancelled" },
       });
     } catch (error) {
+      failed = true;
       log.set({ sync: { outcome: "failed" } });
       // The route says whether its errors can carry user content.
       const keepsCause = errorDetail === "cause";
@@ -227,7 +265,22 @@ function runBackgroundSync(
           fix: "If it repeats, the sync runs past LOCK_TIMEOUT and two runs overlap; its run events show where the time goes.",
         });
       }
+      // Every item it took on failed: a failed run, never an idle one.
+      const workFailed = work.failed > 0 && work.done === 0;
+      const idle = work.done === 0 && work.failed === 0;
+      log.set({ sync: { work, ...(workFailed ? { workFailed } : {}) } });
       log.emit();
+      monitor?.finish(failed || workFailed ? "error" : "ok");
+      // Only an observed run counts toward idleness: one that threw says
+      // nothing about whether there was work, yet still checks in.
+      if (idleRunsAlert !== undefined)
+        reportCronIdleness({
+          path,
+          lockKey: lock.key,
+          idle: !failed && idle,
+          idleRunsAlert,
+        });
+      await flushCronMonitor();
     }
   })();
 }
@@ -255,6 +308,7 @@ export async function handleSyncRequest(
   syncOperation: SyncOperation | SyncOperation<NetworkSyncRunContext>,
   {
     errorDetail = "safe-fields",
+    idleRunsAlert,
     network,
   }: SyncRequestOptions | NetworkSyncRequestOptions = {},
 ): Promise<Response> {
@@ -282,6 +336,9 @@ export async function handleSyncRequest(
     acquiredLock = await syncLockService.acquireLock(lockKey);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
+      cronStillRunning(c.req.path, lockKey, idleRunsAlert);
+      // Sent before the function may freeze, as a run's check-ins are.
+      waitUntil(flushCronMonitor());
       return new Response(
         JSON.stringify({ message: "Syncing already in progress" }),
         {
@@ -306,7 +363,12 @@ export async function handleSyncRequest(
   // event the run sends, its services' included, carries `syncRunId`, which
   // ties them to this run when runs overlap.
   const backgroundPromise = runAsBackgroundWork(
-    () => runBackgroundSync(acquiredLock, run, errorDetail),
+    () =>
+      runBackgroundSync(acquiredLock, run, {
+        path: c.req.path,
+        errorDetail,
+        ...(idleRunsAlert ? { idleRunsAlert } : {}),
+      }),
     { syncRunId: randomUUID() },
   );
   waitUntil(backgroundPromise);

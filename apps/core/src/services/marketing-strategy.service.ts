@@ -77,6 +77,37 @@ export function cmoChangeKind(
   return kind === "fix" || kind === "patch" ? kind : null;
 }
 
+/** The id segment of a strategy turn whose strategy Core writes in one step (cmo-v25). */
+const STEP_SEGMENT = "step";
+
+/** Whether Core writes this strategy turn's strategy in one step (`write_strategy`). */
+export function cmoStrategyStepTurn(clientTurnId: string | null): boolean {
+  return (
+    clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
+    clientTurnId.split(":").includes(STEP_SEGMENT)
+  );
+}
+
+/** A step turn's id: `cmo:strategy:<bot>:step:<time>`, or `…:patch:step:<time>`. */
+export function cmoStrategyStepTurnId(
+  sokoBotId: string,
+  kind: "plan" | "patch",
+  now: number = Date.now(),
+): string {
+  return `${STRATEGY_TURN_PREFIX}${sokoBotId}:${kind === "patch" ? "patch:" : ""}${STEP_SEGMENT}:${now}`;
+}
+
+/** The line after which a step turn's message holds the brief Core writes from. */
+export const CMO_STRATEGY_BRIEF_MARK = "The brief:";
+
+/** The brief of a step turn's message; null for any other message. */
+export function cmoStrategyBrief(message: string): string | null {
+  const at = message.indexOf(`\n${CMO_STRATEGY_BRIEF_MARK}\n`);
+  return at < 0
+    ? null
+    : message.slice(at + CMO_STRATEGY_BRIEF_MARK.length + 2).trim();
+}
+
 /** Every column but the plan: what a list of versions shows. */
 export const MARKETING_STRATEGY_VERSION_SELECT = {
   id: true,

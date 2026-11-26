@@ -8,14 +8,23 @@ import { Button } from "@/components/ui/button";
 import { reactivateSokoBotAction } from "@/lib/actions/soko-bot/action";
 
 /** Brings an archived shared bot back. Only a viewer who may manage it sees this. */
-export function ReactivateSharedBotButton({ botId }: { botId: string }) {
+export function ReactivateSharedBotButton({
+  botId,
+  name,
+}: {
+  botId: string;
+  /** Names the bot to screen readers where several are listed. */
+  name?: string;
+}) {
   const t = useTranslations("App.SokoBots.Shared.Archived");
   const [isPending, startTransition] = useTransition();
 
   return (
     <Button
       type="button"
-      disabled={isPending}
+      size="sm"
+      loading={isPending}
+      aria-label={name ? t("reactivateName", { name }) : undefined}
       onClick={() =>
         startTransition(async () => {
           const result = await reactivateSokoBotAction({ botId });
