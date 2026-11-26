@@ -4,8 +4,9 @@
  * layout where a trigger would keep the old body; that a refusal leaves
  * nothing behind is the caller's transaction (the file's header). That the
  * bodies resolve their names is proven by the suites that run on the split
- * layout and fire these triggers, not here; `split-network-layout.sh` checks
- * that every function of `shared` is in the file or waits.
+ * layout and fire these triggers; here only for the bodies that read a
+ * Network table, which must read the right Network's. `split-network-layout.sh`
+ * checks that every function of `shared` is in the file.
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -80,6 +81,18 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
 
       expect(message).toContain(
         "runs a task_assign_number that is not in shared",
+      );
+    });
+
+    it("refuses a function of shared that has no digest in the guard", async () => {
+      const message = await refusal(
+        BODIES_SQL,
+        `CREATE FUNCTION shared.without_digest() RETURNS trigger
+           LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'`,
+      );
+
+      expect(message).toContain(
+        "no digest for shared.without_digest(): add its line to the guard of packages/database/prisma/network-layout/shared-trigger-bodies.sql",
       );
     });
 
@@ -238,6 +251,61 @@ describe.runIf(ON_POSTGRES)("shared trigger bodies", () => {
         row(350),
         row(350),
         null,
+      ]);
+    });
+
+    // No code writes a JOB Notification any more; old rows exist, and a
+    // Network can write them again. One Job id is on both Networks, in
+    // another Workspace on each.
+    it("scopes a JOB Notification to the Workspace of its Network's Job", async () => {
+      const job = randomUUID();
+      const workspaces = { mainnet: randomUUID(), preprod: randomUUID() };
+
+      const scoped = await firing(
+        { "shared.notification": ["notification_workspace_membership_scope"] },
+        async (db) => {
+          for (const [network, workspace] of Object.entries(workspaces)) {
+            await db.query(
+              `INSERT INTO shared.workspace (id, "updatedAt", "organizationId")
+               VALUES ($1, now(), $2)`,
+              [workspace, `organization-${network}`],
+            );
+            await db.query(
+              `INSERT INTO ${network}."Job" (id, "updatedAt", "agentId", "agentJobId", "jobType",
+                 "workspaceId")
+               VALUES ($1, now(), 'agent', $1::text, 'FREE', $2)`,
+              [job, workspace],
+            );
+          }
+        },
+        async (db) => {
+          const rows: unknown[] = [];
+          // Without a Network the row is from before the split: Mainnet's.
+          for (const network of [null, "mainnet", "preprod"]) {
+            const { rows: inserted } = await db.query(
+              `INSERT INTO shared.notification (id, "userId", kind, "referenceId", "eventId",
+                 "messageKey", "messageParams", network)
+               VALUES (gen_random_uuid()::text, 'user', 'JOB', $1, $2, 'key', '{}', $3)
+               RETURNING "workspaceId", "organizationId"`,
+              [job, `event-${network}`, network],
+            );
+            rows.push(inserted[0]);
+          }
+          return rows;
+        },
+      );
+
+      const mainnet = {
+        workspaceId: workspaces.mainnet,
+        organizationId: "organization-mainnet",
+      };
+      expect(scoped).toEqual([
+        mainnet,
+        mainnet,
+        {
+          workspaceId: workspaces.preprod,
+          organizationId: "organization-preprod",
+        },
       ]);
     });
   });

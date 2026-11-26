@@ -13,7 +13,8 @@
 -- `history_task_amount` sums the `mainnet` Transactions of the Task's charged
 -- events and leaves out every event whose `network` is `preprod`. An event
 -- with a transaction and no `network` is from before the Networks were split,
--- so it is Mainnet's.
+-- so it is Mainnet's. A JOB Notification's `network` chooses the schema of
+-- its Job the same way (`scope_notification_to_workspace_membership`).
 --
 -- Not a migration. Today's layout keeps the migrations' bodies. Only
 -- `scripts/split-network-layout.sh` applies this file, to CI's split test
@@ -26,14 +27,14 @@
 -- after it.
 --
 -- The guard refuses unless each function below is in `shared` with the body
--- the migrations create, by digest. So a second run refuses too. That only
+-- the migrations create, by digest, and unless every function of `shared` is
+-- one of them. So a second run refuses too. That only
 -- schema names differ from those bodies is not checked by any code: it was
 -- compared once for this text, and every later change to a body is reviewed
 -- against its migration before its digest is updated.
 --
--- Not here: functions that need the row's Network (ticket 19 part 2; the split
--- script lists them as waiting) and the functions on Network tables, which
--- each Network schema holds a copy of (`network-trigger-bodies.sql`).
+-- Not here: the functions on Network tables, which each Network schema holds
+-- a copy of (`network-trigger-bodies.sql`).
 
 DO $guard$
 DECLARE
@@ -42,6 +43,7 @@ DECLARE
   settings CONSTANT text[] := ARRAY[current_setting('search_path'), current_setting('quote_all_identifiers')];
   problem text;
   changed text;
+  checked oid[] := '{}';
   fn record;
 BEGIN
   SELECT string_agg(name, ', ' ORDER BY name) INTO problem
@@ -60,13 +62,10 @@ BEGIN
   -- Cost and rows are `real`: as numeric their text does not follow the
   -- session's `extra_float_digits`.
   FOR fn IN
-    SELECT 'shared.' || listed.signature AS signature, listed.digest, p.proname, p.prokind,
+    SELECT 'shared.' || listed.signature AS signature, listed.digest, p.oid, p.proname, p.prokind,
       md5(concat_ws(E'\n', p.prosrc, l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,
         pg_get_function_arguments(p.oid), pg_get_function_result(p.oid),
         p.proparallel, p.procost::numeric, p.prorows::numeric, p.proleakproof, p.prosupport)) AS found
-    -- A function replaced below without a line here is not compared with its
-    -- migration. This guard cannot find one: `shared` also holds functions
-    -- this file does not replace (the split script's waiting list).
     FROM (VALUES
       ('calendar_access_cleanup_on_member_delete()', '610ee6273e89a19af3a5042f6b0b8b74'),
       ('calendar_membership_fence_on_member_insert()', 'c2ca047a096a082a27d72111a9cfa533'),
@@ -105,6 +104,7 @@ BEGIN
       ('project_default_identifier(text,uuid)', '815ad18acc7c9b59e821eae2068489b3'),
       ('project_set_identifier()', '51ebc5342f951bae9afa844890a270bd'),
       ('reject_soko_bot_admin_action_mutation()', '391039c4aa764e7bc57591bb963aa590'),
+      ('scope_notification_to_workspace_membership()', '606434feaf153d46b34d0266a80adde4'),
       ('social_post_quote_before_delete()', '5c033f342f04a15fd5a5f434745fcf28'),
       ('sync_history_from_project_image_asset()', '6e11ad6fccf619d83759a52d014beb5d'),
       ('sync_history_from_project_image_job_charge()', '7da342df7a6d5eb53167f83d383bb23a'),
@@ -125,6 +125,7 @@ BEGIN
     IF fn.prokind IS DISTINCT FROM 'f' THEN
       RAISE EXCEPTION 'shared-trigger-bodies.sql needs the three-schema layout; missing function: %', fn.signature;
     END IF;
+    checked := checked || fn.oid;
 
     -- A trigger keeps the function it was created with, so a function of this
     -- name left outside `shared` would go on running the old body.
@@ -141,6 +142,17 @@ BEGIN
       changed := concat_ws(', ', changed, format('%s (digest now %s)', fn.signature, fn.found));
     END IF;
   END LOOP;
+  -- This file replaces every function of `shared`, so each must have had its
+  -- digest compared above: one without a line there would be replaced
+  -- whatever a migration made of it.
+  SELECT string_agg(p.oid::regprocedure::text, ', ' ORDER BY p.oid::regprocedure::text) INTO problem
+  FROM pg_proc p
+  WHERE p.pronamespace = 'shared'::regnamespace AND p.oid <> ALL (checked)
+    AND NOT EXISTS (SELECT FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');
+  IF problem IS NOT NULL THEN
+    RAISE EXCEPTION 'no digest for %: add its line to the guard of % and its body below. If a trigger or CHECK on a Network table runs it, add it to networkFunctions in packages/database/prisma/network-tables.json and to network-trigger-bodies.sql instead',
+      problem, file;
+  END IF;
   IF changed IS NOT NULL THEN
     RAISE EXCEPTION 'a migration changed this function: %. Update its body in %, check by eye that only schema names differ from the migration''s body, then update its digest there',
       changed, file;
@@ -1376,6 +1388,60 @@ AS $function$
 BEGIN
   RAISE EXCEPTION 'soko_bot_admin_action is append-only; % is forbidden', TG_OP
     USING ERRCODE = 'object_not_in_prerequisite_state';
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION shared.scope_notification_to_workspace_membership()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF NEW."workspaceId" IS NULL THEN
+    IF NEW.kind = 'TASK' THEN
+      SELECT "workspaceId" INTO NEW."workspaceId"
+      FROM shared."task"
+      WHERE id = NEW."referenceId";
+    ELSIF NEW.kind = 'JOB' THEN
+      -- The Notification's Network names the Job's schema. A row without one
+      -- is from before the Networks were split, so its Job is Mainnet's.
+      IF NEW."network" = 'preprod' THEN
+        SELECT "workspaceId" INTO NEW."workspaceId"
+        FROM preprod."Job"
+        WHERE id = NEW."referenceId";
+      ELSE
+        SELECT "workspaceId" INTO NEW."workspaceId"
+        FROM mainnet."Job"
+        WHERE id = NEW."referenceId";
+      END IF;
+    ELSIF NEW.kind = 'CHAT' THEN
+      SELECT "workspace".id INTO NEW."workspaceId"
+      FROM shared."chat_room", shared."chat_room_user_member", shared."workspace", shared."member"
+      WHERE "chat_room".id::TEXT = NEW."referenceId"
+        AND "chat_room"."organizationId" = "workspace"."organizationId"
+        AND "chat_room_user_member"."roomId" = "chat_room".id
+        AND "chat_room_user_member"."userId" = NEW."userId"
+        AND "chat_room_user_member".access = 'member'
+        AND "member"."userId" = NEW."userId"
+        AND "member"."organizationId" = "chat_room"."organizationId";
+    ELSIF NEW.kind = 'SYSTEM' AND NEW.metadata IS NOT NULL THEN
+      BEGIN
+        NEW."workspaceId" := (NEW.metadata::JSONB->>'workspaceId')::UUID;
+      EXCEPTION WHEN OTHERS THEN
+        NEW."workspaceId" := NULL;
+      END;
+    END IF;
+
+    IF NEW."workspaceId" IS NULL THEN
+      NEW."organizationId" := NULL;
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  SELECT "organizationId" INTO NEW."organizationId"
+  FROM shared."workspace"
+  WHERE id = NEW."workspaceId";
+
+  RETURN NEW;
 END;
 $function$;
 

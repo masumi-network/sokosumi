@@ -31,18 +31,15 @@
 #    does the same for the Network functions, once per Network: it is one
 #    template, and each copy is that text with `@network@` replaced by the
 #    schema's name, so the two cannot differ in anything else. Then, in the
-#    same transaction: every function of `shared` is either one the file
-#    replaced or, by its signature, on the list of functions that wait, and
-#    every function of `mainnet` and `preprod` is one the template replaced.
-#    So a migration that changes or adds a function fails here until the file,
-#    the template or the list follows.
+#    same transaction: every function of `shared` is one the file replaced,
+#    and every function of `mainnet` and `preprod` is one the template
+#    replaced. So a migration that changes or adds a function fails here until
+#    the file or the template follows.
 #
 # After a failure, recreate the database: step 1, steps 2 and 3, and step 4 are
 # three transactions.
 #
-# Left broken on purpose: function and trigger bodies that name `public.` or an
-# unqualified table (ticket 19: the functions step 4 lists as waiting), and
-# unqualified raw SQL (tickets 16 and 17).
+# Left broken on purpose: unqualified raw SQL (tickets 16 and 17).
 set -euo pipefail
 
 url=${1:?usage: split-network-layout.sh <database-url>}
@@ -189,26 +186,12 @@ DECLARE
   shared_file CONSTANT text := 'packages/database/prisma/network-layout/shared-trigger-bodies.sql';
   network_file CONSTANT text := 'packages/database/prisma/network-layout/network-trigger-bodies.sql';
   file text;
-  list CONSTANT text := 'the waiting list in packages/database/scripts/split-network-layout.sh';
-  -- Functions the file does not replace yet.
-  waiting CONSTANT text[] := ARRAY[
-    -- Ticket 19 part 2: they read the Network named on the row (tickets 07 to 09).
-    'shared.scope_notification_to_workspace_membership()'
-  ];
-  gone text;
   fn record;
 BEGIN
-  SELECT string_agg(name, ', ') INTO gone
-  FROM unnest(waiting) AS listed(name) WHERE to_regprocedure(name) IS NULL;
-  IF gone IS NOT NULL THEN
-    RAISE EXCEPTION 'no migration creates %: remove it from %', gone, list;
-  END IF;
-
   FOR fn IN
     SELECT p.oid::regprocedure AS signature, b.oid IS NULL AS created,
       -- The file wrote the row: it is not the row of the snapshot.
       b.row_version IS DISTINCT FROM p.ctid AS in_file,
-      EXISTS (SELECT FROM unnest(waiting) AS listed(name) WHERE to_regprocedure(name) = p.oid) AS waits,
       p.pronamespace = 'shared'::regnamespace AS shared
     FROM pg_proc p
     LEFT JOIN functions_before b ON b.oid = p.oid
@@ -217,14 +200,10 @@ BEGIN
     file := CASE WHEN fn.shared THEN shared_file ELSE network_file END;
     IF fn.created THEN
       RAISE EXCEPTION '% creates %, which no migration creates with that signature: update or remove it', file, fn.signature;
-    ELSIF fn.in_file AND fn.waits THEN
-      RAISE EXCEPTION 'function % is in % now: remove it from %', fn.signature, file, list;
-    ELSIF NOT fn.in_file AND NOT fn.waits AND fn.shared THEN
-      RAISE EXCEPTION 'function % has no body for the new layout: add it to % with its digest, or to % with the ticket it waits for. If a trigger or CHECK on a Network table runs it, add it to networkFunctions in packages/database/prisma/network-tables.json and to % instead',
-        fn.signature, file, list, network_file;
-    ELSIF NOT fn.in_file AND NOT fn.waits THEN
-      -- A Network schema has no waiting list: a function is there because
-      -- `networkFunctions` of network-tables.json names it.
+    ELSIF NOT fn.in_file THEN
+      -- No schema has a list of functions that wait: a function is in a
+      -- Network schema because `networkFunctions` of network-tables.json
+      -- names it, and in `shared` otherwise.
       RAISE EXCEPTION 'function % has no body for the new layout: add it to % with its digest', fn.signature, file;
     END IF;
   END LOOP;

@@ -13,12 +13,10 @@ export function testSchemaNames() {
 
 /**
  * Runs a test fixture's writes in one transaction whose search path holds this
- * run's schemas (shared, then Mainnet). Some trigger bodies still name a table
- * or a function without its schema (ticket 19 part 2, the triggers that need
- * the row's Network): creating a Task or an image asset fires them, and on the
- * split layout they would not find `upsert_history_task` or
- * `upsert_history_image_asset`. Test fixtures only; production SQL names its
- * schemas.
+ * run's schemas (shared, then Mainnet). Written when some trigger bodies
+ * still named a table or a function without its schema. Since ticket 19 part 2
+ * every trigger body on the split layout names its schemas, so no body needs
+ * this path any more. Test fixtures only; production SQL names its schemas.
  */
 export async function withFixtureSchemas<T>(
   run: (tx: Prisma.TransactionClient) => Promise<T>,
