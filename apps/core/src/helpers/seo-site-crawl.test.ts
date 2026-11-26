@@ -80,11 +80,13 @@ const botCrawl = () => ({
   pageChecks: {
     pages: 388,
     checked: 380,
+    notDetermined: 2,
     missingTitle: list([`${SITE}/docs/setup`], 2),
     missingDescription: list([`${SITE}/docs/setup`]),
     missingH1: list([`${SITE}/docs/faq`], 4),
     duplicatesLeftOut: 0,
     duplicatesNotDetermined: 1,
+    duplicatesNotCompared: 1,
     duplicateTitles: {
       compared: 380,
       groups: [
@@ -176,7 +178,8 @@ describe("imported site crawl", () => {
         },
       ],
       total: 3,
-      notDetermined: 1,
+      // An unresolved canonical, and a text the bot does not compare.
+      notDetermined: 2,
     });
     expect(crawl.pageChecks?.noindexInSitemap).toEqual({
       urls: [`${SITE}/draft`],
@@ -184,7 +187,7 @@ describe("imported site crawl", () => {
       sitemapUrls: 120,
       checked: 108,
     });
-    // A canonical the crawl did not read is not determined, never a bad one and never a pass.
+    // A canonical the crawl did not read, or a page with no head, is not determined: never a bad one, never a pass.
     expect(crawl.pageChecks?.badCanonicals).toEqual({
       pages: [
         {
@@ -201,11 +204,34 @@ describe("imported site crawl", () => {
         },
       ],
       total: 3,
-      notDetermined: 1,
+      notDetermined: 3,
     });
     expect(crawl.gaps).toEqual([
       { item: "Orphan pages", reason: "the crawl stopped at the page limit" },
     ]);
+  });
+
+  it("keeps the crawl when one gap is longer than Sokosumi stores", () => {
+    // The bot joins the URLs of unread page audits into one reason.
+    const urls = Array.from(
+      { length: 4 },
+      (_, i) => `${SITE}/${"a".repeat(480)}${i}`,
+    );
+    const crawl = stored(
+      siteReport({
+        crawl: botCrawl(),
+        couldNotSee: [
+          {
+            item: "Site crawl: 4 URLs of the page audits that the crawl did not fetch again",
+            reason: `the page audit's own read gave no response: ${urls.join(", ")}`,
+          },
+        ],
+      }),
+    );
+    expect(crawl?.state).toBe("crawled");
+    if (crawl?.state !== "crawled") return;
+    expect(crawl.gaps[0]?.reason).toHaveLength(2000);
+    expect(crawl.gaps[0]?.reason.endsWith("…")).toBe(true);
   });
 
   it("keeps why a site audit has no crawl", () => {

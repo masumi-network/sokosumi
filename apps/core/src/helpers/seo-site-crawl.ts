@@ -9,6 +9,9 @@ import { reportObject as object } from "./project-seo-public-report";
 /** The SEO bot's couldNotSee item when its Report has no crawl section, and the prefix of the crawl's own items. */
 const CRAWL_ITEM = "Site crawl";
 const CRAWL_PREFIX = "Site crawl: ";
+/** The stored crawl's text and gap limits (seo-site-crawl.schema.ts). */
+const MAX_TEXT = 2000;
+const MAX_GAPS = 50;
 
 const count = z.number().int();
 const page = z.object({ url: z.string() });
@@ -72,9 +75,13 @@ const botCrawl = z.object({
     .object({
       pages: count,
       checked: count,
+      /** Pages with no stored head: no check reads them. */
+      notDetermined: count.optional(),
       missingTitle: pageList({}),
       missingH1: pageList({}),
       duplicatesNotDetermined: count.optional(),
+      /** Pages whose title or meta description the bot does not compare. */
+      duplicatesNotCompared: count.optional(),
       duplicateTitles: z.object({
         groups: z.array(
           z.object({ text: z.string(), size: count, pages: z.array(page) }),
@@ -110,7 +117,12 @@ const urls = (list: { pages: { url: string }[]; total: number }) => ({
   total: list.total,
 });
 
-function badCanonicals(c: BotCanonicals["canonicals"]) {
+/** A bot text cut to what Sokosumi stores: one long gap must not drop the whole crawl. */
+const cut = (text: string) =>
+  text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT - 1)}…` : text;
+
+/** noHead: pages whose canonical the bot never read. */
+function badCanonicals(c: BotCanonicals["canonicals"], noHead: number) {
   const lists = {
     "target not 2xx": c.targetNot2xx,
     "other host": c.otherHost,
@@ -130,7 +142,10 @@ function badCanonicals(c: BotCanonicals["canonicals"]) {
     ),
     total: Object.values(lists).reduce((sum, list) => sum + list.total, 0),
     notDetermined:
-      c.targetNotRead.total + c.unresolved.total + (c.notClassified ?? 0),
+      noHead +
+      c.targetNotRead.total +
+      c.unresolved.total +
+      (c.notClassified ?? 0),
   };
 }
 
@@ -146,7 +161,7 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
   if (report?.crawl === undefined) {
     const missing = couldNotSee.find((gap) => gap.item === CRAWL_ITEM);
     if (!missing || object(report?.request)?.crawl === false) return undefined;
-    return parse({ state: "not crawled", reason: missing.reason });
+    return parse({ state: "not crawled", reason: cut(missing.reason) });
   }
   const section = botCrawl.safeParse(report.crawl);
   if (!section.success) return undefined;
@@ -188,7 +203,9 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
               urls: group.pages.map((p) => p.url),
             })),
             total: pageChecks.duplicateTitles.groupsTotal,
-            notDetermined: pageChecks.duplicatesNotDetermined ?? 0,
+            notDetermined:
+              (pageChecks.duplicatesNotDetermined ?? 0) +
+              (pageChecks.duplicatesNotCompared ?? 0),
           },
           noindexInSitemap: pageChecks.sitemap
             ? {
@@ -197,14 +214,24 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
                 checked: pageChecks.sitemap.checked,
               }
             : null,
-          badCanonicals: badCanonicals(pageChecks.canonicals),
+          badCanonicals: badCanonicals(
+            pageChecks.canonicals,
+            pageChecks.notDetermined ?? 0,
+          ),
         }
       : null,
-    gaps: couldNotSee.flatMap((gap) =>
-      gap.item.startsWith(CRAWL_PREFIX)
-        ? [{ item: gap.item.slice(CRAWL_PREFIX.length), reason: gap.reason }]
-        : [],
-    ),
+    gaps: couldNotSee
+      .flatMap((gap) =>
+        gap.item.startsWith(CRAWL_PREFIX)
+          ? [
+              {
+                item: cut(gap.item.slice(CRAWL_PREFIX.length)),
+                reason: cut(gap.reason),
+              },
+            ]
+          : [],
+      )
+      .slice(0, MAX_GAPS),
   });
 }
 
