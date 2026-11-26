@@ -19,7 +19,13 @@ const {
   forfeitMock,
   revokeSubscriptionMock,
   cancelPostsMock,
+  txRoomUpdateManyMock,
+  txRoomMemberFindManyMock,
+  publishRoomsChangedMock,
 } = vi.hoisted(() => ({
+  txRoomUpdateManyMock: vi.fn(),
+  txRoomMemberFindManyMock: vi.fn(),
+  publishRoomsChangedMock: vi.fn(),
   botFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   txBotFindFirstMock: vi.fn(),
@@ -66,6 +72,10 @@ vi.mock("@/helpers/chat-room-mention-status", () => ({
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
 }));
 
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: publishRoomsChangedMock,
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: { findFirst: botFindFirstMock },
@@ -95,6 +105,8 @@ vi.mock("@/lib/db/transaction", () => ({
       chatRoomSokoBotMember: {
         deleteMany: txSokoBotMemberDeleteManyMock,
       },
+      chatRoom: { updateMany: txRoomUpdateManyMock },
+      chatRoomUserMember: { findMany: txRoomMemberFindManyMock },
       sokoBotTurn: {
         updateMany: txTurnUpdateManyMock,
         deleteMany: deleteManyRecorder("turns"),
@@ -154,6 +166,11 @@ describe("deleteSokoBot", () => {
     failOpenMentionsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
     txSokoBotMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    txRoomUpdateManyMock.mockResolvedValue({ count: 1 });
+    txRoomMemberFindManyMock.mockResolvedValue([
+      { userId: "user_a" },
+      { userId: "user_b" },
+    ]);
   });
 
   it("cancels every Social post it made that has not gone out", async () => {
@@ -211,6 +228,31 @@ describe("deleteSokoBot", () => {
     const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
     expect(data.deletedAt).toBeInstanceOf(Date);
     expect(data).not.toHaveProperty("sharedRoomId");
+  });
+
+  // SOKD-487: the room used to stay in every member's list, and nobody could remove it.
+  it("archives a deleted shared bot's room and tells its members", async () => {
+    const roomId = "01960001-0001-7001-8001-0000000000aa";
+    txBotFindFirstMock.mockResolvedValue({ id: BOT_ID, sharedRoomId: roomId });
+
+    await deleteSokoBot(BOT_ID);
+
+    expect(txRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: roomId, archivedAt: null },
+      data: { archivedAt: expect.any(Date) },
+    });
+    expect(publishRoomsChangedMock).toHaveBeenCalledWith({
+      userIds: ["user_a", "user_b"],
+      collections: ["active", "archived"],
+      roomId,
+    });
+  });
+
+  it("leaves rooms alone when the bot has no shared room", async () => {
+    await deleteSokoBot(BOT_ID);
+
+    expect(txRoomUpdateManyMock).not.toHaveBeenCalled();
+    expect(publishRoomsChangedMock).not.toHaveBeenCalled();
   });
 
   it("tombstones a bot that created a Task Schedule, whose creator FK restricts deletion", async () => {
