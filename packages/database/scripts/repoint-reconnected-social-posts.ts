@@ -20,7 +20,7 @@ import { createPrismaClient } from "../src/client.js";
 import { Prisma } from "../src/generated/prisma/client.js";
 import {
   configureSqlTables,
-  netTable,
+  sharedTable,
   sqlTableLayoutFromEnv,
 } from "../src/sql-tables.js";
 
@@ -34,15 +34,15 @@ configureSqlTables(sqlTableLayoutFromEnv(process.env));
 // bump makes a publisher that read the retired connection lose its claim.
 // A row a pending replace retired keeps its posts for that replace.
 function stuckPostTables() {
-  return Prisma.sql`${netTable("mainnet", "project_social_connection")} AS retired,
-     ${netTable("mainnet", "project_social_connection")} AS active`;
+  return Prisma.sql`${sharedTable("project_social_connection")} AS retired,
+     ${sharedTable("project_social_connection")} AS active`;
 }
 function stuckPost() {
   return Prisma.sql`post."socialConnectionId" = retired."id"
   AND post."status" IN ('DRAFT', 'NEEDS_APPROVAL', 'SCHEDULED', 'FAILED', 'MISSED')
   AND retired."status" = 'disconnected'
   AND NOT EXISTS (
-    SELECT 1 FROM ${netTable("mainnet", "project_social_connection_intent")} AS intent
+    SELECT 1 FROM ${sharedTable("project_social_connection_intent")} AS intent
     WHERE intent."socialConnectionId" = retired."id"
       AND intent."action" = 'replace'
       AND intent."authConfigId" <> 'expired'
@@ -78,13 +78,13 @@ async function main(): Promise<void> {
       const [row] = await prisma.$queryRaw<
         { count: bigint }[]
       >`SELECT COUNT(*) AS count
-FROM ${netTable("mainnet", "social_post")} AS post, ${stuckPostTables()}
+FROM ${sharedTable("social_post")} AS post, ${stuckPostTables()}
 WHERE ${stuckPost()}`;
       console.log(`Dry run: ${row?.count ?? 0} stuck social post(s) to move.`);
       return;
     }
     const moved =
-      await prisma.$executeRaw`UPDATE ${netTable("mainnet", "social_post")} AS post
+      await prisma.$executeRaw`UPDATE ${sharedTable("social_post")} AS post
 SET "socialConnectionId" = active."id",
     "revision" = post."revision" + 1,
     "updatedAt" = NOW()
