@@ -6,6 +6,13 @@ Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. E
 
 - **A PR that changes Soko Bot or Cuso behaviour shows an eval run in its Evidence.** That covers a prompt, a skill, a tool or its description, a version, a model, the classifier, the context packet, or a Core check the bot's answers pass through (claim check, post checks, plan review). Paste `sokosumi evals show RUN_ID --markdown`.
 - **The PR also commits the run as a file.** `sokosumi evals show RUN_ID --summary-md --slug SLUG` writes `docs/evals/runs/YYYY-MM-DD-SLUG.md` from the run. Fill in its "Why the failures happened" and "Verdict" sections, commit it in the PR that needed the run, and link it from the PR's Evidence. Local databases and scratchpads disappear; this file is what stays. Format and template: [`docs/evals/runs/README.md`](../evals/runs/README.md).
+- **Held-out runs report aggregates only.** For the owner benchmark's held-out set, a PR, commit or shared report contains only these per-set numbers:
+  - passed journeys and steps right, baseline vs candidate
+  - lost passes (journeys that passed on the baseline and fail on the candidate)
+  - token coverage
+  - the verdict
+
+  Never paste `sokosumi evals show` output or commit a summary file for a held-out run. Case ids, titles, failed checks, observed values and judge notes stay with ownerbench.
 - **A new tool gets a case.** `apps/core/src/services/evals/eval-cases.test.ts` fails when a capability is in no case's `tools`, `anyTools` or `forbiddenTools`. Its `NOT_YET_COVERED` list only shrinks.
 - **Local and agent-run evals are judged by Claude Code.** Set `SOKO_BOT_JUDGE_RUNNER=claude-code` in `apps/core/.env`: the judge then runs through the local `claude` CLI on Patrick's Claude Code subscription, and the run records it as `claude-code:<model>`. The weekly run and every run on mainnet, preprod or a preview keep the Gateway judge; Core refuses `claude-code` on Vercel. The bots under test always run on their real models.
 - **Local and agent runs use the ChatGPT plan by default: `pnpm evals:local --plan`.** See [On your own ChatGPT plan](#on-your-own-chatgpt-plan). Run only the cases the change touches, one repeat each. Repeat a case three times only when it failed, to tell chance from a regression; never rerun a suite to settle one case. Run one plan run at a time per machine.
