@@ -78,7 +78,7 @@ CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the
 "GET /jobs/{id}/events": { argv: ["--api-url", "https://fixture.invalid", "jobs", "events", "job-1"] },
 ```
 
-The check runs `argv` through `runCli` with `fetch` mocked. Core answers from the shared fake `core` (unknown requests get `{ "data": [] }`); add a `response(request)` function when a command needs other data. Requests are written `METHOD /path` without `/v1` or the query. `stdin` feeds `--api-key-stdin`. A command that sends different operations by flag gets one fixture per operation (`workspaces list` and `workspaces list --personal`).
+The check runs `argv` through `runCli` with `fetch` mocked. Core answers from the shared fake `core` (unknown requests get `{ "data": [] }`); add a `response(request)` function when a command needs other data. Requests are written `METHOD /path` without `/v1` or the query. `stdin` feeds `--api-key-stdin`. A command that sends different operations by flag gets one fixture per operation (`jobs get` and `jobs get --details`).
 
 ## MCP tools
 
