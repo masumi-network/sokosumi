@@ -674,8 +674,6 @@ describe("Sokosumi MCP server", () => {
       "seo_project_create_monitor",
       "contacts_enrich",
       "contacts_find_people",
-      "chats_send",
-      "chats_retry_mention",
       "soko_bots_ask_mine",
       "soko_bots_create_my_schedule",
       "soko_bots_set_my_proactive",
