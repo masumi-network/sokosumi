@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import {
+  ACTION_LABELS,
+  getSokoBotVersion,
+  isSokoBotSilentAnswer,
+} from "@sokosumi/soko-bot";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -12,7 +16,6 @@ import {
 } from "./action-receipts";
 
 import {
-  ACTION_LABELS,
   actionLabel,
   actionTarget,
   attemptedTarget,
@@ -34,8 +37,6 @@ const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 /** Shown when the claim check could not run; meant for someone who asked. */
 export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
-
-export { ACTION_LABELS };
 
 const QUESTIONS = {
   TARGET: "Which task or item do you mean?",

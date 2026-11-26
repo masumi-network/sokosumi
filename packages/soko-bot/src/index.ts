@@ -1,3 +1,4 @@
+export { ACTION_LABELS, withoutActionReceipts } from "./action-labels.js";
 export * from "./avatar/index.js";
 export {
   CMO_BRAND_SECTIONS,
