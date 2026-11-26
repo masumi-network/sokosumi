@@ -130,11 +130,28 @@ describe("ChatGPT plan stand-ins", () => {
       "./evals/eval-environment"
     );
     expect(evalEnvironment()).toBe("local-chatgpt-plan");
-    expect(comparableRuns("local-chatgpt-plan")).toEqual({
-      environment: "local-chatgpt-plan",
+    const planGroup = {
+      OR: [
+        { environment: "local-chatgpt-plan" },
+        { label: { contains: "ChatGPT plan" } },
+      ],
+    };
+    expect(
+      comparableRuns({ environment: "local-chatgpt-plan", label: null }),
+    ).toEqual(planGroup);
+    // Saved before plan runs had their own environment.
+    expect(
+      comparableRuns({
+        environment: "local",
+        label: "local, OpenAI on ChatGPT plan",
+      }),
+    ).toEqual(planGroup);
+    expect(
+      comparableRuns({ environment: "local", label: "local, Gateway" }),
+    ).toEqual({ trigger: "DAILY" });
+    expect(comparableRuns({ environment: "mainnet", label: null })).toEqual({
+      trigger: "DAILY",
     });
-    expect(comparableRuns("local")).toEqual({ trigger: "DAILY" });
-    expect(comparableRuns("mainnet")).toEqual({ trigger: "DAILY" });
   });
 
   it("never compares local vectors with stored Gateway vectors, nor stores them", async () => {
@@ -157,17 +174,31 @@ describe("ChatGPT plan stand-ins", () => {
     expect(values.some((value) => String(value).startsWith("["))).toBe(false);
   });
 
-  it("runs the reference layout check on the plan, not the Gateway", async () => {
+  it("runs the reference layout check on the plan and bills nothing", async () => {
     generateText.mockResolvedValue({
       text: "A centred figure.",
-      usage: {},
+      usage: { inputTokens: 50_000, outputTokens: 2_000 },
       providerMetadata: undefined,
     });
     const { describeBrandPictureStyle } = await import(
       "./reference-library/layout"
     );
-    await describeBrandPictureStyle("# DESIGN\nInk #111111").catch(() => {});
+    const { costUsd } = await describeBrandPictureStyle(
+      "# DESIGN\nInk #111111",
+    );
     expect(generateText.mock.calls[0]?.[0].model.modelId).toBe("gpt-6-luna");
+    expect(costUsd).toBe(0);
+  });
+
+  it("answers a meaning-only contact search by words on a plan run", async () => {
+    const embed = vi.fn();
+    const { rankContacts } = await import("@/services/contact-search.service");
+    await rankContacts("workspace-1", "Ada Lovelace", {
+      mode: "meaning",
+      embed,
+    });
+    expect(embed).not.toHaveBeenCalled();
+    expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 
   it("embeds in process: free, deterministic, closer for shared wording", async () => {

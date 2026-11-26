@@ -2,7 +2,10 @@ import { gateway, generateText, Output } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
-import { localChatGptPlanModel } from "@/lib/local-chatgpt-plan";
+import {
+  localChatGptPlanEnabled,
+  localChatGptPlanModel,
+} from "@/lib/local-chatgpt-plan";
 
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
@@ -171,8 +174,10 @@ export async function checkStyledPicture(input: {
   return {
     verdict: result.output,
     passes: styleCheckPasses(result.output),
-    costUsd:
-      gatewayCostUsd(result.providerMetadata) ||
-      usage.inputTokens * PRICE.input + usage.outputTokens * PRICE.output,
+    // A plan run bills nothing: its tokens are not Claude's.
+    costUsd: localChatGptPlanEnabled()
+      ? 0
+      : gatewayCostUsd(result.providerMetadata) ||
+        usage.inputTokens * PRICE.input + usage.outputTokens * PRICE.output,
   };
 }

@@ -24,13 +24,17 @@ const { values } = parseArgs({
 });
 
 if (values.plan) process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+// `--plan` or the env flag alone: either way this is a plan run.
+const plan = ["1", "true"].includes(
+  process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN ?? "",
+);
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 
 const { default: prisma } = await import("@/lib/db/prisma");
 const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
 );
-if (values.plan) {
+if (plan) {
   const { chatGptPlanAccessToken } = await import("@/lib/local-chatgpt-plan");
   await chatGptPlanAccessToken();
 }
@@ -55,13 +59,13 @@ const run = await createEvalRun({
   sokoBotVersionId: values["soko-bot-version"] ?? null,
   cusoVersionId: values["cuso-version"] ?? null,
   // Plan runs get their label from createEvalRun, however plan mode was set.
-  label: values.plan ? undefined : "local, Gateway",
+  label: plan ? undefined : "local, Gateway",
   commit: {
     sha: git("rev-parse", "HEAD"),
     message: git("log", "-1", "--format=%s"),
   },
 });
-console.log(`Run ${run.id} (${values.plan ? "ChatGPT plan" : "Gateway"})`);
+console.log(`Run ${run.id} (${plan ? "ChatGPT plan" : "Gateway"})`);
 
 for (;;) {
   const tick = await tickEvalRuns();

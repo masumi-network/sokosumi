@@ -55,7 +55,11 @@ export async function rankContacts(
     maxPerMethod?: number;
   } = {},
 ): Promise<RankedContact[]> {
-  const mode = options.mode ?? "both";
+  // A plan run has no meaning matches (stored vectors are the Gateway's), so
+  // a meaning-only search matches by words rather than returning nothing.
+  const asked = options.mode ?? "both";
+  const mode =
+    asked === "meaning" && localChatGptPlanEnabled() ? "words" : asked;
   const max = options.maxPerMethod ?? MAX_PER_METHOD;
   // One more than allowed, to tell a full result from a cut one.
   const perMethod = max + 1;

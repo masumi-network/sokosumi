@@ -633,11 +633,14 @@ function statesByCase(results: readonly ResultRow[]) {
 async function dailyHistory(
   before: Date,
   excludeRunId?: string,
-  environment = "mainnet",
+  run: { environment: string; label: string | null } = {
+    environment: "mainnet",
+    label: null,
+  },
 ) {
   const runs = await prisma.evalRun.findMany({
     where: {
-      ...comparableRuns(environment),
+      ...comparableRuns(run),
       status: "COMPLETED",
       createdAt: { lt: before },
       ...(excludeRunId ? { id: { not: excludeRunId } } : {}),
@@ -743,7 +746,7 @@ export async function getEvalRunReport(runId: string) {
     include: { results: { orderBy: [{ position: "asc" }, { repeat: "asc" }] } },
   });
   if (!run) throw new EvalRunError("Eval run not found");
-  const history = await dailyHistory(run.createdAt, run.id, run.environment);
+  const history = await dailyHistory(run.createdAt, run.id, run);
   const baselineRun = history.runs[0] ?? null;
   const historyRates = (caseId: string) =>
     history.runs.map((past) =>
@@ -810,12 +813,12 @@ export async function getEvalRunReport(runId: string) {
 export async function getEvalCaseBaseline(runId: string, caseId: string) {
   const run = await prisma.evalRun.findUnique({
     where: { id: runId },
-    select: { id: true, createdAt: true, environment: true },
+    select: { id: true, createdAt: true, environment: true, label: true },
   });
   if (!run) throw new EvalRunError("Eval run not found");
   const baseline = await prisma.evalRun.findFirst({
     where: {
-      ...comparableRuns(run.environment),
+      ...comparableRuns(run),
       status: "COMPLETED",
       createdAt: { lt: run.createdAt },
       id: { not: run.id },

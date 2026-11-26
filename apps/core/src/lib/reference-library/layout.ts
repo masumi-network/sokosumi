@@ -3,7 +3,10 @@ import sharp from "sharp";
 import { z } from "zod";
 
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
-import { localChatGptPlanModel } from "@/lib/local-chatgpt-plan";
+import {
+  localChatGptPlanEnabled,
+  localChatGptPlanModel,
+} from "@/lib/local-chatgpt-plan";
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 /**
@@ -27,6 +30,8 @@ function costOf(result: {
   providerMetadata?: unknown;
   usage?: unknown;
 }): number {
+  // A plan run bills nothing: its tokens are not Claude's.
+  if (localChatGptPlanEnabled()) return 0;
   const usage = gatewayCallUsage(result as never);
   return (
     gatewayCostUsd(result.providerMetadata) ||

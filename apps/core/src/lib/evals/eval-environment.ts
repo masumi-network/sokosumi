@@ -23,12 +23,39 @@ export function evalEnvironment(): EvalEnvironment {
  * Which runs a run is compared with: daily runs, or for a ChatGPT plan run
  * only other plan runs, since plan models differ from production's.
  */
-export function comparableRuns(
-  environment: string,
-): { environment: "local-chatgpt-plan" } | { trigger: "DAILY" } {
-  return environment === "local-chatgpt-plan"
-    ? { environment: "local-chatgpt-plan" }
+export function comparableRuns(run: {
+  environment: string;
+  label: string | null;
+}):
+  | {
+      OR: (
+        | { environment: "local-chatgpt-plan" }
+        | { label: { contains: string } }
+      )[];
+    }
+  | { trigger: "DAILY" } {
+  return isChatGptPlanRun(run)
+    ? {
+        OR: [
+          { environment: "local-chatgpt-plan" },
+          { label: { contains: PLAN_LABEL_MARK } },
+        ],
+      }
     : { trigger: "DAILY" };
+}
+
+/** Plan runs saved before they had their own environment carry this label. */
+const PLAN_LABEL_MARK = "ChatGPT plan";
+
+/** Whether a run's models ran on the ChatGPT plan, however it was saved. */
+export function isChatGptPlanRun(run: {
+  environment: string;
+  label: string | null;
+}): boolean {
+  return (
+    run.environment === "local-chatgpt-plan" ||
+    (run.label?.includes(PLAN_LABEL_MARK) ?? false)
+  );
 }
 
 /** The daily run belongs to mainnet's production deploy of main only. */
