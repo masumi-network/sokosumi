@@ -64,6 +64,7 @@ const listSchema = z.object({
   query: z.string().trim().max(200).optional(),
   limit: z.number().int().min(1).max(200).optional(),
   kind: z.enum(["all", "assistant", "cmo"]).optional(),
+  evals: z.enum(["exclude", "include", "only"]).optional(),
 });
 
 const versionSlugSchema = z
@@ -112,15 +113,16 @@ interface ListParams extends AuthenticatedRequest {
   query?: unknown;
   limit?: unknown;
   kind?: unknown;
+  evals?: unknown;
 }
 
 export const listAdminSokoBotsAction = withSession<
   ListParams,
   ActionResultDto<AdminSokoBotList, ActionError>
->(async ({ session, query, limit, kind }) => {
+>(async ({ session, query, limit, kind, evals }) => {
   try {
     assertAdminSession(session);
-    const parsed = listSchema.safeParse({ query, limit, kind });
+    const parsed = listSchema.safeParse({ query, limit, kind, evals });
     if (!parsed.success) {
       return toActionResult(
         err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),

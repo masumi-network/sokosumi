@@ -43,6 +43,19 @@ async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   return cache;
 }
 
+/**
+ * Workspaces of the eval lanes, read now rather than from the cache: admin
+ * reads use it to leave lanes out, and a lane made a moment ago must count.
+ * A change to many bots resolves lanes inside its own query instead.
+ */
+export async function evalWorkspaceIds(): Promise<string[]> {
+  if (typeof prisma.evalLane?.findMany !== "function") return [];
+  const lanes = await prisma.evalLane.findMany({
+    select: { workspaceId: true },
+  });
+  return lanes.map((lane) => lane.workspaceId);
+}
+
 export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
   return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
 }

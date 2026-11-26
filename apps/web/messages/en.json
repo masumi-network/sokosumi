@@ -7099,6 +7099,8 @@
           "archived": "Archived",
           "version": "Version",
           "showDormant": "Show unused and archived ({count})",
+          "showEvals": "Show eval bots",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Show",
           "kind": {
@@ -7673,8 +7675,10 @@
           "usersTitle": "People who wrote to a Soko Bot",
           "usersSub": "peak {peak} in {days} days",
           "usersBar": "{day}: {users} people, {messages} messages",
-          "costTitle": "Soko Bot model cost",
-          "cmoCostTitle": "CMO.xyz model cost",
+          "costTitle": "Soko Bot turn cost",
+          "cmoCostTitle": "CMO.xyz turn cost",
+          "evalCostTitle": "Evals and lab turn cost",
+          "costScope": "Turn cost: the model cost of a turn's loop, routing, judge and in-turn checks. Eval lanes and lab runs count only under Evals. Work outside a turn is not included: Cuso's style, industry and picture checks, the month writer, images and video.",
           "costSub": "{total} in {days} days",
           "costBar": "{day}: {cost}",
           "today": "today",
@@ -7685,7 +7689,8 @@
           "turns": "Turns",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Look",
@@ -7930,6 +7935,9 @@
         "title": "CMO spend",
         "description": "What each CMO bot spent on its work, what its owner was charged, and where the money went: each model, web search, Exa, overhead and images.",
         "summary": "{bots, plural, one {# CMO bot} other {# CMO bots}} spent {spent} and charged {charged} credits.",
+        "showEvals": "Show eval Cusos",
+        "hideEvals": "Hide eval Cusos",
+        "evalBadge": "Eval",
         "period": "Period",
         "days": "{days} days",
         "empty": "No CMO bot worked in this period.",
