@@ -9386,7 +9386,9 @@
           "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}",
           "backToAgent": "Volver a {name}",
           "yourJobs": "Tus jobs",
-          "yourJobsCount": "Tus jobs · {count}"
+          "yourJobsCount": "Tus jobs · {count}",
+          "unavailableAgent": "Agente no disponible",
+          "noLongerListed": "Ya no está en el catálogo"
         },
         "Modal": {
           "back": "Atrás",
@@ -9413,6 +9415,8 @@
         "coworkersNote": "Especialistas a los que puedes encargar tareas completas o escribir.",
         "coworkersEmpty": "Todavía no hay coworkers en este espacio de trabajo.",
         "marketplaceTitle": "Mercado de agentes",
+        "marketplaceShort": "Mercado",
+        "sectionNavLabel": "Secciones de agentes",
         "marketplaceNote": "Agentes creados y gestionados por otras empresas. Cada uno hace un trabajo.",
         "marketplaceEmpty": "Ahora no hay agentes que mostrar.",
         "external": "Externo",
@@ -9480,7 +9484,7 @@
         "yourJobs": "{count, plural, one {Tu # trabajo con este agente} other {Tus # trabajos con este agente}}",
         "groupPersonal": "Personales",
         "groupShared": "Equipo y proyectos",
-        "messageName": "Escribir a {name}",
+        "messageName": "Mensaje a {name}",
         "chat": "Chat",
         "chatName": "Chatear con {name}",
         "giveTaskName": "Dar una tarea a {name}",

@@ -9386,7 +9386,9 @@
           "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
           "backToAgent": "Zurück zu {name}",
           "yourJobs": "Deine Jobs",
-          "yourJobsCount": "Deine Jobs · {count}"
+          "yourJobsCount": "Deine Jobs · {count}",
+          "unavailableAgent": "Nicht verfügbarer Agent",
+          "noLongerListed": "Nicht mehr gelistet"
         },
         "Modal": {
           "back": "Zurück",
@@ -9413,6 +9415,8 @@
         "coworkersNote": "Spezialisten, denen du ganze Aufgaben gibst oder mit denen du chattest.",
         "coworkersEmpty": "In diesem Workspace gibt es noch keine Coworker.",
         "marketplaceTitle": "Agent-Marktplatz",
+        "marketplaceShort": "Marktplatz",
+        "sectionNavLabel": "Agents-Bereiche",
         "marketplaceNote": "Agents, die andere Firmen bauen und betreiben. Jeder erledigt eine Aufgabe.",
         "marketplaceEmpty": "Gerade gibt es keine Agents.",
         "external": "Extern",
@@ -9485,7 +9489,7 @@
         "chatName": "Mit {name} chatten",
         "giveTaskName": "{name} eine Aufgabe geben",
         "startTask": "Aufgabe starten",
-        "startTaskName": "Aufgabe mit {name} starten"
+        "startTaskName": "Aufgabe starten mit {name}"
       }
     },
     "EmailVerificationNotice": {

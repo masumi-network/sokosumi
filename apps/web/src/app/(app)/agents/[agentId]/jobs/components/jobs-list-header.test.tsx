@@ -47,4 +47,17 @@ describe("JobsListHeader", () => {
     expect(back).toHaveAttribute("href", "/agents");
     expect(screen.getByText("yourJobsCount:3")).toBeInTheDocument();
   });
+
+  it("tags an agent that left the catalog", () => {
+    render(<JobsListHeader agent={agent} total={3} disabled unlisted />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(name);
+    expect(screen.getByText("noLongerListed")).toBeInTheDocument();
+  });
+
+  it("does not tag a listed agent", () => {
+    render(<JobsListHeader agent={agent} total={3} />);
+
+    expect(screen.queryByText("noLongerListed")).not.toBeInTheDocument();
+  });
 });
