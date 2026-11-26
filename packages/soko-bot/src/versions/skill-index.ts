@@ -157,6 +157,11 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "read_file",
     ],
   },
+  "cmo-core-writes-strategy": {
+    useWhen:
+      "every turn: writing the strategy, or any change the owner asks for to it, goes through write_strategy.",
+    preloadOn: ["always"],
+  },
   "cmo-compact-production": {
     useWhen:
       "a production run: what its small context holds and how to read the rest.",
