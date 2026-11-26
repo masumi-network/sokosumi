@@ -84,6 +84,7 @@ const {
   scheduleUpdateMock,
   transactionMock,
   transactionQueryRawMock,
+  fleetSelectionMock,
   memberFindFirstMock,
   tokenSignMock,
   taskFindManyMock,
@@ -149,6 +150,7 @@ const {
   scheduleUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
   transactionQueryRawMock: vi.fn(),
+  fleetSelectionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   tokenSignMock: vi.fn(),
   taskFindManyMock: vi.fn(),
@@ -251,6 +253,9 @@ vi.mock("@/lib/db/database-now", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    // The only raw read here is the fleet move's selection; it returns the
+    // bots the tests set up with botFindManyMock.
+    $queryRaw: fleetSelectionMock,
     sokoBotModelCall: { create: vi.fn().mockResolvedValue({}) },
     sokoBotIntent: { findMany: intentFindManyMock },
     chatRoomMention: {
@@ -497,6 +502,7 @@ beforeEach(() => {
   jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
   newsletterDraftAvailableMock.mockResolvedValue(false);
   competitorChecksOnForMock.mockResolvedValue(false);
+  fleetSelectionMock.mockImplementation(async () => botFindManyMock());
 });
 
 describe("SokoBotControlPlane lifecycle", () => {
@@ -6463,8 +6469,6 @@ describe("SET_VERSION and fleet migration", () => {
         .fn()
         .mockResolvedValue([{ workspaceId: "ws_eval", cusoProjectId: null }]),
     };
-    const guard = await import("@/lib/evals/eval-guard");
-    guard.forgetEvalWorkspaces();
     try {
       botGroupByMock.mockResolvedValue([]);
       botFindManyMock.mockResolvedValue([]);
@@ -6476,16 +6480,21 @@ describe("SET_VERSION and fleet migration", () => {
         reason: "Move the fleet",
       });
 
-      const notEvals = { workspaceId: { notIn: ["ws_eval"] } };
       expect(botGroupByMock).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining(notEvals) }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            workspaceId: { notIn: ["ws_eval"] },
+          }),
+        }),
       );
-      expect(botFindManyMock).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining(notEvals) }),
+      // The move resolves lanes in its own query, never from a list read
+      // earlier (PostgreSQL proof in soko-bot-fleet-move.postgres.test.ts).
+      const [strings] = fleetSelectionMock.mock.lastCall ?? [];
+      expect((strings as string[]).join("?")).toMatch(
+        /NOT EXISTS \(\s*SELECT 1 FROM \?/,
       );
     } finally {
       delete db.evalLane;
-      guard.forgetEvalWorkspaces();
     }
   });
 });

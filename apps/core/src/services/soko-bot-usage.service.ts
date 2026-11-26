@@ -1,8 +1,11 @@
+import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { REFUND_PART_SEPARATOR } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
+import { labTurnTree } from "@/lib/soko-bot/lab-turns";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 
 /**
@@ -211,10 +214,12 @@ interface FleetDayRow {
 export async function sokoBotFleetDays(
   days: number,
 ): Promise<SokoBotFleetDay[]> {
+  const start = Prisma.sql`date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})`;
   const rows = await prisma.$queryRaw<FleetDayRow[]>`
-    WITH days AS (
+    WITH RECURSIVE ${labTurnTree(start)},
+    days AS (
       SELECT generate_series(
-        date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1}),
+        ${start},
         date_trunc('day', now() AT TIME ZONE 'UTC'),
         interval '1 day'
       ) AS day
@@ -223,11 +228,13 @@ export async function sokoBotFleetDays(
       SELECT
         date_trunc('day', t."createdAt") AS day,
         t."requestedByUserId",
-        -- Lab turns and eval lanes are ours, not a customer's.
+        -- Lab turns, the runs they started, and eval lanes are ours, not a
+        -- customer's.
         (
-          EXISTS (SELECT 1 FROM "soko_bot_lab_run" l WHERE l."turnId" = t."id")
-          OR COALESCE(t."clientTurnId", '') LIKE 'lab:%'
-          OR EXISTS (SELECT 1 FROM "eval_lane" e WHERE e."workspaceId" = b."workspaceId")
+          EXISTS (SELECT 1 FROM lab_tree l WHERE l."id" = t."id")
+          OR EXISTS (
+            SELECT 1 FROM ${sharedTable("eval_lane")} e WHERE e."workspaceId" = b."workspaceId"
+          )
         ) AS "ours",
         t."source" = 'CHAT'
           AND t."chainDepth" = 0
@@ -240,9 +247,9 @@ export async function sokoBotFleetDays(
           + COALESCE((t."usage" ->> 'cacheWriteTokens')::numeric, 0) AS tokens,
         COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros,
         COALESCE(b."versionId" = ANY(${[...CMO_SOKO_BOT_VERSION_IDS]}), false) AS "cmo"
-      FROM "soko_bot_turn" t
-      JOIN "soko_bot" b ON b."id" = t."sokoBotId"
-      WHERE t."createdAt" >= date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})
+      FROM ${sharedTable("soko_bot_turn")} t
+      JOIN ${sharedTable("soko_bot")} b ON b."id" = t."sokoBotId"
+      WHERE t."createdAt" >= ${start}
     )
     SELECT
       to_char(d.day, 'YYYY-MM-DD') AS "day",

@@ -6,6 +6,7 @@ import {
   SokoBotTurnStatus,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   applyVersionCapabilities,
   CMO_PRODUCTION_TURN_PREFIX,
@@ -713,6 +714,26 @@ function storedContinuation(classification: unknown): string | null {
   const continuation = (classification as { continuation?: unknown })
     .continuation;
   return typeof continuation === "string" ? continuation : null;
+}
+
+/**
+ * The live bots a fleet move takes, oldest id first. Eval lanes pick their
+ * own version per run, so they are left out, and in this same query: a lane
+ * made a moment ago is never moved because of a list read earlier.
+ */
+export async function fleetBotsToMove(
+  fromVersionId?: string,
+): Promise<{ id: string; versionId: string | null }[]> {
+  return prisma.$queryRaw<{ id: string; versionId: string | null }[]>`
+    SELECT b."id", b."versionId"
+    FROM ${sharedTable("soko_bot")} b
+    WHERE b."archivedAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM ${sharedTable("eval_lane")} e WHERE e."workspaceId" = b."workspaceId"
+      )
+      ${fromVersionId ? PrismaRaw.sql`AND b."versionId" = ${fromVersionId}` : PrismaRaw.empty}
+    ORDER BY b."id" ASC
+  `;
 }
 
 export class SokoBotControlPlane {
@@ -4134,16 +4155,7 @@ export class SokoBotControlPlane {
       }
       return pinned;
     };
-    const bots = await prisma.sokoBot.findMany({
-      where: {
-        archivedAt: null,
-        // The counts the operator confirmed leave eval lanes out; so does the move.
-        workspaceId: { notIn: await evalWorkspaceIds() },
-        ...(input.fromVersionId ? { versionId: input.fromVersionId } : {}),
-      },
-      select: { id: true, versionId: true },
-      orderBy: { id: "asc" },
-    });
+    const bots = await fleetBotsToMove(input.fromVersionId);
     // One base per run, not one supplied by the caller. A caller-supplied id
     // would make a retry replay each bot's recorded outcome, which is exactly
     // backwards: the bots worth retrying are the ones that failed.

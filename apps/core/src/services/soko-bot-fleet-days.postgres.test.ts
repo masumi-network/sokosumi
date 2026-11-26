@@ -35,6 +35,7 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     sokoBotId?: string;
     workspaceId?: string;
     clientTurnId?: string;
+    parentTurnId?: string;
   }) {
     return prisma.sokoBotTurn.create({
       data: {
@@ -147,11 +148,38 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
       workspaceId: evalWorkspaceId,
       costUsdMicros: 300_000n,
     });
-    // A behaviour-lab turn on a customer's bot is ours too.
-    await turn({
+    // A behaviour-lab turn on a customer's bot is ours too, and so is every
+    // background run below it, though each has its own `background:` id.
+    const labRoot = await turn({
       requestedByUserId: ada,
       clientTurnId: `lab:${randomUUID()}`,
       costUsdMicros: 400_000n,
+    });
+    const labChild = await turn({
+      requestedByUserId: ada,
+      clientTurnId: `background:${labRoot.id}:child`,
+      parentTurnId: labRoot.id,
+      costUsdMicros: 500_000n,
+    });
+    await turn({
+      requestedByUserId: ada,
+      source: "SCHEDULE",
+      clientTurnId: `background:${labChild.id}:grandchild`,
+      parentTurnId: labChild.id,
+      costUsdMicros: 600_000n,
+    });
+    // A customer's own background run stays the customer's.
+    const ownRoot = await turn({
+      requestedByUserId: null,
+      source: "SCHEDULE",
+      costUsdMicros: 20_000n,
+    });
+    await turn({
+      requestedByUserId: null,
+      source: "SCHEDULE",
+      clientTurnId: `background:${ownRoot.id}:child`,
+      parentTurnId: ownRoot.id,
+      costUsdMicros: 30_000n,
     });
   });
 
@@ -181,14 +209,17 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
       day: new Date().toISOString().slice(0, 10),
       users: 2,
       messages: 3,
-      turns: 5,
-      totalTokens: 600,
+      // Five chat and schedule turns plus the customer's run and its child.
+      turns: 7,
+      totalTokens: 840,
     });
-    expect(today?.costUsd).toBeCloseTo(0.035);
+    // 0.035 + the customer's run 0.021 and its child 0.031.
+    expect(today?.costUsd).toBeCloseTo(0.087);
     expect(today?.cmoCostUsd).toBeCloseTo(0.101);
     expect(yesterday?.cmoCostUsd).toBe(0);
-    // Eval Soko Bot 0.201 + eval Cuso 0.301 + lab turn 0.401.
-    expect(today?.evalCostUsd).toBeCloseTo(0.903);
+    // Eval Soko Bot 0.201 + eval Cuso 0.301 + lab root 0.401, its child
+    // 0.501 and grandchild 0.601.
+    expect(today?.evalCostUsd).toBeCloseTo(2.005);
     expect(yesterday?.evalCostUsd).toBe(0);
   });
 });
