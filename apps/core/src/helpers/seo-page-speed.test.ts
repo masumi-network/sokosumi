@@ -923,12 +923,16 @@ describe("CrUX History on a measured field", () => {
     expect(
       publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
     ).toMatchObject({ history: { status: "comparable" } });
-    // Weeks that are not oldest first would turn the trend around: the history goes.
+    // Weeks that are not oldest first would turn the trend around: no trend (review pass 18: unavailable, as a
+    // fresh import, not a history that goes without a trace).
     for (const weeks of [[...three].reverse(), [three[0], three[0]]]) {
       stored.pageSpeed[0].field.history = { status: "comparable", weeks };
       const field = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field;
-      expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
-      expect(field).not.toHaveProperty("history");
+      expect(field).toMatchObject({
+        status: "measured",
+        p75: { lcp: 1300 },
+        history: { status: "unavailable" },
+      });
     }
     stored.pageSpeed[0].field.history = {
       status: "comparable",
@@ -1025,7 +1029,7 @@ describe("CrUX History on a measured field", () => {
     ).toBe(false);
   });
 
-  it("drops a stored history it cannot read and keeps the measurement and the audit", () => {
+  it("reads a stored history whose weeks it cannot read as unavailable, as a fresh import, and keeps the measurement and the audit", () => {
     const stored = JSON.parse(
       JSON.stringify(
         parsePublicSeoArtifact({
@@ -1050,8 +1054,13 @@ describe("CrUX History on a measured field", () => {
       ),
     );
     expect(stored.pageSpeed[0].field.history.weeks).toEqual(three);
-    // The second value has the form of a day and is no calendar day.
-    for (const weeks of [["2026-1-4"], ["2026-02-31"]]) {
+    // The second value has the form of a day and is no calendar day. Review pass 18: weeks out of order are
+    // unavailable too, not dropped without a trace.
+    for (const weeks of [
+      ["2026-1-4"],
+      ["2026-02-31"],
+      [three[1], three[0], three[2]],
+    ]) {
       stored.pageSpeed[0].field.history.weeks = weeks;
       stored.siteSpeed = {
         rows: [
@@ -1069,8 +1078,11 @@ describe("CrUX History on a measured field", () => {
         read.data?.pageSpeed?.[0]?.field,
         read.data?.siteSpeed?.rows[0]?.devices[0]?.field,
       ]) {
-        expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
-        expect(field).not.toHaveProperty("history");
+        expect(field).toMatchObject({
+          status: "measured",
+          p75: { lcp: 1300 },
+          history: { status: "unavailable" },
+        });
       }
     }
   });

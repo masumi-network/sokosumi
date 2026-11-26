@@ -399,8 +399,9 @@ function storedHistory(history: unknown): SpeedHistory | undefined {
   if (status !== "comparable") return { status };
   // No weeks reads as an empty list: the metrics are checked in both forms.
   const weeks = speedHistory.shape.weeks.safeParse(raw.weeks ?? []).data;
+  // Weeks Core cannot read or that are out of order are no trend, as on a fresh import.
   if (!weeks || weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!))
-    return undefined;
+    return { status: "unavailable" };
   const kept: SpeedHistory = { status, weeks };
   let given = false,
     any = false;
