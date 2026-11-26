@@ -37,7 +37,6 @@ import {
   endA2aCase,
   isA2aScenario,
   loadA2aChain,
-  otherAgentTurnIds,
   pollA2aChain,
   prepareA2aCase,
 } from "./eval-a2a";
@@ -546,7 +545,7 @@ async function pollA2aScenario(
   });
   if (step.kind === "waiting") return step;
   if (step.kind === "undelivered") {
-    await endA2aCase(await a2aCaseScope(step.turnIds));
+    const unsettled = await endA2aCase(await a2aCaseScope(step.turnIds));
     await closeA2aWorld(lane);
     const infrastructure: EvalInfrastructureFailure = {
       code: "chat_delivery_failed",
@@ -559,7 +558,11 @@ async function pollA2aScenario(
       outcome: {
         status: "ERROR",
         checks: [],
-        output: { infrastructure, notExecuted: false },
+        output: {
+          infrastructure,
+          notExecuted: false,
+          ...(unsettled.length ? { unsettledTurnIds: unsettled } : {}),
+        },
         error: `${infrastructure.message}: ${step.detail}`,
         turnIds: step.turnIds,
       },
@@ -567,7 +570,8 @@ async function pollA2aScenario(
   }
   const { turnIds, timedOut } = step;
   // Whatever is left of the case ends now, before it is read and judged.
-  await endA2aCase(await a2aCaseScope(turnIds));
+  const scope = await a2aCaseScope(turnIds);
+  const unsettled = await endA2aCase(scope);
   const { turns, merged } = await loadA2aChain(turnIds);
   const output = {
     ...scenarioOutput(merged),
@@ -591,7 +595,7 @@ async function pollA2aScenario(
   result.checks.push(...extra);
   result.total += extra.length;
   result.passed += extra.filter((check) => check.pass).length;
-  const roomLog = await a2aRoomLog(lane, context.startedAt);
+  const roomLog = await a2aRoomLog(lane, context.startedAt, scope);
   await closeA2aWorld(lane);
   const judged = await judgeEvalChain(
     turnIds,
@@ -623,10 +627,14 @@ async function pollA2aScenario(
       checks: result.checks,
       judge: judged?.verdict ?? null,
       judgeModel: judged?.model ?? null,
-      output: { ...output, roomLog },
+      output: {
+        ...output,
+        roomLog,
+        ...(unsettled.length ? { unsettledTurnIds: unsettled } : {}),
+      },
       turnIds: [
         ...turnIds,
-        ...(await otherAgentTurnIds(lane, context.startedAt)),
+        ...scope.turnIds.filter((id) => !turnIds.includes(id)),
       ],
     },
   };

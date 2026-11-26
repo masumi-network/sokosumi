@@ -38,6 +38,8 @@ const HANNAH_TASK = "EU marketplace pricing research";
 /** A wait still open this long after everything went quiet runs out now. */
 const QUIET_MS = 120_000;
 export const A2A_CHAIN_TIMEOUT_MS = 40 * 60_000;
+/** How long an ended case waits for its cancelled turns to stop before it is scored anyway. */
+const A2A_SETTLE_MS = 60_000;
 /** Failed publications of one chat effect before the case stops as an infrastructure error (~6 minutes of backoff). */
 export const A2A_DELIVERY_ATTEMPTS = 3;
 
@@ -319,16 +321,28 @@ export type A2aPoll =
    */
   | { kind: "undelivered"; turnIds: string[]; detail: string };
 
-/** The chat messages these turns posted: every one goes out through its effect. */
+/**
+ * The chat messages these turns posted: each tool message goes out through its
+ * effect, and an answer to a mention is the turn's response message.
+ */
 async function postedMessageIds(turnIds: string[]): Promise<string[]> {
-  const posted = await prisma.sokoBotEffectOutbox.findMany({
-    where: { purpose: "CHAT_MESSAGE", receipt: { turnId: { in: turnIds } } },
-    select: { payload: true },
-  });
-  return posted.flatMap(({ payload }) => {
-    const parsed = z.object({ messageId: z.string() }).safeParse(payload);
-    return parsed.success ? [parsed.data.messageId] : [];
-  });
+  const [posted, answers] = await Promise.all([
+    prisma.sokoBotEffectOutbox.findMany({
+      where: { purpose: "CHAT_MESSAGE", receipt: { turnId: { in: turnIds } } },
+      select: { payload: true },
+    }),
+    prisma.sokoBotTurn.findMany({
+      where: { id: { in: turnIds }, chatResponseMessageId: { not: null } },
+      select: { chatResponseMessageId: true },
+    }),
+  ]);
+  return [
+    ...posted.flatMap(({ payload }) => {
+      const parsed = z.object({ messageId: z.string() }).safeParse(payload);
+      return parsed.success ? [parsed.data.messageId] : [];
+    }),
+    ...answers.flatMap((turn) => turn.chatResponseMessageId ?? []),
+  ];
 }
 
 export interface A2aCaseScope {
@@ -390,7 +404,8 @@ async function caseDeliveryFailure(
       status: "failed",
       coworker: { baseURL: EVAL_COWORKER.baseURL },
       messageId: { in: scope.messageIds },
-      NOT: { error: EMPTY_COWORKER_RESPONSE },
+      // `not` alone would also drop a failure with no error recorded.
+      OR: [{ error: null }, { error: { not: EMPTY_COWORKER_RESPONSE } }],
     },
     select: { id: true, error: true },
   });
@@ -400,11 +415,23 @@ async function caseDeliveryFailure(
 }
 
 /**
- * Ends what the case left running: each of its active turns is cancelled as
- * the member it runs for (Juno's as Hannah), and its unsent messages and
- * their open mentions are closed, so none of it reaches the next case.
+ * Ends what the case left running: its open mentions are fenced, each active
+ * turn is cancelled as the member it runs for (Juno's as Hannah), its unsent
+ * messages are closed, so none of it reaches the next case, and it waits up
+ * to `settleMs` for the turns to stop. Returns the turns still running then.
  */
-export async function endA2aCase(scope: A2aCaseScope): Promise<void> {
+export async function endA2aCase(
+  scope: A2aCaseScope,
+  settleMs = A2A_SETTLE_MS,
+): Promise<string[]> {
+  // A mention already sent is fenced too: its answer checks the row before posting.
+  await prisma.chatRoomMention.updateMany({
+    where: {
+      status: { in: ["staged", "pending", "sent"] },
+      messageId: { in: scope.messageIds },
+    },
+    data: { status: "failed", error: "The eval case ended" },
+  });
   const active = await prisma.sokoBotTurn.findMany({
     where: {
       id: { in: scope.turnIds },
@@ -445,13 +472,20 @@ export async function endA2aCase(scope: A2aCaseScope): Promise<void> {
       leaseUntil: null,
     },
   });
-  await prisma.chatRoomMention.updateMany({
-    where: {
-      status: { in: ["staged", "pending"] },
-      messageId: { in: scope.messageIds },
-    },
-    data: { status: "failed", error: "The eval case ended" },
-  });
+  // Read and charged only once its turns stop: a cancel is a request.
+  const deadline = Date.now() + settleMs;
+  for (;;) {
+    const running = await prisma.sokoBotTurn.findMany({
+      where: {
+        id: { in: scope.turnIds },
+        status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+      },
+      select: { id: true },
+    });
+    if (running.length === 0 || Date.now() >= deadline)
+      return running.map((turn) => turn.id);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 }
 
 /**
@@ -489,22 +523,14 @@ export async function pollA2aChain(input: {
 
   const active = await prisma.sokoBotTurn.count({
     where: {
-      OR: [
-        { id: { in: turnIds } },
-        {
-          sokoBotId: { notIn: [lane.sokoBotId, lane.cusoBotId] },
-          workspaceId: lane.workspaceId,
-        },
-      ],
+      id: { in: scope.turnIds },
       status: { notIn: ["COMPLETED", "FAILED", "CANCELLED"] },
-      createdAt: { gte: startedAt },
     },
   });
   const inFlight = await prisma.chatRoomMention.count({
     where: {
       status: { in: ["staged", "pending", "sent"] },
-      createdAt: { gte: startedAt },
-      message: { room: { organizationId: lane.organizationId } },
+      messageId: { in: scope.messageIds },
     },
   });
   if (active > 0 || inFlight > 0) return { kind: "waiting" };
@@ -555,22 +581,6 @@ export async function pollA2aChain(input: {
   return { kind: "done", turnIds, timedOut: false };
 }
 
-/** Turns the other assistants ran during the case: their cost is the case's too. */
-export async function otherAgentTurnIds(
-  lane: EvalLaneRecord,
-  startedAt: Date,
-): Promise<string[]> {
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: {
-      workspaceId: lane.workspaceId,
-      sokoBotId: { notIn: [lane.sokoBotId, lane.cusoBotId] },
-      createdAt: { gte: startedAt },
-    },
-    select: { id: true },
-  });
-  return turns.map((turn) => turn.id);
-}
-
 /** The chain as one turn: the owner's route, every call, the last answer. */
 export async function loadA2aChain(turnIds: string[]) {
   const turns = await Promise.all(turnIds.map((id) => loadLabScenarioTurn(id)));
@@ -595,13 +605,23 @@ export async function loadA2aChain(turnIds: string[]) {
 }
 
 /** What every room of the lane said during the case, oldest first. */
-export async function a2aRoomLog(lane: EvalLaneRecord, startedAt: Date) {
+export async function a2aRoomLog(
+  lane: EvalLaneRecord,
+  startedAt: Date,
+  scope: A2aCaseScope,
+) {
   const messages = await prisma.chatRoomMessage.findMany({
     where: {
       room: { organizationId: lane.organizationId },
       createdAt: { gte: startedAt },
       deletedAt: null,
       content: { not: "" },
+      // People, Mira and the bot under test; another bot only for the case.
+      OR: [
+        { senderSokoBotId: null },
+        { senderSokoBotId: lane.sokoBotId },
+        { id: { in: scope.messageIds } },
+      ],
     },
     orderBy: { createdAt: "asc" },
     take: 60,

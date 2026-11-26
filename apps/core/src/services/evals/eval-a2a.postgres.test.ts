@@ -397,14 +397,22 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
         kind: "undelivered",
         detail: expect.stringContaining("dispatch threw"),
       });
+      await prisma.chatRoomMention.updateMany({
+        where: { messageId: asked.messageId },
+        data: { error: null },
+      });
+      expect(await poll(asked.turnId)).toMatchObject({
+        kind: "undelivered",
+        detail: expect.stringContaining("no error recorded"),
+      });
     } finally {
       await endCase(lane, coworkerId);
     }
   });
-  it("follows the case's mentions to Juno's answering turn and cancels it as Hannah", async () => {
+  it("scopes the case to Juno's answering turn: an unrelated Juno turn neither holds it open nor is cancelled", async () => {
     const [lane] = await ensureEvalLanes(1);
     if (!lane) throw new Error("no lane");
-    const { coworkerId, asked } = await askAndRelay(lane);
+    const { coworkerId, asked, poll } = await askAndRelay(lane);
     const { junoId } = (
       await prepareA2aCase(lane, scenario("a2a-ask-and-relay"))
     ).a2a as { junoId: string };
@@ -412,14 +420,17 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
       where: { id: junoId },
       select: { userId: true, workspaceId: true },
     });
-    const junoTurn = (chatMentionId: string | null) =>
+    const junoTurn = (
+      chatMentionId: string | null,
+      status: "RUNNING" | "COMPLETED",
+    ) =>
       prisma.sokoBotTurn.create({
         data: {
           sokoBotId: junoId,
           requestedByUserId: juno.userId,
           workspaceId: juno.workspaceId,
           source: "CHAT",
-          status: "RUNNING",
+          status,
           clientTurnId: randomUUID(),
           userMessage: "Answer the question",
           capabilityNames: [],
@@ -427,35 +438,79 @@ describe.skipIf(!enabled)("agent-to-agent eval world", () => {
           chatMentionId,
         },
       });
+    const status = async (id: string) =>
+      (
+        await prisma.sokoBotTurn.findUniqueOrThrow({
+          where: { id },
+          select: { status: true },
+        })
+      ).status;
     try {
-      const mention = await prisma.chatRoomMention.create({
-        data: { messageId: asked.messageId, sokoBotId: junoId, status: "sent" },
+      await prisma.sokoBotEffectOutbox.update({
+        where: { id: asked.effectId },
+        data: { status: "PUBLISHED" },
       });
-      const answering = await junoTurn(mention.id);
-      const unrelated = await junoTurn(null);
+      await prisma.chatRoomMention.updateMany({
+        where: { messageId: asked.messageId },
+        data: { status: "responded" },
+      });
+      const mention = await prisma.chatRoomMention.create({
+        data: {
+          messageId: asked.messageId,
+          sokoBotId: junoId,
+          status: "responded",
+        },
+      });
+      const answering = await junoTurn(mention.id, "COMPLETED");
+      const unrelated = await junoTurn(null, "RUNNING");
 
       const scope = await a2aCaseScope([asked.turnId]);
       expect(scope.turnIds).toEqual([asked.turnId, answering.id]);
-      expect(scope.messageIds).toEqual([asked.messageId]);
+      // The finished case is not held open by Juno's other work.
+      expect((await poll()).kind).toBe("done");
 
-      await endA2aCase(scope);
-      const status = async (id: string) =>
-        (
-          await prisma.sokoBotTurn.findUniqueOrThrow({
-            where: { id },
-            select: { status: true },
-          })
-        ).status;
-      expect(["CANCEL_REQUESTED", "CANCELLED"]).toContain(
-        await status(answering.id),
-      );
-      expect(await status(unrelated.id)).toBe("RUNNING");
+      // A late cancel settles before the case is read and charged.
       await prisma.sokoBotTurn.update({
-        where: { id: unrelated.id },
+        where: { id: answering.id },
+        data: { status: "RUNNING" },
+      });
+      await prisma.chatRoomMention.update({
+        where: { id: mention.id },
+        data: { status: "sent" },
+      });
+      // A Prisma query runs only once awaited.
+      const settleLater = setTimeout(() => {
+        prisma.sokoBotTurn
+          .update({
+            where: { id: answering.id },
+            data: { status: "CANCELLED" },
+          })
+          .then(() => undefined);
+      }, 1_000);
+      expect(await endA2aCase(scope, 10_000)).toEqual([]);
+      clearTimeout(settleLater);
+      expect(await status(answering.id)).toBe("CANCELLED");
+      // The sent mention is fenced, so a late answer cannot post.
+      expect(
+        await prisma.chatRoomMention.findUniqueOrThrow({
+          where: { id: mention.id },
+          select: { status: true },
+        }),
+      ).toEqual({ status: "failed" });
+      expect(await status(unrelated.id)).toBe("RUNNING");
+
+      // A turn that will not stop is reported, not waited for for ever.
+      await prisma.sokoBotTurn.update({
+        where: { id: answering.id },
+        data: { status: "CANCEL_REQUESTED" },
+      });
+      expect(await endA2aCase(scope, 600)).toEqual([answering.id]);
+      await prisma.sokoBotTurn.updateMany({
+        where: { id: { in: [answering.id, unrelated.id] } },
         data: { status: "CANCELLED" },
       });
     } finally {
       await endCase(lane, coworkerId);
     }
-  });
+  }, 30_000);
 });
