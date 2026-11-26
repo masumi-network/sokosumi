@@ -57,8 +57,11 @@ import {
 } from "@/services/cmo-media-maker.service";
 import {
   cmoMonthCalendarDue,
+  cmoMonthCalendarOutOfTries,
+  cmoMonthCalendarStopped,
   cmoMonthCalendarWritten,
   kickCmoMonthCalendar,
+  stopCmoMonthCalendar,
 } from "@/services/cmo-month-calendar.service";
 import {
   advanceCmoMonthReview,
@@ -936,7 +939,12 @@ export async function readCmoProduction(
     restart,
   });
   if (!context.subscribed) return read("waiting");
-  // Paid: Core writes the month's calendar before any piece is made.
+  // Paid: Core writes the month's calendar before any piece is made. A
+  // month Core stopped writing is stuck on our side, with no retry time.
+  if (byCore && cmoMonthCalendarStopped(plan.monthWriter, level)) {
+    writerFailed = true;
+    return read("stuck");
+  }
   if (byCore && !cmoMonthCalendarWritten(plan.monthWriter, level))
     return read("planning");
   // Runs' createdAt is PostgreSQL time, so their day is measured on it.
@@ -1029,6 +1037,10 @@ export async function advanceCmoProduction(
   if (current.state === "planning" && version && strategy?.monthWriter) {
     if (cmoMonthCalendarDue(strategy.monthWriter, current.level, now))
       kickCmoMonthCalendar(cuso, version.id, current.level);
+    else if (
+      cmoMonthCalendarOutOfTries(strategy.monthWriter, current.level, now)
+    )
+      await stopCmoMonthCalendar(cuso, version.id, current.level, now);
     return current;
   }
   // Core makes the pictures from the visuals saved so far, runs or no runs.
@@ -1337,7 +1349,7 @@ function syncStepFailed<T>(fallback: T, step: string): (error: unknown) => T {
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
   now: Date = new Date(),
-): Promise<{ checked: number }> {
+): Promise<{ checked: number; skipped: number }> {
   await pauseSeoAuditsOfEndedCusos();
   // A hiring strategy left short gets its next finish turn (or its fit).
   await import("@/services/cmo-strategy.service")
@@ -1358,6 +1370,7 @@ export async function syncCmoProduction(
     syncStepFailed(undefined, "industry"),
   );
   let checked = 0;
+  let skipped = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;
     try {
@@ -1367,6 +1380,7 @@ export async function syncCmoProduction(
       await keepCmoCompetitors(cuso, now);
       checked += 1;
     } catch (error) {
+      skipped += 1;
       // One event per Cuso skipped; the error can quote the plan or a prompt.
       recordCoreWarning(
         { operation: "cmo_production_sync", sokoBot: { id: cuso.sokoBotId } },
@@ -1379,5 +1393,5 @@ export async function syncCmoProduction(
       );
     }
   }
-  return { checked };
+  return { checked, skipped };
 }

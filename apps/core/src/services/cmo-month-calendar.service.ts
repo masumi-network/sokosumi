@@ -612,9 +612,27 @@ export function cmoMonthCalendarWritten(
   return writer?.state === "written" && writer.level === level;
 }
 
+/** Whether Core stopped writing the month for this plan level. */
+export function cmoMonthCalendarStopped(
+  writer: WriterState | undefined,
+  level: CmoVolumeLevel,
+): boolean {
+  return writer?.state === "stopped" && writer.level === level;
+}
+
+function writeTiming(writer: WriterState, now: Date) {
+  const started = writer.startedAt ? Date.parse(writer.startedAt) : null;
+  const ended = writer.endedAt ? Date.parse(writer.endedAt) : null;
+  const running = started !== null && (ended === null || ended < started);
+  const stale =
+    running && now.getTime() - started >= CMO_MONTH_CALENDAR_STALE_MS;
+  return { ended, running, stale };
+}
+
 /**
  * Whether a write may start now: none is running (or it went stale), and
- * after its tries ran out Core waits a few hours between tries.
+ * after its tries ran out Core waits a few hours between tries. Every try
+ * counts, a write that never ended included, so the cap holds.
  */
 export function cmoMonthCalendarDue(
   writer: WriterState,
@@ -622,14 +640,77 @@ export function cmoMonthCalendarDue(
   now: Date,
 ): boolean {
   if (cmoMonthCalendarWritten(writer, level)) return false;
-  const started = writer.startedAt ? Date.parse(writer.startedAt) : null;
-  const ended = writer.endedAt ? Date.parse(writer.endedAt) : null;
-  const running = started !== null && (ended === null || ended < started);
-  if (running) return now.getTime() - started >= CMO_MONTH_CALENDAR_STALE_MS;
+  const { ended, running, stale } = writeTiming(writer, now);
+  if (running && !stale) return false;
   const attempts = writer.level === level ? writer.attempts : 0;
   if (attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS) return false;
-  if (attempts < CMO_MONTH_CALENDAR_ATTEMPTS || ended === null) return true;
+  if (running || attempts < CMO_MONTH_CALENDAR_ATTEMPTS || ended === null)
+    return true;
   return now.getTime() - ended >= CMO_MONTH_CALENDAR_RETRY_MS;
+}
+
+/**
+ * Whether every try for this level is spent and none is still running: the
+ * last one ended short, or went stale without ending.
+ */
+export function cmoMonthCalendarOutOfTries(
+  writer: WriterState,
+  level: CmoVolumeLevel,
+  now: Date,
+): boolean {
+  if (writer.level !== level || writer.state === "written") return false;
+  if (writer.attempts < CMO_MONTH_CALENDAR_MAX_ATTEMPTS) return false;
+  const { running, stale } = writeTiming(writer, now);
+  return !running || stale;
+}
+
+/**
+ * Saves that Core stopped this level's month, for a last write that never
+ * ended (a crash or a deploy): the owner then reads that it is stuck on our
+ * side, not that Cuso is still planning.
+ */
+export async function stopCmoMonthCalendar(
+  cuso: Cuso,
+  versionId: string,
+  level: CmoVolumeLevel,
+  now: Date,
+): Promise<boolean> {
+  const stopped = await prisma.$transaction(async (tx) => {
+    const locked = await lockedPlan(tx, versionId);
+    const writer = locked?.plan.monthWriter;
+    if (
+      !locked ||
+      !writer ||
+      writer.state === "stopped" ||
+      !cmoMonthCalendarOutOfTries(writer, level, now)
+    )
+      return null;
+    const plan: MarketingStrategyPlan = {
+      ...locked.plan,
+      monthWriter: {
+        ...writer,
+        state: "stopped",
+        endedAt: now.toISOString(),
+        error: writer.error ?? "The last write never ended",
+      },
+    };
+    await tx.marketingStrategy.update({
+      where: { id: versionId },
+      data: { plan: jsonInput(plan) },
+    });
+    return writer.attempts;
+  });
+  if (stopped === null) return false;
+  emitCoreError(
+    { operation: "cmo_month_calendar", sokoBot: { id: cuso.sokoBotId } },
+    {
+      message: "Core could not write a whole CMO month",
+      why: `Its last of ${stopped} writes never ended; ${monthRetryNote(stopped)}`,
+      fix: "Look up this Cuso's earlier cmo_month_calendar events for the writes; the owner sees the month stuck on our side.",
+    },
+    { alert: monthStuckAlert(stopped) },
+  );
+  return true;
 }
 
 /** Reads the approved version under a row lock, for one write at a time. */
@@ -730,7 +811,11 @@ async function saveWrite(input: {
         monthWriter: own
           ? {
               ...writer,
-              state: input.whole ? "written" : "writing",
+              state: input.whole
+                ? "written"
+                : writer.attempts >= CMO_MONTH_CALENDAR_MAX_ATTEMPTS
+                  ? "stopped"
+                  : "writing",
               endedAt: input.now.toISOString(),
               error: input.whole ? undefined : input.error?.slice(0, 300),
               costUsd:

@@ -52,14 +52,6 @@ export function monthAdCount(calendar: readonly CalendarEntry[]): number {
     .length;
 }
 
-/** "171 posts", or "171 posts and 2 ads" when the month has ads. */
-export function monthLabel(calendar: readonly CalendarEntry[]): string {
-  const posts = monthPostCount(calendar);
-  const ads = monthAdCount(calendar);
-  const label = `${posts} ${posts === 1 ? "post" : "posts"}`;
-  return ads > 0 ? `${label} and ${ads} ${ads === 1 ? "ad" : "ads"}` : label;
-}
-
 /**
  * The posts a plan makes on each network, busiest first: X 84, LinkedIn 28.
  * `made` is the plan's share from `cmoMonthAtLevel`; a talking video not yet

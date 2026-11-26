@@ -64,6 +64,10 @@ export interface TurnLoopInput {
   stopped: AbortSignal;
   /** Told each step's reasoning summary as the step ends, when it has one. */
   onReasoning?: (summary: string) => Promise<void>;
+  historyAfterRound?: (
+    messages: ModelMessage[],
+    steps: Awaited<ReturnType<typeof streamModelCall>>["steps"],
+  ) => ModelMessage[];
   now?: () => number;
   /**
    * Save tools offered in their short form until one is called; the next
@@ -88,6 +92,7 @@ function modelIdOf(model: TurnLoopInput["model"]): string {
 
 export async function runTurnLoop(
   input: TurnLoopInput,
+  callModel: typeof streamModelCall = streamModelCall,
 ): Promise<TurnLoopResult> {
   const now = input.now ?? Date.now;
   const signal = () =>
@@ -95,14 +100,12 @@ export async function runTurnLoop(
       input.stopped,
       AbortSignal.timeout(Math.max(1_000, input.deadline - now())),
     ]);
-  const reportAt =
-    input.deadline -
-    (input.background
-      ? REPORT_RESERVE_MS
-      : Math.min(
-          FOREGROUND_REPORT_RESERVE_MS,
-          Math.max(0, input.deadline - now()) / 5,
-        ));
+  const remainingMs = Math.max(0, input.deadline - now());
+  const reportReserve = input.background
+    ? Math.min(REPORT_RESERVE_MS, remainingMs / 3)
+    : Math.min(FOREGROUND_REPORT_RESERVE_MS, remainingMs / 5);
+  const reportAt = input.deadline - reportReserve;
+  const minRoundMs = Math.min(MIN_ROUND_TIME_MS, reportReserve);
   const timeUp = () => now() >= reportAt;
   const admission = new StepAdmission(input.budget);
   // Set once a step is refused: the allowance is spent, and the one call
@@ -111,6 +114,21 @@ export async function runTurnLoop(
   const budgetSpent = () => {
     if (!admission.admit()) refused = true;
     return refused;
+  };
+  // Usage a call's steps carry beyond what its step callbacks booked: every
+  // input token counts once, whichever way the model call reported it.
+  let booked = 0;
+  const bookUnreported = (
+    steps: readonly { usage?: { inputTokens?: number | undefined } }[],
+  ) => {
+    const total = steps.reduce(
+      (sum, step) => sum + (step.usage?.inputTokens ?? 0),
+      0,
+    );
+    if (total > booked) admission.settle(total - booked);
+    booked = 0;
+    if (!admission.admit()) refused = true;
+    else admission.release();
   };
   let messages: ModelMessage[] = [{ role: "user", content: input.message }];
   let stepsLeft = input.maxSteps;
@@ -122,7 +140,7 @@ export async function runTurnLoop(
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
     if (budgetSpent()) break;
-    const result = await streamModelCall({
+    const result = await callModel({
       model: input.model,
       system: input.system,
       messages: compactHistory(messages) ?? messages,
@@ -148,6 +166,7 @@ export async function runTurnLoop(
         modelIdOf(input.model),
       ),
       onStepFinish: async (step) => {
+        booked += step.usage.inputTokens ?? 0;
         admission.settle(step.usage.inputTokens);
         const summary = stepReasoningSummary(step);
         if (summary) await input.onReasoning?.(summary);
@@ -155,6 +174,7 @@ export async function runTurnLoop(
       abortSignal: signal(),
       maxRetries: 1,
     }).finally(() => admission.release());
+    bookUnreported(result.steps);
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
@@ -169,7 +189,9 @@ export async function runTurnLoop(
       : 0;
     // Every step's messages: `response.messages` holds the last step's alone,
     // and a nudged round that cannot see its own calls does the brief again.
-    messages = [...messages, ...result.responseMessages];
+    messages = input.historyAfterRound
+      ? input.historyAfterRound(messages, result.steps)
+      : [...messages, ...result.responseMessages];
     // A short-form save ended the round: the next offers the full tool, as
     // long as steps, time and tokens all leave room for it.
     if (
@@ -195,7 +217,7 @@ export async function runTurnLoop(
       round < MAX_KEEP_GOING_ROUNDS &&
       stepsLeft > 0 &&
       !refused &&
-      reportAt - now() > MIN_ROUND_TIME_MS;
+      reportAt - now() > minRoundMs;
     if (!keepGoing) break;
     messages.push({ role: "user", content: KEEP_GOING_PROMPT });
   }
@@ -214,7 +236,7 @@ export async function runTurnLoop(
     ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
     : cutOff && (finishReason === "tool-calls" || !text.trim());
   if (needsReport) {
-    const result = await streamModelCall({
+    const result = await callModel({
       model: input.model,
       system: input.system,
       messages: [

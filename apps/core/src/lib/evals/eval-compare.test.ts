@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aboveUsual,
+  caseWeightedPassRate,
   countOutcomes,
   evalOutcome,
   median,
@@ -14,8 +15,23 @@ describe("passRate", () => {
     expect(passRate(["SKIPPED"])).toBeNull();
   });
 
-  it("counts an error as not passing", () => {
-    expect(passRate(["PASSED", "ERROR"])).toBe(0.5);
+  it("leaves out errors: a case that could not run has no verdict", () => {
+    expect(passRate(["PASSED", "ERROR"])).toBe(1);
+    expect(passRate(["ERROR", "ERROR"])).toBeNull();
+  });
+});
+
+describe("caseWeightedPassRate", () => {
+  it("counts every case once, whatever its repeats", () => {
+    // A judged case passing 2 of 2 and an unjudged case failing 1 of 1.
+    const rates = [passRate(["PASSED", "PASSED"]), passRate(["FAILED"])];
+    expect(caseWeightedPassRate(rates)).toBe(0.5);
+    expect(caseWeightedPassRate([passRate(["PASSED"]), 0])).toBe(0.5);
+  });
+
+  it("leaves out cases without a verdict", () => {
+    expect(caseWeightedPassRate([1, null])).toBe(1);
+    expect(caseWeightedPassRate([null])).toBeNull();
   });
 });
 
@@ -80,8 +96,23 @@ describe("evalOutcome", () => {
   );
 
   it("keeps genuine behavior failures visible when another repeat has an error", () => {
-    expect(evalOutcome(["FAILED", "ERROR"], [1])).toBe("regressed");
     expect(evalOutcome(["PASSED", "FAILED", "ERROR"], [])).toBe("flaky");
+  });
+
+  it("does not count an error as a vote for a regression", () => {
+    // Codex round 9: one failure and one infrastructure error after weeks of passing.
+    expect(evalOutcome(["FAILED", "ERROR"], [1, 1, 1, 1, 1])).toBe("flaky");
+    expect(evalOutcome(["FAILED", "FAILED", "ERROR"], [1, 1])).toBe(
+      "regressed",
+    );
+    expect(evalOutcome(["FAILED"], [1])).toBe("regressed");
+  });
+
+  it("is not fixed when the baseline could only error: errors are no verdict", () => {
+    const baseline = passRate(["ERROR"]);
+    expect(baseline).toBeNull();
+    const history = [baseline].filter((rate): rate is number => rate !== null);
+    expect(evalOutcome(["PASSED"], history)).toBe("passing");
   });
 
   it("waits while no repeat has finished", () => {
@@ -101,6 +132,13 @@ describe("usual cost and duration", () => {
   it("says nothing with fewer than three weekly runs", () => {
     expect(usualValue([1, 2])).toBeNull();
     expect(aboveUsual(10, usualValue([1, 2]))).toBe(false);
+  });
+
+  it("never reaches past the last five weekly runs to fill gaps", () => {
+    // No value in the five recent weeks; weeks six to eight have one.
+    expect(usualValue([null, null, null, null, null, 1, 1, 1])).toBeNull();
+    expect(usualValue([null, 1, null, 2, null, 3, 3])).toBeNull();
+    expect(usualValue([1, null, 2, null, 3, 100])).toBe(2);
   });
 
   it("flags only values above 1.3 times the usual one", () => {

@@ -195,6 +195,8 @@ describe("isPlatformTurnFailure", () => {
       "busy",
       "start_aborted",
       "runtime_start_failed",
+      "runner_exited",
+      "sandbox_launch_failed",
     ])
       expect(isPlatformTurnFailure(kind)).toBe(true);
     for (const kind of [null, "validation", "action_failed", "not_found"])
@@ -685,6 +687,8 @@ describe("SokoBotSchedulesSyncService", () => {
   });
 
   it.each([
+    "runner_exited",
+    "sandbox_launch_failed",
     "GatewayInternalServerError",
     "AI_StreamProviderError",
     "turn_deadline_exceeded",

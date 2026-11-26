@@ -33,6 +33,7 @@ const report = {
     counts: { regressed: 1, fixed: 1, passing: 1 },
     costlier: 1,
     slower: 0,
+    passRate: 2 / 3,
     passed: 4,
     scored: 6,
     open: 0,
@@ -213,7 +214,7 @@ test("evals run --wait --tick moves the run on until it ends, then reports", asy
   assert.deepEqual(sleeps, [20_000]);
   const text = output();
   assert.match(text, /running: 2 to go/);
-  assert.match(text, /67% passed \(4 of 6\)/);
+  assert.match(text, /67% passed \(4 of 6 repeats\)/);
   assert.match(
     text,
     /REGRESSED ambiguous-request 0% \(was 100%\)  Asks a question: no question/,

@@ -7326,6 +7326,12 @@ export const EvalRunReportSchema = {
                 slower: {
                     type: 'integer'
                 },
+                passRate: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
                 passed: {
                     type: 'integer'
                 },
@@ -7343,6 +7349,7 @@ export const EvalRunReportSchema = {
                 'counts',
                 'costlier',
                 'slower',
+                'passRate',
                 'passed',
                 'scored',
                 'open',
@@ -35748,7 +35755,8 @@ export const MarketingStrategySchema = {
                                     enum: [
                                         'examples',
                                         'writing',
-                                        'written'
+                                        'written',
+                                        'stopped'
                                     ]
                                 },
                                 level: {
@@ -37787,7 +37795,8 @@ export const MarketingStrategyRequestSchema = {
                             enum: [
                                 'examples',
                                 'writing',
-                                'written'
+                                'written',
+                                'stopped'
                             ]
                         },
                         level: {
@@ -63301,7 +63310,8 @@ export const CmoPlanSchema = {
                     enum: [
                         'examples',
                         'writing',
-                        'written'
+                        'written',
+                        'stopped'
                     ]
                 },
                 level: {

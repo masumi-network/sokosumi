@@ -7,8 +7,11 @@ import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
+import * as exaAgent from "@/lib/exa-agent";
+import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
+import * as portfolio from "@/services/fundraising-paths.service";
 
 const {
   botFindFirstMock,
@@ -307,10 +310,26 @@ vi.mock("@/helpers/data-table", () => ({
 }));
 
 const social = vi.hoisted(() => ({
-  ownMessage: vi.fn(async () => ({
-    problem: null as string | null,
-    costUsd: 0,
-  })),
+  ownMessage: vi.fn(
+    async (_post: {
+      postId: string;
+      workspaceId: string;
+      text: string;
+    }): Promise<{
+      problem: string | null;
+      costUsd: number;
+      waitsForBatch?: true;
+    }> => ({
+      problem: null,
+      costUsd: 0,
+    }),
+  ),
+  stamp: vi.fn(
+    async (_post: {
+      postId: string;
+      workspaceId: string;
+    }): Promise<string | null> => null,
+  ),
   listAccounts: vi.fn(),
   project: vi.fn(),
   listStatistics: vi.fn(),
@@ -397,6 +416,12 @@ vi.mock("@/services/social-posts.service", () => ({
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
   ownMessageProblem: social.ownMessage,
+  monthSiblingsStamp: social.stamp,
+  MonthPostsChangedError: class extends Error {
+    constructor() {
+      super("Another post of this month changed while this edit was checked.");
+    }
+  },
   withSocialPostBatch: (_unsaved: ReadonlySet<string>, run: () => unknown) =>
     run(),
 }));
@@ -668,6 +693,7 @@ vi.mock("@/lib/db/transaction", () => ({
           findUnique: transactionToolCallFindUniqueMock,
           findMany: transactionToolCallFindManyMock,
           update: transactionToolCallUpdateMock,
+          updateMany: toolCallUpdateManyMock,
           upsert: vi.fn().mockResolvedValue({}),
         },
         project: { findFirst: transactionProjectFindFirstMock },
@@ -822,6 +848,7 @@ import {
 import * as scheduleService from "@/services/soko-bot-schedule.service";
 import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
+import * as fundraising from "./fundraising";
 
 const SCOPE = {
   userId: "user_1",
@@ -1005,6 +1032,195 @@ describe("SokoBotRuntimeService authorization", () => {
       id: DECISION_ID,
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
+    });
+  });
+
+  describe("Core tool dispatch", () => {
+    function serviceForDispatch() {
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      const service = new SokoBotRuntimeService();
+      service["requireMutationAuthority"] = vi
+        .fn()
+        .mockResolvedValue(undefined);
+      service.authorize = vi.fn().mockResolvedValue({
+        askedByKind: "OWNER",
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+        toolCallLimit: 10,
+      });
+      return service;
+    }
+
+    it.each(fundraising.FUNDRAISING_CAPABILITIES)(
+      "returns and records the %s handler result",
+      async (capability) => {
+        const service = serviceForDispatch();
+        const result = { found: 10 };
+        const handler = vi.fn().mockResolvedValue(result);
+        service["executeFundraisingTool"] = handler;
+        const call = {
+          ...SCOPE,
+          capability,
+          toolCallId: "research",
+          input: {},
+        };
+
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        expect(handler).toHaveBeenCalledWith(call, expect.anything());
+        expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "COMPLETED", result }),
+          }),
+        );
+      },
+    );
+
+    it.each([
+      { capability: "find_investors", input: {}, paid: true },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId, research: true },
+        paid: true,
+      },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId },
+        paid: false,
+      },
+    ] as const)(
+      "handles an interrupted $capability call according to its cost (paid=$paid)",
+      async ({ capability, input, paid }) => {
+        const service = serviceForDispatch();
+        const call = { ...SCOPE, capability, toolCallId: "interrupted", input };
+        toolCallFindUniqueMock.mockResolvedValue({
+          id: "receipt",
+          ...call,
+          inputHash: actionInputHash(input),
+          status: "PENDING",
+        });
+        const handler = vi.fn().mockResolvedValue({ paths: [] });
+        service["executeFundraisingTool"] = handler;
+        if (paid) {
+          await expect(service.executeTool(call)).rejects.toThrow(
+            SokoBotRuntimeConflictError,
+          );
+          expect(handler).not.toHaveBeenCalled();
+        } else {
+          await expect(service.executeTool(call)).resolves.toEqual({
+            paths: [],
+          });
+          expect(handler).toHaveBeenCalledOnce();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "retains the paid operation if a refusal follows dispatch (dispatched=%s)",
+      async (dispatched) => {
+        const service = serviceForDispatch();
+        workspaceFindUniqueMock.mockResolvedValueOnce({
+          organizationId: "org_1",
+        });
+        getEnvMock.mockReturnValue({
+          ...getEnvMock(),
+          FUNDRAISING_ORGANIZATION_IDS: ["org_1"],
+        });
+        const provider = vi.spyOn(exaAgent, "runExaAgent").mockResolvedValue({
+          runId: "research",
+          costUsd: 0.01,
+          structured: {},
+          text: null,
+          citations: [],
+        });
+        const research = vi
+          .spyOn(portfolio, "researchPortfolio")
+          .mockImplementation(async (_actor, _contact, deps) => {
+            if (dispatched)
+              await deps?.run({
+                query: "portfolio",
+                effort: "medium",
+                outputSchema: {},
+              });
+            throw badRequest("Contact left the investor list");
+          });
+        try {
+          await expect(
+            service.executeTool({
+              ...SCOPE,
+              capability: "investor_warm_paths",
+              input: { contactId: SCOPE.sokoBotId, research: true },
+              toolCallId: "warm",
+            }),
+          ).rejects.toThrow("Contact left the investor list");
+          expect(provider).toHaveBeenCalledTimes(dispatched ? 1 : 0);
+          const data = toolCallUpdateManyMock.mock.lastCall?.[0].data;
+          expect(data.disposition).toBe(dispatched ? "UNKNOWN" : "REJECTED");
+          if (dispatched) expect(data).not.toHaveProperty("operationKey");
+          else expect(data.operationKey).toBeNull();
+        } finally {
+          research.mockRestore();
+          provider.mockRestore();
+        }
+      },
+    );
+
+    it("checks current fundraising access before returning a completed search receipt", async () => {
+      const service = serviceForDispatch();
+      const call = {
+        ...SCOPE,
+        capability: "find_investors",
+        toolCallId: "search",
+        input: {},
+      } as const;
+      const result = { found: 10 };
+      const handler = vi.fn().mockResolvedValue(result);
+      service["executeFundraisingTool"] = handler;
+      await expect(service.executeTool(call)).resolves.toEqual(result);
+      toolCallFindUniqueMock.mockResolvedValue({
+        ...call,
+        id: "receipt",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        inputHash: actionInputHash(call.input),
+        result,
+      });
+      const policy = vi
+        .spyOn(fundraising, "fundraisingActor")
+        .mockResolvedValueOnce({
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+          sokoBotId: SCOPE.sokoBotId,
+          organizationId: "org",
+        })
+        .mockRejectedValueOnce(new Error("Fundraising disabled"));
+      try {
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        await expect(service.executeTool(call)).rejects.toThrow(
+          "Fundraising disabled",
+        );
+        expect(policy).toHaveBeenCalledTimes(2);
+        expect(handler).toHaveBeenCalledOnce();
+      } finally {
+        policy.mockRestore();
+      }
+    });
+
+    it("fails a tool without a Core handler instead of recording an empty success", async () => {
+      const service = serviceForDispatch();
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "workspace_read",
+          toolCallId: "misrouted",
+          input: { path: "brief.md" },
+        }),
+      ).rejects.toThrow(SokoBotRuntimeValidationError);
+      expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
     });
   });
 
@@ -8293,6 +8509,255 @@ describe("Soko Bot project social tools", () => {
       ],
     });
     expect(social.update).toHaveBeenCalledTimes(1);
+  });
+
+  describe("a batch where one post takes another's words", () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b2";
+    const wait = {
+      problem:
+        'Wait for another post of this batch: this text says nearly what the post "Fees" says now.',
+      costUsd: 0,
+      waitsForBatch: true as const,
+    };
+    const batch = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "swap",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "Fees" },
+            { postId: otherId, revision: 1, text: "Staking" },
+          ],
+        },
+      });
+
+    // Codex round 4 (#8243): A saved B's words, then B's edit failed and kept
+    // them. A now waits for B and is refused once B keeps its words.
+    it("saves neither when the other post's edit fails", async () => {
+      social.ownMessage
+        .mockResolvedValueOnce(wait)
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+        .mockResolvedValueOnce({
+          problem:
+            'Rewrite the post: it says nearly what the post "Fees" says.',
+          costUsd: 0,
+        });
+      social.update.mockRejectedValueOnce(
+        new Error("Social post was modified, reload and retry"),
+      );
+
+      const result = await batch();
+
+      expect(result).toEqual({
+        saved: [],
+        refused: [
+          {
+            postId: otherId,
+            problem: "Social post was modified, reload and retry",
+          },
+          {
+            postId,
+            problem:
+              'Rewrite the post: it says nearly what the post "Fees" says.',
+          },
+        ],
+      });
+      expect(social.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("saves the waiting post after the other one got new words", async () => {
+      social.ownMessage
+        .mockResolvedValueOnce(wait)
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 })
+        .mockResolvedValueOnce({ problem: null, costUsd: 0 });
+      social.update
+        .mockResolvedValueOnce({ ...post, id: otherId })
+        .mockResolvedValueOnce(post);
+
+      const result = await batch();
+
+      expect(result).toEqual({
+        saved: [
+          { postId: otherId, revision: 2, status: "DRAFT" },
+          { postId, revision: 2, status: "DRAFT" },
+        ],
+        refused: [],
+      });
+    });
+
+    it("refuses two posts that wait on each other", async () => {
+      social.ownMessage.mockResolvedValueOnce(wait).mockResolvedValueOnce(wait);
+
+      const result = await batch();
+
+      expect(result).toMatchObject({
+        saved: [],
+        refused: [
+          {
+            postId,
+            problem: expect.stringContaining("Neither could be saved"),
+          },
+          {
+            postId: otherId,
+            problem: expect.stringContaining("Neither could be saved"),
+          },
+        ],
+      });
+      expect(social.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Codex round 4 (#8243): the deadline was checked only before each edit.
+  it("ends a batch at its deadline although an edit is still running", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const otherId = "0190e0c9-0000-7000-8000-0000000000b3";
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      const running = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: "slow",
+        input: {
+          projectId,
+          posts: [
+            { postId, revision: 2, text: "Slow" },
+            { postId: otherId, revision: 1, text: "Next" },
+          ],
+        },
+      });
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      await expect(running).resolves.toEqual({
+        saved: [],
+        refused: [],
+        stillSaving: postId,
+        notTried: [otherId],
+        next: expect.stringContaining("may still be saved"),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Codex round 11 (#8277): a 20-second access read made the batch answer at
+  // 120 seconds, after the tool's 115-second timeout.
+  it("counts a slow access read into the batch's deadline", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const owner = social.owner.getMockImplementation();
+      social.owner.mockImplementationOnce(async (...args: unknown[]) => {
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+        return owner?.(...args);
+      });
+      social.update.mockReturnValueOnce(new Promise(() => {}));
+      let answered = false;
+      const running = new SokoBotRuntimeService()
+        .executeTool({
+          ...SCOPE,
+          capability: "update_social_posts",
+          toolCallId: "slow-access",
+          input: { projectId, posts: [{ postId, revision: 2, text: "Slow" }] },
+        })
+        .finally(() => {
+          answered = true;
+        });
+
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      expect(answered).toBe(true);
+      await expect(running).resolves.toMatchObject({ stillSaving: postId });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Codex round 11 (#8277): two batches checked at once each passed against
+  // the other's old words, and both saved "April release.".
+  it("saves the same words once when two batches are checked at the same time", async () => {
+    const otherId = "0190e0c9-0000-7000-8000-0000000000b4";
+    const rows = new Map([
+      [postId, { text: "Launch notes.", revision: 2 }],
+      [otherId, { text: "Community update.", revision: 2 }],
+    ]);
+    social.stamp.mockImplementation(async ({ postId: own }) =>
+      [...rows]
+        .filter(([id]) => id !== own)
+        .map(([id, row]) => `${id}:${row.revision}`)
+        .join(),
+    );
+    let checks = 0;
+    const bothChecking = Promise.withResolvers<void>();
+    social.ownMessage.mockImplementation(async ({ postId: own, text }) => {
+      if ((checks += 1) === 2) bothChecking.resolve();
+      if (checks <= 2) await bothChecking.promise;
+      const same = [...rows].find(
+        ([id, row]) => id !== own && row.text === text,
+      );
+      return {
+        problem: same
+          ? `Rewrite the post: it says nearly what the post "${same[1].text}" says.`
+          : null,
+        costUsd: 0,
+      };
+    });
+    social.update.mockImplementation(
+      async (change: { postId: string; text: string }) => {
+        const row = rows.get(change.postId)!;
+        row.text = change.text;
+        row.revision += 1;
+        return { ...post, id: change.postId, revision: row.revision };
+      },
+    );
+    // One transaction at a time, as Serializable makes the second see the first.
+    const run = serializableTransactionMock.getMockImplementation()!;
+    let tail = Promise.resolve();
+    serializableTransactionMock.mockImplementation(
+      (...args: Parameters<typeof run>) => {
+        const next = tail.then(() => run(...args));
+        tail = next.then(
+          () => undefined,
+          () => undefined,
+        );
+        return next;
+      },
+    );
+    const batch = (id: string, key: string) =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_posts",
+        toolCallId: key,
+        input: {
+          projectId,
+          posts: [{ postId: id, revision: 2, text: "April release." }],
+        },
+      });
+
+    try {
+      const results = (await Promise.all([
+        batch(postId, "first"),
+        batch(otherId, "second"),
+      ])) as { saved: unknown[]; refused: { problem: string }[] }[];
+
+      expect(results.flatMap((result) => result.saved)).toHaveLength(1);
+      expect(results.flatMap((result) => result.refused)).toEqual([
+        expect.objectContaining({
+          problem: expect.stringContaining('says nearly what the post "April'),
+        }),
+      ]);
+      expect(
+        [...rows.values()].filter((row) => row.text === "April release."),
+      ).toHaveLength(1);
+    } finally {
+      serializableTransactionMock.mockImplementation(run);
+      social.stamp.mockImplementation(async () => null);
+      social.ownMessage.mockImplementation(async () => ({
+        problem: null,
+        costUsd: 0,
+      }));
+      social.update.mockReset();
+    }
   });
 
   it("refuses a batch that names one post twice", async () => {

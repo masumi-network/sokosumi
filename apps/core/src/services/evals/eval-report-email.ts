@@ -10,6 +10,10 @@ function escapeHtml(text: string): string {
     .replaceAll('"', "&quot;");
 }
 
+function percent(rate: number | null): string {
+  return rate === null ? "–" : `${Math.round(rate * 100)}%`;
+}
+
 function money(usd: number | null): string {
   return usd === null ? "–" : `$${usd.toFixed(2)}`;
 }
@@ -57,7 +61,7 @@ export async function sendEvalRegressionEmail(runId: string): Promise<boolean> {
   const lines = [
     ...regressed.map(
       (evalCase) =>
-        `Regressed: ${evalCase.title} (${evalCase.caseId}): ${Math.round((evalCase.passRate ?? 0) * 100)}%, was ${Math.round((evalCase.baselinePassRate ?? 0) * 100)}%. ${reason(evalCase).slice(0, 200)}`,
+        `Regressed: ${evalCase.title} (${evalCase.caseId}): ${percent(evalCase.passRate)}, was ${percent(evalCase.baselinePassRate)}. ${reason(evalCase).slice(0, 200)}`,
     ),
     ...costlier.map(
       (evalCase) =>

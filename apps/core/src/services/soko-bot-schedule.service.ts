@@ -22,13 +22,20 @@ export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
 /** Consecutive failed runs after which a schedule switches itself off. */
 export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
 
-/** Turn failures of the platform (runtime, deploy, limit), not the schedule's. */
+/**
+ * Turn failures of the platform (runtime, sandbox, deploy, limit), not the
+ * schedule's. The sandbox supervisor reports a runner that died as
+ * `runner_exited` and a sandbox that never started as `sandbox_launch_failed`.
+ */
 const PLATFORM_TURN_FAILURES: ReadonlySet<string> = new Set([
   AI_BUDGET_EXCEEDED,
   "busy",
+  "runner_exited",
   "runtime_start_ambiguous",
   "runtime_start_failed",
   "runtime_stream_interrupted",
+  "runtime_unreachable",
+  "sandbox_launch_failed",
   "start_aborted",
   "turn_deadline_exceeded",
 ]);

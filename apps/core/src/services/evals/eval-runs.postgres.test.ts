@@ -633,6 +633,167 @@ describe.skipIf(!enabled)("eval runs", () => {
     expect(report.summary).toMatchObject({ costlier: 1, slower: 1 });
   });
 
+  it("keeps errors, stale weeks and extra repeats out of the comparison", async () => {
+    const weekly = (
+      index: number,
+      rows: {
+        caseId: string;
+        status: "PASSED" | "FAILED" | "ERROR";
+        cost?: number;
+      }[],
+    ) =>
+      prisma.evalRun.create({
+        data: {
+          trigger: "DAILY",
+          status: "COMPLETED",
+          suites: ["soko-bot"],
+          caseIds: [],
+          repeats: 1,
+          environment: "mainnet",
+          createdAt: new Date(Date.now() - (10 - index) * 86_400_000),
+          results: {
+            create: rows.map((row, position) => ({
+              caseId: row.caseId,
+              suite: "soko-bot",
+              repeat: 1,
+              position,
+              status: row.status,
+              costUsdMicros:
+                row.cost === undefined ? null : BigInt(row.cost * 1e6),
+              durationMs: row.cost === undefined ? null : 60_000,
+            })),
+          },
+        },
+      });
+    // Weeks 6–8 (oldest) measured chat-post; the five recent weeks could
+    // only error, so they have no cost and no verdict.
+    for (let index = 0; index < 8; index += 1)
+      await weekly(
+        index,
+        index < 3
+          ? [{ caseId: "chat-post", status: "PASSED", cost: 1 }]
+          : [{ caseId: "chat-post", status: "ERROR" }],
+      );
+    const run = await prisma.evalRun.create({
+      data: {
+        trigger: "MANUAL",
+        status: "COMPLETED",
+        suites: ["soko-bot"],
+        caseIds: [],
+        repeats: 2,
+        environment: "mainnet",
+        results: {
+          create: [
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 0,
+              status: "PASSED",
+              costUsdMicros: BigInt(4_000_000),
+              durationMs: 240_000,
+            },
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 2,
+              position: 0,
+              status: "PASSED",
+              costUsdMicros: BigInt(4_000_000),
+              durationMs: 240_000,
+            },
+            {
+              caseId: "files-review",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 1,
+              status: "FAILED",
+            },
+          ],
+        },
+      },
+    });
+    const report = await getEvalRunReport(run.id);
+    const chatPost = report.cases.find(
+      (evalCase) => evalCase.caseId === "chat-post",
+    );
+    expect(chatPost).toMatchObject({
+      outcome: "passing",
+      usualCostUsd: null,
+      costlier: false,
+      slower: false,
+    });
+    expect(chatPost?.history.slice(0, 5)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(report.summary.passRate).toBe(0.5);
+    const listed = await listEvalRuns(1);
+    expect(listed[0]?.id).toBe(run.id);
+    expect(listed[0]?.scores["soko-bot"]?.passRate).toBe(0.5);
+  });
+
+  it("compares with the last week that gave a verdict, past a week of errors only", async () => {
+    // Codex round 9: weeks at 100%, then an error-only week, then a failure.
+    for (const [index, status] of (
+      ["PASSED", "PASSED", "PASSED", "ERROR"] as const
+    ).entries())
+      await prisma.evalRun.create({
+        data: {
+          trigger: "DAILY",
+          status: "COMPLETED",
+          suites: ["soko-bot"],
+          caseIds: [],
+          repeats: 1,
+          environment: "mainnet",
+          createdAt: new Date(Date.now() - (5 - index) * 86_400_000),
+          results: {
+            create: [
+              {
+                caseId: "chat-post",
+                suite: "soko-bot",
+                repeat: 1,
+                position: 0,
+                status,
+              },
+            ],
+          },
+        },
+      });
+    const run = await prisma.evalRun.create({
+      data: {
+        trigger: "MANUAL",
+        status: "COMPLETED",
+        suites: ["soko-bot"],
+        caseIds: [],
+        repeats: 1,
+        environment: "mainnet",
+        results: {
+          create: [
+            {
+              caseId: "chat-post",
+              suite: "soko-bot",
+              repeat: 1,
+              position: 0,
+              status: "FAILED",
+            },
+          ],
+        },
+      },
+    });
+    const report = await getEvalRunReport(run.id);
+    expect(report.cases[0]).toMatchObject({
+      caseId: "chat-post",
+      outcome: "regressed",
+      passRate: 0,
+      baselinePassRate: 1,
+    });
+    expect(report.cases[0]?.history.slice(0, 2)).toEqual([null, 1]);
+  });
+
   it("gives judged cases a second repeat in the weekly run, judged by the cheaper model", async () => {
     const weekly = await createWeeklyEvalRun();
     if (!weekly) throw new Error("No weekly run");

@@ -3,11 +3,36 @@ import { badRequest } from "@/helpers/error";
 import { persistedErrorDetail } from "./seller-recovery";
 
 describe("persistedErrorDetail", () => {
-  it("keeps Core's own refusal although the post it quotes looks like a card number", () => {
-    const refusal =
-      'Rewrite the post: it says nearly what the post "Order line 4111 1111 1111 1111 ships today" says.';
+  it("keeps Core's own refusal but redacts a card number in the post it quotes", () => {
+    expect(
+      persistedErrorDetail(
+        badRequest(
+          'Rewrite the post: it says nearly what the post "Order line 4111 1111 1111 1111 ships today" says.',
+        ),
+      ),
+    ).toBe(
+      'Rewrite the post: it says nearly what the post "[Sensitive value removed]" says.',
+    );
+  });
 
-    expect(persistedErrorDetail(badRequest(refusal))).toBe(refusal);
+  it("keeps an opening refusal countable while redacting the key it quotes", () => {
+    expect(
+      persistedErrorDetail(
+        badRequest(
+          `Rewrite the post's first line: “api_key=sk-live-abcdefghijklmnop1234” gives no reason to tap "see more".`,
+        ),
+      ),
+    ).toBe(
+      `Rewrite the post's first line: “[Sensitive value removed]” gives no reason to tap "see more".`,
+    );
+  });
+
+  it("redacts a whole refusal whose customer value is not quoted", () => {
+    expect(
+      persistedErrorDetail(
+        badRequest("Not saved: the card 4111 1111 1111 1111 is in the post."),
+      ),
+    ).toBe("[Sensitive value removed]");
   });
 
   it("keeps prices such as 150 ADA or 3% or a minimum of 2 ADA", () => {

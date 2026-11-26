@@ -1763,6 +1763,7 @@ export type EvalRunReport = {
         };
         costlier: number;
         slower: number;
+        passRate: number | null;
         passed: number;
         scored: number;
         open: number;
@@ -9617,7 +9618,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         changes?: Array<string>;
         fitted?: Array<string>;
         monthWriter?: {
-            state: 'examples' | 'writing' | 'written';
+            state: 'examples' | 'writing' | 'written' | 'stopped';
             level?: 'steady' | 'active' | 'all_in';
             start?: string;
             attempts?: number;
@@ -9967,7 +9968,7 @@ export type MarketingStrategyRequest = {
         changes?: Array<string>;
         fitted?: Array<string>;
         monthWriter?: {
-            state: 'examples' | 'writing' | 'written';
+            state: 'examples' | 'writing' | 'written' | 'stopped';
             level?: 'steady' | 'active' | 'all_in';
             start?: string;
             attempts?: number;
@@ -15513,7 +15514,7 @@ export type CmoPlan = {
     changes?: Array<string>;
     fitted?: Array<string>;
     monthWriter?: {
-        state: 'examples' | 'writing' | 'written';
+        state: 'examples' | 'writing' | 'written' | 'stopped';
         level?: 'steady' | 'active' | 'all_in';
         start?: string;
         attempts?: number;

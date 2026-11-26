@@ -8,16 +8,16 @@ import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 import mountSyncSokoBotSchedules from "./get";
 
-const { pending, purge, reconcileTurn, run, syncDueSchedules } = vi.hoisted(
-  () => ({
+const { pending, purge, reconcileTurn, reportWork, run, syncDueSchedules } =
+  vi.hoisted(() => ({
     pending: [] as Promise<unknown>[],
     /** The run the mocked handler starts, or none to run inside the request. */
     run: { syncRunId: undefined as string | undefined },
     purge: vi.fn(),
     reconcileTurn: vi.fn(),
+    reportWork: vi.fn(),
     syncDueSchedules: vi.fn(),
-  }),
-);
+  }));
 
 vi.mock("@vercel/functions", () => ({
   waitUntil: vi.fn((work: Promise<unknown>) => {
@@ -58,7 +58,7 @@ vi.mock("../handler.js", () => ({
         msRemaining: () => 60_000,
         shouldContinue: () => true,
         log,
-        reportWork: () => undefined,
+        reportWork,
       });
       log.emit();
     };
@@ -108,6 +108,19 @@ beforeEach(() => {
 });
 
 describe("GET /soko-bot-schedules", () => {
+  it("reports five claimed runs that all failed as failed work, not as work done", async () => {
+    syncDueSchedules.mockResolvedValue({
+      claimed: 5,
+      completed: 0,
+      failed: 5,
+      deferred: 0,
+    });
+    await createApp().request("http://localhost/soko-bot-schedules");
+    await Promise.all(pending);
+
+    expect(reportWork).toHaveBeenCalledWith({ done: 0, failed: 5 });
+  });
+
   it("puts the sync's counts and what the purge removed on the run's event", async () => {
     await createApp().request("http://localhost/soko-bot-schedules");
     await Promise.all(pending);
