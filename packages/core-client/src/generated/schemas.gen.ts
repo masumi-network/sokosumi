@@ -51063,6 +51063,9 @@ export const ProjectSeoKeywordSchema = {
                 $ref: '#/components/schemas/ProjectSeoPositionPoint'
             },
             maxItems: 90
+        },
+        positionHistoryCut: {
+            type: 'boolean'
         }
     },
     required: [

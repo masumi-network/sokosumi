@@ -44,6 +44,7 @@ describe("seoRankHistory", () => {
     ]);
     expect(series).toEqual({
       device: "desktop",
+      cut: false,
       points: [
         { date: "2026-10-01", value: 7 },
         { date: "2026-10-02", value: null, outside: { top: 20 } },
@@ -106,11 +107,40 @@ describe("seoRankHistory", () => {
     expect(series).toEqual([
       {
         device: "desktop",
+        cut: false,
         points: [
           { date: "2026-10-01", value: 9 },
           { date: "2026-10-08", value: 6 },
         ],
       },
+    ]);
+  });
+
+  it("marks only the device whose rows miss older reads", () => {
+    const history = [
+      point("2026-10-01T09:00:00Z", 9),
+      point("2026-10-02T09:00:00Z", 7),
+    ];
+    const series = seoRankHistory([
+      { ...row("mobile", history), positionHistoryCut: true },
+      { ...row("desktop", history), positionHistoryCut: false },
+    ]);
+    expect(series.map((item) => [item.device, item.cut])).toEqual([
+      ["mobile", true],
+      ["desktop", false],
+    ]);
+  });
+
+  it("keeps one day of reads when older checks exist and are not shown", () => {
+    // 90 checks of one day can push every older day out of the loaded history.
+    const series = seoRankHistory([
+      {
+        ...row("desktop", [point("2026-10-01T08:00:00Z", 9)]),
+        positionHistoryCut: true,
+      },
+    ]);
+    expect(series.map((item) => [item.cut, item.points.length])).toEqual([
+      [true, 1],
     ]);
   });
 });

@@ -13630,6 +13630,7 @@
         "historyShow": "Historial",
         "historyPaidTitle": "Posiciones en comprobaciones de pago",
         "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
+        "historyOlderHidden": "No se muestran las comprobaciones más antiguas.",
         "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
         "historyNotInRange": "No está en los resultados comprobados",
         "historyNotInTop": "No está en el top {count}",

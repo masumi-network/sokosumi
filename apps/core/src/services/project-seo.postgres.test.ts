@@ -74,6 +74,7 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
+import { SEO_RANK_HISTORY_OBSERVATIONS } from "./project-seo-rankings";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import { acknowledgeSeoReview } from "./seo-action-reviews";
 import { getSeoBrief } from "./seo-audit-brief.service";
@@ -3012,6 +3013,64 @@ describe.skipIf(!enabled)(
         [older[1].id, 7],
         [newest.id, 2],
       ]);
+    });
+
+    it("says that older rank checks are missing only when the period holds more results than the load takes", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-period",
+        relationship: "primary",
+      });
+      for (const day of [1, 2])
+        await storeResult(
+          page.id,
+          rankingsPayload(page.url, `2026-09-0${day}T09:00:00.000Z`, {
+            position: 9,
+          }),
+        );
+      // With the newest result below, exactly what the history load takes. They read no keyword,
+      // so only the load limit can cut the series, not the point limit.
+      const empty = focusedRankingsReport();
+      const start = Date.parse("2026-10-01T00:00:00.000Z");
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from(
+          { length: SEO_RANK_HISTORY_OBSERVATIONS - 1 },
+          (_, index) => {
+            const observedAt = new Date(start + index * 60_000);
+            return {
+              projectId,
+              source: "seo_coworker",
+              kind: "rankings",
+              sourceKey: `rank-period:${index}`,
+              pageIds: [page.id],
+              artifactHash: "rank-period",
+              payload: parsePublicSeoArtifact({
+                ...empty,
+                observedAt: observedAt.toISOString(),
+                scope: { ...empty.scope, pageUrls: [page.url] },
+                keywords: [],
+              }),
+              observedAt,
+            };
+          },
+        ),
+      });
+      const newest = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-11-01T09:00:00.000Z", { position: 2 }),
+      );
+      const read = async (query: { from?: string }) => {
+        const row = (
+          await getProjectSeoWorkspace(actor, { pageId: page.id, ...query })
+        ).keywords.find((item) => item.observationId === newest.id);
+        return [
+          row?.positionHistory?.map((point) => point.observationId),
+          row?.positionHistoryCut,
+        ];
+      };
+      // No period: the load leaves out both September results.
+      expect(await read({})).toEqual([[newest.id], true]);
+      // The period holds one result. The load has all of it.
+      expect(await read({ from: "2026-11-01" })).toEqual([[newest.id], false]);
     });
 
     it("reads the rank history only from rankings and audit_lite results", async () => {

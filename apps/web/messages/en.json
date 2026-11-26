@@ -13630,6 +13630,7 @@
         "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",
         "historyPaidNote": "Each point is one check of the search results on that day.",
+        "historyOlderHidden": "Older checks are not shown.",
         "historyPaidLabel": "{device, select, mobile {Mobile} desktop {Desktop} other {All devices}}: position in paid checks for “{keyword}”",
         "historyNotInRange": "Not in the checked results",
         "historyNotInTop": "Not in the top {count}",

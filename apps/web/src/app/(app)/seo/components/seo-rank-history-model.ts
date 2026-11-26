@@ -13,6 +13,8 @@ export type SeoRankSeries = {
     value: number | null;
     outside?: { top: number | null };
   }[];
+  /** Older reads of the period exist that the workspace did not send (its load or point limit). */
+  cut: boolean;
 };
 type RankPoint = SeoRankSeries["points"][number];
 
@@ -84,6 +86,9 @@ export function seoRankHistory(
   const series = [...byDevice]
     .map(([device, days]) => ({
       device,
+      cut: rows.some(
+        (row) => row.device === device && row.positionHistoryCut === true,
+      ),
       points: [...days]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, read]) => ({ date, ...read })),
@@ -93,5 +98,8 @@ export function seoRankHistory(
         (DEVICE_ORDER[a.device ?? ""] ?? 2) -
         (DEVICE_ORDER[b.device ?? ""] ?? 2),
     );
-  return series.some((item) => item.points.length > 1) ? series : [];
+  // One day is no history, unless older checks exist and are not shown: the reader must see that note.
+  return series.some((item) => item.points.length > 1 || item.cut)
+    ? series
+    : [];
 }
