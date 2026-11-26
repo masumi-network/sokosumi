@@ -227,15 +227,16 @@ async function knownByFor(
 ): Promise<Map<string, KnownByDto[]>> {
   const result = new Map<string, KnownByDto[]>();
   if (!contactIds.length) return result;
-  const [groups, follows] = await Promise.all([
-    tx.contactInteraction.groupBy({
-      by: ["contactId", "userId"],
-      where: { contactId: { in: contactIds }, userId: { not: null } },
-      _count: { _all: true },
-      _max: { occurredAt: true },
-    }),
-    tx.contactXFollow.findMany({ where: { contactId: { in: contactIds } } }),
-  ]);
+  // One after the other: `tx` may be an interactive transaction.
+  const groups = await tx.contactInteraction.groupBy({
+    by: ["contactId", "userId"],
+    where: { contactId: { in: contactIds }, userId: { not: null } },
+    _count: { _all: true },
+    _max: { occurredAt: true },
+  });
+  const follows = await tx.contactXFollow.findMany({
+    where: { contactId: { in: contactIds } },
+  });
   const followOf = new Map(
     follows.map((follow) => [`${follow.contactId}:${follow.userId}`, follow]),
   );
@@ -300,10 +301,10 @@ export async function contactDtos(
   readerUserId?: string,
 ): Promise<ContactDto[]> {
   const ids = rows.map((row) => row.id);
-  const [knownBy, scores] = await Promise.all([
-    knownByFor(ids, tx),
-    readerUserId ? readerScores(tx, readerUserId, ids) : null,
-  ]);
+  const knownBy = await knownByFor(ids, tx);
+  const scores = readerUserId
+    ? await readerScores(tx, readerUserId, ids)
+    : null;
   return rows.map((row) =>
     toContactDto(row, knownBy.get(row.id) ?? [], scores?.get(row.id) ?? null),
   );
@@ -912,8 +913,10 @@ export async function setContactArchived(
     if (archived) await rememberCompanyAliases(tx, actor.workspaceId, [id]);
     await tx.contact.update({
       where: { id },
+      // An archived contact is no member's: it lets go of them.
       data: {
         archivedAt: archived ? new Date() : null,
+        ...(archived ? { userId: null } : {}),
         version: { increment: 1 },
       },
     });
@@ -1314,8 +1317,10 @@ export async function setContactUser(
   contactId: string,
   userId: string | null,
 ): Promise<ContactDto> {
-  await requireWritableContact(tx, actor, contactId);
+  const contact = await requireWritableContact(tx, actor, contactId);
   if (userId) {
+    if (contact.kind !== "PERSON" || contact.archivedAt)
+      throw unprocessableEntity("Only a live person can be a member");
     const members = await workspaceMemberEmails(actor.workspaceId, tx);
     if (!members.has(userId))
       throw unprocessableEntity("That person is not in this workspace");
@@ -1347,7 +1352,7 @@ export async function linkMemberByChannel(
         workspaceId,
         type,
         value: handle,
-        contact: { mergedIntoId: null, archivedAt: null },
+        contact: { mergedIntoId: null, archivedAt: null, kind: "PERSON" },
       },
       select: { contactId: true, contact: { select: { userId: true } } },
     }),

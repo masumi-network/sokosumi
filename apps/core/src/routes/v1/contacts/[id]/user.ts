@@ -35,7 +35,9 @@ const route = withCoworkerContextHeaderParameters(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Contact not found"),
       409: jsonErrorResponse("Contact was merged"),
-      422: jsonErrorResponse("Not a member of this workspace"),
+      422: jsonErrorResponse(
+        "Not a member of this workspace, or the contact is archived or not a person",
+      ),
     },
   }),
 );

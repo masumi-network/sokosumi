@@ -42896,7 +42896,7 @@ export type PutContactsByIdUserErrors = {
         };
     };
     /**
-     * Not a member of this workspace
+     * Not a member of this workspace, or the contact is archived or not a person
      */
     422: {
         error: string;

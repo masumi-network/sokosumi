@@ -1840,10 +1840,10 @@ export class ContactCaptureService {
    * last run stopped, at most `pages` pages, and returns how many it read. A
    * page is read again when the run's write budget ends inside it. After one
    * full walk, a new one starts with a probe page (`xFollowProbeSize`) and
-   * stops at the first page whose people were all contacts before it began:
-   * X lists both newest first, so everyone after them was read before.
-   * People a walk adds itself, or who only became contacts from a DM, keep it
-   * going.
+   * stops at the first page whose people this walk had all recorded before
+   * it began: X lists both newest first, so everyone after them was read
+   * before. People a walk adds itself, or who became contacts another way (a
+   * DM, the other walk, a teammate), keep it going.
    */
   private async walkX(
     context: RunContext,
@@ -1902,7 +1902,8 @@ export class ContactCaptureService {
    * recorded as following the owner, or followed by them. Their bio stands
    * in for the summary, so the model never enriches them. `done` is false
    * when the write budget ran out first; `settled` when the page has people
-   * and every one was a contact before `walkFrom`.
+   * and every one was a contact before `walkFrom` already recorded on this
+   * walk's side for this teammate.
    */
   private async addXUsers(
     context: RunContext,
@@ -1929,9 +1930,27 @@ export class ContactCaptureService {
       return { done, settled };
     };
     const linked = new Set(channels.map((channel) => channel.value));
+    // Known to this walk: a contact before it began who was already recorded
+    // on this side for this teammate. A contact from a DM, another walk or a
+    // teammate is news to it, so it keeps the walk going.
+    const recorded = new Set(
+      (
+        await prisma.contactXFollow.findMany({
+          where: {
+            userId: actor.userId,
+            contactId: { in: reached },
+            [walk.side]: true,
+          },
+          select: { contactId: true },
+        })
+      ).map((follow) => follow.contactId),
+    );
     const before = new Set(
       channels
-        .filter((channel) => channel.createdAt < walkFrom)
+        .filter(
+          (channel) =>
+            channel.createdAt < walkFrom && recorded.has(channel.contactId),
+        )
         .map((channel) => channel.value),
     );
     // Bots and brand accounts never become contacts.

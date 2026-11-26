@@ -1890,6 +1890,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       const followerCalls: (string | null)[] = [];
       const followerSizes: number[] = [];
       const followingCalls: (string | null)[] = [];
+      let followingPages: typeof pages = {};
       mocks.runIntegrationTool.mockImplementation(
         async (...args: unknown[]) => {
           const tool = args[1] as string;
@@ -1902,8 +1903,15 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           if (tool === "TWITTER_GET_RECENT_DM_EVENTS")
             return { data: [], meta: { result_count: 0 } };
           if (tool === "TWITTER_FOLLOWING_BY_USER_ID") {
-            followingCalls.push(input.pagination_token ?? null);
-            return { data: [] };
+            const token = input.pagination_token ?? null;
+            followingCalls.push(token);
+            const page = followingPages[token ?? "first"];
+            return page
+              ? {
+                  data: page.people,
+                  ...(page.next ? { meta: { next_token: page.next } } : {}),
+                }
+              : { data: [] };
           }
           if (tool !== "TWITTER_FOLLOWERS_BY_USER_ID")
             throw new Error(`unexpected tool ${tool}`);
@@ -2003,6 +2011,31 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await capture(3);
       expect(followerCalls.slice(5)).toEqual(["p3"]);
       expect(followerSizes.slice(5)).toEqual([100]);
+
+      // The following walk read everyone once (nobody). Now the owner follows
+      // Ada and Bo back, contacts from the followers walk, and Zed after them
+      // in X's order. Ada and Bo are news to this walk, so it reads on.
+      const zed = person("1005", "Zed Quinn", "zedq", "Bakes bread");
+      followingPages = {
+        first: { people: [ada, bo], next: "f2" },
+        f2: { people: [zed], next: null },
+      };
+      const followingBefore = followingCalls.length;
+      clock = new Date(start + 5 * day);
+      await capture(4);
+      expect(followingCalls.slice(followingBefore)).toEqual([null, "f2"]);
+      const followed = await prisma.contactXFollow.findMany({
+        where: {
+          followedByUser: true,
+          contact: { workspaceId: pagedWorkspaceId },
+        },
+        select: { contact: { select: { name: true } } },
+      });
+      expect(followed.map((follow) => follow.contact.name).sort()).toEqual([
+        "Ada Byron",
+        "Bo Chen",
+        "Zed Quinn",
+      ]);
     });
   });
 

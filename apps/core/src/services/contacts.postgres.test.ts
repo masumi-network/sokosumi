@@ -1377,4 +1377,70 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       }),
     ]);
   });
+
+  it("links a member only to a live person, and archiving lets the member go", async () => {
+    const address = `member-${bob}@sokosumi.test`;
+    const old = await create(asAlice, {
+      name: "Bob Old",
+      channels: [{ type: "EMAIL", value: address }],
+    });
+    const team = await create(asAlice, {
+      name: "Bob Team Inbox",
+      kind: "ORGANIZATION",
+      channels: [{ type: "X", value: `bobteam${bob.slice(0, 6)}` }],
+    });
+    await inContactTransaction((tx) =>
+      setContactUser(tx, asAlice, old.contact.id, bob),
+    );
+
+    // Neither an organization nor an archived contact can be a member.
+    await expect(
+      inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, team.contact.id, bob),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    // Archiving the linked contact lets Bob go, so a live one links again.
+    await inContactTransaction((tx) =>
+      setContactArchived(tx, asAlice, old.contact.id, true),
+    );
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: old.contact.id },
+        })
+      ).userId,
+    ).toBeNull();
+    await expect(
+      inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, old.contact.id, bob),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+    // Bob is free again, yet his X handle names only an organization.
+    expect(
+      await linkMemberByChannel(
+        workspaceId,
+        bob,
+        "X",
+        `bobteam${bob.slice(0, 6)}`,
+      ),
+    ).toBe(false);
+    await prisma.contactChannel.deleteMany({
+      where: { contactId: old.contact.id },
+    });
+    const fresh = await create(asAlice, {
+      name: "Bob New",
+      channels: [{ type: "EMAIL", value: address }],
+    });
+    expect(await linkMemberByChannel(workspaceId, bob, "EMAIL", address)).toBe(
+      true,
+    );
+    expect(
+      (
+        await prisma.contact.findUniqueOrThrow({
+          where: { id: fresh.contact.id },
+        })
+      ).userId,
+    ).toBe(bob);
+  });
 });
