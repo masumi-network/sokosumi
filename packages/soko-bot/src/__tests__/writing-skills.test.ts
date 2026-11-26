@@ -2,8 +2,11 @@ import { CMO_CHANNELS, type CmoChannelKey, cmoJargonIn } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  CMO_PLAYBOOKS_SKILL,
+  cmoWritingSkills,
   judgedWritingRules,
   renderWritingSkill,
+  SOKO_BOT_SKILLS,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,
   writingSkillsForChannels,
@@ -145,5 +148,17 @@ describe("writing skills", () => {
       expect(skill.description.length).toBeLessThanOrEqual(150);
       expect(cmoJargonIn(renderWritingSkill(skill))).toEqual([]);
     }
+  });
+
+  it("lists playbooks only for a Cuso version with the playbooks skill", () => {
+    const ids = (skills: string[]) =>
+      cmoWritingSkills(skills).map((skill) => skill.id);
+    expect(ids(["cmo-context-on-demand"])).not.toContain("landing-page");
+    expect(ids(["cmo-context-on-demand"])).toContain("linkedin");
+    expect(ids([CMO_PLAYBOOKS_SKILL])).toContain("landing-page");
+    expect(
+      SOKO_BOT_SKILLS.find((skill) => skill.id === CMO_PLAYBOOKS_SKILL)
+        ?.content,
+    ).toMatch(/read_writing_skill/);
   });
 });

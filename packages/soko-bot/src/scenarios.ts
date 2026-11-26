@@ -1300,6 +1300,15 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
 export const CMO_PLACEHOLDER_PATTERN =
   "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
 
+/**
+ * Bracket placeholders, but not Markdown links: a page or email draft the
+ * owner pastes elsewhere may link its button ("[Start your trial](https://…)").
+ */
+const CMO_PLACEHOLDER_NOT_LINK_PATTERN = CMO_PLACEHOLDER_PATTERN.replace(
+  "{2,}\\]",
+  "{2,}\\](?!\\()",
+);
+
 /** The chat case whose picture must start as a reference library job. */
 export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
 
@@ -2177,7 +2186,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
       readsSkills: ["landing-page"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
-      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
     },
   },
   {
@@ -2194,7 +2203,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       readsSkills: ["page-review"],
       allowFailedTools: ["web_fetch"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
-      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|\\bCRO\\b|\\bCTA\\b|above the fold`,
+      answerAvoids: `${CMO_PLACEHOLDER_NOT_LINK_PATTERN}|\\bCRO\\b|\\bCTA\\b|above the fold`,
     },
   },
   {
@@ -2210,7 +2219,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
       readsSkills: ["launch-plan"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
-      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
     },
   },
   {
@@ -2231,7 +2240,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "hire_agent",
         "create_newsletter_issue",
       ],
-      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+      answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
     },
   },
 ];

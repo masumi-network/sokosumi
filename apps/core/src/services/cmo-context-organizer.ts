@@ -2,8 +2,9 @@ import {
   CMO_PRODUCTION_TURN_PREFIX,
   CMO_RESEARCH_GROUPS,
   type CmoBrandSectionKey,
+  cmoWritingSkills,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
-  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
@@ -478,6 +479,9 @@ export function cmoContextCore(input: {
 }): Record<string, unknown> {
   const { sources, kind, items, now } = input;
   const strategy = sources.strategy;
+  const writingSkills = cmoWritingSkills(
+    getSokoBotVersion(sources.versionId).skills,
+  );
   const calendar = strategy?.calendar ?? [];
   return {
     business: {
@@ -512,12 +516,13 @@ export function cmoContextCore(input: {
     existingAccounts: sources.existingAccounts,
     // A network's skill is known by its id; a playbook by when to use it.
     writingSkills: [
-      WRITING_SKILLS.filter((skill) => skill.channels.length)
+      writingSkills
+        .filter((skill) => skill.channels.length)
         .map((skill) => skill.id)
         .join(", "),
-      ...WRITING_SKILLS.filter((skill) => !skill.channels.length).map(
-        (skill) => `${skill.id}: ${skill.description}`,
-      ),
+      ...writingSkills
+        .filter((skill) => !skill.channels.length)
+        .map((skill) => `${skill.id}: ${skill.description}`),
     ],
     map: items.map((item) => ({
       id: item.id,

@@ -1,10 +1,14 @@
 import {
+  CMO_PLAYBOOKS_SKILL,
   CMO_POST_WITH_PICTURE_SCENARIO_ID,
+  cmoReadsPlaybooks,
   evaluateScenario,
+  getSokoBotVersion,
   isSokoBotSandboxCapability,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
+  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -199,6 +203,25 @@ async function startFollowUp(
   return started.turnId;
 }
 
+/** A case that reads a playbook the lane's Cuso version does not list. */
+async function lacksPlaybooks(
+  scenario: SokoBotScenario,
+  sokoBotId: string,
+): Promise<boolean> {
+  const playbooks = new Set(
+    WRITING_SKILLS.filter((skill) => skill.group === "playbooks").map(
+      (skill) => skill.id,
+    ),
+  );
+  if (!scenario.expect.readsSkills?.some((id) => playbooks.has(id)))
+    return false;
+  const bot = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return !cmoReadsPlaybooks(getSokoBotVersion(bot.versionId).skills);
+}
+
 async function startScenario(
   scenario: SokoBotScenario,
   bot: "soko-bot" | "cuso",
@@ -232,6 +255,13 @@ async function startScenario(
     }
   }
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
+  if (bot === "cuso" && (await lacksPlaybooks(scenario, sokoBotId)))
+    return {
+      kind: "done",
+      outcome: skipped(
+        `Needs a Cuso version with the playbooks (${CMO_PLAYBOOKS_SKILL})`,
+      ),
+    };
   let state: Record<string, unknown> = prepare
     ? await prepareCmoChatCase(lane, prepare)
     : {};

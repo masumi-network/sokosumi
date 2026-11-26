@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CMO_SCENARIOS,
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
   type SokoBotLabTurn,
@@ -467,5 +468,19 @@ describe("readsSkills", () => {
     expect(
       check([call("read_writing_skill", { skill: "brand-voice" })])?.actual,
     ).toBe("not read: read brand-voice");
+  });
+});
+
+describe("playbook cases", () => {
+  const emails = CMO_SCENARIOS.find((s) => s.id === "cmo-trial-welcome-emails");
+  const avoids = (answer: string) =>
+    evaluateScenario(
+      emails!,
+      turn({ route: "MANAGE_WORK", finalAnswer: answer }),
+    ).checks.find((c) => c.label.startsWith("Answer avoids"))?.pass;
+
+  it("lets a draft link its button but not leave a placeholder", () => {
+    expect(avoids("[Start your trial](https://cal.com/teams)")).toBe(true);
+    expect(avoids("Hi [first name], welcome.")).toBe(false);
   });
 });

@@ -301,7 +301,7 @@ Day: site page, email, Instagram and Facebook posts, pinned
 After: post with the first week's most common repair, note in the newsletter
 
 Post:
-Drop your bike off before 10, ride it home after 5. Same-day repairs start Monday for flats, brakes and gears. Book a slot: [link]
+Drop your bike off before 10, ride it home after 5. Same-day repairs start Monday for flats, brakes and gears. Book a slot on our site.
 \`\`\`
 
 ## Release notes

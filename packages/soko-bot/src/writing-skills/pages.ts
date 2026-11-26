@@ -43,7 +43,7 @@ Leave a section out when there is nothing true to put in it.
 
 ## Every line
 
-- Can the reader picture it? Can it be checked true or false? Could a rival paste it onto their own site unchanged? If yes to the last, rewrite it from a fact, or mark [NEED: what makes you different] and ask the owner.
+- Can the reader picture it? Can it be checked true or false? Could a rival paste it onto their own site unchanged? If yes to the last, rewrite it from a fact, or leave it out and ask the owner what makes them different.
 - Most lines are plain. One or two get punch, usually the headline.
 - Say what happens, not a list of what is absent. One real absence near the button is fine ("No card needed").
 - No exclamation marks and no questions you answer yourself.
@@ -54,7 +54,7 @@ Help people decide; never push. Deadlines and limits only when real. A decline l
 
 ## Output
 
-Organize by section: headline, subheadline, button, then each section's heading and text. Give two other headlines and two other button texts, each with a short reason. End with every [NEED: ...] as a plain question for the owner.
+Organize by section: headline, subheadline, button, then each section's heading and text. Give two other headlines and two other button texts, each with a short reason. Never put a bracket placeholder in the copy: leave out what is missing, and end with a plain question to the owner for each missing fact.
 
 ## Example shape
 
@@ -68,7 +68,7 @@ How it works: 1. Meet your walker at home. 2. Pick your days. 3. Get a photo aft
 Doubts: What if my walker is ill? ...
 Last button: Book a meet-and-greet
 
-[NEED: how many dogs you walk today, and two client quotes you may share]
+To ask the owner: How many dogs do you walk today? Can we quote two clients?
 \`\`\``,
     checklist: [
       {
@@ -81,7 +81,7 @@ Last button: Book a meet-and-greet
         rule: "Each benefit names a concrete fact and what it means for the buyer.",
       },
       {
-        rule: "Every claim, number and quote comes from the business's facts, and missing proof appears as a [NEED: ...] question for the owner.",
+        rule: "Every claim, number and quote comes from the business's facts, and missing proof is left out of the copy and asked of the owner.",
       },
       {
         rule: "Deadlines, limits, trials and guarantees appear only where the business's facts hold them.",

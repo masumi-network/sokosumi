@@ -98,19 +98,17 @@ Work from the owner's real terms. You can suggest changes to the deal, but the o
 
 ## Write the offer out in one block
 
-Before any page or post, put the current deal in plain words, filling every line you can from the Brand Brain and the site:
+Before any page or post, put the current deal in plain words, one line each, filled from the Brand Brain and the site:
 
-\`\`\`
-Name: [what it is called]
-For: [who it is for, in their words]
-You get: [the main thing, then each part]
-Extras: [anything added, each with the doubt it answers]
-Price: [the price, and how to pay]
-If it does not work: [the owner's real promise, or "none given"]
-Why now: [a real reason, or "none"]
-\`\`\`
+- **Name**: what it is called.
+- **For**: who it is for, in their words.
+- **You get**: the main thing, then each part.
+- **Extras**: anything added, each with the doubt it answers.
+- **Price**: the price, and how to pay.
+- **If it does not work**: the owner's real promise, or "none given".
+- **Why now**: a real reason, or "none".
 
-Every empty line is a question for the owner, not a gap to fill yourself.
+A line you cannot fill from the facts is a question for the owner, never a gap you fill yourself or a bracket left in the text.
 
 ## Make it easier to say yes
 
