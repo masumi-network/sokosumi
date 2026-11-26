@@ -1,14 +1,14 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
+import { useBriefingCopySources } from "@/app/projects/components/use-briefing-copy-sources";
 import {
   BRIEFING_CHIP_IDS,
   BRIEFING_WORD_TARGET,
   type BriefingChipId,
-  type BriefingCopySource,
   countBriefingWords,
   insertBriefingHeading,
   PROJECT_BRIEFING_MAX_LENGTH,
@@ -31,8 +31,11 @@ interface ProjectBriefingFieldProps {
   disabled?: boolean;
   autoFocus?: boolean;
   className?: string;
-  /** Other projects in this workspace whose briefing can be copied in. */
-  copySources?: BriefingCopySource[];
+  /**
+   * The project being edited. Set, the field offers Copy from a project,
+   * which lists the workspace's other projects that have a briefing.
+   */
+  copyIntoProjectId?: string;
 }
 
 export function ProjectBriefingField({
@@ -42,15 +45,17 @@ export function ProjectBriefingField({
   disabled = false,
   autoFocus = false,
   className,
-  copySources = [],
+  copyIntoProjectId,
 }: ProjectBriefingFieldProps) {
   const t = useTranslations("App.Projects.Briefing");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // The last copy, kept until the text changes again so Undo restores it.
-  const [copied, setCopied] = useState<{
-    name: string;
-    previous: string;
-  } | null>(null);
+  // The last copy, kept until the text changes again so Undo restores it,
+  // or a copy that failed.
+  const [copied, setCopied] = useState<
+    | { kind: "copied"; name: string; previous: string }
+    | { kind: "failed" }
+    | null
+  >(null);
   const wordCount = countBriefingWords(value);
   const targetMet = wordCount >= BRIEFING_WORD_TARGET;
 
@@ -70,13 +75,17 @@ export function ProjectBriefingField({
   }
 
   // Fills the field only; nothing is saved until the form is submitted.
-  function handleCopy(source: BriefingCopySource) {
-    setCopied({ name: source.name, previous: value });
-    onChange(source.briefing);
+  function handleCopy(name: string, briefing: string | null) {
+    if (!briefing) {
+      setCopied({ kind: "failed" });
+      return;
+    }
+    setCopied({ kind: "copied", name, previous: value });
+    onChange(briefing);
   }
 
   function handleUndo() {
-    if (!copied) return;
+    if (copied?.kind !== "copied") return;
     onChange(copied.previous);
     setCopied(null);
     textareaRef.current?.focus();
@@ -87,28 +96,12 @@ export function ProjectBriefingField({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Label htmlFor={id}>{t("label")}</Label>
-          {copySources.length > 0 ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={disabled}>
-                <Button type="button" variant="ghost" size="sm">
-                  <Copy aria-hidden />
-                  {t("copy.trigger")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="max-h-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
-              >
-                {copySources.map((source) => (
-                  <DropdownMenuItem
-                    key={source.id}
-                    onSelect={() => handleCopy(source)}
-                  >
-                    <span className="truncate">{source.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {copyIntoProjectId ? (
+            <BriefingCopyMenu
+              targetId={copyIntoProjectId}
+              disabled={disabled}
+              onCopy={handleCopy}
+            />
           ) : null}
         </div>
         <p
@@ -119,25 +112,34 @@ export function ProjectBriefingField({
         </p>
       </div>
 
-      {copySources.length > 0 ? (
+      {copyIntoProjectId ? (
         // Idle, the live region stays mounted but takes no room.
         <div className={copied ? "flex items-center gap-2" : "sr-only"}>
           <p
             role="status"
-            className="flex min-w-0 items-center gap-1.5 text-sm"
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-sm"
           >
-            {copied ? (
+            {copied?.kind === "copied" ? (
               <>
                 <Check className="check-pop size-4 shrink-0" aria-hidden />
-                {t("copy.copied", { name: copied.name })}
+                <span className="min-w-0 wrap-anywhere">
+                  {t("copy.copied", { name: copied.name })}
+                </span>
+              </>
+            ) : null}
+            {copied?.kind === "failed" ? (
+              <>
+                <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                <span className="min-w-0">{t("copy.failed")}</span>
               </>
             ) : null}
           </p>
-          {copied ? (
+          {copied?.kind === "copied" ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              className="shrink-0"
               onClick={handleUndo}
               disabled={disabled}
             >
@@ -192,5 +194,91 @@ export function ProjectBriefingField({
         {targetMet ? t("encouragementMet") : t("encouragement")}
       </p>
     </div>
+  );
+}
+
+/**
+ * Lists the sources only while open, a page at a time, and reads the picked
+ * project's briefing on pick, so opening Edit never waits on it.
+ */
+function BriefingCopyMenu({
+  targetId,
+  disabled,
+  onCopy,
+}: {
+  targetId: string;
+  disabled: boolean;
+  onCopy: (name: string, briefing: string | null) => void;
+}) {
+  const t = useTranslations("App.Projects.Briefing");
+  const [open, setOpen] = useState(false);
+  const { query, sources, readBriefing } = useBriefingCopySources(
+    open,
+    targetId,
+  );
+
+  async function handlePick(id: string, name: string) {
+    try {
+      onCopy(name, await readBriefing(id));
+    } catch {
+      onCopy(name, null);
+    }
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <Button type="button" variant="ghost" size="sm">
+          <Copy aria-hidden />
+          {t("copy.trigger")}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-72 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
+      >
+        {query.isPending ? (
+          <DropdownMenuItem disabled>{t("copy.loading")}</DropdownMenuItem>
+        ) : null}
+        {query.isError ? (
+          <>
+            <DropdownMenuItem disabled>{t("copy.loadFailed")}</DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                void query.refetch();
+              }}
+            >
+              {t("copy.retry")}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+        {!query.isPending &&
+        !query.isError &&
+        sources.length === 0 &&
+        !query.hasNextPage ? (
+          <DropdownMenuItem disabled>{t("copy.empty")}</DropdownMenuItem>
+        ) : null}
+        {sources.map((source) => (
+          <DropdownMenuItem
+            key={source.id}
+            title={source.name}
+            onSelect={() => void handlePick(source.id, source.name)}
+          >
+            <span className="min-w-0 truncate">{source.name}</span>
+          </DropdownMenuItem>
+        ))}
+        {query.hasNextPage ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              void query.fetchNextPage();
+            }}
+          >
+            {t("copy.more")}
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

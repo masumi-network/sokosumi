@@ -24,6 +24,14 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProject: vi.fn(),
 }));
 
+// The Copy from a project menu reads its own list; not this form's subject.
+vi.mock("@/app/projects/components/use-briefing-copy-sources", () => ({
+  useBriefingCopySources: () => ({
+    query: { isPending: true, isError: false, hasNextPage: false },
+    sources: [],
+    readBriefing: vi.fn(),
+  }),
+}));
 vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => toastErrorMock(...args),

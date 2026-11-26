@@ -44,19 +44,13 @@ export function insertBriefingHeading(value: string, heading: string): string {
 export interface BriefingCopySource {
   id: string;
   name: string;
-  briefing: string;
 }
 
-/** Other projects whose briefing can seed this one, sorted by name. */
+/** Projects whose briefing can seed another one: those with any text. */
 export function briefingCopySources(
   projects: { id: string; name: string; briefing?: string | null }[],
-  currentProjectId: string,
 ): BriefingCopySource[] {
   return projects
-    .flatMap(({ id, name, briefing }) =>
-      id !== currentProjectId && briefing?.trim()
-        ? [{ id, name, briefing }]
-        : [],
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter(({ briefing }) => briefing?.trim())
+    .map(({ id, name }) => ({ id, name }));
 }

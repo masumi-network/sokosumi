@@ -8,13 +8,16 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user with two Projects starts the second one's briefing from the
-// first: Edit, Copy from a project, pick it, Save. The copy replaces the
-// draft in the field, Undo (by keyboard) brings the draft back, and the
-// first project's briefing stays as it was. Each size
+// first: Edit, Copy from a project, pick it, Save. The menu lists sources
+// only once it opens, the copy replaces the draft in the field, Undo (by
+// keyboard) brings the draft back, and the first project's briefing stays
+// as it was. Each size
 // signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
-const SOURCE = "E2E spring bakery";
+// One long unbroken word, so the menu row and the copy status must wrap or
+// truncate it inside the edit dialog.
+const SOURCE = "E2E-spring-bakery-launch-for-the-whole-neighbourhood-2026";
 const TARGET = "E2E autumn bakery";
 const BRIEFING =
   "## Goals\nFill the shop on Saturday mornings.\n\n## Audience\nFamilies within ten minutes of the shop.";
@@ -47,6 +50,19 @@ async function createProject(page: Page, name: string, briefing = "") {
   await page.waitForURL(/\/projects\/[^/?]+$/);
   await page.getByRole("heading", { level: 1, name }).waitFor();
   return page.url();
+}
+
+// The page, the edit dialog and the open menu all fit the screen's width.
+async function assertNoSidewaysScroll(page: Page, where: string) {
+  const wide = await page.evaluate(() =>
+    [
+      document.documentElement,
+      ...document.querySelectorAll('[role="dialog"], [role="menu"]'),
+    ]
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.getAttribute("role") ?? "page"),
+  );
+  assert.deepEqual(wide, [], `no sideways scroll ${where}`);
 }
 
 let browser: Browser;
@@ -96,13 +112,16 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
 
       // Copying replaces the draft; Undo, reached by keyboard, restores it.
       await trigger.click();
+      await page.getByRole("menuitem", { name: SOURCE }).waitFor();
+      await assertNoSidewaysScroll(page, "with the menu open");
       await shot(page, size, "menu");
       await page.getByRole("menuitem", { name: SOURCE }).click();
-      assert.equal(await field.inputValue(), BRIEFING);
       await page
         .getByRole("status")
         .getByText(`Copied from ${SOURCE}. Save to keep it.`)
         .waitFor();
+      assert.equal(await field.inputValue(), BRIEFING);
+      await assertNoSidewaysScroll(page, "with the copy status shown");
       await shot(page, size, "copied");
       await page.keyboard.press("Tab");
       const undo = page.getByRole("button", { name: "Undo" });
@@ -117,6 +136,7 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
 
       await trigger.click();
       await page.getByRole("menuitem", { name: SOURCE }).click();
+      await undo.waitFor();
       assert.equal(await field.inputValue(), BRIEFING);
       await page.getByRole("button", { name: "Save" }).click();
       await page.waitForURL(targetUrl);
@@ -133,10 +153,7 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
         .getByText("Fill the shop on Saturday mornings.")
         .waitFor();
 
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth > window.innerWidth + 1,
-      );
-      assert.equal(overflow, false, "no sideways page scroll");
+      await assertNoSidewaysScroll(page, "on the source project");
       assert.deepEqual(errors, []);
       await context.close();
     });

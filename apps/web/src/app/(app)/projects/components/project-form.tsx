@@ -15,10 +15,7 @@ import { toast } from "sonner";
 
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
 import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
-import {
-  type BriefingCopySource,
-  PROJECT_NAME_MAX_LENGTH,
-} from "@/app/projects/project-briefing";
+import { PROJECT_NAME_MAX_LENGTH } from "@/app/projects/project-briefing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +54,6 @@ interface ProjectFormProps {
   onSuccess?: (projectId: string, name: string) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   creationSource?: ProjectCreationSource;
-  briefingCopySources?: BriefingCopySource[];
 }
 
 export function ProjectForm({
@@ -70,7 +66,6 @@ export function ProjectForm({
   onCancel,
   onSuccess,
   onSubmittingChange,
-  briefingCopySources,
   creationSource,
 }: ProjectFormProps) {
   const router = useRouter();
@@ -288,7 +283,7 @@ export function ProjectForm({
                 value={briefing}
                 onChange={setBriefing}
                 disabled={isSubmitting}
-                copySources={briefingCopySources}
+                copyIntoProjectId={mode === "edit" ? projectId : undefined}
               />
             </>
           )}

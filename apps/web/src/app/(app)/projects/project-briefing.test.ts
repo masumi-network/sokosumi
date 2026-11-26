@@ -41,21 +41,17 @@ describe("insertBriefingHeading", () => {
 });
 
 describe("briefingCopySources", () => {
-  it("offers other projects that have a briefing, by name", () => {
+  it("names the projects that have a briefing, in list order", () => {
     expect(
-      briefingCopySources(
-        [
-          { id: "self", name: "Self", briefing: "Mine" },
-          { id: "b", name: "Beta", briefing: "Beta brief" },
-          { id: "e", name: "Empty", briefing: "   " },
-          { id: "n", name: "None", briefing: null },
-          { id: "a", name: "alpha", briefing: "Alpha brief" },
-        ],
-        "self",
-      ),
+      briefingCopySources([
+        { id: "b", name: "Beta", briefing: "Beta brief" },
+        { id: "e", name: "Empty", briefing: "   " },
+        { id: "n", name: "None", briefing: null },
+        { id: "a", name: "alpha", briefing: "Alpha brief" },
+      ]),
     ).toEqual([
-      { id: "a", name: "alpha", briefing: "Alpha brief" },
-      { id: "b", name: "Beta", briefing: "Beta brief" },
+      { id: "b", name: "Beta" },
+      { id: "a", name: "alpha" },
     ]);
   });
 });

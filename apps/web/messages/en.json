@@ -2906,7 +2906,13 @@
         "copy": {
           "trigger": "Copy from a project",
           "copied": "Copied from {name}. Save to keep it.",
-          "undo": "Undo"
+          "undo": "Undo",
+          "loading": "Loading projects…",
+          "loadFailed": "Couldn't load projects.",
+          "retry": "Try again",
+          "empty": "No other project has a briefing yet.",
+          "more": "Show more",
+          "failed": "Couldn't copy that briefing. Try again."
         }
       },
       "Wizard": {

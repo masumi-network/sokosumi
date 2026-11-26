@@ -5,7 +5,6 @@ import { useCallback, useState } from "react";
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 
-import type { BriefingCopySource } from "../project-briefing";
 import { ProjectForm, type ProjectFormLabels } from "./project-form";
 
 interface ProjectEditModalProps {
@@ -18,7 +17,6 @@ interface ProjectEditModalProps {
     websiteUrl?: string | null;
   };
   labels: ProjectFormLabels;
-  briefingCopySources: BriefingCopySource[];
 }
 
 export function ProjectEditModal({
@@ -26,7 +24,6 @@ export function ProjectEditModal({
   title,
   initialValues,
   labels,
-  briefingCopySources,
 }: ProjectEditModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,7 +52,6 @@ export function ProjectEditModal({
         labels={labels}
         projectId={projectId}
         initialValues={initialValues}
-        briefingCopySources={briefingCopySources}
         onCancel={handleClose}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={handleClose}

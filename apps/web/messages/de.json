@@ -2906,7 +2906,13 @@
         "copy": {
           "trigger": "Aus Projekt kopieren",
           "copied": "Aus {name} kopiert. Speichere, um es zu behalten.",
-          "undo": "Rückgängig"
+          "undo": "Rückgängig",
+          "loading": "Projekte werden geladen…",
+          "loadFailed": "Projekte konnten nicht geladen werden.",
+          "retry": "Erneut versuchen",
+          "empty": "Noch kein anderes Projekt hat ein Briefing.",
+          "more": "Mehr anzeigen",
+          "failed": "Dieses Briefing konnte nicht kopiert werden. Versuche es erneut."
         }
       },
       "Wizard": {

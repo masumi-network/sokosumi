@@ -2906,7 +2906,13 @@
         "copy": {
           "trigger": "Copiar de un proyecto",
           "copied": "Copiado de {name}. Guarda para conservarlo.",
-          "undo": "Deshacer"
+          "undo": "Deshacer",
+          "loading": "Cargando proyectos…",
+          "loadFailed": "No se pudieron cargar los proyectos.",
+          "retry": "Reintentar",
+          "empty": "Ningún otro proyecto tiene briefing todavía.",
+          "more": "Mostrar más",
+          "failed": "No se pudo copiar ese briefing. Inténtalo de nuevo."
         }
       },
       "Wizard": {

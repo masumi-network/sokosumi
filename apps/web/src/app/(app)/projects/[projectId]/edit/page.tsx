@@ -5,8 +5,6 @@ import { getTranslations } from "next-intl/server";
 import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
 import { projectService } from "@/lib/services/project.service";
 
-import { loadBriefingCopySources } from "./briefing-copy-sources";
-
 export const metadata: Metadata = {
   title: "Edit project",
 };
@@ -25,10 +23,7 @@ export default async function EditProjectPage({
   // CMO edits a CMO Project; the Project page says so and links there.
   if (project.cmo) redirect(`/projects/${projectId}`);
 
-  const [t, copySources] = await Promise.all([
-    getTranslations("App.Projects"),
-    loadBriefingCopySources(projectId),
-  ]);
+  const t = await getTranslations("App.Projects");
 
   return (
     <ProjectEditModal
@@ -43,7 +38,6 @@ export default async function EditProjectPage({
         cancel: t("EditProject.cancel"),
         error: t("Detail.errors.update"),
       }}
-      briefingCopySources={copySources}
       initialValues={{
         name: project.name,
         identifier: project.identifier,
