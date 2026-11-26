@@ -1574,8 +1574,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         data: { id: manyWorkspaceId, organizationId: manyOrganizationId },
       });
       await addBot(manyWorkspaceId, ["twitter"]);
-      const start = Date.now();
-      const talkers = 305;
+      // One UTC afternoon: all 305 conversations fall on the same day, so
+      // the walk overflows more than once on that day whenever CI runs.
+      const start = Date.parse("2026-11-20T23:00:00.000Z");
+      // 10 conversations a page: past 300 the walk overflows on page 31 and
+      // again on page 32, both on the same day.
+      const talkers = 320;
       // Newest first: each person writes, the owner answers a minute before.
       const events = Array.from({ length: talkers }, (_, i) => {
         const id = String(1000 + i);
@@ -1616,9 +1620,9 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           enrichmentWorkspaces: 0,
           embeddingsPerWorkspace: 0,
           companiesPerWorkspace: 0,
-          xCallsPerRun: 20,
-          xDmCallsPerRun: 12,
-          xDmPageSize: 100,
+          xCallsPerRun: 45,
+          xDmCallsPerRun: 40,
+          xDmPageSize: 20,
         },
       }).captureWorkspace(manyWorkspaceId, () => true);
 
@@ -1626,7 +1630,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect(
         contacts.filter((contact) => contact.interactions.length > 0),
       ).toHaveLength(talkers);
-      // 305 contacts are written one by one.
+      // 320 contacts are written one by one.
     }, 60_000);
 
     it("starts a DM walk over when X refuses its saved page token, or it is a day old", async () => {

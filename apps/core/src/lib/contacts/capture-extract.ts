@@ -667,7 +667,8 @@ export function parseXDmEvent(raw: unknown): XDmEvent | null {
  * What a DM walk learned so far, small enough for the capture cursor: who
  * wrote on which day in each conversation (no message text), and the people
  * in them. A conversation too large to count stays as a marker only, and past
- * `X_WALK_CONVERSATIONS` new conversations are left out.
+ * `X_WALK_CONVERSATIONS` the contacts are written and only the current day's
+ * talk is kept.
  */
 export interface XDmWalk {
   /** The next page; null before the first. */
@@ -685,7 +686,10 @@ export interface XDmWalk {
   users: Record<string, { name: string | null; username: string }>;
 }
 
-/** Conversations one walk keeps; X keeps about 30 days of DMs. */
+/**
+ * Conversations a walk holds before it writes their contacts and keeps only
+ * the current day's; one day with more keeps all of that day's.
+ */
 export const X_WALK_CONVERSATIONS = 300;
 
 export function newXDmWalk(startedAt: string): XDmWalk {
@@ -702,22 +706,18 @@ export function newXDmWalk(startedAt: string): XDmWalk {
 /**
  * The walk with one more page: its events and the people a kept conversation
  * names. A copy, so a caller commits it only once the page is fully handled.
- * `overflow`: a new conversation did not fit; the caller writes the contacts
- * so far and starts again from `keepXDmDay`.
+ * Nothing is left out. `overflow`: it now holds more than
+ * `X_WALK_CONVERSATIONS`; the caller writes its contacts and keeps
+ * `keepXDmDay` of it.
  */
 export function addXDmPage(
   walk: XDmWalk,
   page: { events: readonly XDmEvent[]; users: readonly XUser[] },
 ): { walk: XDmWalk; overflow: boolean } {
   const next: XDmWalk = structuredClone(walk);
-  let overflow = false;
   for (const event of page.events) {
     let conversation = next.talk[event.conversationId];
     if (!conversation) {
-      if (Object.keys(next.talk).length >= X_WALK_CONVERSATIONS) {
-        overflow = true;
-        continue;
-      }
       conversation = { members: [], days: {} };
       next.talk[event.conversationId] = conversation;
     }
@@ -747,7 +747,10 @@ export function addXDmPage(
   for (const user of page.users)
     if (named.has(user.id))
       next.users[user.id] = { name: user.name, username: user.username };
-  return { walk: next, overflow };
+  return {
+    walk: next,
+    overflow: Object.keys(next.talk).length > X_WALK_CONVERSATIONS,
+  };
 }
 
 /**

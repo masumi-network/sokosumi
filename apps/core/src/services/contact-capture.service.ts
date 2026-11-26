@@ -1683,18 +1683,17 @@ export class ContactCaptureService {
       }
       // Staged: the walk moves past this page only once all of it is
       // handled, so a failed inbox write reads the page again next run.
-      let staged = addXDmPage(walk, { events, users: page.users });
+      const staged = addXDmPage(walk, { events, users: page.users });
+      let next = staged.walk;
       const oldestDay = events.at(-1)?.createdAt.slice(0, 10);
       if (staged.overflow && oldestDay) {
-        // More conversations than the walk holds: write the contacts it has,
-        // then keep only what this page's oldest day can still add to.
-        if (!(await this.writeXDmWalk(context, walk, me.id))) return null;
-        staged = addXDmPage(keepXDmDay(walk, oldestDay), {
-          events,
-          users: page.users,
-        });
+        // More conversations than the walk keeps: write the contacts of all
+        // of them, this page's included (writes are idempotent if it is read
+        // again), then keep only what this page's oldest day can still add
+        // to. That day's conversations stay however many there are.
+        if (!(await this.writeXDmWalk(context, next, me.id))) return null;
+        next = keepXDmDay(next, oldestDay);
       }
-      const next = staged.walk;
       next.newestId ??= events[0]?.id || null;
       next.token = page.nextToken;
       next.reached = older || !page.nextToken;

@@ -500,7 +500,7 @@ describe("X", () => {
       expect(walk).toEqual(newXDmWalk("2026-10-21T00:00:00Z"));
     });
 
-    it("stays small: a large group is a marker, and conversations stop at the cap", () => {
+    it("stays small: a large group is a marker, and past the cap it says so instead of dropping", () => {
       const crowd = Array.from({ length: X_SMALL_GROUP + 2 }, (_, i) =>
         String(i + 10),
       );
@@ -526,7 +526,11 @@ describe("X", () => {
         ),
         users: [],
       });
-      expect(Object.keys(full.walk.talk)).toHaveLength(X_WALK_CONVERSATIONS);
+      // Nothing is left out (the group marker included); the caller writes
+      // and trims.
+      expect(Object.keys(full.walk.talk)).toHaveLength(
+        X_WALK_CONVERSATIONS + 6,
+      );
       expect(full.overflow).toBe(true);
     });
 
