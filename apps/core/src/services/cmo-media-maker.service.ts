@@ -17,6 +17,7 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  cmoVideoShape,
   isCmoOwnerConfirmedChannel,
   isCmoTalkingFormat,
   socialPostMediaKindForMime,
@@ -78,6 +79,8 @@ import {
   createVideoJob,
   DEFAULT_SETTINGS,
   downloadStudioFileReference,
+  requestVideoShape,
+  videoShapeJobKey,
 } from "@/services/image-studio-jobs.service";
 import {
   type ReferenceKind,
@@ -2114,6 +2117,51 @@ async function attach(
   piece: CmoMediaPiece,
   job: CmoMediaJob,
   /** Set for a styled picture: it is checked, then gets the brand's logo. */
+  style: StyleBrand | null,
+): Promise<boolean> {
+  if (!job.assetId) return false;
+  const shaped = await videoInNetworkShape(context.cuso.projectId, piece, job);
+  if (!shaped) return false;
+  return await attachFile(context, drive, piece, shaped, style);
+}
+
+/**
+ * A video piece's file in the shape its network shows it (`cmoVideoShape`):
+ * the vertical video itself, or its other shape, which Core cuts from the
+ * same parts for free. Null while that shape is being cut. A shape that
+ * cannot be cut, or failed, leaves the vertical video: every network takes it.
+ */
+async function videoInNetworkShape(
+  projectId: string,
+  piece: CmoMediaPiece,
+  job: CmoMediaJob,
+): Promise<CmoMediaJob | null> {
+  if (job.step !== "talking" && job.step !== "short") return job;
+  const shape = cmoVideoShape(piece.channel);
+  if (shape === "9:16") return job;
+  const cut = await prisma.projectImageJob.findUnique({
+    where: {
+      projectId_idempotencyKey: {
+        projectId,
+        idempotencyKey: videoShapeJobKey(job.id, shape),
+      },
+    },
+    select: { id: true, status: true, asset: { select: { id: true } } },
+  });
+  if (!cut) return (await requestVideoShape(job.id, shape)) ? null : job;
+  if (cut.status === ProjectImageJobStatus.SUCCEEDED && cut.asset)
+    return { ...job, id: cut.id, assetId: cut.asset.id };
+  return cut.status === ProjectImageJobStatus.FAILED ||
+    cut.status === ProjectImageJobStatus.CANCELED
+    ? job
+    : null;
+}
+
+async function attachFile(
+  context: MediaContext,
+  drive: CusoDrive,
+  piece: CmoMediaPiece,
+  job: CmoMediaJob,
   style: StyleBrand | null,
 ): Promise<boolean> {
   if (!job.assetId) return false;

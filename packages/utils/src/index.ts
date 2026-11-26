@@ -166,6 +166,7 @@ export {
   CMO_SHORT_VIDEO_FORMATS,
   type CmoChannelKey,
   cmoShortVideoFormat,
+  cmoVideoShape,
   isCmoChannelFormat,
   isCmoOwnerConfirmedChannel,
   isCmoShortVideoFormat,

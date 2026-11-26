@@ -1,3 +1,5 @@
+import type { VideoShape } from "./video-recipes.js";
+
 /**
  * Every channel Cuso works on, what he makes there and what the owner does.
  * The single source for his strategy skill, the save check and CMO's pages:
@@ -315,6 +317,15 @@ export function isCmoShortVideoFormat(
   format: string,
 ): boolean {
   return cmoShortVideoFormat(channel) === format;
+}
+
+/**
+ * The shape a network shows a video piece in. Reels, Shorts and TikTok are
+ * vertical; LinkedIn's feed shows a 4:5 video larger than a vertical one on
+ * a desktop and as large on a phone (its own video guide).
+ */
+export function cmoVideoShape(channel: string): VideoShape {
+  return channel === "linkedin" ? "4:5" : "9:16";
 }
 
 /** Whether a format is a talking video: a presenter speaking a script. */
