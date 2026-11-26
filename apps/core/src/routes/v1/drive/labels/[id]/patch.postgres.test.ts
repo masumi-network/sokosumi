@@ -16,9 +16,6 @@ import mountGetLabels from "../get";
 import mountCreateLabel from "../post";
 import mountPatchLabel from "./patch";
 
-vi.mock("@/helpers/task-tag-rollout", () => ({
-  TASK_WORKSPACE_JEV_ENABLED: true,
-}));
 vi.mock("@/lib/ably/publish", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
   publishTaskEventData: vi.fn(),

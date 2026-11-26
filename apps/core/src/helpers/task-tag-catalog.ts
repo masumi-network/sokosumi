@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { TagColor } from "@sokosumi/database";
 import { CURATED_FILE_VOCABULARY } from "@sokosumi/utils";
-import { TASK_WORKSPACE_JEV_ENABLED } from "@/helpers/task-tag-rollout";
 import type { TASK_TAG_IDS } from "@/helpers/task-tags";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 
@@ -45,10 +44,7 @@ export function isUnmodifiedCuratedTag(label: {
 export async function loadTaskTagCatalog(
   workspaceId: string,
   db: DbClient = prisma,
-  enabled: boolean = TASK_WORKSPACE_JEV_ENABLED,
 ): Promise<TaskWorkspaceTagCatalogEntry[]> {
-  // The Web layer enables the catalog when it can show and dismiss Jev offers.
-  if (!enabled) return [];
   const rows = await db.workspaceLabel.findMany({
     where: { workspaceId, kind: "TAG", archivedAt: null, mergedIntoId: null },
     orderBy: { id: "asc" },
