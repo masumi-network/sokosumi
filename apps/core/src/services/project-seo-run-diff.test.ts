@@ -177,7 +177,10 @@ describe("withSeoRunDiffs", () => {
       source(8, result([failed({ rowId: "A" })])),
       source(5, result([check("pass", { rowId: "A" })], german)),
       // The same Market with another rulebook is closer than another Market, and still no match.
-      source(3, result([], { rulebookVersion: "r2" })),
+      source(
+        3,
+        result([check("pass", { rowId: "A" })], { rulebookVersion: "r2" }),
+      ),
       source(1, result([failed({ rowId: "A" })])),
     ]);
     expect(diff).toMatchObject({
@@ -191,8 +194,17 @@ describe("withSeoRunDiffs", () => {
   it("pairs with the check of the same Market before one of another Market, where no check matches", () => {
     const diff = diffOf([
       source(8, result([failed({ rowId: "A" })])),
-      source(5, result([], { countryCode: "DE", languageCode: "de" })),
-      source(3, result([], { rulebookVersion: "r2" })),
+      source(
+        5,
+        result([check("pass", { rowId: "A" })], {
+          countryCode: "DE",
+          languageCode: "de",
+        }),
+      ),
+      source(
+        3,
+        result([check("pass", { rowId: "A" })], { rulebookVersion: "r2" }),
+      ),
     ]);
     expect(diff).toMatchObject({
       from: "2026-11-03T09:00:00.000Z",
@@ -204,7 +216,10 @@ describe("withSeoRunDiffs", () => {
   it("compares with the earlier check of the same rulebook when another rulebook ran in between", () => {
     const diff = diffOf([
       source(8, result([failed({ rowId: "A" })])),
-      source(5, result([], { rulebookVersion: "r2" })),
+      source(
+        5,
+        result([check("pass", { rowId: "A" })], { rulebookVersion: "r2" }),
+      ),
       source(1, result([failed({ rowId: "A" })])),
     ]);
     expect(diff).toMatchObject({
@@ -471,6 +486,18 @@ describe("withSeoRunDiffs", () => {
 });
 
 describe("withSeoRunDiffs edge cases", () => {
+  it("pairs past a page check that stored no rows", () => {
+    const diff = diffOf([
+      source(3, result([failed({ rowId: "B" })])),
+      source(2, result([])),
+      source(1, result([check("pass", { rowId: "B" })])),
+    ]);
+    expect(diff).toMatchObject({
+      from: "2026-11-01T09:00:00.000Z",
+      newCount: 1,
+    });
+  });
+
   it("counts no new issue where the earlier check passed a rule on a device it also fired on", () => {
     const diff = diffOf([
       source(8, result([failed({ rowId: "B" })])),
