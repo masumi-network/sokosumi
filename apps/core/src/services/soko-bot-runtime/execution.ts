@@ -47,6 +47,7 @@ import {
   READ_CALLS_PER_WRITE_CALL,
   TOOL_CALL_STALE_MS,
 } from "./execution-limits";
+import { fundraisingActor, isFundraisingCapability } from "./fundraising";
 import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
 import { isSkillRead, readSkillAgain } from "./read-skill";
@@ -79,7 +80,13 @@ export async function executeTool(
   });
   assertEvaluationTool(input.capability, input.input);
   const inputHash = actionInputHash(input.input ?? null);
-  const operationKey = ACTION_CAPABILITIES.has(input.capability)
+  const externalEffect =
+    EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) ||
+    (input.capability === "investor_warm_paths" &&
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.safeParse(input.input)
+        .data?.research === true);
+  const action = externalEffect || ACTION_CAPABILITIES.has(input.capability);
+  const operationKey = action
     ? actionOperationKey({
         workspaceId: authorized.turn.workspaceId,
         principalId: actionPrincipalId(authorized.turn),
@@ -165,6 +172,8 @@ export async function executeTool(
       );
     }
     if (existing.status === "COMPLETED") {
+      if (isFundraisingCapability(input.capability))
+        await fundraisingActor(authorized);
       if (isSokoBotSeoCapability(input.capability)) {
         return runtime.executeSeoTool(input, authorized, true);
       }
@@ -379,7 +388,7 @@ export async function executeTool(
     }
     if (
       existing.status === "FAILED" &&
-      !EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
+      !externalEffect &&
       existing.disposition === "REJECTED" &&
       existing.verification === "NONE" &&
       !existing.committedAt
@@ -408,7 +417,7 @@ export async function executeTool(
       if (existing.status === "FAILED") {
         throw new SokoBotRuntimeConflictError("Tool call previously failed");
       }
-      if (EXTERNAL_EFFECT_CAPABILITIES.has(input.capability)) {
+      if (externalEffect) {
         await prisma.sokoBotToolCall.updateMany({
           where: {
             id: existing.id,
@@ -498,7 +507,6 @@ export async function executeTool(
       throw error;
     }
   }
-  const externalEffect = EXTERNAL_EFFECT_CAPABILITIES.has(input.capability);
   if (externalEffect) {
     // Fence cancellation and capability revocation at the durable dispatch
     // boundary. A crash after this commit remains UNKNOWN, never retryable.
@@ -565,13 +573,10 @@ export async function executeTool(
         // A rolled-back local attempt is not an enduring semantic
         // reservation, and neither is an effect refused before it was sent.
         ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-        ...(ACTION_CAPABILITIES.has(input.capability)
+        ...(action
           ? {
               disposition:
-                EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
-                !refusedUnsent
-                  ? "UNKNOWN"
-                  : "REJECTED",
+                externalEffect && !refusedUnsent ? "UNKNOWN" : "REJECTED",
             }
           : {}),
         errorKind: error instanceof Error ? error.name : "unknown",

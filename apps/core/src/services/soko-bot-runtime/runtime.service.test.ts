@@ -7,8 +7,11 @@ import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { badRequest } from "@/helpers/error";
+import * as exaAgent from "@/lib/exa-agent";
+import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { websiteOnlyBrain } from "@/services/evals/eval-cmo-cases";
 import cmoBrandBrains from "@/services/evals/fixtures/cmo-brand-brains.json";
+import * as portfolio from "@/services/fundraising-paths.service";
 
 const {
   botFindFirstMock,
@@ -668,6 +671,7 @@ vi.mock("@/lib/db/transaction", () => ({
           findUnique: transactionToolCallFindUniqueMock,
           findMany: transactionToolCallFindManyMock,
           update: transactionToolCallUpdateMock,
+          updateMany: toolCallUpdateManyMock,
           upsert: vi.fn().mockResolvedValue({}),
         },
         project: { findFirst: transactionProjectFindFirstMock },
@@ -822,6 +826,7 @@ import {
 import * as scheduleService from "@/services/soko-bot-schedule.service";
 import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
+import * as fundraising from "./fundraising";
 
 const SCOPE = {
   userId: "user_1",
@@ -1005,6 +1010,195 @@ describe("SokoBotRuntimeService authorization", () => {
       id: DECISION_ID,
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
+    });
+  });
+
+  describe("Core tool dispatch", () => {
+    function serviceForDispatch() {
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+      const service = new SokoBotRuntimeService();
+      service["requireMutationAuthority"] = vi
+        .fn()
+        .mockResolvedValue(undefined);
+      service.authorize = vi.fn().mockResolvedValue({
+        askedByKind: "OWNER",
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+        toolCallLimit: 10,
+      });
+      return service;
+    }
+
+    it.each(fundraising.FUNDRAISING_CAPABILITIES)(
+      "returns and records the %s handler result",
+      async (capability) => {
+        const service = serviceForDispatch();
+        const result = { found: 10 };
+        const handler = vi.fn().mockResolvedValue(result);
+        service["executeFundraisingTool"] = handler;
+        const call = {
+          ...SCOPE,
+          capability,
+          toolCallId: "research",
+          input: {},
+        };
+
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        expect(handler).toHaveBeenCalledWith(call, expect.anything());
+        expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "COMPLETED", result }),
+          }),
+        );
+      },
+    );
+
+    it.each([
+      { capability: "find_investors", input: {}, paid: true },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId, research: true },
+        paid: true,
+      },
+      {
+        capability: "investor_warm_paths",
+        input: { contactId: SCOPE.sokoBotId },
+        paid: false,
+      },
+    ] as const)(
+      "handles an interrupted $capability call according to its cost (paid=$paid)",
+      async ({ capability, input, paid }) => {
+        const service = serviceForDispatch();
+        const call = { ...SCOPE, capability, toolCallId: "interrupted", input };
+        toolCallFindUniqueMock.mockResolvedValue({
+          id: "receipt",
+          ...call,
+          inputHash: actionInputHash(input),
+          status: "PENDING",
+        });
+        const handler = vi.fn().mockResolvedValue({ paths: [] });
+        service["executeFundraisingTool"] = handler;
+        if (paid) {
+          await expect(service.executeTool(call)).rejects.toThrow(
+            SokoBotRuntimeConflictError,
+          );
+          expect(handler).not.toHaveBeenCalled();
+        } else {
+          await expect(service.executeTool(call)).resolves.toEqual({
+            paths: [],
+          });
+          expect(handler).toHaveBeenCalledOnce();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "retains the paid operation if a refusal follows dispatch (dispatched=%s)",
+      async (dispatched) => {
+        const service = serviceForDispatch();
+        workspaceFindUniqueMock.mockResolvedValueOnce({
+          organizationId: "org_1",
+        });
+        getEnvMock.mockReturnValue({
+          ...getEnvMock(),
+          FUNDRAISING_ORGANIZATION_IDS: ["org_1"],
+        });
+        const provider = vi.spyOn(exaAgent, "runExaAgent").mockResolvedValue({
+          runId: "research",
+          costUsd: 0.01,
+          structured: {},
+          text: null,
+          citations: [],
+        });
+        const research = vi
+          .spyOn(portfolio, "researchPortfolio")
+          .mockImplementation(async (_actor, _contact, deps) => {
+            if (dispatched)
+              await deps?.run({
+                query: "portfolio",
+                effort: "medium",
+                outputSchema: {},
+              });
+            throw badRequest("Contact left the investor list");
+          });
+        try {
+          await expect(
+            service.executeTool({
+              ...SCOPE,
+              capability: "investor_warm_paths",
+              input: { contactId: SCOPE.sokoBotId, research: true },
+              toolCallId: "warm",
+            }),
+          ).rejects.toThrow("Contact left the investor list");
+          expect(provider).toHaveBeenCalledTimes(dispatched ? 1 : 0);
+          const data = toolCallUpdateManyMock.mock.lastCall?.[0].data;
+          expect(data.disposition).toBe(dispatched ? "UNKNOWN" : "REJECTED");
+          if (dispatched) expect(data).not.toHaveProperty("operationKey");
+          else expect(data.operationKey).toBeNull();
+        } finally {
+          research.mockRestore();
+          provider.mockRestore();
+        }
+      },
+    );
+
+    it("checks current fundraising access before returning a completed search receipt", async () => {
+      const service = serviceForDispatch();
+      const call = {
+        ...SCOPE,
+        capability: "find_investors",
+        toolCallId: "search",
+        input: {},
+      } as const;
+      const result = { found: 10 };
+      const handler = vi.fn().mockResolvedValue(result);
+      service["executeFundraisingTool"] = handler;
+      await expect(service.executeTool(call)).resolves.toEqual(result);
+      toolCallFindUniqueMock.mockResolvedValue({
+        ...call,
+        id: "receipt",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        inputHash: actionInputHash(call.input),
+        result,
+      });
+      const policy = vi
+        .spyOn(fundraising, "fundraisingActor")
+        .mockResolvedValueOnce({
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+          sokoBotId: SCOPE.sokoBotId,
+          organizationId: "org",
+        })
+        .mockRejectedValueOnce(new Error("Fundraising disabled"));
+      try {
+        await expect(service.executeTool(call)).resolves.toEqual(result);
+        await expect(service.executeTool(call)).rejects.toThrow(
+          "Fundraising disabled",
+        );
+        expect(policy).toHaveBeenCalledTimes(2);
+        expect(handler).toHaveBeenCalledOnce();
+      } finally {
+        policy.mockRestore();
+      }
+    });
+
+    it("fails a tool without a Core handler instead of recording an empty success", async () => {
+      const service = serviceForDispatch();
+      await expect(
+        service.executeTool({
+          ...SCOPE,
+          capability: "workspace_read",
+          toolCallId: "misrouted",
+          input: { path: "brief.md" },
+        }),
+      ).rejects.toThrow(SokoBotRuntimeValidationError);
+      expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
     });
   });
 

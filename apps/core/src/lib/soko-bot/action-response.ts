@@ -7,6 +7,7 @@ import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import {
   ACTION_CAPABILITIES,
+  ACTION_RECEIPT_CAPABILITIES,
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
@@ -335,12 +336,16 @@ export async function buildActionResponse(
   const turnCalls = await tx.sokoBotToolCall.findMany({
     where: {
       turnId,
-      capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
+      capability: {
+        in: [...ACTION_RECEIPT_CAPABILITIES, "list_calendar_events"],
+      },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const calls = turnCalls.filter((call) =>
-    ACTION_CAPABILITIES.has(call.capability),
+  const calls = turnCalls.filter(
+    (call) =>
+      ACTION_CAPABILITIES.has(call.capability) ||
+      (call.capability === "investor_warm_paths" && call.disposition !== null),
   );
   const replayIds = calls.flatMap((call) =>
     call.replayedReceiptId ? [call.replayedReceiptId] : [],

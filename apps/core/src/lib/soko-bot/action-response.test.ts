@@ -1,7 +1,10 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
-import { ACTION_CAPABILITIES } from "./action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  ACTION_RECEIPT_CAPABILITIES,
+} from "./action-receipts";
 import {
   ACTION_LABELS,
   buildActionResponse,
@@ -59,12 +62,64 @@ function replay() {
 describe("action lines the owner reads", () => {
   it("has words for every action, so no line shows a tool's name", () => {
     expect(
-      [...ACTION_CAPABILITIES].filter((action) => !ACTION_LABELS[action]),
+      ACTION_RECEIPT_CAPABILITIES.filter((action) => !ACTION_LABELS[action]),
     ).toEqual([]);
   });
 
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it.each([
+    ["find_investors", "Ran an investor search."],
+    ["investor_warm_paths", "Researched the investor's portfolio."],
+  ])(
+    "describes a verified %s receipt in the owner's reply",
+    async (capability, expected) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({ capability }),
+      ]);
+      const response = await buildActionResponse(prisma, "turn-current", "");
+      expect(response.answerText).toBe(expected);
+      expect(response.appliedReceiptIds).toEqual(["receipt-one"]);
+    },
+  );
+
+  it("reports uncertain paid portfolio research and leaves ordinary warm-path reads out of the action report", async () => {
+    const capability = "investor_warm_paths";
+    const contact = { contactId: "investor-one" };
+    const rows = [
+      receipt({
+        id: "read",
+        capability,
+        input: contact,
+        disposition: null,
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+      receipt({
+        id: "paid",
+        capability,
+        input: { ...contact, research: true },
+        status: "FAILED",
+        disposition: "UNKNOWN",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+    ];
+    db.sokoBotToolCall.findMany.mockImplementationOnce(async ({ where }) =>
+      rows.filter((row) => where.capability.in.includes(row.capability)),
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "");
+    expect(response.appliedReceiptIds).toEqual([]);
+    expect(response.unfulfilledActions).toEqual([
+      { action: capability, receiptId: "paid", reason: "UNKNOWN" },
+    ]);
+    expect(response.answerText).toBe(
+      "I couldn't confirm whether this went through: researched the investor's portfolio. Check before trying again.",
+    );
   });
 
   it("links a calendar mailbox to its saved card without linking the name from the question", async () => {
@@ -551,7 +606,9 @@ describe("authoritative action responses", () => {
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
         turnId: "turn-current",
-        capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
+        capability: {
+          in: [...ACTION_RECEIPT_CAPABILITIES, "list_calendar_events"],
+        },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });

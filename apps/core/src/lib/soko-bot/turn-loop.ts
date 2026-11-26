@@ -26,7 +26,10 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  ACTION_RECEIPT_CAPABILITIES,
+} from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
@@ -771,7 +774,7 @@ async function confirmedChanges(turnId: string): Promise<string[]> {
       status: "COMPLETED",
       OR: [
         {
-          capability: { in: [...ACTION_CAPABILITIES] },
+          capability: { in: ACTION_RECEIPT_CAPABILITIES },
           disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
         },
         { capability: { in: Object.keys(RECORDED_SAVES) } },
