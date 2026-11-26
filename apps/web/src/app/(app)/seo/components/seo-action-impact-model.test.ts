@@ -1,6 +1,7 @@
 import type { ProjectSeoActionImpact } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
+  missesFreshSeoActionImpact,
   seoActionImpactModel,
   withFreshSeoActionImpact,
 } from "./seo-action-impact-model";
@@ -43,6 +44,21 @@ describe("withFreshSeoActionImpact", () => {
         fresh,
       ),
     ).toEqual([action("a", { days: 7 }), action("b", {}), action("c")]);
+  });
+});
+
+describe("missesFreshSeoActionImpact", () => {
+  it("names a view whose done action the fresh read does not hold", () => {
+    const done = {
+      observationId: "older",
+      id: "a",
+      completedAt: "2026-06-10T00:00:00Z",
+    };
+    const open = { observationId: "older", id: "b" };
+    expect(missesFreshSeoActionImpact([done], [])).toBe(true);
+    expect(missesFreshSeoActionImpact([done], [done])).toBe(false);
+    // An open action has no impact to miss.
+    expect(missesFreshSeoActionImpact([open], [])).toBe(false);
   });
 });
 

@@ -15,19 +15,39 @@ export interface SeoActionImpactRow {
  * Cached actions with the impact of a fresh read. An action the fresh read does
  * not hold, or holds without impact, keeps what it has.
  */
-export function withFreshSeoActionImpact<
-  Action extends {
-    observationId: string;
-    id: string;
-    impact?: ProjectSeoActionImpact;
-  },
->(cached: Action[], fresh: Action[]): Action[] {
-  const key = (action: Action) => `${action.observationId}:${action.id}`;
-  const impacts = new Map(fresh.map((action) => [key(action), action.impact]));
+interface ImpactAction {
+  observationId: string;
+  id: string;
+  completedAt?: Date | string;
+  verifiedAt?: Date | string;
+  impact?: ProjectSeoActionImpact;
+}
+const impactKey = (action: ImpactAction) =>
+  `${action.observationId}:${action.id}`;
+
+export function withFreshSeoActionImpact<Action extends ImpactAction>(
+  cached: Action[],
+  fresh: Action[],
+): Action[] {
+  const impacts = new Map(
+    fresh.map((action) => [impactKey(action), action.impact]),
+  );
   return cached.map((action) => {
-    const impact = impacts.get(key(action));
+    const impact = impacts.get(impactKey(action));
     return impact ? { ...action, impact } : action;
   });
+}
+
+/** A cached done action the fresh read does not hold: its impact can only come from a new read of that view. */
+export function missesFreshSeoActionImpact(
+  cached: ImpactAction[],
+  fresh: ImpactAction[],
+): boolean {
+  const held = new Set(fresh.map(impactKey));
+  return cached.some(
+    (action) =>
+      (action.completedAt || action.verifiedAt) && !held.has(impactKey(action)),
+  );
 }
 
 /** The three figures side by side, and the first day a too-early comparison can be read. */
