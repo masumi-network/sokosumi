@@ -100,6 +100,12 @@ export interface SokoBotActionContext {
     actingUserId: string | null;
     /** The member who asked (ADR 0057); null when the bot started on its own. */
     requestedByUserId: string | null;
+    /** The user who authored the triggering chat message, when applicable. */
+    askedByUserId?: string | null;
+    /** Parent turn id when this turn is a child run (background run, wake, etc.). */
+    parentTurnId?: string | null;
+    /** The bot's pinned Project id when it is a Project bot (such as Cuso). */
+    botProjectId?: string | null;
     workspaceId: string;
     eveSessionId: string | null;
     // Required, not optional: both were silently dropped from authorize()'s

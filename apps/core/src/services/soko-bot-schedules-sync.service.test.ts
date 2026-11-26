@@ -231,6 +231,12 @@ describe("SokoBotSchedulesSyncService", () => {
                 create: runCreateMock,
                 updateMany: runUpdateManyMock,
               },
+              workspace: {
+                findFirst: vi.fn().mockResolvedValue({
+                  id: dueSchedule.workspaceId,
+                  organizationId: null,
+                }),
+              },
             }),
     );
     startTurnMock.mockResolvedValue({ turnId: "turn_1", status: "RUNNING" });
@@ -560,20 +566,19 @@ describe("SokoBotSchedulesSyncService", () => {
     });
   });
 
-  it("tells a run which schedule it is, and that only its brief may end it", () => {
+  it("tells a run which schedule it is, and keeps legacy null-authority schedules running until an owner opts in", () => {
     // Recurring work keeps its schedule: only the owner ends it.
     expect(scheduleRunPrompt(dueSchedule)).toBe(
       `[Schedule "Hourly review" (scheduleId ${dueSchedule.id}). It repeats (cron "0 * * * * *", UTC) and keeps running: only the owner ends it. Never delete or switch it off; if it looks done or outdated, say so and let the owner decide.]\n\nReview active work`,
     );
-    // A brief that says when to stop is the one case the run removes it.
+    // Legacy null-authority schedule keeps running even when its prompt text
+    // mentions removal; the owner must opt in with a typed stop rule.
     expect(
       scheduleRunPrompt({
         ...dueSchedule,
         prompt: "Check SOK-12. Delete this schedule once Mira is done.",
       }),
-    ).toContain(
-      `The brief below says when to end it; only then remove it with delete_schedule and scheduleId ${dueSchedule.id}.`,
-    );
+    ).toContain("keeps running: only the owner ends it");
     expect(
       scheduleRunPrompt({ ...dueSchedule, runOnce: true, taskId: "task-9" }),
     ).toContain(
@@ -582,6 +587,105 @@ describe("SokoBotSchedulesSyncService", () => {
     expect(scheduleRunPrompt({ ...dueSchedule, systemKey: "standup" })).toBe(
       "Review active work",
     );
+  });
+
+  it("describes persisted OwnerAuthority stop rules instead of parsing the prompt text", () => {
+    const baseAuthority = {
+      version: 1 as const,
+      grantId: "grant-1",
+      origin: "owner_chat" as const,
+      sokoBotId: dueSchedule.sokoBotId,
+      workspaceId: dueSchedule.workspaceId,
+      ownerUserId: dueSchedule.requestedByUserId,
+      rootTurnId: "turn-root",
+      targetScope: { kind: "workspace" as const },
+      scheduleId: dueSchedule.id,
+      scope: "owner_writes" as const,
+      socialMode: "draft_only" as const,
+    };
+
+    // Persisted stopRule: never overrides English removal text in the prompt.
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        prompt: "Check SOK-12. Delete this schedule once Mira is done.",
+        authority: { ...baseAuthority, stopRule: { mode: "never" } },
+      }),
+    ).toContain("keeps running: only the owner ends it");
+
+    // Typed ends_after_runs stops automatically on successful settlement.
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        prompt: "Vérifie le statut chaque lundi.",
+        authority: {
+          ...baseAuthority,
+          stopRule: {
+            mode: "ends_after_runs",
+            scheduleId: dueSchedule.id,
+            maxRuns: 3,
+          },
+        },
+      }),
+    ).toContain(
+      "Its owner stop rule ends it automatically after 3 successful runs; do not delete or switch it off yourself.",
+    );
+
+    // Typed ends_on and when_target_settled render cleanly.
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        authority: {
+          ...baseAuthority,
+          stopRule: {
+            mode: "ends_on",
+            scheduleId: dueSchedule.id,
+            endsOn: "2026-12-01T00:00:00.000Z",
+          },
+        },
+      }),
+    ).toContain(
+      `Its owner stop rule allows ending it on or after 2026-12-01T00:00:00.000Z`,
+    );
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        authority: {
+          ...baseAuthority,
+          stopRule: {
+            mode: "when_target_settled",
+            scheduleId: dueSchedule.id,
+            targetKind: "task",
+            targetId: "task-9",
+          },
+        },
+      }),
+    ).toContain(
+      `Its owner stop rule allows ending it once Task task-9 is settled`,
+    );
+
+    // Unverifiable owner_authorized_stop and malformed non-null authority fail closed.
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        prompt: "Delete this schedule once done.",
+        authority: {
+          ...baseAuthority,
+          stopRule: {
+            mode: "owner_authorized_stop",
+            scheduleId: dueSchedule.id,
+            condition: "When invoice paid",
+          },
+        },
+      }),
+    ).toContain("keeps running: only the owner ends it");
+    expect(
+      scheduleRunPrompt({
+        ...dueSchedule,
+        prompt: "Delete this schedule once done.",
+        authority: { malformed: true },
+      }),
+    ).toContain("keeps running: only the owner ends it");
   });
 
   it("settles a run when startTurn returns an already-terminal duplicate", async () => {
@@ -658,10 +762,149 @@ describe("SokoBotSchedulesSyncService", () => {
         leaseExpiresAt: null,
       }),
     });
-    expect(scheduleUpdateMock).toHaveBeenCalledWith({
-      where: { id: dueSchedule.id },
-      data: { consecutiveFailures: 0 },
+    expect(scheduleUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: dueSchedule.id },
+        data: {
+          consecutiveFailures: 0,
+          completedRuns: { increment: 1 },
+        },
+      }),
+    );
+  });
+
+  it("stops an ends_after_runs schedule only on successful settlement: a failed final occurrence stays enabled until its retry succeeds, and monthly runs survive the 7-day purge", async () => {
+    const monthlyAuthority = {
+      version: 1 as const,
+      grantId: "grant-monthly",
+      origin: "owner_chat" as const,
+      sokoBotId: dueSchedule.sokoBotId,
+      workspaceId: dueSchedule.workspaceId,
+      ownerUserId: dueSchedule.requestedByUserId,
+      rootTurnId: "turn-root",
+      targetScope: { kind: "workspace" as const },
+      scheduleId: dueSchedule.id,
+      scope: "owner_writes" as const,
+      socialMode: "draft_only" as const,
+      stopRule: {
+        mode: "ends_after_runs" as const,
+        scheduleId: dueSchedule.id,
+        maxRuns: 2,
+      },
+    };
+    const state = {
+      id: dueSchedule.id,
+      sokoBotId: dueSchedule.sokoBotId,
+      workspaceId: dueSchedule.workspaceId,
+      enabled: true,
+      consecutiveFailures: 0,
+      completedRuns: 0,
+      authority: monthlyAuthority,
+      sokoBot: {
+        userId: "user_1" as string | null,
+        archivedAt: null as Date | null,
+        status: "RUNNING",
+        adminPausedAt: null as Date | null,
+        projectId: null as string | null,
+        versionId: "v39" as string | null,
+      },
+    };
+    scheduleUpdateMock.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: {
+          enabled?: boolean;
+          consecutiveFailures?: number | { increment: number };
+          completedRuns?: { increment: number };
+        };
+      }) => {
+        if (data.enabled !== undefined) state.enabled = data.enabled;
+        if (typeof data.consecutiveFailures === "number") {
+          state.consecutiveFailures = data.consecutiveFailures;
+        } else if (data.consecutiveFailures?.increment) {
+          state.consecutiveFailures += data.consecutiveFailures.increment;
+        }
+        if (data.completedRuns?.increment) {
+          state.completedRuns += data.completedRuns.increment;
+        }
+        return { ...state };
+      },
+    );
+
+    // Month 1 settles COMPLETED: completedRuns becomes 1 (< 2), schedule stays enabled.
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      authority: monthlyAuthority,
     });
+    startTurnMock.mockResolvedValueOnce({
+      turnId: "turn_month_1",
+      status: "COMPLETED",
+    });
+    const month1 = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+    expect(month1.completed).toBe(1);
+    expect(state.completedRuns).toBe(1);
+    expect(state.enabled).toBe(true);
+
+    // After 7 days the run retention purge deletes month 1's SokoBotScheduleRun
+    // rows, leaving zero prior run rows; durable state.completedRuns stays 1.
+    // Month 2 attempt 1 FAILS: completedRuns does NOT increment and schedule stays enabled.
+    startTurnMock.mockResolvedValueOnce({
+      turnId: "turn_month_2_fail",
+      status: "FAILED",
+    });
+    const month2Fail = await new SokoBotSchedulesSyncService().syncDueSchedules(
+      { shouldContinue: continueFor(1) },
+    );
+    expect(month2Fail.failed).toBe(1);
+    expect(state.completedRuns).toBe(1);
+    expect(state.enabled).toBe(true);
+
+    // Month 2 retry settles COMPLETED: durable completedRuns reaches 2 >= maxRuns
+    // (surviving the 7-day purge of month 1's run row) and disables the schedule atomically.
+    startTurnMock.mockResolvedValueOnce({
+      turnId: "turn_month_2_retry",
+      status: "COMPLETED",
+    });
+    const month2Retry =
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+    expect(month2Retry.completed).toBe(1);
+    expect(state.completedRuns).toBe(2);
+    expect(state.enabled).toBe(false);
+    // Settlement fences any unstarted PENDING/CLAIMED occurrence queued while the final run ran.
+    expect(runUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          scheduleId: dueSchedule.id,
+          status: { in: ["PENDING", "CLAIMED"] },
+          turnId: null,
+        },
+        data: expect.objectContaining({
+          status: "DEAD_LETTER",
+          errorKind: "schedule_stop_rule_met",
+        }),
+      }),
+    );
+    // Recovery only reclaims unstarted runs on enabled or one-time schedules.
+    expect(runFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              OR: [
+                { turnId: { not: null } },
+                { schedule: { enabled: true } },
+                { schedule: { runOnce: true } },
+              ],
+            },
+          ]),
+        }),
+      }),
+    );
   });
 
   it("atomically disables after reclaimed duplicate terminal failure exhausts budget", async () => {

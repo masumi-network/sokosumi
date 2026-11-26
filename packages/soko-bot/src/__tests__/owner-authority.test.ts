@@ -380,6 +380,42 @@ describe("bindScheduleStopRule and evaluateScheduleStopRule", () => {
       stopRule: { mode: "never" },
     });
 
+    // Eligible replacement workspace member editing a shared schedule's stopRule
+    // becomes the new grantor (`ownerUserId`) while preserving grantId/origin/scope/limits.
+    const replacedViaUi = bindScheduleStopRule(stored, {
+      scheduleId: SCHED_ID,
+      stopRule: { mode: "ends_after_runs", maxRuns: 3 },
+      edit: {
+        ...OWNER_UI_EDIT,
+        actorUserId: OTHER_USER_ID,
+        allowWorkspaceMember: true,
+      },
+    });
+    expect(replacedViaUi).toEqual({
+      ...stored,
+      ownerUserId: OTHER_USER_ID,
+      stopRule: { mode: "ends_after_runs", scheduleId: SCHED_ID, maxRuns: 3 },
+    });
+    const replacedViaChat = bindScheduleStopRule(stored, {
+      scheduleId: SCHED_ID,
+      stopRule: { mode: "ends_on", endsOn: "2026-12-08T12:00:00+01:00" },
+      edit: {
+        ...LATER_OWNER_CHAT_EDIT,
+        actorUserId: OTHER_USER_ID,
+        askedByKind: "TEAMMATE",
+        allowWorkspaceMember: true,
+      },
+    });
+    expect(replacedViaChat).toEqual({
+      ...stored,
+      ownerUserId: OTHER_USER_ID,
+      stopRule: {
+        mode: "ends_on",
+        scheduleId: SCHED_ID,
+        endsOn: "2026-12-08T12:00:00+01:00",
+      },
+    });
+
     // Rebinding stop rule to a different scheduleId fails closed.
     expect(() =>
       bindScheduleStopRule(stored, {
