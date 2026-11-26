@@ -8,6 +8,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   aboveUsual,
+  caseWeightedPassRate,
   countOutcomes,
   type EvalOutcome,
   type EvalOutcomeCounts,
@@ -711,6 +712,7 @@ function summarize(
     counts,
     costlier: cases.filter((evalCase) => evalCase.costlier).length,
     slower: cases.filter((evalCase) => evalCase.slower).length,
+    passRate: caseWeightedPassRate(cases.map((evalCase) => evalCase.passRate)),
     passed: states.filter((state) => state === "PASSED").length,
     scored: states.filter((state) =>
       ["PASSED", "FAILED", "ERROR"].includes(state),
@@ -761,14 +763,8 @@ export async function getEvalRunReport(runId: string) {
       const results = run.results.filter((result) => result.caseId === caseId);
       const usage = caseUsage(results);
       const past = usualHistory(caseId);
-      const usualCostUsd = usualValue(
-        past.flatMap((item) => (item.costUsd === null ? [] : [item.costUsd])),
-      );
-      const usualDurationMs = usualValue(
-        past.flatMap((item) =>
-          item.durationMs === null ? [] : [item.durationMs],
-        ),
-      );
+      const usualCostUsd = usualValue(past.map((item) => item.costUsd));
+      const usualDurationMs = usualValue(past.map((item) => item.durationMs));
       const scored = rates
         .slice(0, BASELINE_WINDOW)
         .filter((rate): rate is number => rate !== null);
@@ -781,7 +777,7 @@ export async function getEvalRunReport(runId: string) {
         outcome: evalOutcome(states, scored),
         states,
         passRate: passRate(states),
-        baselinePassRate: rates[0] ?? null,
+        baselinePassRate: scored[0] ?? null,
         history: rates,
         costUsd: usage.costUsd,
         usualCostUsd,
@@ -835,7 +831,7 @@ export async function listEvalRuns(limit = 30) {
     take: limit,
   });
   const grouped = await prisma.evalResult.groupBy({
-    by: ["runId", "suite", "status"],
+    by: ["runId", "suite", "caseId", "status"],
     where: { runId: { in: runs.map((run) => run.id) } },
     _count: { _all: true },
     _sum: { costUsdMicros: true },
@@ -844,12 +840,23 @@ export async function listEvalRuns(limit = 30) {
     const rows = grouped.filter((row) => row.runId === run.id);
     const suites = Object.fromEntries(
       run.suites.map((suite) => {
+        const inSuite = rows.filter((row) => row.suite === suite);
         const count = (status: EvalResultStatus) =>
-          rows
-            .filter((row) => row.suite === suite && row.status === status)
+          inSuite
+            .filter((row) => row.status === status)
             .reduce((total, row) => total + row._count._all, 0);
         const passed = count("PASSED");
         const scored = passed + count("FAILED") + count("ERROR");
+        const caseRates = [...new Set(inSuite.map((row) => row.caseId))].map(
+          (caseId) =>
+            passRate(
+              inSuite
+                .filter((row) => row.caseId === caseId)
+                .flatMap((row) =>
+                  Array.from({ length: row._count._all }, () => row.status),
+                ),
+            ),
+        );
         return [
           suite,
           {
@@ -859,7 +866,7 @@ export async function listEvalRuns(limit = 30) {
             errors: count("ERROR"),
             skipped: count("SKIPPED"),
             open: count("PENDING") + count("RUNNING"),
-            passRate: scored ? passed / scored : null,
+            passRate: caseWeightedPassRate(caseRates),
           },
         ];
       }),

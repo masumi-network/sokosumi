@@ -1763,6 +1763,7 @@ export type EvalRunReport = {
         };
         costlier: number;
         slower: number;
+        passRate: number | null;
         passed: number;
         scored: number;
         open: number;
