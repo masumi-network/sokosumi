@@ -219,6 +219,11 @@
       "mcp": false,
       "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
     },
+    "GET /tasks/{id}/integrations/search-console/action-impact": {
+      "cli": false,
+      "mcp": false,
+      "reason": "SEO worker runtime call for the assigned Coworker; not a person's action."
+    },
     "POST /tasks/{id}/events/failed-admission-v1": {
       "cli": false,
       "mcp": false,

@@ -1,4 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import {
+  SEO_IMPACT_MAX_WINDOW_DAYS,
+  SEO_IMPACT_MIN_WINDOW_DAYS,
+} from "@sokosumi/utils";
 import { SEO_MAX_PAGES, seoUrlSchema } from "./seo-page.schema";
 
 /** A calendar day as Search Console dates it. A plain string, so no client turns it into an instant with a time zone. */
@@ -51,3 +55,26 @@ export const seoActionImpactSchema = z
     after: z.union([impactTotals, z.null()]),
   })
   .openapi("ProjectSeoActionImpact");
+
+/** The window length a caller chooses. Absent means the default of the SEO tab. */
+export const seoImpactDaysSchema = z.coerce
+  .number()
+  .int()
+  .min(SEO_IMPACT_MIN_WINDOW_DAYS)
+  .max(SEO_IMPACT_MAX_WINDOW_DAYS)
+  .optional();
+
+/** The done actions on the audit's own pages, for the worker of that audit. */
+export const seoTaskActionImpactSchema = z
+  .strictObject({
+    actions: z.array(
+      z.strictObject({
+        id: z.string(),
+        pageUrl: seoUrlSchema,
+        title: z.string(),
+        impact: seoActionImpactSchema,
+      }),
+    ),
+  })
+  .openapi("SeoTaskActionImpact");
+export type SeoTaskActionImpact = z.infer<typeof seoTaskActionImpactSchema>;

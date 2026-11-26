@@ -17978,6 +17978,15 @@ export type SeoTaskSearchAnalyticsQuery = {
     startRow: number;
 };
 
+export type SeoTaskActionImpact = {
+    actions: Array<{
+        id: string;
+        pageUrl: string;
+        title: string;
+        impact: ProjectSeoActionImpact;
+    }>;
+};
+
 export type SendTaskToChatRequest = {
     roomId: string;
     note?: string;
@@ -110956,6 +110965,113 @@ export type PostTasksByIdIntegrationsSearchConsoleReadsResponses = {
 };
 
 export type PostTasksByIdIntegrationsSearchConsoleReadsResponse = PostTasksByIdIntegrationsSearchConsoleReadsResponses[keyof PostTasksByIdIntegrationsSearchConsoleReadsResponses];
+
+export type GetTasksByIdIntegrationsSearchConsoleActionImpactData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        days?: number;
+    };
+    url: '/tasks/{id}/integrations/search-console/action-impact';
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleActionImpactErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict. Branch on `kind`: seo_gsc_not_connected, seo_gsc_reconnect or seo_gsc_unavailable.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleActionImpactError = GetTasksByIdIntegrationsSearchConsoleActionImpactErrors[keyof GetTasksByIdIntegrationsSearchConsoleActionImpactErrors];
+
+export type GetTasksByIdIntegrationsSearchConsoleActionImpactResponses = {
+    /**
+     * The done actions on the audit's pages with their before and after
+     */
+    200: {
+        data: SeoTaskActionImpact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleActionImpactResponse = GetTasksByIdIntegrationsSearchConsoleActionImpactResponses[keyof GetTasksByIdIntegrationsSearchConsoleActionImpactResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

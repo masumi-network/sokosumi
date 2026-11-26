@@ -72970,6 +72970,45 @@ export const SeoTaskSearchAnalyticsQuerySchema = {
     additionalProperties: false
 } as const;
 
+export const SeoTaskActionImpactSchema = {
+    type: 'object',
+    properties: {
+        actions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    impact: {
+                        $ref: '#/components/schemas/ProjectSeoActionImpact'
+                    }
+                },
+                required: [
+                    'id',
+                    'pageUrl',
+                    'title',
+                    'impact'
+                ],
+                additionalProperties: false
+            }
+        }
+    },
+    required: [
+        'actions'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SendTaskToChatRequestSchema = {
     type: 'object',
     properties: {
