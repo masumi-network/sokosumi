@@ -739,6 +739,9 @@ export async function executeTool(
   }
   try {
     const result = await runtime.executeAuthorizedTool(input);
+    const receipt = externalEffect
+      ? externalActionReceipt(input.capability, result)
+      : null;
     await prisma.sokoBotToolCall.updateMany({
       where: {
         turnId: input.turnId,
@@ -752,23 +755,23 @@ export async function executeTool(
           : { status: "PENDING" }),
       },
       data: {
-        ...(externalEffect
-          ? externalActionReceipt(input.capability, result)
-          : {}),
+        ...(receipt ?? {}),
+        ...(receipt?.disposition === "REJECTED" ? { operationKey: null } : {}),
         status: "COMPLETED",
         result: persistedToolResult(result ?? null, input.capability),
       },
     });
     if (spendReserved) {
-      const submissionUncertain =
-        typeof result === "object" &&
-        result !== null &&
-        "status" in result &&
-        (result as { status?: unknown }).status === "SUBMISSION_UNCERTAIN";
+      const spendOutcome =
+        receipt?.disposition === "REJECTED"
+          ? "RELEASED"
+          : receipt?.disposition === "UNKNOWN"
+            ? "UNKNOWN"
+            : "SETTLED";
       await settleAuthoritySpend(
         prisma,
         { turnId: input.turnId, toolCallId: input.toolCallId },
-        submissionUncertain ? "UNKNOWN" : "SETTLED",
+        spendOutcome,
       );
     }
     return result;

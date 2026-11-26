@@ -32,9 +32,11 @@ interface SpendRow {
 interface LegacyCallRow {
   turnId: string;
   toolCallId: string;
+  operationKey?: string | null;
   capability: string;
   disposition: string | null;
-  input: { maxCredits: number };
+  replayedReceiptId?: string | null;
+  input: { maxCredits: number; projectId?: string };
 }
 
 function createInMemorySpendDb() {
@@ -608,5 +610,166 @@ describe("authority-spend", () => {
         grants: [projectGrant],
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("ignores ALREADY_SATISFIED replay markers so a replayed image never charges the grant twice", async () => {
+    const db = createInMemorySpendDb();
+    const grant: MediaSpendGrant = {
+      grantId: "grant-replay-marker",
+      images: 2,
+      maxMediaCredits: 20,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["wake-1"],
+    };
+
+    // First image settled in ledger (10 credits) + tool-call row.
+    await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "wake-1",
+      toolCallId: "orig-1",
+      operationKey: "op-img-1",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 10,
+      grants: [grant],
+    });
+    await settleAuthoritySpend(
+      db as never,
+      { turnId: "wake-1", toolCallId: "orig-1" },
+      "SETTLED",
+    );
+    db.legacyCalls.push(
+      {
+        turnId: "wake-1",
+        toolCallId: "orig-1",
+        operationKey: "op-img-1",
+        capability: "generate_image",
+        disposition: "APPLIED",
+        replayedReceiptId: null,
+        input: { maxCredits: 10 },
+      },
+      // Replay marker written by execution.ts on a second toolCallId: NOT a second job.
+      {
+        turnId: "wake-1",
+        toolCallId: "replay-1",
+        operationKey: null,
+        capability: "generate_image",
+        disposition: "ALREADY_SATISFIED",
+        replayedReceiptId: "receipt-orig-1",
+        input: { maxCredits: 10 },
+      },
+    );
+
+    // Second distinct 10-credit image MUST pass preflight and reserve (total 2/2 images, 20/20 credits).
+    await expect(
+      checkGrantSpendPreflight(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "wake-1",
+        toolCallId: "img-2",
+        operationKey: "op-img-2",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 10,
+        grants: [grant],
+      }),
+    ).resolves.toBeUndefined();
+    const second = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "wake-1",
+      toolCallId: "img-2",
+      operationKey: "op-img-2",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 10,
+      grants: [grant],
+    });
+    expect(second).toEqual({ grantId: "grant-replay-marker", reused: false });
+
+    // Third image is refused.
+    await expect(
+      reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "wake-1",
+        toolCallId: "img-3",
+        operationKey: "op-img-3",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: [grant],
+      }),
+    ).rejects.toThrow("The owner asked for 2 images in this plan");
+  });
+
+  it("counts each pre-migration historical paid call once across multiple old grants sharing a wake", async () => {
+    const db = createInMemorySpendDb();
+    const legacyA: MediaSpendGrant = {
+      grantId: "legacy-delegation:a",
+      images: 1,
+      maxMediaCredits: 10,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["old-failed-wake", "retry-wake"],
+    };
+    const legacyB: MediaSpendGrant = {
+      grantId: "legacy-delegation:b",
+      images: 1,
+      maxMediaCredits: 10,
+      targetScope: { kind: "workspace" },
+      legacyTurnIds: ["old-failed-wake", "retry-wake"],
+    };
+
+    // One historical paid image on the pre-migration failed wake (no ledger row).
+    db.legacyCalls.push({
+      turnId: "old-failed-wake",
+      toolCallId: "legacy-img-1",
+      capability: "generate_image",
+      disposition: "APPLIED",
+      replayedReceiptId: null,
+      input: { maxCredits: 10 },
+    });
+
+    // The historical call fills legacyA once, leaving legacyB available for the 2nd image.
+    const second = await reserveAuthoritySpend(db as never, {
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      turnId: "retry-wake",
+      toolCallId: "new-img-2",
+      operationKey: "op-new-2",
+      capability: "generate_image",
+      projectId: PROJECT_A,
+      images: 1,
+      videos: 0,
+      credits: 10,
+      grants: [legacyA, legacyB],
+    });
+    expect(second).toEqual({ grantId: "legacy-delegation:b", reused: false });
+
+    // A 3rd image exhausts both old grants and is refused.
+    await expect(
+      reserveAuthoritySpend(db as never, {
+        sokoBotId: BOT_ID,
+        workspaceId: WS_ID,
+        turnId: "retry-wake",
+        toolCallId: "new-img-3",
+        operationKey: "op-new-3",
+        capability: "generate_image",
+        projectId: PROJECT_A,
+        images: 1,
+        videos: 0,
+        credits: 5,
+        grants: [legacyA, legacyB],
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
   });
 });

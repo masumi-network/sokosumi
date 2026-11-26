@@ -141,6 +141,7 @@ function wakeAskedByKind(
 export async function mayMakeMediaForOwner(
   runtime: Pick<RuntimeOperations, "mayActForOwner">,
   authorized: AuthorizedSokoBotRuntime,
+  options?: { projectId?: string },
 ): Promise<MediaAllowance | null> {
   if (await runtime.mayActForOwner(authorized)) return {};
   if (authorized.turn.source !== "EVENT") return null;
@@ -165,7 +166,7 @@ export async function mayMakeMediaForOwner(
           ...owner,
           parentTurnId: true,
           parentTurn: { select: owner },
-          sokoBot: { select: { userId: true } },
+          sokoBot: { select: { userId: true, projectId: true } },
         },
       },
     },
@@ -180,6 +181,7 @@ export async function mayMakeMediaForOwner(
   const versionId = authorized.turn.versionId ?? null;
   const effectiveItems: { authority: OwnerAuthority }[] = [];
   let sawExpired = false;
+  let sawScopeMismatch = false;
 
   for (let index = 0; index < carried.length; index += 1) {
     const delegation = carried[index]!;
@@ -204,6 +206,11 @@ export async function mayMakeMediaForOwner(
         ? authorized.turn.actingUserId
         : (delegation.turn.requestedByUserId ?? null);
     const sharedBot = delegation.turn.sokoBot?.userId === null;
+    const liveProjectId =
+      options?.projectId ??
+      authorized.turn.botProjectId ??
+      delegation.turn.sokoBot?.projectId ??
+      null;
     const effective = intersectOwnerAuthority(authority, {
       sokoBotId,
       workspaceId,
@@ -212,6 +219,14 @@ export async function mayMakeMediaForOwner(
       askedByKind,
       sharedBot,
       source: "EVENT",
+      ...(liveProjectId
+        ? {
+            targetScope: {
+              kind: "project" as const,
+              projectId: liveProjectId,
+            },
+          }
+        : {}),
       hasWorkspaceAccess: true,
       botAlive: true,
       offeredCapabilities: ["generate_image", "generate_video"],
@@ -219,6 +234,9 @@ export async function mayMakeMediaForOwner(
     });
     if (!effective.effective) {
       if (effective.denialReason === "expired") sawExpired = true;
+      if (effective.denialReason === "target_scope_mismatch") {
+        sawScopeMismatch = true;
+      }
       continue;
     }
     if (
@@ -234,6 +252,11 @@ export async function mayMakeMediaForOwner(
     if (sawExpired) {
       throw new SokoBotRuntimeAuthorizationError(
         "The owner's media authorization for this follow-up has expired. Ask the owner in chat to renew it.",
+      );
+    }
+    if (sawScopeMismatch) {
+      throw new SokoBotRuntimeValidationError(
+        "The owner's media authorization for this follow-up is scoped to a different Project.",
       );
     }
     return null;
@@ -314,7 +337,9 @@ export async function checkImageRequest(
   operationKey: string | null = null,
 ) {
   const input = generateImageInputSchema.parse(raw);
-  const allowance = await mayMakeMediaForOwner(runtime, authorized);
+  const allowance = await mayMakeMediaForOwner(runtime, authorized, {
+    projectId: input.projectId,
+  });
   if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Images are generated only when a person asks in chat. Describe the image you would make instead.",
@@ -325,7 +350,11 @@ export async function checkImageRequest(
       where: {
         turnId: { in: turnIds },
         capability: "generate_image",
-        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        replayedReceiptId: null,
+        OR: [
+          { disposition: null },
+          { disposition: { notIn: ["REJECTED", "ALREADY_SATISFIED"] } },
+        ],
         NOT: { turnId: authorized.turn.id, toolCallId },
       },
     });
@@ -502,7 +531,9 @@ export async function checkVideoRequest(
   operationKey: string | null = null,
 ) {
   const input = generateVideoInputSchema.parse(raw);
-  const allowance = await mayMakeMediaForOwner(runtime, authorized);
+  const allowance = await mayMakeMediaForOwner(runtime, authorized, {
+    projectId: input.projectId,
+  });
   if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
@@ -533,7 +564,11 @@ export async function checkVideoRequest(
     where: {
       turnId: authorized.turn.id,
       capability: "generate_video",
-      OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+      replayedReceiptId: null,
+      OR: [
+        { disposition: null },
+        { disposition: { notIn: ["REJECTED", "ALREADY_SATISFIED"] } },
+      ],
       NOT: { toolCallId },
     },
   });

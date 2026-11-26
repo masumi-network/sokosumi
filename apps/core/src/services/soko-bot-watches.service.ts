@@ -630,7 +630,7 @@ export async function syncSokoBotWatches(input: {
           versionId: true,
           capabilityNames: true,
           destinationRoomId: true,
-          sokoBot: { select: { userId: true } },
+          sokoBot: { select: { userId: true, projectId: true } },
         },
       },
     },
@@ -710,6 +710,8 @@ export async function syncSokoBotWatches(input: {
           : sharedBot
             ? "TEAMMATE"
             : "OWNER";
+    const liveProjectId =
+      watch.projectId ?? watch.turn.sokoBot?.projectId ?? null;
     const capabilities = capabilitiesForWatchFollowUp(
       watch.kind,
       watch.turn.capabilityNames,
@@ -723,11 +725,11 @@ export async function syncSokoBotWatches(input: {
           askedByKind,
           sharedBot,
           source: watch.turn.source === "CHAT" ? "CHAT" : "SCHEDULE",
-          ...(watch.projectId
+          ...(liveProjectId
             ? {
                 targetScope: {
                   kind: "project" as const,
-                  projectId: watch.projectId,
+                  projectId: liveProjectId,
                 },
               }
             : {}),

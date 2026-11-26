@@ -771,5 +771,65 @@ describe("syncSokoBotWatches", () => {
         "get_image",
       ]);
     });
+
+    it("preserves capabilities on Project Cuso watches even when watch.projectId is null and rejects mismatched projectId", async () => {
+      db.sokoBotTurn.findUnique.mockResolvedValue({
+        status: "COMPLETED",
+        finalAnswer: "Draft ready.",
+        backgroundTitle: "Research",
+      });
+      const cusoWatchAuthority = {
+        version: 1,
+        grantId: "turn-cmo",
+        origin: "owner_chat",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        ownerUserId: "user-1",
+        rootTurnId: "turn-cmo",
+        targetScope: { kind: "project", projectId: "project-cmo" },
+        scope: "owner_writes",
+        socialMode: "full",
+        stopRule: { mode: "never" },
+      };
+      const baseWait = waiting({
+        kind: "background_run",
+        targetId: "run-1",
+        projectId: null,
+        authority: cusoWatchAuthority,
+      });
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        {
+          ...baseWait,
+          turn: {
+            ...baseWait.turn,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "project-cmo" },
+          },
+        },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[0][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
+
+      // Mismatched explicit watch.projectId fails closed with zero tools.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        {
+          ...baseWait,
+          id: "watch-mismatch",
+          projectId: "project-other",
+          turn: {
+            ...baseWait.turn,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "project-cmo" },
+          },
+        },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[1][0].presetRoute.capabilities).toEqual(
+        [],
+      );
+    });
   });
 });

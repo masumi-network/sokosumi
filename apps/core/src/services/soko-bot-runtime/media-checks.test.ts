@@ -211,4 +211,106 @@ describe("mayMakeMediaForOwner", () => {
     ).resolves.toBeNull();
     expect(delegationFindManyMock).not.toHaveBeenCalled();
   });
+
+  it("allows matching project-scoped persisted OwnerAuthority (personal and Cuso) and refuses a different Project", async () => {
+    const projectGrant = {
+      version: 1,
+      grantId: "grant-project-a",
+      origin: "owner_chat",
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      ownerUserId: "user-1",
+      rootTurnId: "root-1",
+      targetScope: { kind: "project", projectId: "project-a" },
+      scope: "draft_and_workspace",
+      socialMode: "draft_only",
+      limits: {
+        grantId: "grant-project-a",
+        period: "lifetime",
+        images: 2,
+        maxMediaCredits: 20,
+      },
+      stopRule: { mode: "never" },
+    };
+    delegationFindManyMock.mockResolvedValue([
+      {
+        id: "del-proj",
+        authority: projectGrant,
+        turn: {
+          ...ownerChat,
+          id: "root-1",
+          sokoBotId: "bot-1",
+          workspaceId: "ws-1",
+          versionId: "v36",
+          sokoBot: { userId: "user-1", projectId: null },
+        },
+      },
+    ]);
+    const personalWake = {
+      askedByKind: "OWNER",
+      turn: {
+        id: "event-turn",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        versionId: "v36",
+        actingUserId: "user-1",
+        source: "EVENT",
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+    await expect(
+      mayMakeMediaForOwner(runtime, personalWake, { projectId: "project-a" }),
+    ).resolves.toMatchObject({ images: 2, maxCredits: 20 });
+
+    await expect(
+      mayMakeMediaForOwner(runtime, personalWake, { projectId: "project-b" }),
+    ).rejects.toThrow("scoped to a different Project");
+
+    // Project Cuso shared bot (`userId: null`, `projectId: "project-cmo"`).
+    delegationFindManyMock.mockResolvedValue([
+      {
+        id: "del-cmo",
+        authority: {
+          ...projectGrant,
+          grantId: "grant-cmo",
+          sokoBotId: "cmo-bot",
+          targetScope: { kind: "project", projectId: "project-cmo" },
+          socialMode: "full",
+          limits: {
+            grantId: "grant-cmo",
+            period: "lifetime",
+            images: 3,
+            maxMediaCredits: 30,
+          },
+        },
+        turn: {
+          ...ownerChat,
+          id: "cmo-root",
+          sokoBotId: "cmo-bot",
+          workspaceId: "ws-1",
+          versionId: "cmo-v24",
+          sokoBot: { userId: null, projectId: "project-cmo" },
+        },
+      },
+    ]);
+    const cmoWake = {
+      askedByKind: "TEAMMATE",
+      turn: {
+        id: "event-turn",
+        sokoBotId: "cmo-bot",
+        workspaceId: "ws-1",
+        versionId: "cmo-v24",
+        actingUserId: "user-1",
+        botProjectId: "project-cmo",
+        source: "EVENT",
+      },
+    } as unknown as Parameters<typeof mayMakeMediaForOwner>[1];
+
+    await expect(
+      mayMakeMediaForOwner(runtime, cmoWake, { projectId: "project-cmo" }),
+    ).resolves.toMatchObject({ images: 3, maxCredits: 30 });
+    await expect(
+      mayMakeMediaForOwner(runtime, cmoWake, { projectId: "project-other" }),
+    ).rejects.toThrow("scoped to a different Project");
+  });
 });

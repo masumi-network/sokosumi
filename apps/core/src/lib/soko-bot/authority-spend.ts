@@ -179,104 +179,193 @@ interface GrantUsage {
   credits: number;
 }
 
-const maxCreditsInputSchema = z.object({ maxCredits: z.number() });
+const legacyMediaInputSchema = z.object({
+  maxCredits: z.number().optional(),
+  projectId: z.string().optional(),
+});
 
-async function readGrantUsage(
+async function readEligibleGrantUsages(
   client: SpendReadClient,
   sokoBotId: string,
-  grant: MediaSpendGrant,
+  eligible: readonly MediaSpendGrant[],
   exclude: {
     turnId: string;
     toolCallId: string;
     operationKey: string | null;
   },
-): Promise<GrantUsage> {
-  const ledgerRows =
-    typeof client.sokoBotAuthoritySpend?.findMany === "function"
-      ? await client.sokoBotAuthoritySpend.findMany({
-          where: {
-            sokoBotId,
-            grantId: grant.grantId,
-            status: { in: [...ACTIVE_SPEND_STATUSES] },
-            NOT: { turnId: exclude.turnId, toolCallId: exclude.toolCallId },
-          },
-          select: {
-            turnId: true,
-            toolCallId: true,
-            operationKey: true,
-            images: true,
-            videos: true,
-            credits: true,
-          },
-        })
-      : [];
-
-  const filteredLedger = ledgerRows.filter(
-    (row) =>
-      !(
-        exclude.operationKey !== null &&
-        row.operationKey !== null &&
-        row.operationKey === exclude.operationKey
-      ),
-  );
-
-  let images = 0;
-  let videos = 0;
-  let credits = 0;
+): Promise<Map<string, GrantUsage>> {
+  const usageByGrant = new Map<string, GrantUsage>();
   const coveredCalls = new Set<string>();
-  for (const row of filteredLedger) {
-    images += row.images;
-    videos += row.videos;
-    credits += row.credits;
-    coveredCalls.add(`${row.turnId}:${row.toolCallId}`);
+  const coveredOperationKeys = new Set<string>();
+
+  for (const grant of eligible) {
+    const ledgerRows =
+      typeof client.sokoBotAuthoritySpend?.findMany === "function"
+        ? await client.sokoBotAuthoritySpend.findMany({
+            where: {
+              sokoBotId,
+              grantId: grant.grantId,
+              status: { in: [...ACTIVE_SPEND_STATUSES] },
+              NOT: { turnId: exclude.turnId, toolCallId: exclude.toolCallId },
+            },
+            select: {
+              turnId: true,
+              toolCallId: true,
+              operationKey: true,
+              images: true,
+              videos: true,
+              credits: true,
+            },
+          })
+        : [];
+
+    const filteredLedger = ledgerRows.filter(
+      (row) =>
+        !(
+          exclude.operationKey !== null &&
+          row.operationKey !== null &&
+          row.operationKey === exclude.operationKey
+        ),
+    );
+
+    let images = 0;
+    let videos = 0;
+    let credits = 0;
+    for (const row of filteredLedger) {
+      images += row.images;
+      videos += row.videos;
+      credits += row.credits;
+      coveredCalls.add(`${row.turnId}:${row.toolCallId}`);
+      if (row.operationKey) coveredOperationKeys.add(row.operationKey);
+    }
+    usageByGrant.set(grant.grantId, { images, videos, credits });
   }
 
   // Rolling-deploy & pre-migration fallback: include any legacy tool calls on
-  // `legacyTurnIds` that were written before SokoBotAuthoritySpend existed.
-  // Exclude calls that ALREADY have a ledger row under ANY grantId so a mixed
-  // wake charging call C to grant G1 never double-counts C against grant G2.
+  // `legacyTurnIds` written before SokoBotAuthoritySpend existed.
+  // - Exclude calls that already have an active ledger row under ANY grantId.
+  // - Exclude REJECTED and ALREADY_SATISFIED replay markers (`replayedReceiptId != null`).
+  // - Count each distinct historical paid action ONCE across multiple old grants
+  //   sharing a wake instead of charging the same historical call against each grant.
+  const allLegacyTurnIds = [
+    ...new Set(eligible.flatMap((grant) => grant.legacyTurnIds ?? [])),
+  ];
   if (
-    grant.legacyTurnIds?.length &&
+    allLegacyTurnIds.length > 0 &&
     typeof client.sokoBotToolCall?.findMany === "function"
   ) {
     if (typeof client.sokoBotAuthoritySpend?.findMany === "function") {
       const anyLedgerOnLegacyTurns =
         await client.sokoBotAuthoritySpend.findMany({
           where: {
-            turnId: { in: [...grant.legacyTurnIds] },
+            turnId: { in: allLegacyTurnIds },
             status: { in: [...ACTIVE_SPEND_STATUSES] },
           },
-          select: { turnId: true, toolCallId: true },
+          select: { turnId: true, toolCallId: true, operationKey: true },
         });
       for (const row of anyLedgerOnLegacyTurns) {
         coveredCalls.add(`${row.turnId}:${row.toolCallId}`);
+        if (row.operationKey) coveredOperationKeys.add(row.operationKey);
       }
     }
+
     const legacyCalls = await client.sokoBotToolCall.findMany({
       where: {
-        turnId: { in: [...grant.legacyTurnIds] },
+        turnId: { in: allLegacyTurnIds },
         capability: { in: ["generate_image", "generate_video"] },
-        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        replayedReceiptId: null,
+        OR: [
+          { disposition: null },
+          { disposition: { notIn: ["REJECTED", "ALREADY_SATISFIED"] } },
+        ],
         NOT: { turnId: exclude.turnId, toolCallId: exclude.toolCallId },
       },
       select: {
         turnId: true,
         toolCallId: true,
+        operationKey: true,
+        disposition: true,
+        replayedReceiptId: true,
         capability: true,
         input: true,
       },
     });
-    for (const call of legacyCalls) {
-      const key = `${call.turnId}:${call.toolCallId}`;
-      if (coveredCalls.has(key)) continue;
-      if (call.capability === "generate_image") images += 1;
-      if (call.capability === "generate_video") videos += 1;
-      credits +=
-        maxCreditsInputSchema.safeParse(call.input).data?.maxCredits ?? 0;
+
+    const seenCallKeys = new Set<string>();
+    const seenLegacyOpKeys = new Set<string>();
+    const unassignedLegacy = legacyCalls
+      .filter((call) => {
+        if (
+          call.turnId === exclude.turnId &&
+          call.toolCallId === exclude.toolCallId
+        ) {
+          return false;
+        }
+        if (
+          call.disposition === "REJECTED" ||
+          call.disposition === "ALREADY_SATISFIED" ||
+          call.replayedReceiptId != null
+        ) {
+          return false;
+        }
+        const key = `${call.turnId}:${call.toolCallId}`;
+        if (coveredCalls.has(key) || seenCallKeys.has(key)) return false;
+        if (call.operationKey) {
+          if (
+            call.operationKey === exclude.operationKey ||
+            coveredOperationKeys.has(call.operationKey) ||
+            seenLegacyOpKeys.has(call.operationKey)
+          ) {
+            return false;
+          }
+          seenLegacyOpKeys.add(call.operationKey);
+        }
+        seenCallKeys.add(key);
+        return true;
+      })
+      .sort((left, right) =>
+        `${left.turnId}:${left.toolCallId}`.localeCompare(
+          `${right.turnId}:${right.toolCallId}`,
+        ),
+      );
+
+    for (const call of unassignedLegacy) {
+      const parsedInput = legacyMediaInputSchema.safeParse(call.input).data;
+      const callCost = {
+        images: call.capability === "generate_image" ? 1 : 0,
+        videos: call.capability === "generate_video" ? 1 : 0,
+        credits: parsedInput?.maxCredits ?? 0,
+      };
+      const turnMatchingGrants = eligible.filter((grant) =>
+        grant.legacyTurnIds?.includes(call.turnId),
+      );
+      if (!turnMatchingGrants.length) continue;
+      const scopedCandidates = parsedInput?.projectId
+        ? selectEligibleGrantsForProject(
+            turnMatchingGrants,
+            parsedInput.projectId,
+          )
+        : turnMatchingGrants;
+      const candidates = scopedCandidates.length
+        ? scopedCandidates
+        : turnMatchingGrants;
+      const assigned =
+        candidates.find(
+          (grant) =>
+            grantRefusalMessage(
+              grant,
+              usageByGrant.get(grant.grantId)!,
+              callCost,
+            ) === null,
+        ) ?? candidates[0]!;
+      const bucket = usageByGrant.get(assigned.grantId)!;
+      bucket.images += callCost.images;
+      bucket.videos += callCost.videos;
+      bucket.credits += callCost.credits;
     }
   }
 
-  return { images, videos, credits };
+  return usageByGrant;
 }
 
 function grantRefusalMessage(
@@ -326,13 +415,19 @@ export async function checkGrantSpendPreflight(
       "The owner's media authorization for this follow-up is scoped to a different Project.",
     );
   }
-  let firstRefusal: string | null = null;
-  for (const grant of eligible) {
-    const usage = await readGrantUsage(client, request.sokoBotId, grant, {
+  const usageByGrant = await readEligibleGrantUsages(
+    client,
+    request.sokoBotId,
+    eligible,
+    {
       turnId: request.turnId,
       toolCallId: request.toolCallId,
       operationKey: request.operationKey,
-    });
+    },
+  );
+  let firstRefusal: string | null = null;
+  for (const grant of eligible) {
+    const usage = usageByGrant.get(grant.grantId)!;
     const refusal = grantRefusalMessage(grant, usage, {
       images: request.images,
       videos: request.videos,
@@ -433,14 +528,20 @@ export async function reserveAuthoritySpend(
     }
   }
 
-  let chosen: MediaSpendGrant | null = null;
-  let firstRefusal: string | null = null;
-  for (const grant of eligible) {
-    const usage = await readGrantUsage(tx, request.sokoBotId, grant, {
+  const usageByGrant = await readEligibleGrantUsages(
+    tx,
+    request.sokoBotId,
+    eligible,
+    {
       turnId: request.turnId,
       toolCallId: request.toolCallId,
       operationKey: request.operationKey,
-    });
+    },
+  );
+  let chosen: MediaSpendGrant | null = null;
+  let firstRefusal: string | null = null;
+  for (const grant of eligible) {
+    const usage = usageByGrant.get(grant.grantId)!;
     const refusal = grantRefusalMessage(grant, usage, {
       images: request.images,
       videos: request.videos,

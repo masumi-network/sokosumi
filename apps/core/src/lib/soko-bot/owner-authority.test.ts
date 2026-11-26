@@ -1705,4 +1705,96 @@ describe("delegation and watch OwnerAuthority persistence, schedules, and legacy
     );
     expect(expiredAppCaps).toEqual(["list_tasks", "get_image"]);
   });
+
+  it("preserves Project Cuso targetScope across chat, delegation handoff, and watch derivation", async () => {
+    const cusoTurn = {
+      id: "0193a000-0000-7000-8000-0000000000c0",
+      sokoBotId: BOT_ID,
+      workspaceId: WS_ID,
+      versionId: "cmo-v24",
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: OWNER_ID,
+      requestedByUserId: OWNER_ID,
+      actingUserId: OWNER_ID,
+      askedByKind: "TEAMMATE" as const,
+      chainDepth: 0,
+      botProjectId: PROJECT_A,
+    };
+
+    const delegationAuth = await deriveDelegationAuthority(cusoTurn, {
+      followUpAllows: { images: 2, maxCredits: 20 },
+    });
+    expect(delegationAuth.origin).toBe("owner_chat");
+    expect(delegationAuth.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_A,
+    });
+    expect(delegationAuth.socialMode).toBe("full");
+    expect(delegationAuth.limits).toEqual({
+      grantId: cusoTurn.id,
+      period: "lifetime",
+      images: 2,
+      maxMediaCredits: 20,
+    });
+
+    // Attempting to rebind a Project Cuso delegation to another Project fails closed.
+    await expect(
+      deriveDelegationAuthority(cusoTurn, { projectId: PROJECT_B }),
+    ).rejects.toThrow("Cannot rebind target scope");
+
+    // Project Cuso watch inherits its own Project targetScope even without explicit watch.projectId.
+    const watchAuth = await deriveWatchAuthority(cusoTurn, {
+      kind: "background_run",
+      projectId: null,
+    });
+    expect(watchAuth.origin).toBe("owner_chat");
+    expect(watchAuth.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_A,
+    });
+    const wakeCaps = capabilitiesForWatchFollowUp(
+      "background_run",
+      ["get_image", "post_chat", "create_social_post", "start_background_run"],
+      {
+        authority: watchAuth,
+        live: {
+          sokoBotId: BOT_ID,
+          workspaceId: WS_ID,
+          versionId: "cmo-v24",
+          actingUserId: OWNER_ID,
+          askedByKind: "TEAMMATE",
+          sharedBot: true,
+          source: "CHAT",
+          targetScope: { kind: "project", projectId: PROJECT_A },
+          hasWorkspaceAccess: true,
+          botAlive: true,
+        },
+      },
+    );
+    expect(wakeCaps).toEqual(["get_image", "post_chat", "create_social_post"]);
+
+    // Legacy authority=null watch for Project Cuso preserves its project targetScope.
+    const legacyCusoWatch = resolveWatchWakeAuthority({
+      id: "legacy-cmo-watch",
+      kind: "background_run",
+      projectId: null,
+      sokoBotId: BOT_ID,
+      authority: null,
+      turn: {
+        id: cusoTurn.id,
+        requestedByUserId: OWNER_ID,
+        askedByUserId: OWNER_ID,
+        chainDepth: 0,
+        workspaceId: WS_ID,
+        source: "CHAT",
+        versionId: "cmo-v24",
+        sokoBot: { userId: null, projectId: PROJECT_A },
+      },
+    });
+    expect(legacyCusoWatch.targetScope).toEqual({
+      kind: "project",
+      projectId: PROJECT_A,
+    });
+  });
 });

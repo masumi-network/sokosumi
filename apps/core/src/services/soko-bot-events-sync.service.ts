@@ -383,6 +383,8 @@ function ownerRequestGrant(delegation: {
   followUp: string | null;
   followUpAllows?: unknown;
   followUpTurnId: string | null;
+  task?: { projectId?: string | null } | null;
+  job?: { task?: { projectId?: string | null } | null } | null;
   turn: OwnerRequestTurn & {
     id?: string;
     sokoBotId: string;
@@ -391,7 +393,7 @@ function ownerRequestGrant(delegation: {
     parentTurnId: string | null;
     parentTurn: OwnerRequestTurn | null;
     capabilityNames: string[];
-    sokoBot?: { userId?: string | null } | null;
+    sokoBot?: { userId?: string | null; projectId?: string | null } | null;
   };
 }): readonly string[] {
   if (!pendingFollowUp(delegation)) return [];
@@ -406,32 +408,47 @@ function ownerRequestGrant(delegation: {
     sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
   });
   const sharedBot = delegation.turn.sokoBot?.userId === null;
-  const effective = intersectOwnerAuthority(authority, {
+  const askedByKind =
+    delegation.turn.chainDepth > 0
+      ? ("ASSISTANT" as const)
+      : sharedBot
+        ? ("TEAMMATE" as const)
+        : delegation.turn.askedByUserId !== null &&
+            delegation.turn.askedByUserId !== delegation.turn.requestedByUserId
+          ? ("TEAMMATE" as const)
+          : ("OWNER" as const);
+  const liveProjectId =
+    delegation.task?.projectId ??
+    delegation.job?.task?.projectId ??
+    delegation.turn.sokoBot?.projectId ??
+    null;
+  const liveBase = {
     sokoBotId: delegation.turn.sokoBotId,
     workspaceId: delegation.turn.workspaceId,
     versionId: delegation.turn.versionId ?? null,
     actingUserId,
-    askedByKind: delegation.turn.chainDepth > 0 ? "ASSISTANT" : "OWNER",
+    askedByKind,
     sharedBot,
-    source: "EVENT",
+    source: "EVENT" as const,
+    ...(liveProjectId
+      ? {
+          targetScope: {
+            kind: "project" as const,
+            projectId: liveProjectId,
+          },
+        }
+      : {}),
     hasWorkspaceAccess: true,
     botAlive: true,
+  };
+  const effective = intersectOwnerAuthority(authority, {
+    ...liveBase,
     offeredCapabilities: [],
   });
   if (!effective.effective) return [];
   return capabilitiesForDelegationFollowUp(delegation.turn.capabilityNames, {
     authority: effective.authority,
-    live: {
-      sokoBotId: delegation.turn.sokoBotId,
-      workspaceId: delegation.turn.workspaceId,
-      versionId: delegation.turn.versionId ?? null,
-      actingUserId,
-      askedByKind: delegation.turn.chainDepth > 0 ? "ASSISTANT" : "OWNER",
-      sharedBot,
-      source: "EVENT",
-      hasWorkspaceAccess: true,
-      botAlive: true,
-    },
+    live: liveBase,
   });
 }
 
@@ -548,6 +565,7 @@ export class SokoBotEventsSyncService {
               visibility: true,
               ownerId: true,
               workspaceId: true,
+              projectId: true,
               archivedAt: true,
               assigneeSokoBotId: true,
               events: {
@@ -568,7 +586,9 @@ export class SokoBotEventsSyncService {
               name: true,
               ownerId: true,
               workspaceId: true,
-              task: { select: { visibility: true, ownerId: true } },
+              task: {
+                select: { visibility: true, ownerId: true, projectId: true },
+              },
               events: {
                 orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 take: 1,
@@ -581,7 +601,7 @@ export class SokoBotEventsSyncService {
               id: true,
               sokoBotId: true,
               requestedByUserId: true,
-              sokoBot: { select: { userId: true } },
+              sokoBot: { select: { userId: true, projectId: true } },
               workspaceId: true,
               versionId: true,
               parentTurnId: true,

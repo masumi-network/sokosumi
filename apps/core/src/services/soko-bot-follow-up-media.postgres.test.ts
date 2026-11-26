@@ -30,6 +30,7 @@ const provider = vi.hoisted(() => ({
   fetchQueueResult: vi.fn(),
   downloadMedia: vi.fn(),
   nextCreateImageJobError: null as Error | null,
+  nextCreateImageJobStatus: null as string | null,
 }));
 
 const enabled =
@@ -124,6 +125,8 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
         provider.nextCreateImageJobError = null;
         throw error;
       }
+      const status = provider.nextCreateImageJobStatus ?? "QUEUED";
+      provider.nextCreateImageJobStatus = null;
       return db.projectImageJob.create({
         data: {
           projectId: input.projectId,
@@ -135,8 +138,8 @@ vi.mock("@/services/image-studio-jobs.service", async (importOriginal) => {
           settings: {},
           referenceAssetIds: [],
           idempotencyKey: input.idempotencyKey,
-          status: "QUEUED",
-          falRequestId: `fal-${randomUUID()}`,
+          status: status as never,
+          falRequestId: status === "FAILED" ? null : `fal-${randomUUID()}`,
           submitAttempts: 1,
           submittedAt: new Date(),
         },
@@ -697,5 +700,211 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
     expect(await prisma.projectImageJob.count({ where: { workspaceId } })).toBe(
       jobsBeforeExpired,
     );
+
+    // 5. Project-scoped OwnerAuthority allows the matching Project and refuses a different Project.
+    const scopedGrantId = randomUUID();
+    const scopedTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `scoped-${scopedTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Make one image in the scoped Project",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: scopedGrantId,
+          targetScope: { kind: "project", projectId },
+          limits: {
+            grantId: scopedGrantId,
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: credits,
+          },
+        }),
+        followUpTurnId: scopedTurn,
+      },
+    });
+    const jobsBeforeScoped = await studioJobs();
+    const scopedJob = (await call(scopedTurn, "generate_image", {
+      projectId,
+      prompt: "Scoped same-project illustration",
+      maxCredits: credits,
+    })) as { jobId: string };
+    expect(scopedJob.jobId).toBeTruthy();
+    expect(await studioJobs()).toBe(jobsBeforeScoped + 1);
+    await expect(
+      call(scopedTurn, "generate_image", {
+        projectId: randomUUID(),
+        prompt: "Wrong project illustration",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("scoped to a different Project");
+    expect(await studioJobs()).toBe(jobsBeforeScoped + 1);
+
+    // 6. Studio returning a confirmed FAILED status releases the spend ledger
+    //    (matching tool-call REJECTED) so a retry succeeds, while SUBMISSION_UNCERTAIN
+    //    holds UNKNOWN permanently.
+    const returnedFailureGrantId = randomUUID();
+    const returnedFailureTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `returned-fail-${returnedFailureTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Returned studio failure lifecycle",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: returnedFailureGrantId,
+          limits: {
+            grantId: returnedFailureGrantId,
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: credits,
+          },
+        }),
+        followUpTurnId: returnedFailureTurn,
+      },
+    });
+    provider.nextCreateImageJobStatus = "FAILED";
+    const returnedFailed = (await call(returnedFailureTurn, "generate_image", {
+      projectId,
+      prompt: "Studio returned FAILED before sending",
+      maxCredits: credits,
+    })) as { status: string };
+    expect(returnedFailed.status).toBe("FAILED");
+    expect(
+      await prisma.sokoBotAuthoritySpend.findMany({
+        where: { sokoBotId, grantId: returnedFailureGrantId },
+        select: { status: true, operationKey: true },
+      }),
+    ).toEqual([{ status: "RELEASED", operationKey: null }]);
+    // Retrying with the exact same input now succeeds against the 1-image grant.
+    const retriedAfterFailed = (await call(
+      returnedFailureTurn,
+      "generate_image",
+      {
+        projectId,
+        prompt: "Studio returned FAILED before sending",
+        maxCredits: credits,
+      },
+    )) as { status: string; jobId: string };
+    expect(retriedAfterFailed.status).toBe("QUEUED");
+    expect(
+      await prisma.sokoBotAuthoritySpend.count({
+        where: {
+          sokoBotId,
+          grantId: returnedFailureGrantId,
+          status: "SETTLED",
+        },
+      }),
+    ).toBe(1);
+
+    // SUBMISSION_UNCERTAIN stays UNKNOWN and blocks a second attempt.
+    const uncertainGrantId = randomUUID();
+    const uncertainTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `uncertain-${uncertainTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Uncertain studio submit",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: uncertainGrantId,
+          limits: {
+            grantId: uncertainGrantId,
+            period: "lifetime",
+            images: 1,
+            maxMediaCredits: credits,
+          },
+        }),
+        followUpTurnId: uncertainTurn,
+      },
+    });
+    provider.nextCreateImageJobStatus = "SUBMISSION_UNCERTAIN";
+    await call(uncertainTurn, "generate_image", {
+      projectId,
+      prompt: "Uncertain provider status",
+      maxCredits: credits,
+    });
+    expect(
+      await prisma.sokoBotAuthoritySpend.count({
+        where: { sokoBotId, grantId: uncertainGrantId, status: "UNKNOWN" },
+      }),
+    ).toBe(1);
+    await expect(
+      call(uncertainTurn, "generate_image", {
+        projectId,
+        prompt: "Second image blocked by UNKNOWN",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("The owner asked for 1 image in this plan");
+
+    // 7. Replaying an already-paid image (ALREADY_SATISFIED marker) does NOT
+    //    consume the next image's allowance on a 2-image grant.
+    const replayAllowanceGrantId = randomUUID();
+    const replayTurn = await eventTurn();
+    await prisma.sokoBotDelegation.create({
+      data: {
+        turnId: ownerChatId,
+        toolCallId: `replay-allow-${replayTurn}`,
+        kind: "TASK",
+        action: "create_task",
+        followUp: "Two images with an in-turn replay of the first",
+        authority: ownerAuthoritySchema.parse({
+          ...sharedAuthority,
+          grantId: replayAllowanceGrantId,
+          limits: {
+            grantId: replayAllowanceGrantId,
+            period: "lifetime",
+            images: 2,
+            maxMediaCredits: 2 * credits,
+          },
+        }),
+        followUpTurnId: replayTurn,
+      },
+    });
+    const jobsBeforeReplayAllowance = await studioJobs();
+    const replayImg1 = (await call(replayTurn, "generate_image", {
+      projectId,
+      prompt: "First image to replay",
+      maxCredits: credits,
+    })) as { jobId: string };
+    // Identical input on a fresh toolCallId writes an ALREADY_SATISFIED replay marker.
+    const replayImg1Again = (await call(replayTurn, "generate_image", {
+      projectId,
+      prompt: "First image to replay",
+      maxCredits: credits,
+    })) as { jobId: string };
+    expect(replayImg1Again.jobId).toBe(replayImg1.jobId);
+    // Second distinct image MUST still fit inside the 2-image / 2*credits grant.
+    const replayImg2 = (await call(replayTurn, "generate_image", {
+      projectId,
+      prompt: "Second distinct image after replay",
+      maxCredits: credits,
+    })) as { jobId: string };
+    expect(replayImg2.jobId).not.toBe(replayImg1.jobId);
+    expect(await studioJobs()).toBe(jobsBeforeReplayAllowance + 2);
+    expect(
+      await prisma.sokoBotAuthoritySpend.count({
+        where: {
+          sokoBotId,
+          grantId: replayAllowanceGrantId,
+          status: "SETTLED",
+        },
+      }),
+    ).toBe(2);
+    // Third distinct image is refused.
+    await expect(
+      call(replayTurn, "generate_image", {
+        projectId,
+        prompt: "Third image past allowance",
+        maxCredits: credits,
+      }),
+    ).rejects.toThrow("The owner asked for 2 images in this plan");
+    expect(await studioJobs()).toBe(jobsBeforeReplayAllowance + 2);
   });
 });

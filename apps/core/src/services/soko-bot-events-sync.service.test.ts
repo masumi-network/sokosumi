@@ -1194,6 +1194,72 @@ describe("SokoBotEventsSyncService", () => {
       await new SokoBotEventsSyncService().syncDelegatedWork(input);
       expect(capabilitiesOfWake()).toBeUndefined();
     });
+
+    it("preserves follow-up capabilities for matching project-scoped delegations and Project Cuso handoffs, and drops mismatched Projects", async () => {
+      const projectAuthority = {
+        version: 1,
+        grantId: "grant-proj-1",
+        origin: "owner_chat",
+        sokoBotId: "bot_1",
+        workspaceId: "ws_1",
+        ownerUserId: "user_1",
+        rootTurnId: "turn_1",
+        targetScope: { kind: "project", projectId: "proj_1" },
+        scope: "draft_and_workspace",
+        socialMode: "draft_only",
+        stopRule: { mode: "never" },
+      };
+      const base = plannedDelegation("d1", "COMPLETED", draftPlan);
+      // Personal bot delegation scoped to proj_1 on a Task in proj_1 -> keeps drafting/media tools.
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: projectAuthority,
+          task: { ...base.task, projectId: "proj_1" },
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+
+      // Same authority attached to a Task in a different Project -> drops inherited tools.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: projectAuthority,
+          task: { ...base.task, projectId: "proj_other" },
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toBeUndefined();
+
+      // Project Cuso shared bot (`userId: null`, `projectId: "proj_cmo"`) handoff keeps tools.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: {
+            ...projectAuthority,
+            targetScope: { kind: "project", projectId: "proj_cmo" },
+            socialMode: "full",
+          },
+          task: { ...base.task, projectId: null },
+          turn: {
+            ...ownerChat,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "proj_cmo" },
+          },
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+    });
   });
 
   it("never repeats a plan another turn already carried out", async () => {

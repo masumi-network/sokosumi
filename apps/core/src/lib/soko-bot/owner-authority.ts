@@ -1518,10 +1518,9 @@ export async function deriveDelegationAuthority(
   const parsedAllows = options.followUpAllows
     ? sokoBotFollowUpAllowsSchema.safeParse(options.followUpAllows).data
     : undefined;
-  const targetScope: OwnerAuthorityTargetScope | undefined =
-    parent.targetScope.kind === "workspace" && options.projectId
-      ? { kind: "project", projectId: options.projectId }
-      : undefined;
+  const targetScope: OwnerAuthorityTargetScope | undefined = options.projectId
+    ? { kind: "project", projectId: options.projectId }
+    : undefined;
 
   // Never attach owner spend limits onto a system-originated delegation.
   const limits =
@@ -1684,10 +1683,9 @@ export async function deriveWatchAuthority(
 ): Promise<OwnerAuthority> {
   const parent = await resolveWorkItemParentAuthority(turn, client);
   const isCmo = getSokoBotVersion(turn.versionId).profile === "cmo";
-  const targetScope: OwnerAuthorityTargetScope | undefined =
-    parent.targetScope.kind === "workspace" && options.projectId
-      ? { kind: "project", projectId: options.projectId }
-      : undefined;
+  const targetScope: OwnerAuthorityTargetScope | undefined = options.projectId
+    ? { kind: "project", projectId: options.projectId }
+    : undefined;
   // A `chat_reply` watch carries untrusted room messages from other people or
   // Coworkers into its wake, so social writes stay capped at `draft_only` for
   // personal bots; `studio_job`, `background_run`, `seo_check`, and
@@ -1715,7 +1713,7 @@ export interface WatchAuthorityRecord {
     workspaceId: string;
     source: string | null;
     versionId: string | null;
-    sokoBot?: { userId?: string | null } | null;
+    sokoBot?: { userId?: string | null; projectId?: string | null } | null;
   };
 }
 
@@ -1763,11 +1761,18 @@ export function resolveWatchWakeAuthority(
     sokoBot: watch.turn.sokoBot ?? null,
   };
   const isCmo = getSokoBotVersion(watch.turn.versionId).profile === "cmo";
+  const legacyProjectId =
+    watch.projectId ?? watch.turn.sokoBot?.projectId ?? null;
+  const legacyTargetScope: OwnerAuthorityTargetScope | undefined =
+    legacyProjectId
+      ? { kind: "project", projectId: legacyProjectId }
+      : undefined;
   if (watch.turn.source === "CHAT") {
     const derived = deriveTurnOwnerAuthority([node]);
     if (derived && derived.origin !== "system") {
       return attenuateForChildWork(derived, "background_run", {
         versionId: watch.turn.versionId,
+        targetScope: legacyTargetScope,
         ...(watch.kind === "chat_reply" && !isCmo
           ? { socialMode: "draft_only" as const }
           : {}),
@@ -1787,7 +1792,7 @@ export function resolveWatchWakeAuthority(
       workspaceId: watch.turn.workspaceId,
       ownerUserId: watch.turn.requestedByUserId,
       rootTurnId: watch.turn.id,
-      targetScope: { kind: "workspace" },
+      targetScope: legacyTargetScope ?? { kind: "workspace" },
       scope: "owner_writes",
       socialMode: isCmo ? "full" : "draft_only",
       stopRule: { mode: "never" },
