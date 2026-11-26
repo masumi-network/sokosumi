@@ -653,7 +653,7 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "users file-upload",
-    usage: "me --input-json JSON",
+    usage: "me --file PATH",
     operation: "POST /users/{id}/files",
   },
   {

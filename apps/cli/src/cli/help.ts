@@ -63,7 +63,8 @@ export type ValueOptionName =
   | "soko-bot-version"
   | "cuso-version"
   | "out"
-  | "query";
+  | "query"
+  | "file";
 
 type CliOptionValue = string | string[];
 
@@ -131,6 +132,7 @@ export interface CliOptions {
   "summary-md"?: boolean;
   out?: string;
   query?: CliOptionValue;
+  file?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -267,6 +269,7 @@ Account, organizations and workspaces:
   ad-data-consent, set-ad-data-consent, social-statistics, calendar-labels, and the workspaceId in users set-preferred-workspace.
   ORGANIZATION_ID is the organizationId: organizations and workspaces check commands. calendar-labels on an organization
   Workspace also needs --organization-slug. Owner and admin commands answer 403 for other members.
+  users file-upload me --file PATH sends one file to your Sokosumi files (Core picks the type from its name); users files me lists them.
   Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.
 
 Drive:
@@ -275,7 +278,7 @@ Drive:
   Find: drive search --query scope=me --query q=TEXT, drive files, drive get RESOURCE_ID, drive tasks (Task outputs).
   drive delete and drive delete-folder take the pathname or folderPath as --input-json; they cannot be undone.
   Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
-  Uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
+  Drive uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
 
 Chats:
   Rooms come from sokosumi chats rooms --organization-slug WORKSPACE_SLUG; a room's id fills ROOM_ID.
