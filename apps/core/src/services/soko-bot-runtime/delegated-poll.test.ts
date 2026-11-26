@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   turn: vi.fn(),
   delegation: vi.fn(),
   task: vi.fn(),
   taskEvent: vi.fn(),
-  jobEvent: vi.fn(),
   read: vi.fn(),
 }));
 
@@ -15,11 +14,11 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotDelegation: { findFirst: db.delegation },
     task: { findUnique: db.task },
     taskEvent: { findFirst: db.taskEvent },
-    jobEvent: { findFirst: db.jobEvent },
     sokoBotToolCall: { findFirst: db.read },
   },
 }));
 
+import { computeJobStatus } from "@sokosumi/database/helpers";
 import { repeatedPollRefusal } from "./delegated-poll";
 
 const PLAN = "Draft the post from the research, for the owner's approval.";
@@ -131,20 +130,69 @@ describe("repeatedPollRefusal", () => {
     expect(db.read).not.toHaveBeenCalled();
   });
 
-  it("does the same for a hired Agent's Job", async () => {
-    db.jobEvent.mockResolvedValue({ createdAt: changed, status: "RUNNING" });
-    db.read.mockResolvedValue({ id: "earlier-read" });
-    await expect(
-      repeatedPollRefusal("run", { kind: "JOB", jobId: "job-1" }),
-    ).resolves.toContain("This Job is still running");
-    // A Job's digest carries no event ids: its read is judged by time only.
-    expect(db.read.mock.calls.at(-1)![0].where).not.toHaveProperty("result");
-    db.jobEvent.mockResolvedValue({
-      createdAt: changed,
-      status: "AWAITING_INPUT",
+  describe("a hired Agent's Job", () => {
+    const job = (status: string) =>
+      repeatedPollRefusal("run", {
+        kind: "JOB",
+        jobId: "job-1",
+        status,
+        changedAt: changed,
+      });
+
+    beforeEach(() => {
+      db.read.mockResolvedValue({ id: "earlier-read" });
     });
-    await expect(
-      repeatedPollRefusal("run", { kind: "JOB", jobId: "job-1" }),
-    ).resolves.toBeNull();
+
+    it("refuses a repeat read while the Agent still works", async () => {
+      await expect(job("processing")).resolves.toContain(
+        "This Job is still running",
+      );
+      // A Job's digest carries no event ids: its read is judged by time only.
+      expect(db.read.mock.calls.at(-1)![0].where).toMatchObject({
+        capability: "get_job_status",
+        createdAt: { gt: changed },
+      });
+      expect(db.read.mock.calls.at(-1)![0].where).not.toHaveProperty("result");
+    });
+
+    it.each([
+      "completed",
+      "failed",
+      "input_required",
+      "payment_failed",
+      "refund_resolved",
+    ])("never refuses a read once the Job is %s", async (status) => {
+      await expect(job(status)).resolves.toBeNull();
+    });
+
+    describe("at its payment deadline", () => {
+      afterEach(() => vi.useRealTimers());
+
+      it("lets the bot read the failure that came without a new event", async () => {
+        // A paid Job with no purchase: payment_pending until payByTime plus
+        // the grace period, then payment_failed, with no JobEvent between.
+        const start = new Date("2026-11-26T05:00:00Z");
+        const paid = {
+          jobType: "PAID",
+          refundedTransactionId: null,
+          payByTime: new Date(start.getTime() + 60 * 1_000),
+          submitResultTime: null,
+          externalDisputeUnlockTime: null,
+          purchase: null,
+          nextAction: "NONE",
+          events: [],
+        } as never;
+        vi.useFakeTimers();
+        vi.setSystemTime(start);
+        const before = computeJobStatus(paid);
+        expect(before).toBe("payment_pending");
+        await expect(job(before)).resolves.toContain("still running");
+
+        vi.setSystemTime(new Date(start.getTime() + 60 * 60 * 1_000));
+        const after = computeJobStatus(paid);
+        expect(after).toBe("payment_failed");
+        await expect(job(after)).resolves.toBeNull();
+      });
+    });
   });
 });

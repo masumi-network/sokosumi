@@ -1,18 +1,31 @@
 import prisma from "@/lib/db/prisma";
-import {
-  JOB_WAKE_STATUSES,
-  TASK_WAKE_STATUSES,
-} from "@/lib/soko-bot/delegation-wake";
+import { TASK_WAKE_STATUSES } from "@/lib/soko-bot/delegation-wake";
 
 /** How far up a run's parents the request that handed the work out may be. */
 const MAX_REQUEST_HOPS = 4;
 
 /**
- * A status the bot is woken for: the work finished, failed or waits on
- * someone. Reads of it are never refused, since the run that read it before
- * may have used up the wake.
+ * A Job's computed statuses while its Agent still works. Any other (done,
+ * failed, asks for input, payment failed, refunded, disputed) is always
+ * readable, since the run that read it before may have used up the wake; so
+ * is a Task in a status the bot is woken for.
  */
-const WAKES = { TASK: TASK_WAKE_STATUSES, JOB: JOB_WAKE_STATUSES } as const;
+const JOB_STILL_RUNNING: ReadonlySet<string> = new Set([
+  "started",
+  "processing",
+  "payment_pending",
+]);
+
+/** When the newest of these events was written; null without events. */
+export function latestEventAt(
+  events: readonly { createdAt: Date }[],
+): Date | null {
+  return events.reduce<Date | null>(
+    (latest, event) =>
+      !latest || event.createdAt > latest ? event.createdAt : latest,
+    null,
+  );
+}
 
 /** This turn and the turns that started it, nearest first. */
 async function requestTurnIds(turnId: string): Promise<string[]> {
@@ -39,7 +52,16 @@ async function requestTurnIds(turnId: string): Promise<string[]> {
  */
 export async function repeatedPollRefusal(
   turnId: string,
-  work: { kind: "TASK"; taskId: string } | { kind: "JOB"; jobId: string },
+  work:
+    | { kind: "TASK"; taskId: string }
+    | {
+        kind: "JOB";
+        jobId: string;
+        /** The Job's status as get_job_status computes it, deadlines included. */
+        status: string;
+        /** When its latest event was written, if it has one. */
+        changedAt: Date | null;
+      },
 ): Promise<string | null> {
   const target =
     work.kind === "TASK" ? { taskId: work.taskId } : { jobId: work.jobId };
@@ -58,24 +80,26 @@ export async function repeatedPollRefusal(
       ? await prisma.taskEvent.findFirst({
           where: { taskId: work.taskId },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          select: { id: true, createdAt: true, status: true },
+          select: { id: true, createdAt: true },
         })
-      : await prisma.jobEvent.findFirst({
-          where: { jobId: work.jobId },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          select: { createdAt: true, status: true },
-        });
-  // The Task's own status: its latest event can be a comment without one.
-  const status =
+      : work.changedAt
+        ? { createdAt: work.changedAt }
+        : null;
+  // The Task's own status (its latest event can be a comment without one);
+  // a Job's computed one, which turns payment_failed at its deadline
+  // without a new event.
+  const stillRunning =
     work.kind === "TASK"
-      ? (
-          await prisma.task.findUnique({
-            where: { id: work.taskId },
-            select: { status: true },
-          })
-        )?.status
-      : latest?.status;
-  if (status && WAKES[work.kind].has(status)) return null;
+      ? !TASK_WAKE_STATUSES.has(
+          (
+            await prisma.task.findUnique({
+              where: { id: work.taskId },
+              select: { status: true },
+            })
+          )?.status ?? "",
+        )
+      : JOB_STILL_RUNNING.has(work.status);
+  if (!stillRunning) return null;
   const field = work.kind === "TASK" ? "taskId" : "jobId";
   const readSinceChange = await prisma.sokoBotToolCall.findFirst({
     where: {
