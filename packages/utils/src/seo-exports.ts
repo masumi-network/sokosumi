@@ -35,6 +35,13 @@ export {
   type GoogleEventKind,
 } from "./seo-google-events.js";
 export {
+  SEO_IMPACT_WINDOW_DAYS,
+  type SeoActionImpact,
+  type SeoImpactSeries,
+  seoActionImpact,
+  seoImpactPercent,
+} from "./seo-impact-window.js";
+export {
   newerSeoAuditVerdict,
   seoIndexReviewState,
   seoInspectionCrawlTime,
