@@ -87,6 +87,28 @@ describe("seoRunDiffView", () => {
       ),
     ).toMatchObject({ kind: "compared", issues: null });
   });
+
+  it("lists no issues between two checks that read only rankings, but keeps their moves", () => {
+    const move = {
+      keyword: "x402",
+      pageUrl: "https://example.test/",
+      device: "mobile" as const,
+      from: 2,
+      to: 10,
+    };
+    const view = (moveCount: number) =>
+      seoRunDiffView(
+        diff({
+          numbers: {
+            issues: { from: null, to: null },
+            moves: moveCount ? [move] : [],
+            moveCount,
+          },
+        }),
+      );
+    expect(view(1)).toMatchObject({ lists: [], moveCount: 1 });
+    expect(view(0)).toMatchObject({ lists: { length: 3 } });
+  });
 });
 
 describe("seoRunDiffOf", () => {
