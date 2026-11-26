@@ -15264,10 +15264,10 @@
         "trendWeekNone": "28 days to {date}: no data",
         "noTrend": {
           "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",
-          "unavailable": "Earlier weeks could not be verified.",
-          "legacy_unverified": "This audit could not verify that the earlier weeks measured the same group of visits. Run a new audit to see the trend.",
+          "unavailable": "Earlier weeks could not be read or verified.",
+          "legacy_unverified": "This audit could not verify that the earlier weeks measured the same group of visits. Run a new audit to check for a trend.",
           "too_few": "Too few weeks with data to show a trend.",
-          "no_series": "This measurement has no weekly LCP, INP or CLS values."
+          "no_series": "No weekly chart is available for this measurement."
         },
         "deviceReason": {
           "crux-url": "Short check on {device}: {share} of the page loads Google measured for this address or similar addresses were on it.",

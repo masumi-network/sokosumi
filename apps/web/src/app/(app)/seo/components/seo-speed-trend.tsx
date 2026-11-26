@@ -29,11 +29,15 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
   const t = useSeoResultTranslations("App.Seo");
   const format = useSeoResultFormatter();
   const gap = seoHistoryGap(history);
+  // The title names the weeks that the gap text speaks of.
   if (gap)
     return (
-      <p className="text-muted-foreground max-w-prose text-xs">
-        {t(`siteSpeed.noTrend.${gap}`)}
-      </p>
+      <div className="space-y-2">
+        <h5 className="font-medium">{t("siteSpeed.trendTitle")}</h5>
+        <p className="text-muted-foreground max-w-prose text-xs">
+          {t(`siteSpeed.noTrend.${gap}`)}
+        </p>
+      </div>
     );
   const day = (week: string) =>
     format.dateTime(new Date(`${week}T12:00:00Z`), {
