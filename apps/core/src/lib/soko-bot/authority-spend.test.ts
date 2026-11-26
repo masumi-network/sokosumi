@@ -2,6 +2,7 @@ import { ownerAuthoritySchema } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import {
   AUTHORITY_SPEND_STATUS,
+  canPlaceLegacyItems,
   checkGrantSpendPreflight,
   type MediaSpendGrant,
   reserveAuthoritySpend,
@@ -1348,5 +1349,76 @@ describe("authority-spend", () => {
         grants: [legacyA, legacyB],
       }),
     ).rejects.toThrow();
+  });
+
+  it("stops backtracking once maxSearchNodes is exhausted and falls back to one bounded linear pass", () => {
+    // 3 identical grants of 2 images / 10 credits (total 6 images) with 7 items:
+    // unsatisfiable with an exponential search tree (3^7 = 2,187 branches) if unbounded.
+    const grants: MediaSpendGrant[] = [
+      {
+        grantId: "g1",
+        images: 2,
+        maxMediaCredits: 10,
+        targetScope: { kind: "workspace" },
+      },
+      {
+        grantId: "g2",
+        images: 2,
+        maxMediaCredits: 10,
+        targetScope: { kind: "workspace" },
+      },
+      {
+        grantId: "g3",
+        images: 2,
+        maxMediaCredits: 10,
+        targetScope: { kind: "workspace" },
+      },
+    ];
+    const items = Array.from({ length: 7 }, (_, i) => ({
+      key: `turn:call-${i}`,
+      cost: { images: 1, videos: 0, credits: 4 },
+      compatibleGrants: grants,
+    }));
+    const usage = new Map(
+      grants.map((grant) => [
+        grant.grantId,
+        { images: 0, videos: 0, credits: 0 },
+      ]),
+    );
+
+    let explored = 0;
+    const maxSearchNodes = 5;
+    const placed = canPlaceLegacyItems(items, usage, {
+      maxSearchNodes,
+      onExplore: () => {
+        explored += 1;
+      },
+    });
+    expect(placed).toBe(false);
+    // At most maxSearchNodes backtracking alternatives plus one non-backtracking
+    // linear pass over the remaining items (never exponential recursion).
+    expect(explored).toBeLessThanOrEqual(maxSearchNodes + items.length);
+
+    // Positive control: a satisfiable 6-item set still succeeds in a single linear
+    // pass even with maxSearchNodes = 0.
+    const satisfiableUsage = new Map(
+      grants.map((grant) => [
+        grant.grantId,
+        { images: 0, videos: 0, credits: 0 },
+      ]),
+    );
+    let greedyExplored = 0;
+    const satisfiable = canPlaceLegacyItems(
+      items.slice(0, 6),
+      satisfiableUsage,
+      {
+        maxSearchNodes: 0,
+        onExplore: () => {
+          greedyExplored += 1;
+        },
+      },
+    );
+    expect(satisfiable).toBe(true);
+    expect(greedyExplored).toBe(6);
   });
 });

@@ -661,35 +661,130 @@ function buildPooledLegacyCreditDeltas(
   return remaining <= CREDIT_EPSILON ? deltas : null;
 }
 
-function canPlaceLegacyItems(
+export interface LegacyPlacementOptions {
+  maxSearchNodes?: number;
+  onExplore?: () => void;
+}
+
+function orderGrantsForLegacyItem(
+  item: LegacySpendItem,
+  usageByGrant: Map<string, GrantUsage>,
+): MediaSpendGrant[] {
+  return [...item.compatibleGrants].sort((left, right) => {
+    const leftExact = isProjectScopedGrant(left) ? 0 : 1;
+    const rightExact = isProjectScopedGrant(right) ? 0 : 1;
+    if (leftExact !== rightExact) return leftExact - rightExact;
+    const leftRem = remainingCredits(left, usageByGrant.get(left.grantId)!);
+    const rightRem = remainingCredits(right, usageByGrant.get(right.grantId)!);
+    if (Math.abs(leftRem - rightRem) > CREDIT_EPSILON) {
+      return leftRem - rightRem;
+    }
+    return left.grantId.localeCompare(right.grantId);
+  });
+}
+
+/**
+ * Single linear, non-backtracking greedy pass over `items[startIndex..]`.
+ * Never recurses or retries earlier items once an item fails to fit.
+ */
+function greedyPlaceRemaining(
+  items: readonly LegacySpendItem[],
+  startIndex: number,
+  usageByGrant: Map<string, GrantUsage>,
+  onExplore?: () => void,
+): boolean {
+  const trial = cloneUsageMap(usageByGrant);
+  for (let i = startIndex; i < items.length; i += 1) {
+    const item = items[i]!;
+    const orderedGrants = orderGrantsForLegacyItem(item, trial);
+    let placed = false;
+
+    for (const grant of orderedGrants) {
+      const bucket = trial.get(grant.grantId)!;
+      if (grantRefusalMessage(grant, bucket, item.cost) !== null) continue;
+      onExplore?.();
+      bucket.images += item.cost.images;
+      bucket.videos += item.cost.videos;
+      bucket.credits += item.cost.credits;
+      placed = true;
+      break;
+    }
+
+    if (!placed && item.compatibleGrants.length >= 2 && item.cost.credits > 0) {
+      for (const slotGrant of orderedGrants) {
+        const slotBucket = trial.get(slotGrant.grantId)!;
+        if (!grantHasCountRoom(slotGrant, slotBucket, item.cost)) continue;
+        const creditDeltas = buildPooledLegacyCreditDeltas(
+          slotGrant,
+          item,
+          trial,
+        );
+        if (!creditDeltas) continue;
+        onExplore?.();
+        slotBucket.images += item.cost.images;
+        slotBucket.videos += item.cost.videos;
+        for (const delta of creditDeltas) {
+          trial.get(delta.grantId)!.credits += delta.credits;
+        }
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) return false;
+  }
+
+  for (const [grantId, usage] of trial) {
+    usageByGrant.set(grantId, usage);
+  }
+  return true;
+}
+
+export function canPlaceLegacyItems(
   items: readonly LegacySpendItem[],
   usageByGrant: Map<string, GrantUsage>,
+  options?: LegacyPlacementOptions,
 ): boolean {
-  let nodesRemaining = MAX_LEGACY_SEARCH_NODES;
+  const maxNodes = Math.max(
+    0,
+    options?.maxSearchNodes ?? MAX_LEGACY_SEARCH_NODES,
+  );
+  let exploredNodes = 0;
+  let budgetExhausted = false;
 
   const search = (index: number): boolean => {
     if (index >= items.length) return true;
+    if (budgetExhausted) return false;
+    if (exploredNodes >= maxNodes) {
+      budgetExhausted = true;
+      return greedyPlaceRemaining(
+        items,
+        index,
+        usageByGrant,
+        options?.onExplore,
+      );
+    }
+
     const item = items[index]!;
     // Try tightest-fitting compatible grants first so smaller legacy calls
     // leave larger grants available for higher-cost calls.
-    const orderedGrants = [...item.compatibleGrants].sort((left, right) => {
-      const leftExact = isProjectScopedGrant(left) ? 0 : 1;
-      const rightExact = isProjectScopedGrant(right) ? 0 : 1;
-      if (leftExact !== rightExact) return leftExact - rightExact;
-      const leftRem = remainingCredits(left, usageByGrant.get(left.grantId)!);
-      const rightRem = remainingCredits(
-        right,
-        usageByGrant.get(right.grantId)!,
-      );
-      if (Math.abs(leftRem - rightRem) > CREDIT_EPSILON) {
-        return leftRem - rightRem;
-      }
-      return left.grantId.localeCompare(right.grantId);
-    });
+    const orderedGrants = orderGrantsForLegacyItem(item, usageByGrant);
 
-    const tryWholeGrant = (grant: MediaSpendGrant): boolean => {
+    for (const grant of orderedGrants) {
+      if (budgetExhausted) return false;
       const bucket = usageByGrant.get(grant.grantId)!;
-      if (grantRefusalMessage(grant, bucket, item.cost) !== null) return false;
+      if (grantRefusalMessage(grant, bucket, item.cost) !== null) continue;
+      if (exploredNodes >= maxNodes) {
+        budgetExhausted = true;
+        return greedyPlaceRemaining(
+          items,
+          index,
+          usageByGrant,
+          options?.onExplore,
+        );
+      }
+      exploredNodes += 1;
+      options?.onExplore?.();
       bucket.images += item.cost.images;
       bucket.videos += item.cost.videos;
       bucket.credits += item.cost.credits;
@@ -697,75 +792,47 @@ function canPlaceLegacyItems(
       bucket.images -= item.cost.images;
       bucket.videos -= item.cost.videos;
       bucket.credits -= item.cost.credits;
-      return false;
-    };
-
-    const trySpilloverGrant = (slotGrant: MediaSpendGrant): boolean => {
-      if (item.compatibleGrants.length < 2 || item.cost.credits <= 0) {
-        return false;
-      }
-      const slotBucket = usageByGrant.get(slotGrant.grantId)!;
-      if (!grantHasCountRoom(slotGrant, slotBucket, item.cost)) return false;
-      // Only spill when this grant couldn't absorb the whole call on its own.
-      if (grantRefusalMessage(slotGrant, slotBucket, item.cost) === null) {
-        return false;
-      }
-      const creditDeltas = buildPooledLegacyCreditDeltas(
-        slotGrant,
-        item,
-        usageByGrant,
-      );
-      if (!creditDeltas) return false;
-      slotBucket.images += item.cost.images;
-      slotBucket.videos += item.cost.videos;
-      for (const delta of creditDeltas) {
-        usageByGrant.get(delta.grantId)!.credits += delta.credits;
-      }
-      if (search(index + 1)) return true;
-      slotBucket.images -= item.cost.images;
-      slotBucket.videos -= item.cost.videos;
-      for (const delta of creditDeltas) {
-        usageByGrant.get(delta.grantId)!.credits -= delta.credits;
-      }
-      return false;
-    };
-
-    if (nodesRemaining <= 0) {
-      for (const grant of orderedGrants) {
-        if (tryWholeGrant(grant)) return true;
-      }
-      for (const grant of orderedGrants) {
-        if (trySpilloverGrant(grant)) return true;
-      }
-      return false;
     }
 
-    for (const grant of orderedGrants) {
-      if (
-        grantRefusalMessage(
-          grant,
-          usageByGrant.get(grant.grantId)!,
-          item.cost,
-        ) !== null
-      ) {
-        continue;
+    if (item.compatibleGrants.length >= 2 && item.cost.credits > 0) {
+      for (const slotGrant of orderedGrants) {
+        if (budgetExhausted) return false;
+        const slotBucket = usageByGrant.get(slotGrant.grantId)!;
+        if (
+          !grantHasCountRoom(slotGrant, slotBucket, item.cost) ||
+          grantRefusalMessage(slotGrant, slotBucket, item.cost) === null
+        ) {
+          continue;
+        }
+        const creditDeltas = buildPooledLegacyCreditDeltas(
+          slotGrant,
+          item,
+          usageByGrant,
+        );
+        if (!creditDeltas) continue;
+        if (exploredNodes >= maxNodes) {
+          budgetExhausted = true;
+          return greedyPlaceRemaining(
+            items,
+            index,
+            usageByGrant,
+            options?.onExplore,
+          );
+        }
+        exploredNodes += 1;
+        options?.onExplore?.();
+        slotBucket.images += item.cost.images;
+        slotBucket.videos += item.cost.videos;
+        for (const delta of creditDeltas) {
+          usageByGrant.get(delta.grantId)!.credits += delta.credits;
+        }
+        if (search(index + 1)) return true;
+        slotBucket.images -= item.cost.images;
+        slotBucket.videos -= item.cost.videos;
+        for (const delta of creditDeltas) {
+          usageByGrant.get(delta.grantId)!.credits -= delta.credits;
+        }
       }
-      nodesRemaining -= 1;
-      if (tryWholeGrant(grant)) return true;
-    }
-
-    for (const grant of orderedGrants) {
-      const slotBucket = usageByGrant.get(grant.grantId)!;
-      if (
-        item.compatibleGrants.length < 2 ||
-        item.cost.credits <= 0 ||
-        !grantHasCountRoom(grant, slotBucket, item.cost) ||
-        grantRefusalMessage(grant, slotBucket, item.cost) === null
-      ) {
-        continue;
-      }
-      nodesRemaining -= 1;
-      if (trySpilloverGrant(grant)) return true;
     }
 
     return false;
@@ -809,6 +876,14 @@ function selectFeasibleGrant(
   legacyItems: readonly LegacySpendItem[],
   requested: GrantUsage,
 ): { chosen: MediaSpendGrant | null; refusal: string } {
+  let remainingSearchNodes = MAX_LEGACY_SEARCH_NODES;
+  const budgetOptions = (): LegacyPlacementOptions => ({
+    maxSearchNodes: remainingSearchNodes,
+    onExplore: () => {
+      if (remainingSearchNodes > 0) remainingSearchNodes -= 1;
+    },
+  });
+
   for (const grant of eligible) {
     const baseUsage = ledgerUsageByGrant.get(grant.grantId)!;
     if (grantRefusalMessage(grant, baseUsage, requested) !== null) continue;
@@ -821,7 +896,7 @@ function selectFeasibleGrant(
     candidateBucket.images += requested.images;
     candidateBucket.videos += requested.videos;
     candidateBucket.credits += requested.credits;
-    if (canPlaceLegacyItems(relevantLegacy, working)) {
+    if (canPlaceLegacyItems(relevantLegacy, working, budgetOptions())) {
       return { chosen: grant, refusal: "" };
     }
   }
@@ -830,7 +905,10 @@ function selectFeasibleGrant(
   // Compute a baseline placement of legacy items alone to produce the clearest
   // refusal message.
   const baseline = cloneUsageMap(ledgerUsageByGrant);
-  if (legacyItems.length > 0 && !canPlaceLegacyItems(legacyItems, baseline)) {
+  if (
+    legacyItems.length > 0 &&
+    !canPlaceLegacyItems(legacyItems, baseline, budgetOptions())
+  ) {
     const greedy = cloneUsageMap(ledgerUsageByGrant);
     for (const item of legacyItems) {
       const target =
