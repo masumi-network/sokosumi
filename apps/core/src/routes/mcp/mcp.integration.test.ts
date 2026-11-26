@@ -234,6 +234,7 @@ async function connect(headers: Record<string, string>, query = "") {
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  TASK_ROWS.length = 0;
   await Promise.all(clients.splice(0).map((client) => client.close()));
 });
 
@@ -469,7 +470,6 @@ describe("Sokosumi MCP server", () => {
       name: "tasks_show_board",
       arguments: { ...args, includeDescription: "true" },
     });
-    TASK_ROWS.length = 0;
     expect(full).toMatchObject({
       structuredContent: { data: [{ description: "A long runbook" }] },
     });
@@ -521,7 +521,6 @@ describe("Sokosumi MCP server", () => {
       name: "tasks_show_board",
       arguments: args,
     });
-    TASK_ROWS.length = 0;
 
     const bytes = (result: unknown) => JSON.stringify(result).length;
     expect(board.structuredContent).toMatchObject({

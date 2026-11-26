@@ -149,7 +149,7 @@ const TEAM_TASKS = Array.from({ length: 100 }, (_, index) => ({
     1586 - index,
     `Team Task ${1586 - index}`,
     TEAM_STATUSES[index % 5] ?? "READY",
-    TEAM[index % 4] ?? null,
+    TEAM[index % TEAM.length] ?? null,
   ),
   description: null,
 }));
