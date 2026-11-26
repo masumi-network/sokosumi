@@ -23,11 +23,19 @@ const { values } = parseArgs({
     repeats: { type: "string", default: "1" },
     "soko-bot-version": { type: "string" },
     "cuso-version": { type: "string" },
-    /** Write the run's report as JSON here, for ownerbench-parity. */
+    /**
+     * Write the run's report as JSON here, for ownerbench-compare and
+     * ownerbench-parity. With held-out journeys it holds their per-case
+     * results: the evaluator's private file, never shared or committed.
+     */
     "json-out": { type: "string" },
-    /** Only write the report of this finished run (with --json-out). */
+    /** Only write the report of this finished run (with --json-out); prints nothing per case. */
     report: { type: "string" },
-    /** The held-out journeys' JSON file (kept outside the repository); --ownerbench then runs both sets. */
+    /**
+     * The held-out journeys' file (a JSON array, or a module exporting
+     * HELDOUT_JOURNEYS), kept outside the repository; --ownerbench then runs
+     * both sets, and stdout shows the held-out set as counts only.
+     */
     holdout: { type: "string" },
   },
 });
@@ -130,30 +138,14 @@ const results = await prisma.evalResult.findMany({
     output: true,
   },
 });
-const progress = (output: unknown) => {
-  const { score, totals } = (output ?? {}) as {
-    score?: { stepsPassed: number; stepsTotal: number; reached: number };
-    totals?: { toolErrors: number; retries: number; costUsd: number };
-  };
-  return score && totals
-    ? `steps ${score.stepsPassed}/${score.stepsTotal}, first ${score.reached} in a row, ${totals.toolErrors} tool errors, ${totals.retries} retries, $${totals.costUsd.toFixed(2)}`
-    : "";
-};
-for (const result of results)
-  console.log(
-    [
-      result.caseId,
-      `r${result.repeat}`,
-      result.status,
-      result.durationMs == null
-        ? ""
-        : `${Math.round(result.durationMs / 1000)}s`,
-      progress(result.output),
-      result.error?.slice(0, 160) ?? "",
-    ].join("\t"),
-  );
+const { runOutputLines } = await import(
+  "@/services/evals/ownerbench/run-output"
+);
+for (const line of runOutputLines(results)) console.log(line);
 console.log(
-  `\nDetails: sokosumi evals show ${run.id} --markdown --api-url <this Core>`,
+  values.holdout
+    ? "\nThe run holds held-out journeys: share only ownerbench-compare's totals, never `sokosumi evals show` output."
+    : `\nDetails: sokosumi evals show ${run.id} --markdown --api-url <this Core>`,
 );
 if (values["json-out"]) await writeReport(run.id, values["json-out"]);
 await prisma.$disconnect();

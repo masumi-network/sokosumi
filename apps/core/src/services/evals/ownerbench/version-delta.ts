@@ -3,13 +3,20 @@
  * fleet-move bar: journeys passed and steps right no worse, no journey that
  * passed on the baseline failing on the candidate, and input tokens per
  * turn no worse. Both runs should come from the same code, only the
- * versions differ.
+ * versions differ. A journey with repeats passes only when all of them did
+ * (pass^k); its pass^1 share and mean steps count too.
  */
-import { HOLDOUT_PREFIX } from "./holdout";
+import { HOLDOUT_PREFIX, HOLDOUT_REPEATS } from "./holdout";
 import type { ParityReport } from "./parity";
 
 interface Side {
+  /** PASSED when every repeat scored and passed (pass^k); INCOMPLETE when repeats are missing. */
   status: string;
+  /** Scored repeats, how many of them passed, and repeats that never scored (ERROR). */
+  runs: number;
+  passes: number;
+  unscored: number;
+  /** Steps right, averaged over the repeats. */
   stepsPassed: number;
   inputTokensPerTurn: number | null;
 }
@@ -18,12 +25,13 @@ export interface DeltaRow {
   caseId: string;
   baseline: Side | null;
   candidate: Side | null;
-  /** Passed on the baseline, not on the candidate. */
+  /** Passed on the baseline, scored and not passed on the candidate. */
   regressed: boolean;
 }
 
 export interface VersionDelta {
   rows: DeltaRow[];
+  /** Each run on its own, over every expected journey (the bar compares pairs). */
   baseline: Totals;
   candidate: Totals;
   /** Every part of the benchmark bar holds. */
@@ -31,35 +39,78 @@ export interface VersionDelta {
 }
 
 interface Totals {
+  /** Journeys whose every repeat scored and passed (pass^k). */
   passed: number;
+  /** Journeys short of scored repeats (an ERROR, or too few): neither passed nor failed. */
+  incomplete: number;
+  /** Passed repeats over scored repeats (pass^1). */
+  passRate: number | null;
   stepsPassed: number;
   inputTokensPerTurn: number | null;
 }
 
-function firstScored(results: ParityReport["cases"][number]["results"]) {
-  const result = results.find(
+/**
+ * A journey's scored repeats as one side: pass^k, pass^1, mean steps and all
+ * tokens. Short of `minimumRepeats` scored repeats, or with one that never
+ * scored, it is INCOMPLETE: pass^k can't be read from it.
+ */
+export function scoredSide(
+  results: ParityReport["cases"][number]["results"],
+  minimumRepeats = 1,
+) {
+  const scored = results.filter(
     (row) => row.status === "PASSED" || row.status === "FAILED",
   );
-  if (!result) return null;
-  const output = (result.output ?? {}) as {
-    score?: { stepsPassed?: number };
-    totals?: {
-      inputTokens?: number;
-      tokenTurns?: number;
-      inputTokensPerTurn?: number | null;
-    };
-  };
+  if (!results.length) return null;
+  const outputs = scored.map(
+    (result) =>
+      (result.output ?? {}) as {
+        score?: { stepsPassed?: number };
+        totals?: {
+          inputTokens?: number;
+          tokenTurns?: number;
+          inputTokensPerTurn?: number | null;
+        };
+      },
+  );
+  const passes = scored.filter((row) => row.status === "PASSED").length;
+  // One repeat without a token count leaves the cost unproven for all.
+  const measured = outputs.every(
+    (output) => output.totals?.inputTokensPerTurn != null,
+  );
+  const inputTokens = outputs.reduce(
+    (sum, output) => sum + (output.totals?.inputTokens ?? 0),
+    0,
+  );
+  const tokenTurns = outputs.reduce(
+    (sum, output) => sum + (output.totals?.tokenTurns ?? 0),
+    0,
+  );
+  const unscored = results.length - scored.length;
   return {
-    status: result.status,
-    stepsPassed: output.score?.stepsPassed ?? 0,
-    inputTokensPerTurn: output.totals?.inputTokensPerTurn ?? null,
-    inputTokens: output.totals?.inputTokens ?? 0,
-    tokenTurns: output.totals?.tokenTurns ?? 0,
+    status:
+      unscored > 0 || scored.length < minimumRepeats
+        ? "INCOMPLETE"
+        : passes === scored.length
+          ? "PASSED"
+          : "FAILED",
+    runs: scored.length,
+    passes,
+    unscored,
+    stepsPassed:
+      outputs.reduce(
+        (sum, output) => sum + (output.score?.stepsPassed ?? 0),
+        0,
+      ) / Math.max(scored.length, 1),
+    inputTokensPerTurn:
+      measured && tokenTurns ? Math.round(inputTokens / tokenTurns) : null,
+    inputTokens,
+    tokenTurns,
   };
 }
 
 function totals(
-  sides: readonly (ReturnType<typeof firstScored> | null)[],
+  sides: readonly (ReturnType<typeof scoredSide> | null)[],
 ): Totals {
   const scored = sides.filter((side) => side !== null);
   const measured = scored.filter((side) => side.inputTokensPerTurn !== null);
@@ -67,8 +118,13 @@ function totals(
   // included), the same denominator each journey's own figure uses.
   const turns = measured.reduce((sum, side) => sum + side.tokenTurns, 0);
   const tokens = measured.reduce((sum, side) => sum + side.inputTokens, 0);
+  const runs = scored.reduce((sum, side) => sum + side.runs, 0);
   return {
     passed: scored.filter((side) => side.status === "PASSED").length,
+    incomplete: scored.filter((side) => side.status === "INCOMPLETE").length,
+    passRate: runs
+      ? scored.reduce((sum, side) => sum + side.passes, 0) / runs
+      : null,
     stepsPassed: scored.reduce((sum, side) => sum + side.stepsPassed, 0),
     inputTokensPerTurn: turns ? Math.round(tokens / turns) : null,
   };
@@ -112,6 +168,7 @@ export function versionDeltaBySet(
         only(baseline, true),
         only(candidate, true),
         holdoutJourneyIds,
+        HOLDOUT_REPEATS,
       )
     : null;
   return {
@@ -141,12 +198,17 @@ export function versionDelta(
   candidate: ParityReport,
   /** Journeys both runs must have scored; a subset can't meet the bar. */
   required: readonly string[] = [],
+  /** Scored repeats each journey needs on each side (pass^k is read over this many). */
+  minimumRepeats = 1,
 ): VersionDelta {
   const byCase = (report: ParityReport) =>
     new Map(
       report.cases
         .filter((evalCase) => evalCase.caseId.startsWith("owner-"))
-        .map((evalCase) => [evalCase.caseId, firstScored(evalCase.results)]),
+        .map((evalCase) => [
+          evalCase.caseId,
+          scoredSide(evalCase.results, minimumRepeats),
+        ]),
     );
   const left = byCase(baseline);
   const right = byCase(candidate);
@@ -158,6 +220,9 @@ export function versionDelta(
       side
         ? {
             status: side.status,
+            runs: side.runs,
+            passes: side.passes,
+            unscored: side.unscored,
             stepsPassed: side.stepsPassed,
             inputTokensPerTurn: side.inputTokensPerTurn,
           }
@@ -166,20 +231,43 @@ export function versionDelta(
       caseId,
       baseline: strip(before),
       candidate: strip(after),
-      regressed: before?.status === "PASSED" && after?.status !== "PASSED",
+      // An unscored or incomplete candidate is not a regression: the bar fails on it anyway.
+      regressed: before?.status === "PASSED" && after?.status === "FAILED",
     };
   });
-  // Totals over the journeys both runs scored, so a missing one can't help.
+  // The bar's totals: over the journeys both runs scored, so a missing one can't help.
   const shared = rows.filter((row) => row.baseline && row.candidate);
   const base = totals(shared.map((row) => left.get(row.caseId) ?? null));
   const cand = totals(shared.map((row) => right.get(row.caseId) ?? null));
+  // What each run did on its own, over every journey either run or the set
+  // expects: one side's errors must not hide the other side's passes.
+  const expected = [...new Set([...ids, ...required])];
+  const shown = (side: typeof left) => {
+    const own = totals(expected.map((id) => side.get(id) ?? null));
+    return {
+      ...own,
+      incomplete:
+        own.incomplete + expected.filter((id) => !side.get(id)).length,
+    };
+  };
   return {
     rows,
-    baseline: base,
-    candidate: cand,
+    baseline: shown(left),
+    candidate: shown(right),
     meetsBar:
       shared.length === ids.length &&
       required.every((id) => shared.some((row) => row.caseId === id)) &&
+      // Every repeat scored, at least `minimumRepeats` of them, on each side:
+      // a lost or short repeat can't pass as pass^k.
+      shared.every((row) =>
+        [row.baseline, row.candidate].every(
+          (side) =>
+            side !== null && side.unscored === 0 && side.runs >= minimumRepeats,
+        ),
+      ) &&
+      shared.every((row) => row.baseline?.runs === row.candidate?.runs) &&
+      (base.passRate === null ||
+        (cand.passRate !== null && cand.passRate >= base.passRate)) &&
       // Every journey measured its tokens on both sides: one missing count
       // would leave the average to the others.
       shared.every(

@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { buildOrganizationDriveFilePathname } from "@sokosumi/utils";
+import {
+  buildOrganizationDriveFilePathname,
+  convertCreditsToCents,
+} from "@sokosumi/utils";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { channelSlugWithId } from "@/helpers/channel-slug";
 import { databaseNow } from "@/lib/db/database-now";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { evalEnvironment } from "@/lib/evals/eval-environment";
 import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   forgetEvalWorkspaces,
@@ -14,10 +19,13 @@ import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
 import { seedCmoReports } from "../eval-cmo-runner";
 import type { EvalLaneRecord } from "../eval-lanes.service";
-import { upcomingByNetwork } from "./journey-checks";
+import { mediaPathnames, upcomingByNetwork } from "./journey-checks";
 import {
+  type FixturePicturePost,
+  type FixtureTask,
   INVESTOR_FIXTURE,
   type JourneyCoworker,
+  type JourneyFixtures,
   type JourneyPrepare,
   type JourneyProject,
 } from "./journeys";
@@ -47,6 +55,17 @@ export interface JourneyWorld {
   upcomingByNetwork?: Record<string, number>;
   /** Cuso's home room for this journey: its conversation starts empty. */
   cusoRoomId?: string;
+  /** The room the owner, the teammates and the owner's bot share. */
+  teammateRoomId?: string;
+  /** Cuso's published posts when the journey started. */
+  seededPublished?: { id: string; text: string; pathnames: string[] }[];
+  /** The target picture post's text and picture, and the other seeded posts' pictures. */
+  seededPicture?: {
+    postId: string;
+    text: string;
+    pathname: string;
+    others: { postId: string; pathnames: string[] }[];
+  };
 }
 
 /**
@@ -529,10 +548,304 @@ export function investorNotes(): string {
   ].join("\n");
 }
 
+function needs<T>(value: T | undefined, prepare: JourneyPrepare): T {
+  if (value === undefined)
+    throw new Error(`The prepare "${prepare}" needs its journey fixtures`);
+  return value;
+}
+
+/** The fixture's Tasks for the owner; earlier ones of the same names are archived first. */
+async function seedTasks(
+  lane: EvalLaneRecord,
+  miraId: string,
+  tasks: readonly FixtureTask[],
+): Promise<void> {
+  const now = await databaseNow();
+  await prisma.task.updateMany({
+    where: {
+      workspaceId: lane.workspaceId,
+      name: { in: tasks.map((task) => task.name) },
+    },
+    data: { archivedAt: now },
+  });
+  const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
+  const berlinDay = (days: number) =>
+    new Date(
+      `${new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(ago(-days))}T00:00:00Z`,
+    );
+  for (const fixture of tasks) {
+    const task = await prisma.task.create({
+      data: {
+        name: fixture.name,
+        status: fixture.status,
+        workspaceId: lane.workspaceId,
+        organizationId: lane.organizationId,
+        ownerId: lane.userId,
+        creatorUserId: lane.userId,
+        ...(fixture.assignee === "Mira" ? { assigneeId: miraId } : {}),
+        ...(fixture.assignee === "owner"
+          ? { assigneeUserId: lane.userId }
+          : {}),
+        ...(fixture.dueInDays === undefined
+          ? {}
+          : { dueOn: berlinDay(fixture.dueInDays) }),
+        createdAt: ago(fixture.createdDaysAgo),
+        updatedAt: ago(fixture.touchedDaysAgo),
+      },
+      select: { id: true },
+    });
+    if (fixture.question)
+      await prisma.taskEvent.create({
+        data: {
+          taskId: task.id,
+          status: fixture.status,
+          comment: fixture.question,
+          ...(fixture.assignee === "Mira"
+            ? { coworkerId: miraId }
+            : { userId: lane.userId }),
+          createdAt: ago(fixture.touchedDaysAgo),
+        },
+      });
+  }
+}
+
+/** A new room the owner, Hannah, Alex and the journey's bot share, so its history starts empty. */
+export async function seedTeammateRoom(
+  lane: EvalLaneRecord,
+  botId: string,
+): Promise<string> {
+  const name = "Team room";
+  const members = [lane.userId, lane.world.hannahUserId, lane.world.alexUserId];
+  const room = await prisma.chatRoom.create({
+    data: {
+      organizationId: lane.organizationId,
+      createdByUserId: lane.userId,
+      name,
+      slug: channelSlugWithId(name, randomUUID(), "room"),
+      discoverability: "public",
+      userMembers: {
+        create: members.map((userId) => ({ userId, access: "member" })),
+      },
+      readStates: { create: members.map((userId) => ({ userId })) },
+      sokoBotMembers: { create: { sokoBotId: botId } },
+    },
+    select: { id: true },
+  });
+  return room.id;
+}
+
+/** The Cuso post fields every seeded upcoming post shares. */
+async function cusoPostBase(lane: EvalLaneRecord) {
+  const strategy = await prisma.marketingStrategy.findFirst({
+    where: { projectId: lane.cusoProjectId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: { projectId: lane.cusoProjectId },
+    select: { id: true, provider: true },
+  });
+  return (provider: string) => ({
+    projectId: lane.cusoProjectId,
+    workspaceId: lane.workspaceId,
+    creatorSokoBotId: lane.cusoBotId,
+    marketingStrategyId: strategy?.id ?? null,
+    provider,
+    socialConnectionId:
+      connections.find((connection) => connection.provider === provider)?.id ??
+      null,
+    timezone: "Europe/Berlin",
+  });
+}
+
+const MONTH_TOPICS = [
+  "Share one booking link and let the calendar find the time.",
+  "Round-robin spreads new meetings fairly across the team.",
+  "Routing forms send every lead to the right person.",
+  "Buffer times keep back-to-back calls from piling up.",
+];
+
+/** Cuso's upcoming posts replaced by the fixture's SCHEDULED ones, one a day; published ones stay. */
+async function seedScheduledPosts(
+  lane: EvalLaneRecord,
+  fixture: NonNullable<JourneyFixtures["scheduledPosts"]>,
+): Promise<void> {
+  const now = await databaseNow();
+  await prisma.socialPost.deleteMany({
+    where: { projectId: lane.cusoProjectId, status: { not: "PUBLISHED" } },
+  });
+  const base = await cusoPostBase(lane);
+  for (let index = 0; index < fixture.count; index += 1)
+    await prisma.socialPost.create({
+      data: {
+        ...base(fixture.providers[index % fixture.providers.length] ?? "x"),
+        text: `${MONTH_TOPICS[index % MONTH_TOPICS.length]} (${index + 1})`,
+        status: "SCHEDULED",
+        scheduledAt: new Date(now.getTime() + (index + 1) * DAY_MS),
+      },
+    });
+}
+
+function pictureSvg(text: string): Uint8Array {
+  const escaped = text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  return new TextEncoder().encode(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200"><rect width="1200" height="1200" fill="#111"/><text x="80" y="600" font-size="64" fill="#fff">${escaped}</text></svg>`,
+  );
+}
+
+/** Writes a picture to the owner's Files and returns its pathname. */
+type SaveImage = (
+  lane: EvalLaneRecord,
+  file: { name: string; bytes: Uint8Array },
+) => Promise<string>;
+
+const saveImageToFiles: SaveImage = async (lane, file) => {
+  const id = await seedFile(lane, { ...file, contentType: "image/svg+xml" });
+  const row = await prisma.fileResource.findUniqueOrThrow({
+    where: { id },
+    select: { sourceId: true },
+  });
+  return row.sourceId;
+};
+
+/** The fixture's upcoming Cuso posts, each with its picture in Files; the target is the one checks follow. */
+export async function seedPicturePosts(
+  lane: EvalLaneRecord,
+  posts: readonly FixturePicturePost[],
+  saveImage: SaveImage = saveImageToFiles,
+): Promise<NonNullable<JourneyWorld["seededPicture"]>> {
+  const targets = posts.filter((post) => post.target);
+  if (targets.length !== 1)
+    throw new Error("picture-posts needs exactly one target post");
+  const now = await databaseNow();
+  const base = await cusoPostBase(lane);
+  const seeded = [];
+  for (const post of posts) {
+    const name = `${randomUUID().slice(0, 8)}.svg`;
+    const bytes = pictureSvg(post.pictureText);
+    const pathname = await saveImage(lane, { name, bytes });
+    const created = await prisma.socialPost.create({
+      data: {
+        ...base(post.provider),
+        text: post.text,
+        media: [
+          {
+            pathname,
+            fileUrl: `https://evals.invalid/${pathname}`,
+            name,
+            size: bytes.byteLength,
+            mimeType: "image/svg+xml",
+            kind: "image",
+          },
+        ],
+        status: "SCHEDULED",
+        scheduledAt: new Date(now.getTime() + post.inDays * DAY_MS),
+      },
+      select: { id: true },
+    });
+    seeded.push({ post, postId: created.id, pathname });
+  }
+  const target = seeded.find((entry) => entry.post.target)!;
+  return {
+    postId: target.postId,
+    text: target.post.text,
+    pathname: target.pathname,
+    others: seeded
+      .filter((entry) => entry !== target)
+      .map((entry) => ({ postId: entry.postId, pathnames: [entry.pathname] })),
+  };
+}
+
+const FIXTURE_AGENT_UNIT = "sokosumi-evals-credit";
+
+/**
+ * A listed Agent at the fixture's fixed price, so find_agents has a priced
+ * match; a run's parallel repeats make or refresh the same one in turn. It is
+ * visible to everyone on the database, so only a local run may make it.
+ */
+export async function seedAgent(
+  agent: NonNullable<JourneyFixtures["agent"]>,
+): Promise<void> {
+  if (!evalEnvironment().startsWith("local"))
+    throw new Error("The agent prepare runs on a local database only");
+  const blockchainIdentifier = `sokosumi-evals-${agent.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const amount = {
+    unit: FIXTURE_AGENT_UNIT,
+    amount: convertCreditsToCents(agent.credits),
+  };
+  const listing = {
+    name: agent.name,
+    description: agent.description,
+    summary: agent.description,
+    apiBaseUrl: "https://agent.evals.invalid",
+    isShown: true,
+    status: "ONLINE" as const,
+  };
+  await createNetworkScope("mainnet").netTransaction(async (tx) => {
+    // One writer at a time: the repeats seed at once, and the unit is shared.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${FIXTURE_AGENT_UNIT}))`;
+    await tx.creditCost.upsert({
+      where: { unit: FIXTURE_AGENT_UNIT },
+      create: { unit: FIXTURE_AGENT_UNIT, centsPerUnit: 1n },
+      update: {},
+    });
+    const existing = await tx.agent.findUnique({
+      where: { blockchainIdentifier },
+      select: {
+        pricingId: true,
+        pricing: { select: { agentFixedPricingId: true } },
+      },
+    });
+    if (!existing) {
+      await tx.agent.create({
+        data: {
+          ...listing,
+          blockchainIdentifier,
+          lastUptimeCheck: new Date(),
+          uptimeCount: 1,
+          uptimeCheckCount: 1,
+          pricing: {
+            create: {
+              pricingType: "FIXED",
+              fixedPricing: { create: { amounts: { create: amount } } },
+            },
+          },
+        },
+      });
+      return;
+    }
+    await tx.agent.update({ where: { blockchainIdentifier }, data: listing });
+    const fixedId = existing.pricing.agentFixedPricingId;
+    if (fixedId) {
+      await tx.unitValue.deleteMany({
+        where: { agentFixedPricingId: fixedId },
+      });
+      await tx.unitValue.create({
+        data: { ...amount, agentFixedPricingId: fixedId },
+      });
+    }
+    await tx.agentPricing.update({
+      where: { id: existing.pricingId },
+      data: {
+        pricingType: "FIXED",
+        ...(fixedId
+          ? {}
+          : { fixedPricing: { create: { amounts: { create: amount } } } }),
+      },
+    });
+  }, "Could not seed the fixture Agent");
+}
+
 /** The journey's world, made fresh before its first step. */
 export async function prepareJourneyWorld(
   lane: EvalLaneRecord,
   prepare: readonly JourneyPrepare[],
+  fixtures: JourneyFixtures = {},
+  /** The bot the journey talks to: a shared room seats it. */
+  botId: string = lane.sokoBotId,
 ): Promise<JourneyWorld> {
   const a2a = await ensureA2aWorld(lane);
   const world: JourneyWorld = {
@@ -568,6 +881,33 @@ export async function prepareJourneyWorld(
   if (prepare.includes("weekly-reports")) await seedCmoReports(lane);
   if (prepare.includes("friday-and-linkedin-posts"))
     world.seededWeekdayPostIds = await seedFridayAndLinkedInPosts(lane);
+  if (prepare.includes("tasks"))
+    await seedTasks(lane, world.coworkers.Mira, needs(fixtures.tasks, "tasks"));
+  if (prepare.includes("teammate-room"))
+    world.teammateRoomId = await seedTeammateRoom(lane, botId);
+  if (prepare.includes("scheduled-posts")) {
+    await seedScheduledPosts(
+      lane,
+      needs(fixtures.scheduledPosts, "scheduled-posts"),
+    );
+    world.seededPublished = (
+      await prisma.socialPost.findMany({
+        where: { projectId: lane.cusoProjectId, status: "PUBLISHED" },
+        select: { id: true, text: true, media: true },
+      })
+    ).map((post) => ({
+      id: post.id,
+      text: post.text,
+      pathnames: mediaPathnames(post.media),
+    }));
+  }
+  if (prepare.includes("picture-posts"))
+    world.seededPicture = await seedPicturePosts(
+      lane,
+      needs(fixtures.picturePosts, "picture-posts"),
+    );
+  if (prepare.includes("agent"))
+    await seedAgent(needs(fixtures.agent, "agent"));
   world.upcomingByNetwork = await upcomingByNetwork(
     lane.cusoProjectId,
     await databaseNow(),

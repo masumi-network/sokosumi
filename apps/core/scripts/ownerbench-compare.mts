@@ -42,8 +42,11 @@ const sets = versionDeltaBySet(
   holdoutJourneys(values.holdout).map((journey) => journey.id),
 );
 
+const percent = (share: number | null) =>
+  share === null ? "?" : `${Math.round(share * 100)}%`;
+
 function totalsLine(label: string, totals: VersionDelta["baseline"]) {
-  return `${label}: ${totals.passed} passed, ${totals.stepsPassed} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn`;
+  return `${label}: ${totals.passed} passed every repeat (pass^k), ${totals.incomplete} incomplete, pass^1 ${percent(totals.passRate)}, ${Number(totals.stepsPassed.toFixed(1))} steps right, ${totals.inputTokensPerTurn ?? "?"} input tokens per turn`;
 }
 
 function summary(delta: VersionDelta) {

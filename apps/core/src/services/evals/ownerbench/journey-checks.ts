@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
 import type { JourneyWorld } from "./journey-world";
@@ -40,6 +41,10 @@ function matchesAll(text: string, patterns: readonly string[] = []) {
     (pattern) => !new RegExp(pattern, "i").test(text),
   );
   return { pass: missing.length === 0, missing };
+}
+
+function matchesAny(text: string, patterns: readonly string[] = []) {
+  return patterns.some((pattern) => new RegExp(pattern, "i").test(text));
 }
 
 function weekdayIn(date: Date, zone = ZONE): number {
@@ -98,6 +103,7 @@ async function scheduleCheck(
       prompt: true,
       timezone: true,
       enabled: true,
+      runOnce: true,
     },
   });
   const [rememberedId, rememberedCron, rememberedPrompt, rememberedZone] =
@@ -158,6 +164,8 @@ async function scheduleCheck(
     problems.push(`minute ${time?.minute ?? "?"}`);
   if (outcome.timezone && latest.timezone !== outcome.timezone)
     problems.push(latest.timezone);
+  if (outcome.runOnce !== undefined && latest.runOnce !== outcome.runOnce)
+    problems.push(latest.runOnce ? "one-time" : "recurring");
   const prompt = matchesAll(latest.prompt, outcome.promptMatches);
   if (!prompt.pass)
     problems.push(`prompt lacks /${prompt.missing.join("/, /")}/`);
@@ -255,7 +263,11 @@ async function imagesCheck(
   // judge's to grade.
   const off = jobs
     .filter(isMade)
-    .filter((job) => !matchesAll(job.prompt, outcome.promptMatches).pass);
+    .filter(
+      (job) =>
+        !matchesAll(job.prompt, outcome.promptMatches).pass ||
+        matchesAny(job.prompt, outcome.promptAvoids),
+    );
   const countOk =
     made >= outcome.min && (outcome.max === undefined || made <= outcome.max);
   const unfinished = jobs.filter((job) => !isMade(job)).length;
@@ -848,6 +860,326 @@ async function seededSchedulesCheck(
   };
 }
 
+async function contactCheck(
+  outcome: Extract<JourneyOutcome, { kind: "contact" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const since = context.journeyStartedAt;
+  const contacts = await prisma.contact.findMany({
+    where: {
+      workspaceId: context.lane.workspaceId,
+      archivedAt: null,
+      mergedIntoId: null,
+      OR: [
+        { updatedAt: { gte: since } },
+        { interactions: { some: { createdAt: { gte: since } } } },
+      ],
+    },
+    select: {
+      name: true,
+      organization: true,
+      role: true,
+      summary: true,
+      whyInteresting: true,
+      nextStep: true,
+      customFields: true,
+      interactions: { select: { summary: true } },
+    },
+  });
+  const named = contacts.filter((contact) =>
+    new RegExp(outcome.nameMatches, "i").test(contact.name),
+  );
+  const notes = (contact: (typeof contacts)[number]) =>
+    [
+      contact.organization,
+      contact.role,
+      contact.summary,
+      contact.whyInteresting,
+      contact.nextStep,
+      JSON.stringify(contact.customFields),
+      ...contact.interactions.map((interaction) => interaction.summary),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  const good = named.find(
+    (contact) => matchesAll(notes(contact), outcome.notesMatch).pass,
+  );
+  const first = named[0];
+  return {
+    label: outcome.label,
+    pass: Boolean(good),
+    actual: good
+      ? `"${good.name}"`
+      : first
+        ? `"${first.name}" lacks /${matchesAll(notes(first), outcome.notesMatch).missing.join("/, /")}/`
+        : `${contacts.length} contact(s) touched, none named /${outcome.nameMatches}/`,
+  };
+}
+
+/**
+ * Text files the journey saved to Files and that are still there, with
+ * their text: what the last upload_file whose receipt names the file wrote,
+ * else the text Files indexed (a sandbox upload sends a workspace path, not
+ * the content).
+ */
+export function savedFileTexts(
+  files: readonly { id: string; displayName: string }[],
+  toolCalls: CheckContext["toolCalls"],
+  indexed: Readonly<Record<string, string>> = {},
+): { name: string; text: string | null }[] {
+  return files.map((file) => {
+    const write = toolCalls
+      .filter(
+        (call) =>
+          call.capability === "upload_file" &&
+          call.status !== "FAILED" &&
+          (call.result as { id?: unknown } | null)?.id === file.id,
+      )
+      .map((call) => (call.input as { content?: unknown } | null)?.content)
+      .at(-1);
+    return {
+      name: file.displayName,
+      text: typeof write === "string" ? write : (indexed[file.id] ?? null),
+    };
+  });
+}
+
+/**
+ * Each file's indexed text, from its latest revision only: a newer revision
+ * still being indexed has no text yet, and an older revision's text is not
+ * what the file says now.
+ */
+export async function indexedTexts(
+  fileIds: readonly string[],
+): Promise<Record<string, string>> {
+  const versions = await prisma.fileVersion.findMany({
+    where: { resourceId: { in: [...fileIds] } },
+    orderBy: { revision: "desc" },
+    select: {
+      resourceId: true,
+      chunks: { orderBy: { ordinal: "asc" }, select: { text: true } },
+    },
+  });
+  const latest = new Map<string, (typeof versions)[number]>();
+  for (const version of versions)
+    if (!latest.has(version.resourceId))
+      latest.set(version.resourceId, version);
+  const texts: Record<string, string> = {};
+  for (const [id, version] of latest)
+    if (version.chunks.length)
+      texts[id] = version.chunks.map((chunk) => chunk.text).join("\n");
+  return texts;
+}
+
+async function fileCheck(
+  outcome: Extract<JourneyOutcome, { kind: "file" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const files = await prisma.fileResource.findMany({
+    where: {
+      workspaceId: context.lane.workspaceId,
+      sourceKind: "DRIVE_UPLOAD",
+      lifecycle: "ACTIVE",
+      tombstonedAt: null,
+      createdAt: { gte: context.journeyStartedAt },
+      NOT: { mimeType: { startsWith: "image/" } },
+    },
+    select: { id: true, displayName: true },
+  });
+  const saved = savedFileTexts(
+    files,
+    context.toolCalls,
+    await indexedTexts(files.map((file) => file.id)),
+  ).filter(
+    (file) =>
+      !outcome.nameMatches ||
+      new RegExp(outcome.nameMatches, "i").test(file.name),
+  );
+  const good = saved.find(
+    (file) =>
+      file.text !== null &&
+      matchesAll(file.text, outcome.textMatches).pass &&
+      !matchesAny(file.text, outcome.textAvoids),
+  );
+  const first = saved[0];
+  return {
+    label: outcome.label,
+    pass: Boolean(good),
+    actual: good
+      ? `"${good.name}"`
+      : !first
+        ? `${files.length} file(s) saved, none matching`
+        : first.text === null
+          ? `"${first.name}" has no text to check`
+          : `"${first.name}" lacks /${matchesAll(first.text, outcome.textMatches).missing.join("/, /")}/ or says what it should not`,
+  };
+}
+
+async function taskReplyCheck(
+  outcome: Extract<JourneyOutcome, { kind: "taskReply" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const replies = await prisma.taskEvent.findMany({
+    where: {
+      sokoBotId: context.botId,
+      createdAt: { gte: context.stepStartedAt },
+      comment: { not: null },
+      task: {
+        workspaceId: context.lane.workspaceId,
+        assigneeId: context.world.coworkers[outcome.coworker],
+      },
+    },
+    select: { comment: true },
+  });
+  const good = replies.find(
+    (reply) => matchesAll(reply.comment ?? "", outcome.textMatches).pass,
+  );
+  return {
+    label: outcome.label,
+    pass: Boolean(good),
+    actual: good
+      ? `"${good.comment?.slice(0, 70)}"`
+      : `${replies.length} comment(s) on ${outcome.coworker}'s Tasks, none matching`,
+  };
+}
+
+async function scheduledPostsCheck(
+  outcome: Extract<JourneyOutcome, { kind: "scheduledPosts" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const scheduled = await prisma.socialPost.count({
+    where: { projectId: context.world.projects.Cuso, status: "SCHEDULED" },
+  });
+  return {
+    label: outcome.label,
+    pass:
+      (outcome.min === undefined || scheduled >= outcome.min) &&
+      (outcome.max === undefined || scheduled <= outcome.max),
+    actual: `${scheduled} scheduled`,
+  };
+}
+
+async function publishedUntouchedCheck(
+  outcome: Extract<JourneyOutcome, { kind: "publishedUntouched" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const seeded = context.world.seededPublished ?? [];
+  const rows = await prisma.socialPost.findMany({
+    where: { id: { in: seeded.map((post) => post.id) } },
+    select: { id: true, text: true, status: true, media: true },
+  });
+  const changed = seeded.filter((before) => {
+    const after = rows.find((row) => row.id === before.id);
+    return (
+      !after ||
+      after.status !== "PUBLISHED" ||
+      after.text !== before.text ||
+      !samePathnames(after.media, before.pathnames)
+    );
+  });
+  return {
+    label: outcome.label,
+    pass: seeded.length > 0 && changed.length === 0,
+    actual: changed.length
+      ? `${changed.length} of ${seeded.length} changed or removed`
+      : `${seeded.length} unchanged`,
+  };
+}
+
+/**
+ * The pathnames a post's media holds, in its order: comparable however jsonb
+ * orders an attachment's keys, while a reordering of the attachments shows.
+ */
+export function mediaPathnames(media: unknown): string[] {
+  return (Array.isArray(media) ? media : []).flatMap((ref) =>
+    ref && typeof ref === "object" && "pathname" in ref
+      ? [String(ref.pathname)]
+      : [],
+  );
+}
+
+function samePathnames(media: unknown, before: readonly string[]): boolean {
+  return mediaPathnames(media).join("\n") === before.join("\n");
+}
+
+/** Problems with the target picture post: replaced on the same post, the rest left as they were. */
+export function pictureProblems(
+  seeded: NonNullable<JourneyWorld["seededPicture"]>,
+  post: { text: string; status: string; media: unknown } | null,
+  others: readonly { id: string; media: unknown }[],
+  madeFiles: readonly { sourceId: string }[],
+): string[] {
+  if (!post) return ["the post is gone"];
+  const problems: string[] = [];
+  if (post.status === "CANCELED") problems.push("the post was cancelled");
+  if (post.text !== seeded.text) problems.push("its text changed");
+  if (mediaPathnames(post.media).includes(seeded.pathname))
+    problems.push("the old picture is still on it");
+  if (attachedMadeMedia(post.media, madeFiles).made === 0)
+    problems.push("no picture made in this journey on it");
+  const changed = seeded.others.filter((before) => {
+    const other = others.find((row) => row.id === before.postId);
+    return !other || !samePathnames(other.media, before.pathnames);
+  });
+  if (changed.length)
+    problems.push(`${changed.length} other picture(s) changed`);
+  return problems;
+}
+
+async function seededPictureCheck(
+  outcome: Extract<JourneyOutcome, { kind: "seededPictureReplaced" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const seeded = context.world.seededPicture;
+  if (!seeded)
+    return { label: outcome.label, pass: false, actual: "no seeded picture" };
+  const [post, others, files, jobs] = await Promise.all([
+    prisma.socialPost.findUnique({
+      where: { id: seeded.postId },
+      select: { text: true, status: true, media: true },
+    }),
+    prisma.socialPost.findMany({
+      where: { id: { in: seeded.others.map((other) => other.postId) } },
+      select: { id: true, media: true },
+    }),
+    madeImageFiles(context, context.journeyStartedAt),
+    imageJobs(context, context.journeyStartedAt),
+  ]);
+  const problems = pictureProblems(seeded, post, others, files);
+  const off = jobs
+    .filter(isMade)
+    .filter((job) => matchesAny(job.prompt, outcome.promptAvoids));
+  if (off.length)
+    problems.push(`${off.length} image(s) matched an avoided prompt pattern`);
+  return {
+    label: outcome.label,
+    pass: problems.length === 0,
+    actual: problems.length
+      ? problems.join("; ")
+      : "replaced, nothing else changed",
+  };
+}
+
+async function noHiresCheck(
+  outcome: Extract<JourneyOutcome, { kind: "noHires" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const hires = context.toolCalls.filter(
+    (call) => call.capability === "hire_agent" && call.status !== "FAILED",
+  ).length;
+  const jobs = await createNetworkScope("mainnet").networkDb.job.count({
+    where: {
+      workspaceId: context.lane.workspaceId,
+      createdAt: { gte: context.journeyStartedAt },
+    },
+  });
+  return {
+    label: outcome.label,
+    pass: hires === 0 && jobs === 0,
+    actual: `${hires} hire(s), ${jobs} Job(s)`,
+  };
+}
+
 export async function outcomeCheck(
   outcome: JourneyOutcome,
   context: CheckContext,
@@ -881,5 +1213,19 @@ export async function outcomeCheck(
       return seededSchedulesCheck(outcome, context);
     case "networkShift":
       return networkShiftCheck(outcome, context);
+    case "contact":
+      return contactCheck(outcome, context);
+    case "file":
+      return fileCheck(outcome, context);
+    case "taskReply":
+      return taskReplyCheck(outcome, context);
+    case "scheduledPosts":
+      return scheduledPostsCheck(outcome, context);
+    case "publishedUntouched":
+      return publishedUntouchedCheck(outcome, context);
+    case "seededPictureReplaced":
+      return seededPictureCheck(outcome, context);
+    case "noHires":
+      return noHiresCheck(outcome, context);
   }
 }
