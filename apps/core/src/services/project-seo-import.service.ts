@@ -33,6 +33,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
+import { seoRankPoints } from "./project-seo-rank-points";
 import {
   commitSeoMutation,
   normalizeSeoUrl,
@@ -359,6 +360,9 @@ export async function importProjectSeoAudit(
         observedAt: new Date(payload.observedAt),
       },
     });
+    const rankPoints = seoRankPoints(observation.id, payload);
+    if (rankPoints.length)
+      await tx.projectSeoRankPoint.createMany({ data: rankPoints });
     if (analysis)
       await tx.projectSeoAnalysis.update({
         where: { id: analysis.id },

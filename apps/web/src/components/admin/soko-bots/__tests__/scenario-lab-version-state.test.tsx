@@ -130,4 +130,22 @@ describe("ScenarioLab version URL state", () => {
     const event = onUrlUpdate.mock.calls.at(-1)?.[0];
     expect(event?.searchParams.get("version")).toBe("v12-operator");
   });
+
+  it("shows the prompt row only when Core sends the prompt (SOKD-488)", async () => {
+    const withoutPrompt = VERSIONS.map(
+      ({ systemPrompt: _, ...version }) => version,
+    );
+    const { unmount } = render(
+      <ScenarioLab versionId="v11" versions={withoutPrompt} />,
+      { wrapper: makeWrapper() },
+    );
+    await screen.findByRole("button", { name: "Operator" });
+    expect(screen.queryByText("overviewPrompt")).not.toBeInTheDocument();
+    unmount();
+
+    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
+      wrapper: makeWrapper(),
+    });
+    expect(await screen.findByText("overviewPrompt")).toBeInTheDocument();
+  });
 });

@@ -63,7 +63,9 @@ export type ValueOptionName =
   | "soko-bot-version"
   | "cuso-version"
   | "out"
-  | "query";
+  | "query"
+  | "file"
+  | "cursor";
 
 type CliOptionValue = string | string[];
 
@@ -131,6 +133,8 @@ export interface CliOptions {
   "summary-md"?: boolean;
   out?: string;
   query?: CliOptionValue;
+  file?: string;
+  cursor?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -247,6 +251,10 @@ Evals (platform admin; Core runs them on the deployment you select):
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
   --markdown prints the table for a PR's Evidence. The weekly run on mainnet is the baseline every run is compared with.
 
+Marketplace agents:
+  agents input-schema AGENT_ID prints the input fields an agent takes, without starting a Job or spending credits.
+  agents hire starts a paid Job: build its --input-json from agents input-schema, and confirm the credit cap first.
+
 Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
@@ -259,7 +267,11 @@ Commands that call one Core operation, such as jobs events, tasks files and task
 Account, organizations and workspaces:
   Commands on your own account take the literal me: sokosumi workspaces credits me, sokosumi workspaces create me --input-json '{"kind":"personal"}'.
   An action with no body still needs one: sokosumi organizations deny-vendor-grant ORGANIZATION_ID GRANT_ID --input-json '{}'.
-  Organization commands take the organization id from workspaces list. Owner and admin commands answer 403 for other members.
+  workspaces list shows each workspace's workspaceId and organizationId. WORKSPACE_ID is the workspaceId: workspaces get,
+  ad-data-consent, set-ad-data-consent, social-statistics, calendar-labels, and the workspaceId in users set-preferred-workspace.
+  ORGANIZATION_ID is the organizationId: organizations and workspaces check commands. calendar-labels on an organization
+  Workspace also needs --organization-slug. Owner and admin commands answer 403 for other members.
+  users file-upload me --file PATH sends one file to your Sokosumi files (Core picks the type from its name); users files me lists them.
   Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.
 
 Drive:
@@ -268,7 +280,7 @@ Drive:
   Find: drive search --query scope=me --query q=TEXT, drive files, drive get RESOURCE_ID, drive tasks (Task outputs).
   drive delete and drive delete-folder take the pathname or folderPath as --input-json; they cannot be undone.
   Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
-  Uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
+  Drive uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
 
 Chats:
   Rooms come from sokosumi chats rooms --organization-slug WORKSPACE_SLUG; a room's id fills ROOM_ID.
@@ -333,6 +345,9 @@ Agent runtime tools on Preprod:
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
   runtime receipt requires --coworker-id ID with TASK_ID. It proves the seller receipt: settled is true only when the Masumi payment settled on-chain (onChainState Withdrawn, or DisputedWithdrawn with a seller payout). When settled, it also returns the settlement txHash, which can still be null; otherwise txHash is null.
+  runtime me, events and report-usage take --coworker-id ID and no Task ID: the Coworker itself, its Task events
+    (events pages with --limit N --cursor CURSOR, the cursor from the last page), and
+    report-usage --input-json '{"userId":"USER_ID","idempotencyKey":"KEY","credits":2.5}', which bills that user for its work.
   Use --json for tools. Run one executor per Task; inspect state before any retry.
 
 Optional Hermes runner:

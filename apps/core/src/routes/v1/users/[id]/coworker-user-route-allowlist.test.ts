@@ -62,6 +62,8 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: memberFindManyMock,
       findUnique: memberFindUniqueMock,
     },
+    // Credits without an organization check the personal workspace exists.
+    workspace: { findUnique: vi.fn(async () => ({ id: "ws_personal" })) },
     $transaction: prismaTransactionMock,
   },
 }));

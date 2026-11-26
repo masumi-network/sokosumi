@@ -20,6 +20,7 @@ import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   capabilitiesForWatchFollowUp,
   deriveWatchAuthority,
+  isOwnerAuthorityRevoked,
   type OwnerAuthorityAskedByKind,
   resolveWatchWakeAuthority,
 } from "@/lib/soko-bot/owner-authority";
@@ -352,6 +353,7 @@ export async function registerSeoCheckWatch(
       workspaceId: authorized.turn.workspaceId,
       versionId: authorized.turn.versionId,
       source: authorized.turn.source,
+      clientTurnId: authorized.turn.clientTurnId ?? null,
       parentTurnId: authorized.turn.parentTurnId ?? null,
       askedByUserId: authorized.turn.askedByUserId ?? null,
       requestedByUserId: authorized.turn.requestedByUserId,
@@ -458,6 +460,7 @@ export async function registerWatch(
       workspaceId: authorized.turn.workspaceId,
       versionId: authorized.turn.versionId,
       source: authorized.turn.source,
+      clientTurnId: authorized.turn.clientTurnId ?? null,
       parentTurnId: authorized.turn.parentTurnId ?? null,
       askedByUserId: authorized.turn.askedByUserId ?? null,
       requestedByUserId: authorized.turn.requestedByUserId,
@@ -712,6 +715,7 @@ export async function syncSokoBotWatches(input: {
             : "OWNER";
     const liveProjectId =
       watch.projectId ?? watch.turn.sokoBot?.projectId ?? null;
+    const revoked = await isOwnerAuthorityRevoked(watchAuthority, prisma);
     const capabilities = capabilitiesForWatchFollowUp(
       watch.kind,
       watch.turn.capabilityNames,
@@ -725,6 +729,9 @@ export async function syncSokoBotWatches(input: {
           askedByKind,
           sharedBot,
           source: watch.turn.source === "CHAT" ? "CHAT" : "SCHEDULE",
+          ...(watchAuthority.scheduleId
+            ? { scheduleId: watchAuthority.scheduleId }
+            : {}),
           ...(liveProjectId
             ? {
                 targetScope: {
@@ -735,6 +742,7 @@ export async function syncSokoBotWatches(input: {
             : {}),
           hasWorkspaceAccess: true,
           botAlive: true,
+          ...(revoked ? { revoked: true } : {}),
         },
       },
     );

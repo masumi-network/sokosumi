@@ -92,10 +92,10 @@ export function DriveFileViewer({
         {...media}
         media={null}
         action={
-          sheet === "csv" ? (
+          sheet ? (
             <TableCreateDialog
               workspaceId={store.organizationId ?? null}
-              csvFile={{ url, name: file.displayName }}
+              sourceFile={{ url, name: file.displayName, kind: sheet }}
             />
           ) : null
         }

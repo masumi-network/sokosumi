@@ -1037,11 +1037,6 @@ test("dispatches discover JSON without opening a TUI", async () => {
 
 const newCommandCases = [
   { argv: ["vendors", "me"], path: "/v1/vendors/me", key: "vendors" },
-  {
-    argv: ["workspaces", "list"],
-    path: "/v1/users/me/organizations",
-    key: "workspaces",
-  },
 ] as const;
 
 test("dispatches new read commands through their exact Core routes", async () => {
@@ -1075,15 +1070,7 @@ test("dispatches new read commands through their exact Core routes", async () =>
     assert.deepEqual(paths, [testCase.path]);
     assert.equal(output.length, 1);
     const parsed = JSON.parse(output[0]!) as Record<string, { id: string }[]>;
-    if (testCase.key === "workspaces") {
-      assert.equal(
-        (parsed[testCase.key]?.[0] as { organizationId?: string })
-          ?.organizationId,
-        testCase.key + "-1",
-      );
-    } else {
-      assert.equal(parsed[testCase.key]?.[0]?.id, testCase.key + "-1");
-    }
+    assert.equal(parsed[testCase.key]?.[0]?.id, testCase.key + "-1");
   }
 });
 

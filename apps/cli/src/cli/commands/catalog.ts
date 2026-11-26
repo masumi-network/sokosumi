@@ -33,7 +33,16 @@ export const CLI_COMMAND_CATALOG = [
   { command: "evals list", usage: "[--limit N]" },
   { command: "evals cases", usage: "" },
   { command: "agents list", usage: "" },
-  { command: "agents hire", usage: "AGENT_ID" },
+  {
+    command: "agents input-schema",
+    usage: "AGENT_ID",
+    operation: "GET /agents/{id}/input-schema",
+  },
+  {
+    command: "agents hire",
+    usage:
+      "AGENT_ID --input-json JSON|--input-file FILE [--max-credits N] [--name NAME]",
+  },
   { command: "agents get", usage: "AGENT_ID", operation: "GET /agents/{id}" },
   {
     command: "agents jobs",
@@ -71,20 +80,9 @@ export const CLI_COMMAND_CATALOG = [
     usage: "COWORKER_ID KEY_ID",
     operation: "DELETE /coworkers/{id}/api-keys/{keyId}",
   },
-  { command: "coworkers me", usage: "" },
   { command: "vendors me", usage: "" },
   { command: "vendors create", usage: "--name NAME --slug SLUG" },
   // SOKD-372: coworkers, vendors and developer.
-  {
-    command: "coworkers events",
-    usage: "",
-    operation: "GET /coworkers/me/events",
-  },
-  {
-    command: "coworkers report-usage",
-    usage: "--input-json JSON",
-    operation: "POST /coworkers/me/usage",
-  },
   {
     command: "coworkers archive",
     usage: "COWORKER_ID",
@@ -218,6 +216,12 @@ export const CLI_COMMAND_CATALOG = [
   { command: "runtime complete", usage: "TASK_ID [options]" },
   { command: "runtime run", usage: "TASK_ID [options]" },
   { command: "runtime receipt", usage: "TASK_ID [options]" },
+  { command: "runtime me", usage: "--coworker-id ID" },
+  { command: "runtime events", usage: "--coworker-id ID" },
+  {
+    command: "runtime report-usage",
+    usage: "--coworker-id ID --input-json JSON",
+  },
   { command: "tasks list", usage: "[options]" },
   {
     command: "tasks create",
@@ -644,7 +648,7 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "users file-upload",
-    usage: "me --input-json JSON",
+    usage: "me --file PATH",
     operation: "POST /users/{id}/files",
   },
   {
@@ -719,13 +723,19 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "workspaces calendar-labels",
-    usage: "WORKSPACE_ID --input-json JSON",
+    usage:
+      "WORKSPACE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
     operation: "POST /workspaces/{id}/calendar/identity-labels",
   },
   {
     command: "workspaces adhoc-design-md",
     usage: "--input-json JSON",
     operation: "POST /workspaces/design-md/adhoc",
+  },
+  {
+    command: "organizations list",
+    usage: "me",
+    operation: "GET /users/{id}/organizations",
   },
   {
     command: "organizations memberships",

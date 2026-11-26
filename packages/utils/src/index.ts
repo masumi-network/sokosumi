@@ -570,6 +570,7 @@ export {
   readSokoBotAttemptAt,
 } from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
+export { strictBody } from "./strict-body.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
   studioAdBrief,
@@ -588,10 +589,12 @@ export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
+  CMO_WRITTEN_SHORT_VIDEO_FORMATS,
   creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
   SHORT_VIDEO_FORMAT_GUIDE,
   SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH,
   SHORT_VIDEO_MAX_PICTURES,
   SHORT_VIDEO_TEXT_FORMATS,
   type ShortVideoFormat,

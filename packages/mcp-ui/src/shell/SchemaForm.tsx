@@ -1,3 +1,4 @@
+import { Upload } from "lucide-react";
 import {
   type KeyboardEvent,
   type ReactNode,
@@ -7,7 +8,7 @@ import {
 } from "react";
 import { z } from "zod";
 import { t } from "./text.ts";
-import { QuietButton } from "./ui.tsx";
+import { Button } from "./ui.tsx";
 
 /**
  * An agent's input schema (Masumi's `input_data` or `input_groups`), read
@@ -318,7 +319,7 @@ export function SchemaForm({
           submit();
         }
       }}
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-6"
     >
       {groups.map((group) => {
         const body = group.fields.map((field) => (
@@ -333,7 +334,7 @@ export function SchemaForm({
           />
         ));
         return group.title ? (
-          <fieldset key={group.id} className="flex flex-col gap-5">
+          <fieldset key={group.id} className="flex flex-col gap-6">
             <legend className="mb-1 text-sm font-semibold">
               {group.title}
             </legend>
@@ -344,19 +345,24 @@ export function SchemaForm({
         );
       })}
       {footer}
-      <QuietButton
+      <Button
         onClick={submit}
         disabled={disabled}
-        className="border-border w-full border sm:w-auto sm:self-start"
+        className="w-full sm:w-auto sm:self-start"
       >
         {submitLabel}
-      </QuietButton>
+      </Button>
     </form>
   );
 }
 
+/** Web's Input (components/ui/input.tsx), 44px tall for touch. */
 const CONTROL =
-  "border-input bg-background focus-visible:outline-ring min-h-11 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:-outline-offset-1 aria-[invalid=true]:border-destructive";
+  "placeholder:text-muted-foreground border-input dark:bg-quinary focus-visible:border-ring focus-visible:ring-ring aria-[invalid=true]:border-destructive min-h-11 w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2";
+
+/** Web's Checkbox and RadioGroup marks: Iris when checked, a Neutral dot for a choice. */
+const CHECKBOX = "accent-primary size-4 shrink-0";
+const RADIO = "accent-foreground size-4 shrink-0";
 
 function FieldRow({
   field,
@@ -400,12 +406,12 @@ function FieldRow({
   const notes = (
     <>
       {description && (
-        <span id={descriptionId} className="text-muted-foreground text-xs">
+        <span id={descriptionId} className="text-muted-foreground text-sm">
           {description}
         </span>
       )}
       {error && (
-        <span id={errorId} className="text-destructive text-xs font-medium">
+        <span id={errorId} className="text-destructive text-sm font-medium">
           {error}
         </span>
       )}
@@ -418,14 +424,15 @@ function FieldRow({
         tabIndex={-1}
         data-field={field.id}
         aria-describedby={describedBy}
-        className="focus-visible:outline-ring flex flex-col gap-1 rounded-md focus-visible:outline-2"
+        className="focus-visible:outline-ring flex flex-col gap-2 rounded-md focus-visible:outline-2"
       >
         {label}
         {notes}
         {onUpload ? (
-          <QuietButton onClick={onUpload} className="-mx-3 self-start">
+          <Button onClick={onUpload} className="self-start">
+            <Upload aria-hidden="true" />
             {t("schemaForm.upload")}
-          </QuietButton>
+          </Button>
         ) : (
           <span className="text-muted-foreground text-xs">
             {t("schemaForm.uploadText")}
@@ -437,7 +444,7 @@ function FieldRow({
 
   if (typeof draft === "boolean") {
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         <label className="flex min-h-11 items-center gap-3">
           <input
             type="checkbox"
@@ -445,7 +452,7 @@ function FieldRow({
             checked={draft}
             aria-describedby={describedBy}
             onChange={(event) => onChange(event.target.checked)}
-            className="accent-foreground size-4"
+            className={CHECKBOX}
           />
           {field.data?.label || field.name ? (
             <span className="text-sm font-medium">
@@ -463,7 +470,7 @@ function FieldRow({
     const multi = isMulti(field);
     if (!multi && field.type === "option") {
       return (
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-2">
           {label}
           <select
             data-field={field.id}
@@ -494,7 +501,7 @@ function FieldRow({
       <fieldset
         aria-describedby={describedBy}
         aria-invalid={error ? true : undefined}
-        className="flex flex-col gap-1"
+        className="flex flex-col gap-2"
       >
         <legend className="contents">{label}</legend>
         {notes}
@@ -517,7 +524,7 @@ function FieldRow({
                         : [index],
                     )
                   }
-                  className="accent-foreground size-4"
+                  className={multi ? CHECKBOX : RADIO}
                 />
                 <span className="text-sm">{value}</span>
               </label>
@@ -537,7 +544,7 @@ function FieldRow({
     className: CONTROL,
   };
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex flex-col gap-2">
       {label}
       {field.type === "textarea" ? (
         <textarea

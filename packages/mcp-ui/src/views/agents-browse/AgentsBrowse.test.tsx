@@ -90,7 +90,7 @@ const hire = (name: string) =>
 afterEach(cleanup);
 
 describe("AgentsBrowse cards", () => {
-  it("shows each hireable agent with initials, price and rating, and no image", async () => {
+  it("shows each hireable agent as Web's tile: a glyph, price and rating, and no image", async () => {
     await openAgents();
 
     expect(
@@ -98,9 +98,8 @@ describe("AgentsBrowse cards", () => {
     ).toBeTruthy();
     expect(screen.getAllByRole("listitem")).toHaveLength(5);
     const analyst = within(card("Market Analyst"));
-    expect(analyst.getByText("MA")).toBeTruthy();
     expect(analyst.getByText("12.5 credits")).toBeTruthy();
-    expect(analyst.getByText("★ 4.6 (128)")).toBeTruthy();
+    expect(analyst.getByText("4.6 (128)")).toBeTruthy();
     expect(analyst.getByText("Rated 4.6 of 5 from 128 ratings")).toBeTruthy();
     expect(document.querySelector("img")).toBeNull();
   });

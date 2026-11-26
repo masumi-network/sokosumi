@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
@@ -12,11 +12,13 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProject: vi.fn(),
 }));
 
+const generation = vi.hoisted(() => ({ status: "idle" }));
+
 vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     generate: vi.fn(),
     isRunning: false,
-    status: "idle",
+    status: generation.status,
   }),
 }));
 
@@ -35,6 +37,7 @@ vi.mock("sonner", () => ({
 describe("ProjectBrandSetup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    generation.status = "idle";
     resolveProjectSiteIconMock.mockResolvedValue({
       ok: true,
       value: { url: "https://blob.example/logo.png" },
@@ -64,5 +67,30 @@ describe("ProjectBrandSetup", () => {
       });
     });
     expect(updateProjectMock.mock.calls[0]?.[0]).not.toHaveProperty("briefing");
+  });
+
+  // The wizard moves focus to Open project at once, so the progress line is
+  // the only word a screen reader gets on how the brand went.
+  it("announces how brand setup is going", async () => {
+    vi.mocked(updateProject).mockResolvedValue({
+      ok: true,
+      value: { projectId: "project-1" },
+    });
+
+    render(
+      <ProjectBrandSetup
+        projectId="aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"
+        projectName="Launch"
+        websiteUrl="https://acme.com"
+      />,
+    );
+
+    generation.status = "completed";
+    // A live region from the first render, so the change to ready or
+    // failed is read out.
+    expect(screen.getByRole("status")).toHaveTextContent("fetching");
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("ready");
+    });
   });
 });

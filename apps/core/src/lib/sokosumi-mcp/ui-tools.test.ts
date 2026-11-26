@@ -30,6 +30,8 @@ describe("MCP_UI_TOOLS", () => {
   it("tells agents how to fill the Task board", () => {
     const board = MCP_UI_TOOLS.find((tool) => tool.name === "tasks_show_board");
 
+    expect(board?.args).toEqual({ includeDescription: "false" });
+    expect(board?.description).toContain("without descriptions");
     expect(board?.description).toContain("`limit: 100`");
     expect(board?.description).toContain(
       '`scope: "workspace"` when the person asks for the team',

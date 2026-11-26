@@ -1,4 +1,7 @@
-import { CMO_VOLUME_LEVELS, SHORT_VIDEO_FORMATS } from "@sokosumi/utils";
+import {
+  CMO_VOLUME_LEVELS,
+  CMO_WRITTEN_SHORT_VIDEO_FORMATS,
+} from "@sokosumi/utils";
 import { z } from "zod";
 
 /**
@@ -497,7 +500,7 @@ export const cmoCalendarEntrySchema = z.object({
    * A short video's kind (cmo-v20): Core cuts it from the brand's pictures
    * and website to its script. Left out, a short animates its picture.
    */
-  shortFormat: z.enum(SHORT_VIDEO_FORMATS).optional(),
+  shortFormat: z.enum(CMO_WRITTEN_SHORT_VIDEO_FORMATS).optional(),
   /** A short video's words on screen over its first seconds. */
   hookLine: z.string().trim().min(1).max(48).optional(),
   /** ISO 639-1 language of the script, e.g. "de". */

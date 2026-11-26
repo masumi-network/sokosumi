@@ -7,7 +7,6 @@ import {
   createCoworkerApiKey,
   fetchCoworker,
   fetchCoworkers,
-  fetchCurrentCoworker,
   grantCoworkerWorkspaceAccess,
   updateCoworker,
 } from "../../src/api/services/coworker-service.js";
@@ -50,7 +49,6 @@ test("coworker services use Core routes, encode IDs, and repeat capabilities", a
     scope: "owned",
     capabilities: ["tasks", "chat"],
   });
-  await fetchCurrentCoworker(api);
   await createCoworker(api, { name: "  Ops  ", vendorId: "vendor-1" });
   await updateCoworker(api, "cow/1", { caption: "Ops" });
   await createCoworkerApiKey(api, "cow/1", { name: " Production " });
@@ -62,15 +60,14 @@ test("coworker services use Core routes, encode IDs, and repeat capabilities", a
         method: "GET",
         path: "/v1/coworkers?scope=owned&capability=tasks&capability=chat",
       },
-      { method: "GET", path: "/v1/coworkers/me" },
       { method: "POST", path: "/v1/coworkers" },
       { method: "PATCH", path: "/v1/coworkers/cow%2F1" },
       { method: "POST", path: "/v1/coworkers/cow%2F1/api-keys" },
       { method: "GET", path: "/v1/coworkers/cow%2F1" },
     ],
   );
-  assert.deepEqual(calls[2]?.body, { name: "Ops", vendorId: "vendor-1" });
-  assert.deepEqual(calls[4]?.body, { name: "Production" });
+  assert.deepEqual(calls[1]?.body, { name: "Ops", vendorId: "vendor-1" });
+  assert.deepEqual(calls[3]?.body, { name: "Production" });
 });
 
 test("coworker services validate required inputs before HTTP", async () => {

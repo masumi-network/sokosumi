@@ -37,6 +37,9 @@ vi.mock("next/navigation", async () => ({
 }));
 
 const clients: QueryClient[] = [];
+/** Workspace reads of the current test, and a wait the traffic route does before it answers. */
+let workspaceReads = 0;
+let beforeTraffic: (() => Promise<void>) | undefined;
 function renderTraffic(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
@@ -61,11 +64,22 @@ function renderTraffic(
       )
         return searchConsoleStatus;
       if (url.pathname.endsWith("/statistics/traffic")) {
+        await beforeTraffic?.();
         const { scope, from, to, pageUrls, propertyId } = JSON.parse(
           String(init?.body),
         );
         const site = scope === "site";
         const noDays = Boolean(workspace.brandTerms?.includes("nodays"));
+        // The term "older" stands for a list that another tab replaced after this one loaded:
+        // Core splits by the saved list, and the next workspace read returns that list.
+        const replaced = Boolean(workspace.brandTerms?.includes("older"));
+        if (replaced) workspace.brandTerms = ["newer"];
+        const madeWith = replaced
+          ? ["newer"]
+          : workspace.brandTerms?.includes("other-list")
+            ? ["never saved here"]
+            : // One term of two lines is not the list of its two lines.
+              workspace.brandTerms?.flatMap((term) => term.split("\n"));
         const home = {
           url: "https://www.example.com/",
           clicks: 3,
@@ -94,10 +108,10 @@ function renderTraffic(
           ...(workspace.brandTerms?.length && {
             brand: {
               limited: false,
-              // The term "newer" stands for a list that another tab saved after this one loaded.
-              terms: workspace.brandTerms?.includes("older")
-                ? ["newer"]
-                : workspace.brandTerms,
+              // The term "legacy" stands for a Core from before the split named its terms.
+              ...(!workspace.brandTerms?.includes("legacy") && {
+                terms: madeWith,
+              }),
               daily: noDays
                 ? []
                 : [
@@ -146,6 +160,7 @@ function renderTraffic(
             { id: "sc-domain:example.com", name: "example.com" },
           ],
         });
+      workspaceReads++;
       return Response.json(workspace);
     }),
   );
@@ -169,6 +184,8 @@ function renderTraffic(
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  workspaceReads = 0;
+  beforeTraffic = undefined;
 });
 afterEach(() => {
   sessionStorage.clear();
@@ -891,6 +908,16 @@ describe("SEO Traffic branded split", () => {
     if (terms) workspace.brandTerms = terms;
     return workspace;
   }
+  /** The term editor opens on the list the workspace holds. */
+  async function expectTermEditor(
+    section: ReturnType<typeof within>,
+    terms: string,
+  ) {
+    await userEvent.click(
+      section.getByRole("button", { name: "Edit brand terms" }),
+    );
+    expect(section.getByLabelText("Brand terms")).toHaveValue(terms);
+  }
   const queriesSection = () => {
     const section = screen
       .getByRole("heading", { name: "Search Console queries" })
@@ -939,17 +966,106 @@ describe("SEO Traffic branded split", () => {
     expect(section.queryByRole("table")).toBeNull();
   });
 
-  it("shows no split that Core made with another term list", async () => {
+  it("reads the term list again when Core split by a newer one", async () => {
+    // The reads of the first render end before the report answers. Only the report can
+    // then start the workspace read that brings the newer list.
+    let readsBefore = -1;
+    beforeTraffic = async () => {
+      if (readsBefore >= 0) return;
+      await waitFor(() => expect(workspaceReads).toBeGreaterThan(0));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      readsBefore = workspaceReads;
+    };
     renderTraffic(brandWorkspace(["older"]), "", true);
     const heading = await screen.findByRole("heading", { name: "Brand split" });
     const section = within(heading.closest("section") as HTMLElement);
-    await screen.findByRole("heading", { name: "Traffic by page" });
     expect(
-      section.getByText(
-        "Could not read the queries for this period, so there is no brand split.",
-      ),
+      await section.findByRole("button", { name: "Branded" }),
     ).toBeVisible();
+    expect(workspaceReads).toBeGreaterThan(readsBefore);
+    await expectTermEditor(section, "newer");
+  });
+
+  it.each(["other-list", "legacy", "two\nlines"])(
+    "shows the report without a split that is not proved for this list (%s)",
+    async (term) => {
+      renderTraffic(brandWorkspace([term]), "", true);
+      const heading = await screen.findByRole("heading", {
+        name: "Brand split",
+      });
+      const section = within(heading.closest("section") as HTMLElement);
+      await screen.findByRole("heading", { name: "Traffic by page" });
+      expect(
+        section.getByText(
+          "Could not read the queries for this period, so there is no brand split.",
+        ),
+      ).toBeVisible();
+      expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
+    },
+  );
+
+  it("reads the report again for a saved term list and keeps the totals in view", async () => {
+    const user = userEvent.setup();
+    const workspace = brandWorkspace(["acme"]);
+    renderTraffic(workspace, "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    await section.findByRole("button", { name: "Branded" });
+    // The read for the new list waits, so the page shows what it holds meanwhile.
+    const read = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const trafficBodies: string[] = [];
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input).endsWith("/statistics/traffic")) {
+        trafficBodies.push(String(init?.body));
+        await held;
+      }
+      return read(input, init);
+    });
+    mutate.mockImplementation(async () => {
+      workspace.brandTerms = ["acme", "acme shop"];
+      return { ok: true, value: null };
+    });
+    await user.click(section.getByRole("button", { name: "Edit brand terms" }));
+    await user.type(section.getByLabelText("Brand terms"), "{enter}acme shop");
+    await user.click(section.getByRole("button", { name: "Save brand terms" }));
+    expect(await section.findByText("Reading the brand split…")).toBeVisible();
+    expect(trafficBodies).toHaveLength(1);
     expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Traffic by page" }),
+    ).toBeVisible();
+    release();
+    expect(
+      await section.findByRole("button", { name: "Branded" }),
+    ).toBeVisible();
+  });
+
+  it("shows no share when the listed queries have no click", async () => {
+    const workspace = brandWorkspace(["acme"]);
+    for (const row of workspace.searchQueries?.rows ?? []) row.clicks = 0;
+    renderTraffic(workspace);
+    expect(await screen.findByTestId("seo-brand-totals")).toHaveTextContent(
+      "Listed queries: 0 clicks branded, 0 clicks non-branded",
+    );
+  });
+
+  it("reads a report with the split of another list again at the next chance", async () => {
+    renderTraffic(brandWorkspace(["other-list"]), "", true);
+    await screen.findByRole("heading", { name: "Traffic by page" });
+    const reads = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([input]) =>
+          String(input).endsWith("/statistics/traffic"),
+        ).length;
+    expect(reads()).toBe(1);
+    // A fresh report waits five minutes. This one does not: the window gets the focus again.
+    window.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(reads()).toBe(2));
   });
 
   it("shows no split for a feed, which has no queries", async () => {

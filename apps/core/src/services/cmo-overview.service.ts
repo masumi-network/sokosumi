@@ -6,6 +6,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { socialProviderWorkspace } from "@/config/social-providers";
+import { cmoReportForOwner } from "@/helpers/cmo-report-card";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
@@ -511,7 +512,7 @@ export async function getCmoOverview(
     hiredAt,
     botStatus: bot.status,
     updates: updates.map((update) => ({
-      ...update,
+      ...cmoReportForOwner(update),
       posts: attachments.get(update.id)?.posts ?? [],
       media: attachments.get(update.id)?.media ?? [],
     })),

@@ -8,7 +8,7 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
-import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { planUsesJevStandIn } from "@/lib/plan-jev";
 import { askJev } from "@/lib/soko-bot/jev";
 import { compactBrandBrain } from "@/services/brand-brain.service";
 import type {
@@ -84,7 +84,7 @@ const PLAN_JEV_TIMEOUT_MS = 45_000;
 export function organizerJevTimeoutMs(
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  return localChatGptPlanEnabled(env) ? PLAN_JEV_TIMEOUT_MS : JEV_TIMEOUT_MS;
+  return planUsesJevStandIn(env) ? PLAN_JEV_TIMEOUT_MS : JEV_TIMEOUT_MS;
 }
 /** Jev's "yes" a topic needs to be picked. */
 const JEV_PICK_AT = 0.5;

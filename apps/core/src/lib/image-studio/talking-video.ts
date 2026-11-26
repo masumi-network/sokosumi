@@ -298,6 +298,8 @@ export interface TalkingVideoSettings extends VideoSettings {
   musicRequestId: string | null;
   /** A short's format, or null for a video with a presenter. */
   format: ShortVideoFormat | null;
+  /** A launch's real date, shown on its card. */
+  launchDate?: string;
   /** A short's pictures in the studio's store, once copied in. */
   picturePathnames: string[];
   /** The shape this job's video is cut in. */
@@ -364,6 +366,9 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     format: (SHORT_VIDEO_FORMATS as readonly unknown[]).includes(raw.format)
       ? (raw.format as ShortVideoFormat)
       : null,
+    ...(typeof raw.launchDate === "string" && raw.launchDate.trim()
+      ? { launchDate: raw.launchDate.trim() }
+      : {}),
     picturePathnames: Array.isArray(raw.picturePathnames)
       ? raw.picturePathnames.filter(
           (pathname): pathname is string => typeof pathname === "string",

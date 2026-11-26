@@ -23,6 +23,7 @@ import {
   type CommandOutput,
   optionString,
   parsePositiveInteger,
+  readJsonObject,
   record,
   writeJson,
 } from "./command-helpers.js";
@@ -51,6 +52,12 @@ const RUN_OPTIONS = new Set([
   "timeout-ms",
 ]);
 const COMPLETE_OPTIONS = new Set(["result-file"]);
+const USAGE_OPTIONS = new Set(["input-json", "input-file"]);
+const EVENTS_OPTIONS = new Set(["limit", "cursor"]);
+const TASK_COMMANDS = ["start", "complete", "run", "receipt"];
+/** Commands on the Coworker itself: Core answers them only for its own key. */
+const SELF_COMMANDS = ["me", "events", "report-usage"];
+const NO_TASK_COMMANDS = ["key-import", ...SELF_COMMANDS];
 const NO_OPTIONS = new Set<string>();
 
 function readBoundedInput(fd: number, limit: number): string {
@@ -152,26 +159,32 @@ export async function runRuntimeCommand({
   dependencies?: RuntimeDependencies;
 }): Promise<void> {
   const [, command, taskId, ...rest] = positionals;
+  const taskless = NO_TASK_COMMANDS.includes(command);
   if (
-    !["start", "complete", "run", "key-import", "receipt"].includes(command) ||
-    (command === "key-import" ? taskId !== undefined : !taskId) ||
+    !(taskless || TASK_COMMANDS.includes(command)) ||
+    (!taskless && !taskId) ||
     rest.length
   ) {
     throw new Error(
-      "Use runtime start, complete, run, or receipt with TASK_ID; key-import takes no Task ID",
+      "Use runtime start, complete, run, or receipt with TASK_ID; key-import, me, events and report-usage take no Task ID",
     );
   }
+  if (taskless && taskId !== undefined)
+    throw new Error(`runtime ${command} takes no Task ID`);
   const commandOptions =
     command === "run"
       ? RUN_OPTIONS
       : command === "complete"
         ? COMPLETE_OPTIONS
-        : NO_OPTIONS;
+        : command === "report-usage"
+          ? USAGE_OPTIONS
+          : command === "events"
+            ? EVENTS_OPTIONS
+            : NO_OPTIONS;
   for (const name of Object.keys(options)) {
     if (
       (!COMMON_OPTIONS.has(name) && !commandOptions.has(name)) ||
-      (["key-import", "receipt"].includes(command) &&
-        name === "organization-id")
+      ((taskless || command === "receipt") && name === "organization-id")
     ) {
       throw new Error(
         command === "receipt" && name === "organization-id"
@@ -197,7 +210,7 @@ export async function runRuntimeCommand({
     );
   const organizationId = personal
     ? null
-    : ["key-import", "receipt"].includes(command)
+    : taskless || command === "receipt"
       ? ""
       : requiredOption(options, "organization-id");
   const controller = new AbortController();
@@ -235,6 +248,22 @@ export async function runRuntimeCommand({
         : undefined;
     if (resultText !== undefined && !resultText.trim())
       throw new Error("Result file must not be empty");
+    if (
+      command === "report-usage" &&
+      options["input-json"] === undefined &&
+      options["input-file"] === undefined
+    )
+      throw new Error(
+        "runtime report-usage needs --input-json or --input-file with the usage body",
+      );
+    const usage =
+      command === "report-usage"
+        ? await readJsonObject(
+            options["input-json"],
+            options["input-file"],
+            "--input",
+          )
+        : undefined;
     if (hermes)
       await (dependencies.preflight || preflightHermesRuntime)(hermes);
     if (options["api-key-stdin"] === true) {
@@ -268,6 +297,26 @@ export async function runRuntimeCommand({
       return text;
     };
     if (resultText !== undefined) rejectCredentialInResult(resultText);
+    if (SELF_COMMANDS.includes(command)) {
+      // Core answers these only for the Coworker's own key; print its JSON body as is.
+      const page = new URLSearchParams();
+      const limit = optionString(options, "limit");
+      const cursor = optionString(options, "cursor");
+      if (limit)
+        page.set("limit", String(parsePositiveInteger(limit, "--limit")));
+      if (cursor) page.set("cursor", cursor);
+      const response =
+        usage !== undefined
+          ? await client.post("/v1/coworkers/me/usage", usage, signal)
+          : await client.get(
+              command === "me"
+                ? "/v1/coworkers/me"
+                : `/v1/coworkers/me/events${page.size ? `?${page}` : ""}`,
+              signal,
+            );
+      writeJson(stdout, redactSensitive(response, [apiKey]));
+      return;
+    }
     if (command === "receipt") {
       const response = record(
         await client.get(

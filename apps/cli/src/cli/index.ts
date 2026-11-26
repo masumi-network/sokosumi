@@ -38,6 +38,7 @@ import {
 } from "./commands/runtime.js";
 import { runSkillsCommand } from "./commands/skills.js";
 import { runTasksCommand } from "./commands/tasks.js";
+import { runUserFileUpload } from "./commands/user-file-upload.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { buildJsonError, CliError } from "./errors.js";
@@ -153,6 +154,8 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "cuso-version",
   "out",
   "query",
+  "file",
+  "cursor",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -341,6 +344,18 @@ export async function runCli(
     throw error;
   }
 
+  if (
+    positionals[0] === "coworkers" &&
+    ["me", "events", "report-usage"].includes(positionals[1])
+  ) {
+    // Core answers these only for a Coworker's own key, which only runtime uses.
+    const error = new Error(
+      `coworkers ${positionals[1]} needs a Coworker's own key. Use sokosumi --preprod runtime ${positionals[1]} --coworker-id COWORKER_ID, with the key from runtime key-import or --api-key-stdin.`,
+    );
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
+  }
+
   if (positionals[0] === "runtime") {
     try {
       await runRuntimeCommand({
@@ -444,6 +459,17 @@ export async function runCli(
     }
 
     const [section, command, positionalId, ...rest] = positionals;
+    if (genericRow?.command === "users file-upload") {
+      await requireAuthenticatedSession(session);
+      await runUserFileUpload({
+        client: getCoreClient(session, dependencies, organizationSlug),
+        stdout,
+        json: options.json,
+        args: positionals.slice(2),
+        options,
+      });
+      return {};
+    }
     if (genericRow) {
       await requireAuthenticatedSession(session);
       await runGenericCommand({
