@@ -71,7 +71,7 @@ async function background(
     const project = UUID.test(input.projectId)
       ? await prisma.project.findFirst({
           where: { id: input.projectId, workspaceId },
-          select: { name: true, description: true },
+          select: { name: true, briefing: true },
         })
       : null;
     if (!project)
@@ -79,7 +79,7 @@ async function background(
         "No Project with that projectId here; drop projectId or use one from your context.",
       );
     lines.push(
-      `Project "${project.name}": ${clip(project.description, BACKGROUND_CHARS) || "no description"}`,
+      `Project "${project.name}": ${clip(project.briefing, BACKGROUND_CHARS) || "no briefing"}`,
     );
   }
   return lines;
