@@ -168,6 +168,31 @@ describe.skipIf(!enabled)("openAccountQuestion", () => {
     await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
   });
 
+  it("is not open in a room its reply never reached (no delivery row)", async () => {
+    const now = new Date();
+    const asked = await askedOn(
+      await turnAt(new Date(now.getTime() - HOUR), { roomId: ROOM }),
+    );
+    expect(await openAccountQuestion(scope(now, ROOM))).toBeNull();
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
+  it("offers only accounts still connected", async () => {
+    const now = new Date();
+    const asked = await askedOn(await turnAt(new Date(now.getTime() - HOUR)));
+    await prisma.projectSocialConnection.update({
+      where: { id: B },
+      data: { status: "revoked" },
+    });
+    const open = await openAccountQuestion(scope(now));
+    expect(open?.options.map((option) => option.id)).toEqual([A]);
+    await prisma.projectSocialConnection.update({
+      where: { id: B },
+      data: { status: "active" },
+    });
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
   it("holds one question per asking turn and provider", async () => {
     const turn = await turnAt(new Date(Date.now() - HOUR));
     const asked = await askedOn(turn);

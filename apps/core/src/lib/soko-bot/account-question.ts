@@ -33,34 +33,40 @@ export async function openAccountQuestion(
         gte: new Date(scope.turnCreatedAt.getTime() - ACCOUNT_QUESTION_OPEN_MS),
       },
       OR: [{ answeredTurnId: null }, { answeredTurnId: scope.turnId }],
-      // Delivered: the reply that asked reached the chat (a room delivery
-      // that failed or was held back leaves the question unasked). The
-      // Personal Assistant page shows the turn's own answer, so its room
-      // delivery is recorded as suppressed for that page.
+      // Delivered: the reply that asked reached the chat. A room turn needs
+      // its delivery to that room (one that failed, was held back or never
+      // made leaves the question unasked); the Personal Assistant page shows
+      // the turn's own answer, so its room delivery is recorded as
+      // suppressed for that page. A turn without a room has no delivery.
       turn: {
         status: "COMPLETED",
         finalAnswer: { not: null },
-        OR: [
-          { deliveries: { none: {} } },
-          {
-            deliveries: {
-              some: {
-                OR: [
-                  { status: { in: ["PERSISTED", "PUBLISHED"] } },
-                  { status: "SUPPRESSED", reason: "ASSISTANT_PAGE" },
-                ],
+        ...(scope.destinationRoomId
+          ? {
+              deliveries: {
+                some: {
+                  roomId: scope.destinationRoomId,
+                  OR: [
+                    { status: { in: ["PERSISTED", "PUBLISHED"] } },
+                    { status: "SUPPRESSED", reason: "ASSISTANT_PAGE" },
+                  ],
+                },
               },
-            },
-          },
-        ],
+            }
+          : {}),
       },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: { id: true, optionIds: true },
   });
   if (!question) return null;
+  // Only options that can still take a post: connected, in an open Project.
   const options = await prisma.projectSocialConnection.findMany({
-    where: { id: { in: question.optionIds } },
+    where: {
+      id: { in: question.optionIds },
+      status: "active",
+      project: { closedAt: null, closingAt: null },
+    },
     select: {
       id: true,
       externalHandle: true,
