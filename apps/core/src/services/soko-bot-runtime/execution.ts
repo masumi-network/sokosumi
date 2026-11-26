@@ -47,6 +47,7 @@ import {
   READ_CALLS_PER_WRITE_CALL,
   TOOL_CALL_STALE_MS,
 } from "./execution-limits";
+import { readMemory } from "./memory";
 import { type RuntimeOperations } from "./operations";
 import { persistedErrorDetail } from "./seller-recovery";
 
@@ -180,6 +181,15 @@ export async function executeTool(
         if (!preview || preview.state !== "available")
           throw new SokoBotRuntimeAuthorizationError("Result unavailable");
         return { ...snapshot, data: preview };
+      }
+      if (input.capability === "read_memory") {
+        // The stored result is the 16 KB audit copy; the model gets the
+        // revision the first read saw, whole.
+        // A first read that found no memory replays as that: no memory,
+        // even if a revision was saved since.
+        const pinned = (existing.result as { id?: unknown } | null)?.id;
+        if (typeof pinned !== "string") return existing.result;
+        return readMemory(authorized.turn.sokoBotId, pinned);
       }
       if (
         [

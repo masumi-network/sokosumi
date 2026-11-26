@@ -36,7 +36,7 @@ import { claimsAction } from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
-import { fitToolResult } from "./tool-result-fit";
+import { fitToolResult, TOOL_RESULT_SHORTENED_EVENT } from "./tool-result-fit";
 import { modelContextBlock } from "./turn-model-context";
 import type { TurnPart } from "./turn-parts";
 
@@ -554,6 +554,12 @@ export async function runTurnTool(input: {
   // A script reads the whole result; the model reads one that fits.
   if (input.cite === false) return result;
   const fitted = fitToolResult(capability, result);
+  // A check that needs the model to have read something whole (memory)
+  // must not count a shortened copy.
+  if (fitted !== result)
+    await log.append(
+      runtimeEvent(TOOL_RESULT_SHORTENED_EVENT, { name: capability, callId }),
+    );
   return ACTION_CAPABILITIES.has(capability)
     ? fitted
     : { evidenceToolCallId: callId, result: fitted };

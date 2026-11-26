@@ -5,8 +5,24 @@
  */
 export const TOOL_RESULT_MAX_CHARS = 16_000;
 
-/** Bounded already: the context packet has its own byte budget. */
-const UNCAPPED_RESULTS: ReadonlySet<string> = new Set(["refresh_context"]);
+/** Runtime event naming a call whose result the model got shortened. */
+export const TOOL_RESULT_SHORTENED_EVENT = "action.result_shortened";
+
+/**
+ * Reads bounded already, and whole documents a cut copy would harm: the
+ * context packet has its own byte budget; memory is at most 16 KB and
+ * update_memory replaces all of it, so the model must see every entry; Cuso's
+ * reads cut themselves at 24 KB with their own note (`cmo-reads.ts`).
+ */
+const UNCAPPED_RESULTS: ReadonlySet<string> = new Set([
+  "refresh_context",
+  "read_memory",
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
+]);
 
 const SHORTENED_NOTE =
   "This result was too long to show whole, so the end of the lists above is left out (see omitted). Ask again more narrowly: a smaller limit, a filter, a date range, or the next page.";
