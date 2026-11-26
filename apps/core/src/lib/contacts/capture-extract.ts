@@ -664,6 +664,136 @@ export function parseXDmEvent(raw: unknown): XDmEvent | null {
 }
 
 /**
+ * What a DM walk learned so far, small enough for the capture cursor: who
+ * wrote on which day in each conversation (no message text), and the people
+ * in them. A conversation too large to count stays as a marker only, and past
+ * `X_WALK_CONVERSATIONS` the contacts are written and only the current day's
+ * talk is kept.
+ */
+export interface XDmWalk {
+  /** The next page; null before the first. */
+  token: string | null;
+  /** It read back to `from`; only the contacts are left to write. */
+  reached: boolean;
+  /** The newest event it read, kept as `newestDmId` once it finishes. */
+  newestId: string | null;
+  /** Everything after this was read once the walk finishes. */
+  startedAt: string;
+  talk: Record<
+    string,
+    { members: string[]; days: Record<string, string[]>; large?: true }
+  >;
+  users: Record<string, { name: string | null; username: string }>;
+}
+
+/**
+ * Conversations a walk holds before it writes their contacts and keeps only
+ * the current day's; one day with more keeps all of that day's.
+ */
+export const X_WALK_CONVERSATIONS = 300;
+
+export function newXDmWalk(startedAt: string): XDmWalk {
+  return {
+    token: null,
+    reached: false,
+    newestId: null,
+    startedAt,
+    talk: {},
+    users: {},
+  };
+}
+
+/**
+ * The walk with one more page: its events and the people a kept conversation
+ * names. A copy, so a caller commits it only once the page is fully handled.
+ * Nothing is left out. `overflow`: it now holds more than
+ * `X_WALK_CONVERSATIONS`; the caller writes its contacts and keeps
+ * `keepXDmDay` of it.
+ */
+export function addXDmPage(
+  walk: XDmWalk,
+  page: { events: readonly XDmEvent[]; users: readonly XUser[] },
+): { walk: XDmWalk; overflow: boolean } {
+  const next: XDmWalk = structuredClone(walk);
+  for (const event of page.events) {
+    let conversation = next.talk[event.conversationId];
+    if (!conversation) {
+      conversation = { members: [], days: {} };
+      next.talk[event.conversationId] = conversation;
+    }
+    if (conversation.large) continue;
+    const pair = event.conversationId.split("-");
+    conversation.members = [
+      ...new Set([
+        ...conversation.members,
+        ...event.participantIds,
+        ...(pair.length === 2 ? pair : []),
+        event.senderId,
+      ]),
+    ];
+    // The owner plus more than a small group: never a conversation.
+    if (conversation.members.length > X_SMALL_GROUP + 1) {
+      next.talk[event.conversationId] = { members: [], days: {}, large: true };
+      continue;
+    }
+    const day = event.createdAt.slice(0, 10);
+    conversation.days[day] = [
+      ...new Set([...(conversation.days[day] ?? []), event.senderId]),
+    ];
+  }
+  const named = new Set(
+    Object.values(next.talk).flatMap((conversation) => conversation.members),
+  );
+  for (const user of page.users)
+    if (named.has(user.id))
+      next.users[user.id] = { name: user.name, username: user.username };
+  return {
+    walk: next,
+    overflow: Object.keys(next.talk).length > X_WALK_CONVERSATIONS,
+  };
+}
+
+/**
+ * After its contacts were written, the part of a walk later pages can still
+ * add to: pages go back in time, so only conversations with talk on `day`
+ * (the oldest day read so far), with that day alone, and their people.
+ */
+export function keepXDmDay(walk: XDmWalk, day: string): XDmWalk {
+  const talk: XDmWalk["talk"] = {};
+  for (const [id, conversation] of Object.entries(walk.talk)) {
+    const senders = conversation.days[day];
+    if (senders)
+      talk[id] = { members: conversation.members, days: { [day]: senders } };
+  }
+  const named = new Set(
+    Object.values(talk).flatMap((conversation) => conversation.members),
+  );
+  return {
+    ...walk,
+    talk,
+    users: Object.fromEntries(
+      Object.entries(walk.users).filter(([id]) => named.has(id)),
+    ),
+  };
+}
+
+/** One event per person and day, as `extractXDms` reads them. */
+export function xDmWalkEvents(walk: XDmWalk): XDmEvent[] {
+  return Object.entries(walk.talk).flatMap(([conversationId, conversation]) =>
+    Object.entries(conversation.days).flatMap(([day, senders]) =>
+      senders.map((senderId) => ({
+        id: "",
+        conversationId,
+        senderId,
+        participantIds: conversation.members,
+        createdAt: `${day}T12:00:00.000Z`,
+        text: "",
+      })),
+    ),
+  );
+}
+
+/**
  * One interaction per person per day the owner wrote in a conversation, like
  * Slack. A one-to-one conversation id is the two user ids joined by a dash.
  */
