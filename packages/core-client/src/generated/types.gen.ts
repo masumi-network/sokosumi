@@ -16644,7 +16644,10 @@ export type SokoBotVersion = {
     }>;
     capabilities: Array<string> | null;
     inferenceRegion?: 'eu' | 'us' | null;
-    systemPrompt: string;
+    /**
+     * The composed system prompt. Sent to platform admins only, for the behaviour lab.
+     */
+    systemPrompt?: string;
 };
 
 export type UpdateSokoBotProactiveRequest = {
